@@ -56,6 +56,31 @@ list below is the evidence, and a notice would stay on the page until the next
 navigation. The rule is in `skills/gogogo-ui/SKILL.md` and
 [UI compositions](ui-compositions.md#7-transient-feedback-toast).
 
+The sentence under the form explains what the delay IS ("a DagNats `sleep`
+step"). For an operator in a binary with the engine wired, that word links to
+`/dagnats/`, so the claim is checkable where the run is visible; everyone else
+reads it as plain text, because the console fence answers 403 (see
+[Admin & Dashboard](admin-dashboard.md#dagnats-console)).
+
+## Panels: State and Stack
+
+The inbox is a page with machinery beside it, so it carries both shell panel
+sections:
+
+- **[ State ]** — the delivery pipeline: durable engine `wired`/`off`, the
+  channels this account can reach (`in-app`, plus `email` when the router has a
+  transport and the session has an address), and one row per channel/status
+  bucket of the `notifications` table. The buckets count the external rows the
+  inbox list deliberately hides, which is the panel's point: acceptance is not
+  arrival, and a skip is a record.
+- **[ Stack ]** — the technology key (`notificationsStack`): DagNats workflows,
+  the delivery router, the SSE hub, Turso and Datastar, each with what it does
+  *here*.
+
+The counts are a page-load snapshot. The list beside them is the live surface
+(the stream patches `#inbox` on every delivery); the panel answers "what
+machinery is behind this page", not "how many unread".
+
 ## The durable path
 
 Scheduling starts the `reminder` workflow (`internal/dagnats/reminder.go`):

@@ -16,7 +16,7 @@ import (
 
 func TestUserMenuLogoutActuallyPosts(t *testing.T) {
 	var buf bytes.Buffer
-	if err := authviews.UserMenu("demo1@demo.app", "admin", nil).Render(context.Background(), &buf); err != nil {
+	if err := authviews.UserMenu("demo1@demo.app", "admin", nil, false).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("render user menu: %v", err)
 	}
 	html := buf.String()
@@ -61,7 +61,7 @@ func TestUserMenuCarriesConfigOnlyForAdmins(t *testing.T) {
 	render := func(role string) string {
 		t.Helper()
 		var buf bytes.Buffer
-		if err := authviews.UserMenu("demo1@demo.app", role, nil).
+		if err := authviews.UserMenu("demo1@demo.app", role, nil, false).
 			Render(context.Background(), &buf); err != nil {
 			t.Fatalf("render user menu (%s): %v", role, err)
 		}
@@ -76,5 +76,28 @@ func TestUserMenuCarriesConfigOnlyForAdmins(t *testing.T) {
 		if strings.Contains(render(role), `href="/config"`) {
 			t.Errorf("role %q is offered /config (the policy denies it: a click 403s)", role)
 		}
+	}
+}
+
+// TestUserMenuCarriesDagNatsConsoleOnlyForOperators pins the console entry:
+// the fence is admin AND an ADMIN_EMAILS match, so an admin who is not an
+// operator (the published demo account) must not be offered a link that
+// answers 403. The entry was dropped entirely when the fence landed; restoring
+// it for everyone would ship the same dead link.
+func TestUserMenuCarriesDagNatsConsoleOnlyForOperators(t *testing.T) {
+	render := func(operator bool) string {
+		t.Helper()
+		var buf bytes.Buffer
+		if err := authviews.UserMenu("demo1@demo.app", "admin", nil, operator).
+			Render(context.Background(), &buf); err != nil {
+			t.Fatalf("render user menu (operator=%v): %v", operator, err)
+		}
+		return buf.String()
+	}
+	if !strings.Contains(render(true), `href="/dagnats/"`) {
+		t.Error("operator menu is missing the DagNats console entry")
+	}
+	if strings.Contains(render(false), `href="/dagnats/"`) {
+		t.Error("a non-operator admin is offered /dagnats (the fence answers 403)")
 	}
 }

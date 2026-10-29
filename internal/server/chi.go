@@ -292,7 +292,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// The edge wrappers sit above RBAC on purpose: a 403 and a router 404
 	// carry the same headers, and the access log sees both. The rate limiter
 	// sits just inside them so a 429 gets the same headers.
-	handler = rateLimit(cfg.RateLimitRPM, inboxBadgeMiddleware(a, queries)(handler))
+	handler = rateLimit(cfg.RateLimitRPM, shellMiddleware(cfg, a, queries, notificationsH, handler))
 	handler = edgeHandler(cfg, slog.Default(), handler)
 	return &ChiStack{
 		sqlDB:          sqlDB,
