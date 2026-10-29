@@ -753,12 +753,43 @@ async function verifyOfflineTodoQueue(page, context) {
     }
     // Queue a delete offline too, then prove it replays and the UI converges.
     await context.setOffline(true);
+    // The offline edge shows the banner, which shifts the page down once. Let
+    // that layout settle before clicking: the shift is caused by the test, and
+    // racing it made Playwright's stability check spin.
+    await page
+      .locator("#offline-banner.is-offline, #offline-banner.is-queued")
+      .first()
+      .waitFor({ state: "visible", timeout: 10000 })
+      .catch(() => {});
+    await page.waitForTimeout(150);
     // Scope the click to the row (the confirm-modal "Delete" button lives
     // inside the dialog, so an unscoped locator would be ambiguous) and accept
-    // either delete-button marker.
-    await row.locator(
-      'button[aria-label*="Delete"], button[title*="Delete"]',
-    ).first().click();
+    // either delete-button marker. On failure, report WHAT the list holds: a
+    // detached row that never comes back means a patch replaced it.
+    try {
+      await row.locator(
+        'button[aria-label*="Delete"], button[title*="Delete"]',
+      ).first().click({ timeout: 15000 });
+    } catch (e) {
+      const diag = await page.evaluate(() => ({
+        online: navigator.onLine,
+        rows: [...document.querySelectorAll("#todo-list .todo-item")].map((el) => ({
+          id: el.id,
+          pending: el.getAttribute("data-pending"),
+          text: (el.textContent || "").trim().slice(0, 40),
+        })),
+        listText: (document.getElementById("todo-list")?.textContent || "").trim().slice(0, 120),
+        bannerClass: document.getElementById("offline-banner")?.className,
+        activeTab: [...document.querySelectorAll('[role="tab"]')]
+          .find((b) => b.classList.contains("tab-active"))?.textContent,
+        scope: document.querySelector('select[aria-label="Listing scope"]')?.value,
+        q: document.getElementById("todo-search-input")?.value,
+      }));
+      throw new Error(
+        `the delete button never became clickable (${String(e.message || e).split("\n")[0]}): ` +
+          JSON.stringify(diag),
+      );
+    }
     const dialog = page.getByRole("dialog");
     await dialog.getByRole("button", { name: "Delete", exact: true }).click();
     await dialog.waitFor({ state: "hidden" });

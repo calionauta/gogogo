@@ -12,6 +12,10 @@
 // for the notes client — the same answer ate the user's typing in one place
 // and retried in the other.
 //
+// Three things are shared here beyond the retry vocabulary: the cross-tab
+// drain lock (withLock), the report for a queue that could not be persisted
+// (reportStorageDrop), and the banner's persisted lost-change notice.
+//
 // The Service Worker does NOT import this file: it no longer intercepts the
 // API, so there is no worker-side policy to keep in step and no version
 // handshake between the page's copy and the worker's.
@@ -53,9 +57,85 @@
     return next > cap ? cap : next;
   }
 
+  // withLock runs fn under a Web Lock named by the caller, WAITING for the
+  // holder to finish. Every local queue is per-browser, not per-tab: two tabs of
+  // the same note/board share one localStorage/IndexedDB queue, and without a
+  // lock both tabs replay the SAME batch — the notes wire repeats an insert (ops
+  // are not idempotent) and the board sends one op twice. The todo outbox
+  // already serialised its drain this way; this is the same primitive for the
+  // two feature queues.
+  //
+  // WAITING, not ifAvailable: the caller re-reads the store under the lock and
+  // stops when a peer already delivered everything, which is the correct answer.
+  // Skipping would leave this tab's in-memory view of the queue stale. The
+  // caller must therefore NOT start another drain from inside fn — a same-agent
+  // re-request queues behind itself and never resolves.
+  //
+  // No Web Locks (older Safari) = no cross-tab exclusion: running fn is the
+  // pre-existing behaviour, and a false lock would be worse than none.
+  function withLock(name, fn) {
+    if (!global.navigator || !global.navigator.locks) {
+      return Promise.resolve().then(fn);
+    }
+    return global.navigator.locks.request(name, fn);
+  }
+
+  // ---- lost-change notice -------------------------------------------------
+  //
+  // A storage failure is a DROPPED mutation: the queue could not keep the
+  // intent, so it exists only in memory and dies with the tab. Swallowing that
+  // is the "silent catch" the coding standards forbid, and the user has no way
+  // to tell a saved change from a lost one. The banner already renders drops;
+  // this reports one through the same event and persists it, because the page
+  // that discovered the failure may be the one that reloads next.
+  var DROP_KEY = "gogogo:drop-notice";
+  var reported = {};
+
+  function reportStorageDrop(scope, err) {
+    if (global.console && console.warn) {
+      console.warn("offline: could not persist a queued change (" + scope + ")", err);
+    }
+    // One notice per scope per page: a failing quota would otherwise fire on
+    // every keystroke and turn the banner into a counter of retries.
+    if (reported[scope]) return;
+    reported[scope] = true;
+    try {
+      global.dispatchEvent(new CustomEvent("gogogo:outbox", {
+        detail: { dropped: 1, reason: "storage" }
+      }));
+    } catch (_) { /* no window: nothing to tell */ }
+  }
+
+  function rememberDrop(n, why) {
+    try {
+      global.localStorage.setItem(DROP_KEY, JSON.stringify({ n: n, why: why || "" }));
+    } catch (_) { /* storage blocked: the banner still shows this page */ }
+  }
+
+  function readDrop() {
+    try {
+      var raw = global.localStorage.getItem(DROP_KEY);
+      if (!raw) return null;
+      var d = JSON.parse(raw);
+      if (!d || typeof d.n !== "number" || d.n <= 0) return null;
+      return { n: d.n, why: typeof d.why === "string" ? d.why : "" };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function forgetDrop() {
+    try { global.localStorage.removeItem(DROP_KEY); } catch (_) { /* blocked */ }
+  }
+
   global.GogogoOffline = {
     isTransientStatus: isTransientStatus,
     isAuthStatus: isAuthStatus,
-    retryDelay: retryDelay
+    retryDelay: retryDelay,
+    withLock: withLock,
+    reportStorageDrop: reportStorageDrop,
+    rememberDrop: rememberDrop,
+    readDrop: readDrop,
+    forgetDrop: forgetDrop
   };
 })(typeof self !== "undefined" ? self : this);

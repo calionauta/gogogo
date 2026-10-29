@@ -22,7 +22,10 @@ func TestBoardPageLinksBackToIndex(t *testing.T) {
 		t.Fatalf("Board: %v", err)
 	}
 	html := buf.String()
-	for _, want := range []string{`href="/whiteboard"`, "Boards", `data-doc-id="b0ard1"`, `data-shapes=`, "seed-1"} {
+	for _, want := range []string{
+		`href="/whiteboard"`, "Boards", `data-doc-id="b0ard1"`,
+		`data-shapes=`, `data-seeded-at=`, "seed-1",
+	} {
 		if !strings.Contains(html, want) {
 			t.Errorf("board page missing %q", want)
 		}

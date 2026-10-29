@@ -168,8 +168,12 @@
     ensureEmptyState();
   }
 
-  function onQueued(evt) {
-    var item = evt && evt.detail;
+  // applyIntent folds ONE queued intent into the rendered list: the same
+  // function the queued event uses, because that is the only place the shape of
+  // an intent is interpreted. A restore of a CACHED view replays the whole
+  // queue through it, so a tab switch offline cannot show a row the user has
+  // already deleted (or hide one they created).
+  function applyIntent(item) {
     if (!item || !item.url) return;
     if ((item.method || "").toUpperCase() !== "POST") return;
     var url;
@@ -196,6 +200,20 @@
     if (tog) toggle(decodeURIComponent(tog[1]));
   }
 
+  function onQueued(evt) {
+    applyIntent(evt && evt.detail);
+  }
+
+  // applyQueued re-applies every stored intent, oldest first, so a restored
+  // fragment agrees with the queue that the server has not seen yet.
+  function applyQueued() {
+    var queue = window.GogogoOutbox;
+    if (!queue || typeof queue.list !== "function") return;
+    queue.list().then(function (items) {
+      for (var i = 0; i < items.length; i++) applyIntent(items[i]);
+    }).catch(function () {});
+  }
+
   // A mutation that came back with an ERROR STATUS is not a success: the
   // outbox must keep the intent so the drain can classify it (a 5xx retries,
   // a 4xx is dropped with a notice). Datastar resolves the action for any HTTP
@@ -209,12 +227,146 @@
   });
 
   window.addEventListener("gogogo:queued", onQueued);
+
+  // ---- per-view fragment cache -------------------------------------------
+  //
+  // The list is server-rendered, so offline the only honest thing to show is
+  // the LAST render of the view the user is asking for. This captures the
+  // region after every online render and restores it (with its age) when the
+  // browser is offline. It is not a second read path: the server still owns
+  // the query, and the next re-list replaces whatever was restored.
+  //
+  // The view tuple is the four things the server's query depends on. `mode`
+  // (search ranking) is deliberately absent: it is a display variant of the
+  // same rows, and giving it its own entry would double the cache for a
+  // difference the badge already covers.
+  var view = { filter: "all", scope: "all", q: "", after: "" };
+  var captureTimer = null;
+
+  function normalize(next) {
+    return {
+      filter: String((next && next.filter) || "all"),
+      scope: String((next && next.scope) || "all"),
+      q: String((next && next.q) || ""),
+      after: String((next && next.after) || ""),
+    };
+  }
+
+  // seedView reads the view the page was RENDERED with: data-signals for the
+  // server-owned filter/scope, the bound inputs for the client-owned query and
+  // date. Reading them once is enough; later changes arrive as signal patches.
+  function seedView() {
+    var host = document.querySelector("[data-signals]");
+    if (host) {
+      try {
+        var seed = JSON.parse(host.getAttribute("data-signals") || "{}");
+        if (typeof seed.filter === "string") view.filter = seed.filter;
+        if (typeof seed.scope === "string") view.scope = seed.scope;
+        if (typeof seed.createdAfter === "string") view.after = seed.createdAfter;
+      } catch (_) { /* keep the defaults */ }
+    }
+    var box = document.getElementById("todo-search-input");
+    if (box && typeof box.value === "string") view.q = box.value;
+  }
+
+  document.addEventListener("datastar-signal-patch", function (evt) {
+    var d = evt.detail || {};
+    var changed = false;
+    if (typeof d.filter === "string") { view.filter = d.filter; changed = true; }
+    if (typeof d.scope === "string") { view.scope = d.scope; changed = true; }
+    if (typeof d.searchQuery === "string") { view.q = d.searchQuery; changed = true; }
+    if (typeof d.createdAfter === "string") { view.after = d.createdAfter; changed = true; }
+    if (changed) scheduleCapture();
+  });
+
+  function capture() {
+    // A restored view must never re-date itself: offline, the timestamp in the
+    // badge is the truth about the HTML on screen.
+    if (!navigator.onLine) return;
+    var host = list();
+    if (!host || !window.GogogoViews) return;
+    // Pending rows are placeholders this browser owns; restorePending rebuilds
+    // them from the queue, so caching them would draw every queued row twice.
+    var copy = host.cloneNode(true);
+    var pending = copy.querySelectorAll(".todo-item[data-pending]");
+    for (var i = 0; i < pending.length; i++) pending[i].remove();
+    window.GogogoViews.save("todo", view, copy.outerHTML);
+  }
+
+  function scheduleCapture() {
+    if (!navigator.onLine) return;
+    clearTimeout(captureTimer);
+    captureTimer = setTimeout(capture, 600);
+  }
+
+  function hideNote() {
+    var el = document.getElementById("todo-view-cache-note");
+    if (el) el.classList.add("hidden");
+  }
+
+  function showNote(at) {
+    var el = document.getElementById("todo-view-cache-note");
+    if (!el) return;
+    var d = new Date(at);
+    var hh = ("0" + d.getHours()).slice(-2);
+    var mm = ("0" + d.getMinutes()).slice(-2);
+    el.textContent = "Offline — showing this view as it was at " + hh + ":" + mm + ". It refreshes when you reconnect.";
+    el.classList.remove("hidden");
+  }
+
+  // restore swaps the region for the cached render of the REQUESTED view and
+  // returns whether it did. The caller applies the signals only on true, so a
+  // miss can never leave a tab/scope claiming a view the list is not showing.
+  function restore(next) {
+    if (navigator.onLine) return false;
+    var host = list();
+    var cache = window.GogogoViews;
+    if (!host || !cache) return false;
+    // The view model only moves when the restore SUCCEEDS: a miss must not
+    // leave the next capture filing this list under a view it does not show.
+    var target = normalize(next);
+    var entry = cache.load("todo", target);
+    if (!entry) return false;
+    view = target;
+    host.outerHTML = entry.html;
+    watch();
+    showNote(entry.at);
+    // The cached render predates every queued mutation: draw the creates the
+    // queue is holding, then fold the whole queue in (toggle/delete/clear), so
+    // the view the user sees matches the work the server has not seen.
+    restorePending();
+    applyQueued();
+    return true;
+  }
+
+  // watch re-attaches after a restore: outerHTML replaces the node the old
+  // observer was watching, so a new region needs its own observer.
+  var observer = null;
+  function watch() {
+    var host = list();
+    if (!host || !window.MutationObserver) return;
+    if (observer) observer.disconnect();
+    observer = new MutationObserver(function () {
+      if (navigator.onLine) hideNote();
+      scheduleCapture();
+      scheduleRestore();
+    });
+    observer.observe(host, { childList: true });
+  }
+
   // A queued create from an earlier session has no row here; draw it before the
   // replay lands (the shared outbox started draining on page load), and again
   // whenever a server render replaces the list.
+  seedView();
   restorePending();
-  var listHost = list();
-  if (listHost && window.MutationObserver) {
-    new MutationObserver(scheduleRestore).observe(listHost, { childList: true });
-  }
+  // A cold offline start shows the last render of THIS view; online this is a
+  // no-op, because the server render is newer than any cache entry.
+  if (!navigator.onLine) restore(view);
+  watch();
+  // Seed the cache with the SERVER render of this view: a user who only reads
+  // the page (no mutation) must still find it offline. Online only — a restored
+  // fragment must not be re-dated as if it came from the server.
+  scheduleCapture();
+  window.addEventListener("pagehide", function () { if (navigator.onLine) capture(); });
+  window.GogogoTodoViews = { restore: restore, capture: capture };
 })();

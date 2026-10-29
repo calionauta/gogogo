@@ -72,6 +72,11 @@ const runtimeDir = join(tmp, "runtime");
 mkdirSync(runtimeDir, { recursive: true });
 const env = {
   ...process.env,
+  // A distinct APP_NAME keeps secrets.Load from decrypting the HOST's
+  // production env file (which closes signup) on a developer machine.
+  APP_NAME: "gogogo-notes-caret",
+  ENVIRONMENT: "development",
+  SIGNUP_ENABLED: "true",
   DATA_DIR: runtimeDir,
   DATABASE_PATH: join(runtimeDir, "app.db"),
   NATS_ENABLED: "false",

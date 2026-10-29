@@ -96,6 +96,12 @@ const runtimeDir = join(tmp, "runtime");
 mkdirSync(runtimeDir, { recursive: true });
 const runtimeEnv = {
   ...process.env,
+  // A distinct APP_NAME keeps secrets.Load from decrypting the HOST's
+  // production env file (which closes signup) when the suite runs on a
+  // developer machine that has one.
+  APP_NAME: "gogogo-whiteboard-client",
+  ENVIRONMENT: "development",
+  SIGNUP_ENABLED: "true",
   DATA_DIR: runtimeDir,
   DATABASE_PATH: join(runtimeDir, "app.db"),
   NATS_ENABLED: "false",
@@ -1113,6 +1119,79 @@ async function main() {
     }
   }
   await offCtx.unroute("**/api/whiteboard/**/update*");
+
+  // ---------------------------------------------------------------------------
+  // THE QUEUE BELONGS TO THE BOARD THAT MADE THE OP. The IndexedDB store is
+  // per-ORIGIN, so the first schema (bare ops) made two open boards replay each
+  // other's shapes: board B painted board A's drawing and posted it at B. The
+  // op now carries its board id, and a load only reads its own rows.
+  //
+  // A's write is refused at the ROUTE (not by going offline) so the op stays
+  // queued while the context is still online and the other board can load.
+  //
+  // RED-PROOFED: store the bare op (drop `doc`) and board B paints A's shape.
+  // ---------------------------------------------------------------------------
+  const docOther = "wb-other-" + process.pid;
+  const other = await offCtx.newPage();
+  other.on("pageerror", (e) => pageErrors.push("other-board: " + String(e)));
+  await gotoBoard(other, `${BASE}/whiteboard/${docOther}`);
+  await waitForCanvas(other);
+
+  // Bottom-right: far from the shapes drawn above, so "ink here" can only come
+  // from the queued op of the WRONG board.
+  const SCOPE = { x: 250, y: 220, w: 110, h: 100 };
+  await off.route("**/api/whiteboard/**/update*", (route) => route.abort());
+  await drawRect(off, 250, 230, 350, 320);
+  const readQueuedDoc = () => off.evaluate(() => new Promise((resolve) => {
+    const open = indexedDB.open("whiteboard-outbox");
+    open.onerror = () => resolve("");
+    open.onsuccess = () => {
+      const db = open.result;
+      const all = db.transaction("pending_ops", "readonly").objectStore("pending_ops").getAll();
+      all.onsuccess = () => {
+        db.close();
+        const row = (all.result || []).find((r) => r && r.op);
+        resolve(row ? row.doc : "");
+      };
+      all.onerror = () => { db.close(); resolve(""); };
+    };
+  }));
+  // The IndexedDB write is async: poll instead of sampling once.
+  let queuedDoc = "";
+  for (let i = 0; i < 50 && !queuedDoc; i++) {
+    queuedDoc = await readQueuedDoc();
+    if (!queuedDoc) await sleep(200);
+  }
+  const wantDoc = new URL(off.url()).pathname.split("/").pop();
+  if (queuedDoc === wantDoc) {
+    ok(`a queued op carries its board id (${queuedDoc})`);
+  } else {
+    bad(`the queued op is not scoped to its board: got ${JSON.stringify(queuedDoc)} want ${wantDoc}`);
+  }
+
+  // The other board loads while A's op is still pending. It must not paint it.
+  await gotoBoard(other, `${BASE}/whiteboard/${docOther}`);
+  await waitForCanvas(other);
+  await sleep(600); // KEPT: absence check — the wrong-board paint would be immediate
+  const leaked = await other.evaluate(inkInRegion(SCOPE.x, SCOPE.y, SCOPE.w, SCOPE.h));
+  if (leaked === 0) {
+    ok("board B does not replay board A's queued shape");
+  } else {
+    bad(`board B painted ${leaked} px from board A's queue (cross-board replay)`);
+  }
+
+  // And A still restores its OWN queued shape on reload: scoping must not cost
+  // the durability the queue exists for.
+  await gotoBoard(off, `${BASE}/whiteboard/${docOff}`);
+  await waitForCanvas(off);
+  if (await waitForInk(off, [SCOPE])) {
+    ok("board A repaints its own queued shape after a reload");
+  } else {
+    bad("board A lost its own queued shape on reload (scoping too strict)");
+  }
+  await off.unroute("**/api/whiteboard/**/update*");
+  await other.close();
+
   await offCtx.close();
 
   if (pageErrors.length) {

@@ -19,6 +19,10 @@ templ Assets() {
 	// feature scripts (notes/whiteboard) are classic scripts that read
 	// window.GogogoOffline in document order.
 	<script nonce={ templ.GetNonce(ctx) } defer src={ resources.StaticURL("offline-policy.js") }></script>
+	// offline-views.js is the bounded per-view fragment cache: the last HTML of
+	// a view the user already saw, labelled with its age and replaced by the
+	// next server render. It is not a local store — reads stay server-side.
+	<script nonce={ templ.GetNonce(ctx) } defer src={ resources.StaticURL("offline-views.js") }></script>
 	// offline-outbox.js is the durable outbox every todo write goes through:
 	// the intent is stored before the request leaves, and replayed with its
 	// idempotency key on the next load / reconnect. Before the feature scripts

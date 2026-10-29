@@ -7,7 +7,10 @@
 //   1. SHARED DEVICE   sign-out purges the queue, the next account inherits
 //                      nothing and replays nothing
 //   2. LOGOUT CONFIRM  the sign-out warns only when an intent is queued
-//   3. DROP NOTICE     an intent the server permanently refuses says so
+//   3. DROP NOTICE     an intent the server permanently refuses says so, and
+//                      the notice survives the reload that may follow
+//   3.5 VIEW CACHE     a visited view returns offline with its age; a view the
+//                      browser never rendered refuses instead of lying
 //   4. SHELL CACHE     offline navigation works, and no /api response is ever
 //                      in Cache Storage
 //   5. NO-CACHE MODE   OFFLINE_SYNC_ENABLED=false retires the worker, keeps
@@ -328,6 +331,78 @@ try {
     if (!text.includes("couldn't be saved")) throw new Error(`unexpected notice: ${JSON.stringify(text)}`);
     if (!text.includes("refused")) throw new Error(`the notice lost the reason: ${JSON.stringify(text)}`);
     await waitFor(async () => (await outboxCount(page)) === 0, 15000, "the queue to settle");
+
+    // The tab that noticed the loss is often the one that reloads (or crashes)
+    // a second later. A notice that dies with the page teaches the user the
+    // change was saved, so the drop is persisted and restored.
+    await page.reload({ waitUntil: "load" });
+    await waitFor(() => page.locator("#offline-banner-drop").isVisible(), 12000, "the notice after a reload");
+    const again = await page.locator("#offline-banner-drop").textContent();
+    if (!again.includes("refused")) throw new Error(`the persisted notice lost the reason: ${JSON.stringify(again)}`);
+    // Dismissing it is durable too: it must not come back on the next load.
+    await page.locator("#offline-banner-drop button").click();
+    await page.reload({ waitUntil: "load" });
+    await waitFor(async () => !(await page.locator("#offline-banner-drop").isVisible()), 8000,
+      "the dismissed notice to stay gone");
+    await ctx.close();
+  });
+
+  // ---- 3.5: per-view fragment cache -------------------------------------
+  await check("view cache: a visited view returns offline, dated, and a miss refuses", async () => {
+    const cookie = await freshCookie(BASE, "viewcache");
+    const ctx = await browser.newContext();
+    await ctx.addCookies([{ name: "gogogo_auth", value: cookie, url: BASE + "/" }]);
+    const page = await newPage(ctx, BASE);
+    const title = `view-${Date.now()}`;
+    await input(page).fill(title);
+    await input(page).press("Enter");
+    await waitFor(() => page.getByText(title).first().isVisible(), 15000, "the created row");
+
+    // Visit Active ONLINE: this is the render the cache keeps.
+    await page.getByRole("tab", { name: "Active" }).click();
+    await waitFor(async () => {
+      const keys = await page.evaluate(() =>
+        Object.keys(localStorage).filter((k) => k.startsWith("gogogo:view:todo?")));
+      return keys.some((k) => k.includes("filter=active"));
+    }, 12000, "the Active view to be cached");
+
+    // Back to All, then offline and ask for Active again.
+    await page.getByRole("tab", { name: "All" }).click();
+    await waitFor(async () => {
+      const keys = await page.evaluate(() =>
+        Object.keys(localStorage).filter((k) => k.startsWith("gogogo:view:todo?")));
+      return keys.some((k) => k.includes("filter=all"));
+    }, 12000, "the All view to be cached");
+    await ctx.setOffline(true);
+    await page.getByRole("tab", { name: "Active" }).click();
+    await waitFor(() => page.locator("#todo-view-cache-note").isVisible(), 8000, "the view-age note");
+    const note = (await page.locator("#todo-view-cache-note").textContent()) || "";
+    if (!note.includes("as it was at")) throw new Error(`the note does not date the view: ${JSON.stringify(note)}`);
+    if (!(await page.getByText(title).first().isVisible())) throw new Error("the cached view lost its row");
+    if (await page.locator("#todo-list-offline").isVisible()) throw new Error("a restored view also claimed the request was refused");
+
+
+    // A view this browser has never rendered cannot be faked: the tab must not
+    // move over a list that did not change.
+    await page.getByRole("tab", { name: "Completed" }).click();
+    await waitFor(() => page.locator("#todo-list-offline").isVisible(), 8000, "the refusal hint");
+    const activeClass = (await page.getByRole("tab", { name: "Active" }).getAttribute("class")) || "";
+    if (!activeClass.includes("tab-active")) throw new Error("a refused view still moved the tab");
+
+
+    // A restore must agree with the QUEUE, not just with the cache: a row
+    // deleted offline is still in the cached render, and showing it again
+    // would resurrect work the user already removed.
+    await page.getByText(title).first().locator("xpath=ancestor::div[contains(@class,'todo-item')]").locator('button[title*="Delete"]').click();
+    await page.getByRole("dialog").getByRole("button", { name: "Delete", exact: true }).click();
+    await waitFor(async () => !(await page.getByText(title).first().isVisible()), 8000, "the deleted row to leave the list");
+    await page.getByRole("tab", { name: "All" }).click();
+    await waitFor(() => page.locator("#todo-view-cache-note").isVisible(), 8000, "the second restore");
+    if (await page.getByText(title).first().isVisible()) {
+      throw new Error("a restored view resurrected a row the queue had deleted");
+    }
+
+    await ctx.setOffline(false);
     await ctx.close();
   });
 

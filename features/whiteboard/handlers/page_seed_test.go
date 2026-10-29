@@ -39,6 +39,10 @@ func TestBoardPageSeedsShapes(t *testing.T) {
 	if !strings.Contains(page, "data-shapes=") {
 		t.Fatal("board page has no data-shapes seed")
 	}
+	// The seed is a RENDER-time snapshot, so the offline canvas can date it.
+	if !strings.Contains(page, "data-seeded-at=") {
+		t.Fatal("board page seed has no render time")
+	}
 	if !strings.Contains(page, "shape-seed-1") {
 		t.Fatal("board page seed does not carry the stored shape")
 	}
