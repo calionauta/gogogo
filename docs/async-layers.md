@@ -259,12 +259,14 @@ and answers no query, so it cannot merge a write or invent a row.
 
 **Background GETs carry no state.** Every Datastar `@get` on a page with a big
 signal set (the todo list) sent the WHOLE signal state as a `datastar=` query
-param — the todos array included, in every proxy log — and retried a refusal ten
-times. The list, resync, badge and stream actions pass
-`{filterSignals: {exclude: /.*/}, retryMaxCount: 0}`: the URL already carries
-filter/scope/query/clientID, and a failed list is re-requested by the next user
-action. A viewer's inbox poll is not rendered at all (the badge route is
-`user`+, so it was a guaranteed 403 on every focus/visibility event).
+param — the todos array included, in every proxy log. The list, resync, badge and
+stream actions pass `{filterSignals: {exclude: /.*/}}`: the URL already carries
+filter/scope/query/clientID. List retries stay at the default (idempotent, and a
+transient 5xx is what retries are for); the badge is the one action with
+`retryMaxCount: 0`, because a viewer can only ever get a 403 there — and the
+refresh control is not rendered for a viewer at all (the badge route is `user`+).
+A failed action also clears `$loading`, so dropping the badge retries did not
+trade a storm for a stuck composer.
 
 **The board is a viewport, not a canvas copy.** Shapes are stored in WORLD
 coordinates; the view (pan/zoom) maps them onto each screen. The first

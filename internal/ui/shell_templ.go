@@ -160,7 +160,7 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\" data-on:datastar-fetch__document=\"evt.detail.type === 'error' && evt.detail.argsRaw && evt.detail.argsRaw.status === '401' ? window.location.assign('/login?next=' + encodeURIComponent(location.pathname + location.search)) : null\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\" data-on:datastar-fetch__document=\"evt.detail.type === 'error' ? (evt.detail.argsRaw && evt.detail.argsRaw.status === '401' ? window.location.assign('/login?next=' + encodeURIComponent(location.pathname + location.search)) : $loading = false) : null\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

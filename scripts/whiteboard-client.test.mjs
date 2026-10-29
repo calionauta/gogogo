@@ -1077,6 +1077,62 @@ async function main() {
   await mobCtx.close();
 
   // ---------------------------------------------------------------------------
+  // 13.5 ZOOM MATH: after zooming, a screen point maps to the right world point.
+  //
+  // Coordinates are world px now, so a wrong transform would silently place
+  // every shape somewhere else for every peer. The cursor frame is the probe:
+  // zoom twice around the canvas centre (scale 1.5625), move 100 px right of the
+  // centre, and the frame must carry centre+64 world px.
+  // ---------------------------------------------------------------------------
+  const docZoom = "wb-zoommap-" + process.pid;
+  const zoomCtx = await browser.newContext({ viewport: { width: 1100, height: 760 } });
+  await zoomCtx.addCookies([{ name: "gogogo_auth", value: cookie, url: BASE + "/" }]);
+  const zoomPage = await zoomCtx.newPage();
+  await gotoBoard(zoomPage, `${BASE}/whiteboard/${docZoom}?clientID=wb-zoommap`);
+  await waitForCanvas(zoomPage);
+  const zbox = await zoomPage.locator("#wb-canvas").boundingBox();
+  await zoomPage.locator("#wb-zoom-in").click();
+  await zoomPage.locator("#wb-zoom-in").click();
+  // Let the throttled trailing frame from the button hover flush: it carries
+  // the pre-zoom cursor position and would race the frame we are about to wait
+  // for (the only other frame in flight).
+  await zoomPage.waitForTimeout(200); // KEPT: settle window — trailing throttle frame
+  const frameReq = zoomPage.waitForRequest(
+    (r) => r.url().includes("/presence") && r.method() === "POST",
+    { timeout: 10000 },
+  );
+  await zoomPage.mouse.move(zbox.x + zbox.width / 2 + 100, zbox.y + zbox.height / 2);
+  const frameBody = JSON.parse((await frameReq).postData() || "{}");
+  const expWorldX = zbox.width / 2 + 100 / 1.5625;
+  const expWorldY = zbox.height / 2;
+  if (Math.abs(frameBody.x - expWorldX) < 2 && Math.abs(frameBody.y - expWorldY) < 2) {
+    ok(`a zoomed screen point maps to the right world point (${frameBody.x.toFixed(1)}, ${frameBody.y.toFixed(1)})`);
+  } else {
+    bad(`zoom mapping is wrong: frame ${JSON.stringify({ x: frameBody.x, y: frameBody.y })}, want ~(${expWorldX.toFixed(1)}, ${expWorldY.toFixed(1)})`);
+  }
+  // Panning must move the world under the pointer by exactly the drag delta
+  // divided by the scale (the same view fields the two-finger gesture writes).
+  await zoomPage.mouse.move(zbox.x + zbox.width / 2, zbox.y + zbox.height / 2);
+  await zoomPage.mouse.down({ button: "middle" });
+  await zoomPage.mouse.move(zbox.x + zbox.width / 2 + 50, zbox.y + zbox.height / 2 + 30, { steps: 3 });
+  await zoomPage.mouse.up({ button: "middle" });
+  await zoomPage.waitForTimeout(200); // KEPT: settle window — trailing throttle frame
+  const panReq = zoomPage.waitForRequest(
+    (r) => r.url().includes("/presence") && r.method() === "POST",
+    { timeout: 10000 },
+  );
+  await zoomPage.mouse.move(zbox.x + zbox.width / 2 + 100, zbox.y + zbox.height / 2);
+  const panBody = JSON.parse((await panReq).postData() || "{}");
+  const expPanX = expWorldX - 50 / 1.5625;
+  const expPanY = expWorldY - 30 / 1.5625;
+  if (Math.abs(panBody.x - expPanX) < 2 && Math.abs(panBody.y - expPanY) < 2) {
+    ok(`a middle-drag pan maps the world correctly (${panBody.x.toFixed(1)}, ${panBody.y.toFixed(1)})`);
+  } else {
+    bad(`pan mapping is wrong: frame ${JSON.stringify({ x: panBody.x, y: panBody.y })}, want ~(${expPanX.toFixed(1)}, ${expPanY.toFixed(1)})`);
+  }
+  await zoomCtx.close();
+
+  // ---------------------------------------------------------------------------
   // 14. PRESENCE: closing a tab must drop the count in real time.
   // ---------------------------------------------------------------------------
   const docPresence = "wb-presence-" + process.pid;

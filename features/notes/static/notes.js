@@ -494,6 +494,10 @@
   let pendingAdopt = null;
   function adoptRemote(text, rev) {
     if (typeof text !== "string") return;
+    // A deferred adopt (pendingAdopt) can outlive the revision it came from: a
+    // 409 rebase may have advanced REV past it. Applying the older text then
+    // would replace the merged text and lose our own insert on screen.
+    if (typeof rev === "number" && rev < REV) { pendingAdopt = null; return; }
     if (typeof rev === "number" && rev > REV) { REV = rev; serverText = text; }
     if (text === ta.value) { clean = !outbox.length; pendingAdopt = null; return; }
     if (outbox.length || flushing) { pendingAdopt = { text: text, rev: rev }; return; }
@@ -586,6 +590,7 @@
     renderCarets();
     outbox.push({ ops: ops, base: REV });
     saveOutbox();
+    rebasedRemote = null; // a new batch supersedes the last 409's context
     clean = false;
     attempts = 0;
     flush();
@@ -712,8 +717,12 @@
         attempts++;
         if (res.body.authed === true) setSession(true);
         else if (res.body.authed === false) setSession(false);
-        const remote = diffOps(res.body.text, sentBase || serverText);
+        // Rebase against the NEWEST text we know. The stream may have advanced
+        // past the 409 body while our batch was in flight; adopting only the
+        // body (and sending with a newer base) would apply positions valid for
+        // an older text.
         adoptRemote(res.body.text, res.body.rev);
+        const remote = diffOps(serverText, sentBase || serverText);
         const moved = transformOps(sentOps || [], remote);
         if (moved && moved.length) {
           outbox = [{ ops: moved, base: REV }];
@@ -744,12 +753,16 @@
         // Adopt it before recomputing, or the stale textarea produces a delete
         // that erases the peer's text a second time. Only when the user has not
         // typed since the send — newer keystrokes are recomputed as before.
-        if (!outbox.length && rebasedRemote && ta.value === lastSentText) {
-          const caret = shiftPos(rebasedRemote, ta.selectionStart || 0, true);
+        const rebase = rebasedRemote;
+        rebasedRemote = null; // consume once: a later success must not reuse it
+        if (!outbox.length && rebase && ta.value === lastSentText) {
+          const caret = shiftPos(rebase, ta.selectionStart || 0, true);
           ta.value = d.text;
           const at = caret < 0 ? d.text.length : Math.min(caret, d.text.length);
           try { ta.setSelectionRange(at, at); } catch (err) { /* non-fatal */ }
-          rebasedRemote = null;
+          // The deferred adopt (if any) holds the PRE-merge text; keeping it
+          // would let the 250ms interval overwrite the merged text.
+          pendingAdopt = null;
         }
         // Recompute the remainder against the fresh base: queued ops were
         // positioned on older text and would 409 for sure.

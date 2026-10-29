@@ -554,7 +554,19 @@
           return n;
         });
       });
-    }).catch(function () { return 0; });
+    }).catch(function () {
+      // The chain can reject before the final then (a storage failure mid-pass).
+      // Close the state here too: the delayed "syncing" timer would otherwise
+      // fire after the failure and leave the bar up with nobody to lower it.
+      // Report the real remaining count, not a made-up zero.
+      return count().then(function (n) {
+        stopSyncing(n);
+        return 0;
+      }, function () {
+        stopSyncing(0);
+        return 0;
+      });
+    });
   }
 
   // drain(force) runs one pass. Only an EXPLICIT caller (online, visible,

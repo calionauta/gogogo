@@ -84,7 +84,7 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 		<body
 			class="bg-base-200 min-h-screen"
 			data-module={ d.Module }
-			data-on:datastar-fetch__document="evt.detail.type === 'error' && evt.detail.argsRaw && evt.detail.argsRaw.status === '401' ? window.location.assign('/login?next=' + encodeURIComponent(location.pathname + location.search)) : null"
+			data-on:datastar-fetch__document="evt.detail.type === 'error' ? (evt.detail.argsRaw && evt.detail.argsRaw.status === '401' ? window.location.assign('/login?next=' + encodeURIComponent(location.pathname + location.search)) : $loading = false) : null"
 			if d.StreamPage {
 				data-stream-page="1"
 			}>

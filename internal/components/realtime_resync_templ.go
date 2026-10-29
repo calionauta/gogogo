@@ -28,11 +28,12 @@ import templruntime "github.com/a-h/templ/runtime"
 // attributes, so no script needs it. The load-time go() call stays a
 // script (bootstrap, same class as the SSE opener).
 
-// fragmentOpts keeps a re-list request small and non-retrying. The URL already
-// carries filter/scope/query, so Datastar's default signal blob is dead weight
-// (it rode every request as a `datastar=` param, todos included), and a
-// fragment that fails is re-fetched by the next event anyway.
-const fragmentOpts = "{filterSignals: {exclude: /.*/}, retryMaxCount: 0}"
+// fragmentOpts keeps a re-list request small. The URL already carries
+// filter/scope/query, so Datastar's default signal blob is dead weight (it rode
+// every request as a `datastar=` param, todos included). Retries stay at the
+// default: the fragment is idempotent and a transient failure should recover on
+// its own.
+const fragmentOpts = "{filterSignals: {exclude: /.*/}}"
 
 func ListResync(buttonID, fragmentExpr string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
@@ -62,7 +63,7 @@ func ListResync(buttonID, fragmentExpr string) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(buttonID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/realtime_resync.templ`, Line: 37, Col: 15}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/realtime_resync.templ`, Line: 38, Col: 15}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -75,7 +76,7 @@ func ListResync(buttonID, fragmentExpr string) templ.Component {
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue("@get(" + fragmentExpr + ", " + fragmentOpts + ")")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/realtime_resync.templ`, Line: 40, Col: 68}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/realtime_resync.templ`, Line: 41, Col: 68}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
@@ -88,7 +89,7 @@ func ListResync(buttonID, fragmentExpr string) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue("@get(" + fragmentExpr + ", " + fragmentOpts + ")")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/realtime_resync.templ`, Line: 41, Col: 84}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/realtime_resync.templ`, Line: 42, Col: 84}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {
@@ -101,7 +102,7 @@ func ListResync(buttonID, fragmentExpr string) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue("if(!document.hidden && navigator.onLine){document.getElementById('" + buttonID + "').click()}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/realtime_resync.templ`, Line: 42, Col: 134}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/realtime_resync.templ`, Line: 43, Col: 134}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 		if templ_7745c5c3_Err != nil {
@@ -114,7 +115,7 @@ func ListResync(buttonID, fragmentExpr string) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/realtime_resync.templ`, Line: 46, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/realtime_resync.templ`, Line: 47, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 		if templ_7745c5c3_Err != nil {

@@ -210,8 +210,8 @@ bundle and is not attributed per feature.
 | Room, Landing, Config | inline only (no extra JS) | 0 KB | 0 KB |
 | Chat diagrams | `pele.global.js` + `diagram.js` (progressive enhancement: source stays readable without them) | 695 KB | 269 KB |
 | Todo date filter | `cally.js` (the `<calendar-date>` web component DaisyUI styles as `class="cally"`) | 38 KB | 13 KB |
-| Shared notes | `notes.js` | 43 KB | 15 KB |
-| Whiteboard | `whiteboard.js` + `rough.min.js` | 72 KB | 25 KB |
+| Shared notes | `notes.js` | 44 KB | 16 KB |
+| Whiteboard | `whiteboard.js` + `rough.min.js` | 73 KB | 25 KB |
 | Sounds (plugin, the rail mute) | `cuelume.js` + the modules it imports under `web/resources/static/cuelume/` | 27 KB | 10 KB |
 | Pages with a live stream (Todo, Room, Chat) | `sse-open.js` | 8 KB | 4 KB |
 | Offline policy + outbox (every shell page) | `offline-policy.js` + `offline-outbox.js` | 30 KB | 11 KB |

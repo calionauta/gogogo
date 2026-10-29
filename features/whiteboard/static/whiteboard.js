@@ -76,7 +76,9 @@
   // pan). The palette: wheel zooms, middle-drag pans, two fingers pan/zoom.
   var view = { scale: 1, x: 0, y: 0 };
   var viewTouched = false;
-  var MIN_SCALE = 0.15;
+  // Low enough that a very large board still fits on a phone (a 1 % overview
+  // is unreadable but navigable, which beats an empty canvas).
+  var MIN_SCALE = 0.02;
   var MAX_SCALE = 8;
   var FIT_PAD = 24;
 
@@ -673,7 +675,13 @@
       e.preventDefault();
       return;
     }
+    // Only the primary button draws. A right-click used to start a shape and
+    // then open the context menu on top of it.
+    if (e.button !== 0) return;
     const p = localPos(e);
+    // Drawing is a claim on the view: a peer adding a shape outside it must not
+    // refit the board under the user's hand.
+    viewTouched = true;
     if (tool === "pen") {
       drawing = { id: "s-" + Math.random().toString(36).slice(2, 9), type: "pen", points: [p.x, p.y], color: color };
     } else {

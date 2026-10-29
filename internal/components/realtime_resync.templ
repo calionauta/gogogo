@@ -19,11 +19,12 @@ package components
 // attributes, so no script needs it. The load-time go() call stays a
 // script (bootstrap, same class as the SSE opener).
 
-// fragmentOpts keeps a re-list request small and non-retrying. The URL already
-// carries filter/scope/query, so Datastar's default signal blob is dead weight
-// (it rode every request as a `datastar=` param, todos included), and a
-// fragment that fails is re-fetched by the next event anyway.
-const fragmentOpts = "{filterSignals: {exclude: /.*/}, retryMaxCount: 0}"
+// fragmentOpts keeps a re-list request small. The URL already carries
+// filter/scope/query, so Datastar's default signal blob is dead weight (it rode
+// every request as a `datastar=` param, todos included). Retries stay at the
+// default: the fragment is idempotent and a transient failure should recover on
+// its own.
+const fragmentOpts = "{filterSignals: {exclude: /.*/}}"
 
 templ ListResync(buttonID, fragmentExpr string) {
 	// Offline replays converge through this button too: the SW posts

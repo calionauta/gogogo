@@ -81,12 +81,13 @@ func TodoListQuery(urlExpr, viewExpr, applyExpr string) string {
 		"} else { $loading = true; @get(" + urlExpr + ", " + listRequestOpts + ") }"
 }
 
-// listRequestOpts keeps a list request small and non-retrying. The URL already
-// carries filter/scope/query/clientID, so Datastar's default signal blob is dead
-// weight — it rode every GET as a `datastar=` param and put the whole todos
-// array in the URL. retryMaxCount 0: a refused or failed list is re-requested by
-// the next user action; ten automatic retries only multiplied the noise.
-const listRequestOpts = "{filterSignals: {exclude: /.*/}, retryMaxCount: 0}"
+// listRequestOpts keeps a list request small. The URL already carries
+// filter/scope/query/clientID, so Datastar's default signal blob is dead weight
+// — it rode every GET as a `datastar=` param and put the whole todos array in the
+// URL. Retries stay at the default: a list GET is idempotent and a transient 5xx
+// is exactly what the retry is for (unlike the badge, which a viewer can only
+// ever 403).
+const listRequestOpts = "{filterSignals: {exclude: /.*/}}"
 
 // TodoScopeSelectOn is the scope <select>'s change handler. It differs from
 // the tabs in one way: the select is not bound to the signal, so a refused

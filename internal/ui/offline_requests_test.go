@@ -16,8 +16,10 @@ import (
 //   - no `datastar=` param. Datastar appends the WHOLE signal state to every
 //     action by default; on /todo that included the todos array, producing a
 //     multi-KB URL on each tab click and putting user data in proxy logs.
-//   - no automatic retries. A refused or failed list is re-requested by the next
-//     user action; the default ten retries turned one 403 into a console storm.
+//
+// Retries stay at the default here: a list GET is idempotent, viewers have read
+// access by policy, and a transient 5xx is what the retry is for. The badge is
+// the one action that must not retry (see TestViewerGetsNoInboxPoll).
 func TestListRequestsDoNotShipTheSignalBlob(t *testing.T) {
 	t.Parallel()
 	for name, expr := range map[string]string{
@@ -29,9 +31,6 @@ func TestListRequestsDoNotShipTheSignalBlob(t *testing.T) {
 	} {
 		if !strings.Contains(expr, "filterSignals: {exclude: /.*/}") {
 			t.Errorf("%s request does not exclude the signal blob: %s", name, expr)
-		}
-		if !strings.Contains(expr, "retryMaxCount: 0") {
-			t.Errorf("%s request retries automatically: %s", name, expr)
 		}
 	}
 }
