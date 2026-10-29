@@ -183,7 +183,7 @@ jobs:
         continue-on-error: true
         with:
           path: ~/.cache/go-build
-          key: go-build-${{ runner.os }}-${{ github.job }}-${{ hashFiles('go.mod', 'go.sum') }}
+          key: go-build-${{ runner.os }}-${{ github.job }}-${{ strategy.job-index }}-${{ hashFiles('go.mod', 'go.sum') }}
           restore-keys: |
             go-build-${{ runner.os }}-${{ github.job }}-
       - name: Warm module cache
@@ -420,11 +420,18 @@ jobs:
         # restore costs a cold build, never a red job. What it buys is the cold
         # `-race` compile of 80 packages plus the installer suite's first
         # `go vet ./...` per trimmed tree.
+        #
+        # strategy.job-index is in the key on purpose: both race shards share the
+        # job id, so without it they restore the same entry and the first to
+        # finish overwrites the other's build cache with its own half — measured
+        # as the installer shard swinging between 207s and 404s of test time on
+        # identical code (runs 40875871811 and 40879126850). One key per leg, and
+        # each leg's cache stays useful.
         uses: actions/cache@v4
         continue-on-error: true
         with:
           path: ~/.cache/go-build
-          key: go-build-${{ runner.os }}-${{ github.job }}-${{ hashFiles('go.mod', 'go.sum') }}
+          key: go-build-${{ runner.os }}-${{ github.job }}-${{ strategy.job-index }}-${{ hashFiles('go.mod', 'go.sum') }}
           restore-keys: |
             go-build-${{ runner.os }}-${{ github.job }}-
       - name: Warm module cache
@@ -508,7 +515,7 @@ jobs:
         continue-on-error: true
         with:
           path: ~/.cache/go-build
-          key: go-build-${{ runner.os }}-${{ github.job }}-${{ hashFiles('go.mod', 'go.sum') }}
+          key: go-build-${{ runner.os }}-${{ github.job }}-${{ strategy.job-index }}-${{ hashFiles('go.mod', 'go.sum') }}
           restore-keys: |
             go-build-${{ runner.os }}-${{ github.job }}-
       - name: Warm module cache
