@@ -42,21 +42,29 @@ roughly 1.8x, not 4x, because one package saturates it alone.
 
 ## Result
 
-Measured on the same workflow, three runs (cold cache, warm cache, and warm
-cache after the rejected experiment had thrashed it):
+Measured on the same workflow across nine runs. The progression matters more
+than any single number, because the caches have to fill before the numbers mean
+anything:
+
+| stage | wall-clock |
+|---|---|
+| before | 8.6–12 min (six runs) |
+| first run after the change, every cache cold | 7.6 min |
+| caches warm | 4.8–4.9 min |
+| cache written by the rejected experiment | 5.9 min |
+| **steady state, one cache per matrix leg** | **4.1 min** |
 
 | job | before | after |
 |---|---|---|
-| `race` (the wall) | 620s test | 207–282s (installer shard) / 130–192s (tail shard) |
-| `browser` | 265s | 190–194s (build 76s → 7s) |
-| `checks` | 232s | 105–113s (lint 107s → 18s) |
-| **CI wall-clock** | **8.6–12 min** | **4.8–5.9 min** (two of three runs at 4.8–4.9) |
+| `race` (the wall) | 620s test | 168s (installer shard) and 160s (tail) |
+| `browser` | 265s | 190–197s (build 76s → 7s) |
+| `checks` | 232s | 105–114s (lint 107s → 18s) |
+| `prod-image` | 114s | 108–159s |
 
-The first run of the new workflow was slower than the baseline on three jobs:
-with every cache empty, each job paid a cache *save* and got nothing back. The
-second run is the real number; the third, at 5.9 min, restored a build cache that
-the rejected concurrency experiment had written while thrashing, and it is the
-spread between those two that is the honest variance band.
+The wall is now `browser`, which is where the next look goes: it builds the
+binary and then runs five client suites serially. That is a deliberate choice
+(parallel client suites starve each other's wall-clock waits — see
+local-ci.md), so the lever there is per-suite cost, not more concurrency.
 
 ## What shipped
 
@@ -79,6 +87,12 @@ and saves 16-29s of download — break-even to a net loss, decided by I/O agains
 a proxy. The build cache is the one that pays, and it pays everywhere the Go
 toolchain compiles anything, including `golangci-lint` and `go vet` inside the
 trimmed trees.
+
+**One cache per matrix leg.** Both race shards share a job id, so the first key
+written was shared and the first leg to finish overwrote the other's half-built
+cache: the same code measured 207s of installer test time in one run and 404s in
+another. `strategy.job-index` in the key made the installer shard land at 168s
+and hold there.
 
 ## Rejected, with the evidence
 
