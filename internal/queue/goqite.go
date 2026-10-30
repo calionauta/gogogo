@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"maragu.dev/goqite"
-	_ "turso.tech/database/tursogo"
 
 	"github.com/calionauta/gogogo/config"
 )
@@ -65,10 +64,10 @@ type Queue struct {
 	workers *WorkerPool
 }
 
-// New opens a Turso-backed goqite queue, applies the schema, and
-// returns a ready-to-use Queue with a fresh SSEHub and HandlerRegistry.
-// Turso Database is the template's single SQLite engine (see internal/db):
-// the queue file is just another Turso file, covered by the same backup.
+// New opens a SQLite-backed goqite queue, applies the schema, and returns a
+// ready-to-use Queue with a fresh SSEHub and HandlerRegistry. The driver is
+// platform-selected (tursogo on desktop/server, ncruces on Android); the
+// queue file is just another SQLite file, covered by the same backup.
 func New(cfg *config.Config) (*Queue, error) {
 	return NewAt(cfg.DataDir)
 }
@@ -86,9 +85,9 @@ func NewAt(dataDir string) (*Queue, error) {
 	// Without it a concurrent writer gets SQLITE_BUSY immediately instead of
 	// waiting for the lock, so queue writes fail spuriously under contention.
 	// Turso manages its own journaling, so no journal_mode pragma is needed.
-	db, err := sql.Open("turso", dbPath+"?_busy_timeout=10000")
+	db, err := sql.Open(sqlDriver, queueDSN(dbPath))
 	if err != nil {
-		return nil, fmt.Errorf("queue: open turso at %s: %w", dbPath, err)
+		return nil, fmt.Errorf("queue: open at %s: %w", dbPath, err)
 	}
 
 	if err := applyGoqiteSchema(context.Background(), db); err != nil {

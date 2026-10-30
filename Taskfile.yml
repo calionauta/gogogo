@@ -1,0 +1,30 @@
+version: '3'
+
+vars:
+  APP_NAME: "gogogo"
+  BIN_DIR: "bin"
+  PACKAGE_MANAGER: '{{.PACKAGE_MANAGER | default "npm"}}'
+  VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
+  # Target OS for build/package/run. Defaults to the host OS, and is overridden
+  # by `wails3 build GOOS=...` (or the GOOS env var) for cross-compilation. The
+  # tasks below dispatch to the matching platform Taskfile via this variable.
+  GOOS: '{{.GOOS | default OS}}'
+
+includes:
+  android: ./build/android/Taskfile.yml
+
+tasks:
+  build:
+    summary: Builds the Android APK (spike)
+    cmds:
+      - task: android:build
+
+  package:
+    summary: Packages the Android APK (spike)
+    cmds:
+      - task: android:package
+
+  run:
+    summary: Builds and installs the Android APK on the running emulator (spike)
+    cmds:
+      - task: android:run

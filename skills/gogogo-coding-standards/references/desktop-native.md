@@ -133,7 +133,7 @@ is "one device, one user", keep the embedded NATS and skip the server.
 
 Do not reuse `cmd/desktop` as the Android entrypoint. It owns a desktop window
 and a single-instance lock; Android owns the activity and the WebView origin.
-The 2026-10-30 emulator spike (`spike/mobile`, not merged) proved the shape:
+The opt-in Android target (`cmd/mobile`) proved the shape:
 
 1. **the mobile entrypoint is its own `main`.** Register it with
    `application.RegisterAndroidMain(main)` in an `android`-tagged `init`; the
@@ -167,8 +167,9 @@ The 2026-10-30 emulator spike (`spike/mobile`, not merged) proved the shape:
    cleartext are measurement shortcuts. A release needs Keystore/Keychain,
    deep-link activation, TLS and a real session model. Say so in the docs.
 
-Evidence and screenshots: `docs/research/mobile-android-2026-10.md`; commands,
-logs and cleanup: the spike report on `spike/mobile`.
+Full recipe and invariants: [mobile-android.md](mobile-android.md). Evidence:
+`docs/research/mobile-android-2026-10.md`; commands, logs and cleanup:
+[android-spike-2026-10.md](../../../docs/research/android-spike-2026-10.md).
 
 ## Common failures
 

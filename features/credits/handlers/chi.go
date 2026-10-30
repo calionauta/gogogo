@@ -57,9 +57,9 @@ func NewHandler(a *auth.Auth, svc *credits.Service) *Handler {
 // from app.db by design: billing rows have their own backup/restore story
 // and never share index contention with app reads.
 func OpenTursoLedger(dataDir string) (*sql.DB, error) {
-	db, err := sql.Open("turso", filepath.Join(dataDir, "credits.db")+"?_busy_timeout=10000")
+	db, err := sql.Open(ledgerDriver, ledgerDSN(filepath.Join(dataDir, "credits.db")))
 	if err != nil {
-		return nil, fmt.Errorf("credits: open turso ledger: %w", err)
+		return nil, fmt.Errorf("credits: open ledger: %w", err)
 	}
 	return db, nil
 }

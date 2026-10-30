@@ -115,6 +115,8 @@ export default {
     desc: "Where CI's minutes go, measured per job and per package: sharding by cost, PR-only test selection, narrow caches, and the options that were rejected with evidence." },
   { group: "Research", slug: "mobile-android", file: "research/mobile-android-2026-10.md",
     desc: "The 2026-10-30 Android spike: tursogo has no Android library, ncruces keeps SQL and migrations shared, cmd/gui chose ncruces explicitly, and cmd/mobile is the separate entrypoint." },
+  { group: "Research", slug: "android-spike", file: "research/android-spike-2026-10.md",
+    desc: "The Android spike build log: commands, driver matrix, libc shims, system-bar insets, screenshots, disk usage and cleanup." },
   { group: "Research", slug: "scaffold-choice", file: "research/scaffold-choice-2026-10.md",
     desc: "Why the scaffold prompt offers only the installer units, the three lists that disagree, and the Scaffold class that makes every capability an explicit keep-or-drop." },
   { group: "Ship", slug: "deploy", file: "deploy.md",
