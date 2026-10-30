@@ -1,4 +1,4 @@
-// SCOPE:feature — Platform ledger driver selection (tursogo).
+// SCOPE:plugin — Platform ledger driver selection (tursogo).
 
 //go:build !android
 

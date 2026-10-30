@@ -4,8 +4,8 @@ Reviewed: 2026-10-30
 
 The desktop shell runs on Android only if the data layer runs there. This page
 records what the 2026-10-30 emulator spike proved, what it rejected, and the
-strategy that follows. **Android is still not a supported target**; the working
-spike lives on `spike/mobile` and is not merged.
+strategy that follows. **Android is an opt-in target, not a supported/CI target**; the working
+entrypoint is `cmd/mobile`, built locally like `cmd/desktop` and `cmd/gui`.
 
 ## What the spike proved
 
@@ -113,5 +113,5 @@ It is not the template default.
 
 - `turso-go-platform-libs@v0.8.3/load_turso.go` (GOOS switch, `lib_fallback.go`)
 - `cmd/gui/store.go` (ncruces DSN and the fakecgo/goffi reason)
-- the mobile entrypoint on `spike/mobile` (entrypoint, driver tags, shims)
-- `ANDROID-SPIKE.md` on `spike/mobile` (commands, logs, disk usage, cleanup)
+- `cmd/mobile/` (entrypoint, driver tags, shims)
+- [android-spike-2026-10.md](android-spike-2026-10.md) (commands, logs, disk usage, cleanup)

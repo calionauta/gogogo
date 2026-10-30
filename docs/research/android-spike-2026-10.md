@@ -1,10 +1,11 @@
 # Android spike (2026-10-30)
 
-**Verdict: the ncruces path works on the emulator; Android is still not a
-supported target and this branch is not merged.** The APK builds, installs and
+**Verdict: the ncruces path works on the emulator; Android is an opt-in
+target, not a supported/CI target.** The APK builds, installs and
 renders the real gogogo UI (landing page, Todo list, create via API) against a
-pure-Go SQLite database. Master still boots `internal/db` through tursogo, which
-has no Android library, so nothing on master claims Android support.
+pure-Go SQLite database. `cmd/mobile` and the driver matrix below are the opt-in target; the web
+target still boots `internal/db` through tursogo, which has no Android
+library, so Android is never part of web CI.
 
 Screenshots:
 

@@ -17,7 +17,7 @@ SMOKE_BIN ?= $(OS_TMPDIR)/gogogo-ci-local-web
 # build does not use the wails3 CLI at all — it is a plain `go build` — so no
 # copy of the version belongs here to drift from the module graph.
 
-.PHONY: all build desktop desktop-smoke desktop-sync-smoke run-desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean templ fmt css css-install datastar-lint test lint check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui gui-build gui-test run-gui lint-gui check-generated install-sh-guard check-classes daisyui-lint vocabulary check-docs docs-index check-mcp site site-check
+.PHONY: all build desktop desktop-smoke desktop-sync-smoke mobile run-desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean templ fmt css css-install datastar-lint test lint check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui gui-build gui-test run-gui lint-gui check-generated install-sh-guard check-classes daisyui-lint vocabulary check-docs docs-index check-mcp site site-check
 
 all: build
 
@@ -50,6 +50,22 @@ desktop-smoke:
 # creates appears on the server for the same user id.
 desktop-sync-smoke:
 	@./scripts/desktop-sync-smoke.sh
+
+# mobile builds the Android APK. Local only: no CI job carries the SDK/NDK/
+# emulator (~10 GB), and the target is opt-in like desktop/gui. Prerequisites
+# and the driver matrix: docs/desktop-mobile.md + references/mobile-android.md.
+# The Wails CLI is external (the library is pinned in go.mod); install it with
+# `go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.24` and keep
+# it on PATH. Override with WAILS3=/path/to/wails3.
+WAILS3 ?= wails3
+mobile: templ
+	@command -v $(WAILS3) >/dev/null || { \
+		echo "wails3 not found: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.24"; \
+		exit 1; }
+	@echo "→ Building Android APK (opt-in, local only) v$(VERSION)..."
+	@$(WAILS3) task android:build
+	@$(WAILS3) task android:assemble:apk
+	@echo "  → bin/gogogo.apk"
 
 # run-desktop opens the window. Wails boots the flat stack itself (embedded
 # NATS unless NATS_LEAFNODE_URL is set), so there is nothing else to start.
@@ -362,7 +378,7 @@ cover-diff:
 #   make go-bump              # newest patch of the tree's line
 #   make go-bump DRY=1        # report what would move, write nothing
 #   make go-bump TO=1.27.4    # name the target explicitly
-.PHONY: all build desktop desktop-smoke desktop-sync-smoke run-desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui gui-build gui-test run-gui lint-gui check-generated install-sh-guard check-classes check-docs docs-index
+.PHONY: all build desktop desktop-smoke desktop-sync-smoke mobile run-desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui gui-build gui-test run-gui lint-gui check-generated install-sh-guard check-classes check-docs docs-index
 go-bump:
 	@go run ./cmd/bump-go-toolchain $(if $(TO),--to $(TO)) $(if $(DRY),--dry-run)
 
@@ -571,9 +587,9 @@ reap-stale:
 	@echo "→ reaping stale smoke artifacts (6h+)..."
 	@bash scripts/reap-stale-smoke.sh
 
-.PHONY: all build desktop desktop-smoke desktop-sync-smoke run-desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui gui-build gui-test run-gui lint-gui check-generated install-sh-guard check-classes check-docs docs-index
+.PHONY: all build desktop desktop-smoke desktop-sync-smoke mobile run-desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui gui-build gui-test run-gui lint-gui check-generated install-sh-guard check-classes check-docs docs-index
 
-.PHONY: all build desktop desktop-smoke desktop-sync-smoke run-desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui gui-build gui-test run-gui lint-gui check-generated install-sh-guard check-classes check-docs docs-index
+.PHONY: all build desktop desktop-smoke desktop-sync-smoke mobile run-desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui gui-build gui-test run-gui lint-gui check-generated install-sh-guard check-classes check-docs docs-index
 
 deps:
 	@go mod tidy
@@ -635,6 +651,7 @@ help:
 	@echo "  build          Build binary (unified: everything included)"
 	@echo "  desktop        Build desktop shell (Wails v3) → build/desktop/ (local only, no CI)"
 	@echo "  run-desktop    Build then open the desktop window"
+	@echo "  mobile         Build the Android APK (opt-in, local only) → bin/gogogo.apk"
 	@echo "  gui            Race tests + build the gogpu/ui window → build/gui/ (local only, no CI)"
 	@echo "  run-gui        Open the native gogpu/ui window"
 	@echo "  lint-gui       Full lint on cmd/gui (manual gate, never in CI)"

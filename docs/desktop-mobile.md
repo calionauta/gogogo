@@ -132,12 +132,12 @@ Relation to the Wails path, so the two are not confused:
 
 ## Mobile (Android): spike validated, not supported
 
-Wails v3 targets Android from a Go shared library plus a WebView frontend, but
-**packaging an APK is not wired in this repo**: the pinned CLI
-(v3.0.0-beta.24) has no `android:package` subcommand (only
-`android:overlay:gen`), and the packaging path needs a `Taskfile.yml`.
-`./scripts/desktop-build.sh android` exits with that explanation rather than a
-cryptic error.
+Wails v3 targets Android from a Go shared library plus a WebView frontend.
+**`make mobile` is the opt-in packaging path**: it runs the pinned Wails CLI's
+`android:build` + `android:assemble:apk` against the `Taskfile.yml` and the
+Gradle project under `build/android/`. No CI job compiles it (the SDK/NDK/
+emulator is ~10 GB), and `./scripts/desktop-build.sh android` still exits with
+that explanation rather than a cryptic error.
 
 The 2026-10-30 emulator spike (`spike/mobile`, not merged) proved a working
 path and the constraint that decides it: **tursogo has no Android library**, so
@@ -147,6 +147,32 @@ origin and that driver matrix, the real UI rendered and a todo created through
 the API appeared in the list. Master still opens tursogo and ships no mobile
 target. Evidence, screenshots and the strategy:
 [Mobile Android: the database is the gate](research/mobile-android-2026-10.md).
+
+**Build it locally (opt-in, no CI).** Prerequisites: Android command-line
+tools, `platforms;android-35`, `build-tools;35.0.0`, `ndk;27.2.12479018`,
+`emulator`, an API 35 arm64 system image, JDK 21, and the pinned Wails CLI
+(v3.0.0-beta.24, the version in `go.mod`). Then:
+
+```bash
+export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
+export ANDROID_SDK_ROOT=$ANDROID_HOME
+export ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21
+
+# one-time: install the CLI (the library is pinned in go.mod)
+go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.24
+
+make mobile                       # wails3 task android:build + assemble:apk
+adb install -r bin/gogogo.apk
+adb shell am start -n com.wails.app/.MainActivity
+```
+
+`cmd/mobile` boots the same chi stack on `127.0.0.1:18080`; `MainActivity`
+loads that origin after the bridge boots (retries, cleartext, system-bar
+insets). The database driver is selected by build tag: tursogo on
+desktop/server, `ncruces/go-sqlite3` on Android (see the research page). The
+APK is a spike-quality target: open auth, fixed port, no Keystore, no deep-link
+activation, no TLS. It is never built in CI; the SDK/NDK/emulator is ~10 GB.
 
 iOS is analogous but needs Xcode and a Keychain-backed token.
 
@@ -327,10 +353,10 @@ public demo, and a real deployment owns its own endpoint.
 HTTP + signed token — but the shell is not: loopback/cookie behavior in the
 Android/iOS WebView must be verified, the token belongs in the Keystore/Keychain
 (not a 0600 file), and activation should arrive by deep link/QR instead of a
-paste. Packaging is not wired, so treat mobile as a prepared direction, not a
-supported target, until `make mobile` exists and the smoke runs on a device.
-The 2026-10-30 spike validated the ncruces driver path and the the mobile entrypoint
-entrypoint on an emulator; see
+paste. `make mobile` now builds an opt-in APK locally (no CI), and the
+2026-10-30 spike validated the ncruces driver path and the `cmd/mobile`
+entrypoint on an emulator; it is still not a supported target until a device
+smoke and the Keystore/deep-link work exist. See
 [Mobile Android: the database is the gate](research/mobile-android-2026-10.md).
 
 **Self-contained by design.** No template instance talks to

@@ -28,6 +28,7 @@ Claude Code (`~/.claude.json`) / Cursor (`~/.cursor/mcp.json`) / BB:
 | Tool | Params | Effect |
 |---|---|---|
 | `capabilities_list` | — | Full registry JSON, including each capability's `scaffold` class (core/default/opt-in/manual) |
+| `build_prerequisites` | `platform?` | How to build the desktop shell or the Android target: prerequisites, `make desktop`/`make mobile`, the smoke gates, the Android driver swap (tursogo → ncruces) and the mobile limits. Read-only; same text as `gogogo --help` |
 | `sync_prerequisites` | — | What a desktop build needs to sync: a reachable NATS leaf listener (`NATS_LEAFNODE_LISTEN`), `NATS_TOKEN`, `CLOUD_SYNC_URL`, account identity, a private overlay first. Read-only; same text as `gogogo --help` |
 | `advise_stack` | `need?`, `intent?`, `dir?`, `format?` | Opinions + the command ROUTE: use-case → keep/drop, off switches, and the ordered commands for `intent` (update/port/add-unit/new-feature/scaffold). A `dir` that is not a gogogo checkout gets the copy surface + the export route |
 | `trim_plan` | `name`, `owner?`, `dir?`, `plugins?`, `features?`, `optIn?`, `format?` | Validates ids, shows consequences (default vs opt-in). Changes nothing |

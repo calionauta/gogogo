@@ -1,4 +1,4 @@
-// SCOPE:feature — Platform ledger driver selection (ncruces on Android).
+// SCOPE:plugin — Platform ledger driver selection (ncruces on Android).
 
 //go:build android
 

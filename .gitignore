@@ -15,6 +15,8 @@ tmp/
 # correct by default. Nothing else belongs in bin/ at the root.
 !bin/
 !bin/**
+# The mobile target writes the APK here; never commit a binary.
+bin/*.apk
 
 # Environment
 .env
@@ -79,8 +81,18 @@ posts/
 stelow.json
 
 # Build output for the native targets (`make desktop` → build/desktop/,
-# `make gui` → build/gui/, cross previews → build/cross/).
-/build/
+# `make gui` → build/gui/, cross previews → build/cross/). The Android
+# project is SOURCE (Taskfile + Gradle app); only its generated output is
+# ignored, so `make mobile` is reproducible from a clone.
+/build/*
+!/build/android/
+!/build/config.yml
+/build/android/app/build/
+/build/android/.gradle/
+/build/android/gen/
+/build/android/overlay.json
+/build/android/local.properties
+/build/android/app/src/main/jniLibs/
 
 # Pre-built binaries (belong in releases, not in the repo)
 gogogo-desktop

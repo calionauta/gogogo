@@ -43,6 +43,7 @@ Activate when: editing any `.go` file, spawning a goroutine, creating a channel,
 | Lint failing, adding a rule, CI red | **Enforcement** |
 | Proposing Zig (the native exception), or a NATIVE DESKTOP UI | **Exception-to-go gate** + `references/exception-to-go.md` (a native UI means `nanoui`) |
 | Building the desktop shell (`cmd/desktop`) or the native window (`cmd/gui`) | `references/desktop-native.md` — no CI job compiles either, so the build is the gate |
+| Building the Android target (`cmd/mobile`) | `references/mobile-android.md` — driver matrix, entrypoint, insets, local-only build |
 | Adding a feature or a `.go` file | **Where new code goes** + [`docs/unit-contracts.md`](../../docs/unit-contracts.md) (`gogogo new feature <name>`) |
 | Choosing which units fit a use-case | [docs/use-cases.md](../../docs/use-cases.md) + `advise` |
 | stdlib-only task (no template deps) | **Toolchain / stdlib-only** (below) |
