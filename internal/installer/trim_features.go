@@ -262,17 +262,11 @@ var featureTrimUnits = []trimUnit{
 				path: chiGoFile,
 				substrs: []string{
 					`r.MountFeature("credits", creditsH.Routes())`,
-					"creditsH *creditshandlers.Handler,",
-					"creditsH,",
-				},
-			},
-			{
-				// bootCredits lives beside the composition root, so its two
-				// imports move with it.
-				path: "internal/server/boot_credits.go",
-				substrs: []string{
-					`"github.com/calionauta/gogogo/features/credits"`,
 					`creditshandlers "github.com/calionauta/gogogo/features/credits/handlers"`,
+					"creditsH *creditshandlers.Handler,",
+					// Two tabs: the buildChiMux ARGUMENT line only. The
+					// generic "creditsH," also matched the boot call.
+					"\t\tcreditsH,",
 				},
 			},
 			{
@@ -327,16 +321,8 @@ var featureTrimUnits = []trimUnit{
 		},
 		extraStrips: []fileStrip{
 			{
-				// The whole bootstrap helper plus its call block: nothing
-				// calls it once the call line is dropped, and dead code
-				// that does not compile still breaks the build.
 				path: chiGoFile,
 				rules: []stripRule{
-					{
-						startMarker:       "// bootCredits opens the Turso ledger",
-						endIsClosingBrace: true,
-						endBrace:          "}",
-					},
 					{
 						startMarker:       "creditsH, shutdown, err := bootCredits(",
 						endIsClosingBrace: true,

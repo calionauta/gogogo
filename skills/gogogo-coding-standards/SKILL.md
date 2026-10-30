@@ -35,7 +35,6 @@ Activate when: editing any `.go` file, spawning a goroutine, creating a channel,
 | Goroutines, channels, `context`, shutdown, lifecycle | **Concurrency (deltas)** + `references/go-concurrency-deltas.md` |
 | Spawning actors, supervision, per-entity state | **Entity actors (GoAkt)** |
 | Hot path, allocation, SIMD, "should this be native?" | **Performance** + `references/go-perf.md` |
-| A chart or plot | `references/charts.md` |
 | Runtime diagnostics (statsviz + pprof), the opt-in `perf` unit | [`docs/admin-dashboard.md`](../../docs/admin-dashboard.md) |
 | Any test, fixture, or flake | **Testing** + `references/go-testing.md` |
 | A `.templ` file, Datastar, SSE fragments | **Datastar (.templ)** + `references/datastar.md` |
@@ -149,11 +148,9 @@ entries); discovery: `room-authority` advise preset.
 Full runbook: `references/go-perf.md`.
 
 - pprof before SIMD before Zig. No evidence, no native code.
-- The template's own diagnostics are opt-in and operator-only: `PERF_ENABLED`
-  (dev on, prod off) mounts statsviz at `/debug/statsviz` and pprof at
-  `/debug/pprof` behind the same admin + `ADMIN_EMAILS` fence (`internal/perf`,
-  [`docs/admin-dashboard.md`](../../docs/admin-dashboard.md)). Use them before
-  adding an APM; statsviz answers "now", pprof "why".
+- Runtime diagnostics (statsviz + pprof) are an opt-in unit in the template;
+  see [`docs/admin-dashboard.md`](../../docs/admin-dashboard.md). Use them
+  before adding an APM: statsviz answers "now", pprof "why".
 - `strconv` over `fmt` on hot paths. Pre-allocate slice/map. `strings.Builder` + `Grow`.
 - Do not set `GOMAXPROCS` (container-aware default since 1.25). Do not add `automaxprocs` without measurement.
 - `encoding/json` is v2-backed in 1.27 (faster decode, error text may differ). Do not migrate APIs manually.
@@ -229,7 +226,6 @@ Full rules: `references/datastar.md`.
   named; `manual` is not offered and carries a `Reason`. The prompt and the
   MCP read `internal/capabilities`; a `default`/`opt-in` unit without a trim
   unit fails the installer conformance test. See
-  [`docs/research/scaffold-choice-2026-10.md`](../../docs/research/scaffold-choice-2026-10.md).
 - **New feature code goes in `features/<feature>/handlers/`.** That package is
   the live surface: chi routes, owned auth, `dbgen` queries called directly, the
   same Templ components, the same SSE wire. The entry file is `chi.go` in every
@@ -505,7 +501,6 @@ warnings print and exit 0.
 |---|---|
 | `references/go-concurrency-deltas.md` | wg.Go, errgroup, channels, timers, goleak/synctest/goroutineleak |
 | `references/go-perf.md` | pprof runbook, alloc, GOMAXPROCS, jsonv2, simd gate, demonstration-delay latency |
-| `references/charts.md` | go-echarts (interactive, browser) vs go-analyze/charts (server-rendered PNG/SVG) |
 | `references/go-testing.md` | race, synctest, httptest, B.Loop, SQLite strategy, fix modernizers |
 | `references/datastar.md` | wrapper, scope, PatchElements, whitelist, CSS scan roots |
 | `references/exception-to-go.md` | bans, decision, pin policy, what to vendor and when |

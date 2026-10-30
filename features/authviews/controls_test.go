@@ -16,7 +16,7 @@ import (
 
 func TestUserMenuLogoutActuallyPosts(t *testing.T) {
 	var buf bytes.Buffer
-	if err := authviews.UserMenu("demo1@demo.app", "admin", nil, false, false).
+	if err := authviews.UserMenu("demo1@demo.app", "admin", nil, false).
 		Render(context.Background(), &buf); err != nil {
 		t.Fatalf("render user menu: %v", err)
 	}
@@ -62,7 +62,7 @@ func TestUserMenuCarriesConfigOnlyForAdmins(t *testing.T) {
 	render := func(role string) string {
 		t.Helper()
 		var buf bytes.Buffer
-		if err := authviews.UserMenu("demo1@demo.app", role, nil, false, false).
+		if err := authviews.UserMenu("demo1@demo.app", role, nil, false).
 			Render(context.Background(), &buf); err != nil {
 			t.Fatalf("render user menu (%s): %v", role, err)
 		}
@@ -89,7 +89,7 @@ func TestUserMenuCarriesDagNatsConsoleOnlyForOperators(t *testing.T) {
 	render := func(operator bool) string {
 		t.Helper()
 		var buf bytes.Buffer
-		if err := authviews.UserMenu("demo1@demo.app", "admin", nil, operator, false).
+		if err := authviews.UserMenu("demo1@demo.app", "admin", nil, operator).
 			Render(context.Background(), &buf); err != nil {
 			t.Fatalf("render user menu (operator=%v): %v", operator, err)
 		}
@@ -100,46 +100,5 @@ func TestUserMenuCarriesDagNatsConsoleOnlyForOperators(t *testing.T) {
 	}
 	if strings.Contains(render(false), `href="/dagnats/"`) {
 		t.Error("a non-operator admin is offered /dagnats (the fence answers 403)")
-	}
-}
-
-// TestUserMenuCarriesRuntimeOnlyForOperatorWithPerf pins the runtime
-// dashboard entry: the surface is opt-in (PERF_ENABLED) AND operator-only, so
-// the link needs both flags. Either one alone must not render it — a disabled
-// dashboard would 404 and a non-operator would 403.
-func TestUserMenuCarriesRuntimeOnlyForOperatorWithPerf(t *testing.T) {
-	render := func(operator, perf bool) string {
-		t.Helper()
-		var buf bytes.Buffer
-		if err := authviews.UserMenu("demo1@demo.app", "admin", nil, operator, perf).
-			Render(context.Background(), &buf); err != nil {
-			t.Fatalf("render user menu (operator=%v perf=%v): %v", operator, perf, err)
-		}
-		return buf.String()
-	}
-	html := render(true, true)
-	if !strings.Contains(html, `href="/debug/statsviz/"`) {
-		t.Error("operator menu is missing the runtime dashboard entry")
-	}
-	if !strings.Contains(html, `href="/debug/pprof/"`) {
-		t.Error("operator menu is missing the pprof entry")
-	}
-	dag, stats := strings.Index(html, `href="/dagnats/"`), strings.Index(html, `href="/debug/statsviz/"`)
-	if dag < 0 || stats < 0 || stats < dag {
-		t.Error("runtime stats entry is not placed after the DagNats console entry")
-	}
-	profiles := strings.Index(html, `href="/debug/pprof/"`)
-	if profiles < stats {
-		t.Error("profiles entry is not placed after the runtime stats entry")
-	}
-	for name, body := range map[string]string{
-		"operator without the flag":  render(true, false),
-		"non-operator with the flag": render(false, true),
-	} {
-		for _, href := range []string{`href="/debug/statsviz/"`, `href="/debug/pprof/"`} {
-			if strings.Contains(body, href) {
-				t.Errorf("%s is offered %s (the fence answers 403 or the route 404s)", name, href)
-			}
-		}
 	}
 }

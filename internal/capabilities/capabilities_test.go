@@ -291,7 +291,7 @@ func TestOfferedSetMatchesInstaller(t *testing.T) { // The installer offers exac
 	// source of truth both sides check.
 	want := []string{
 		"dagnats", "goakt", "whiteboard", "landing", "config-view",
-		"credits", "sounds", "room", "genui", "review", "search", "perf",
+		"credits", "sounds", "room", "genui", "review", "search",
 	}
 	byID := ByID()
 	got := slices.Clone(OfferedIDs())
@@ -323,19 +323,6 @@ func TestScaffoldClassIsCoherent(t *testing.T) {
 		if c.Class() == ScaffoldOptIn && c.Kind == KindCore {
 			t.Errorf("core capability %q is opt-in", c.ID)
 		}
-	}
-}
-
-// TestPerfIsOptIn pins the choice this refactor exists for: the diagnostics
-// pair is offered but dropped by default, so a scaffold can ask without
-// forcing statsviz on every project.
-func TestPerfIsOptIn(t *testing.T) {
-	c, ok := ByID()["perf"]
-	if !ok {
-		t.Fatal("perf capability missing")
-	}
-	if got := c.Class(); got != ScaffoldOptIn {
-		t.Errorf("perf class = %q, want opt-in", got)
 	}
 }
 

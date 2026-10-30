@@ -23,7 +23,6 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
 
     go run ./cmd/gogogo --name my-app --owner myorg \
       --plugins dagnats,whiteboard --features landing,config-view \
-      --opt-in perf \
       --no-tui --dry-run --format json --dir ./my-app
     go run ./cmd/gogogo --name my-app --no-tui --yes --dir ./my-app
 
@@ -88,7 +87,7 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
   a feature is a terminal user surface (todo, whiteboard, landing, config).
   Scaffold class decides the default: --plugins/--features keep default
   units (empty or all keeps all, none drops all); --opt-in adds opt-in units
-  (empty keeps none, all adds every one). Not offered here
+  (empty keeps none, all adds every one; this tree has none). Not offered here
   todo (reference implementation), auth (middleware is core), queue (core),
   nats (runtime: NATS_ENABLED=false), llm (runtime: unset GOAI_API_KEY),
   offline-sync (runtime: OFFLINE_SYNC_ENABLED=false).`)

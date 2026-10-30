@@ -99,7 +99,6 @@ manifest, then `make docs-index`; `make check-docs` fails when this block drifts
 - [browser-automation](docs/research/browser-automation-2026-10.md) — chrome-headless-shell vs Lightpanda vs happy-dom vs remote CDP on a shared 8 GB box, and why a Playwright suite's lifecycle, not its engine, is what took the host down.
 - [notify](docs/research/notify-2026-10.md) — The 2026-10-27 notify evaluation: what to copy from a delivery engine, why the inbox stays local, and where an external provider fits.
 - [ci-wall-clock](docs/research/ci-wall-clock-2026-10.md) — Where CI's minutes go, measured per job and per package: sharding by cost, PR-only test selection, narrow caches, and the options that were rejected with evidence.
-- [scaffold-choice](docs/research/scaffold-choice-2026-10.md) — Why the scaffold prompt offers only the installer units, the three lists that disagree, and the Scaffold class that makes every capability an explicit keep-or-drop.
 
 **Ship**
 - [deploy](docs/deploy.md) — Server layout, first-time setup, deploy workflow, build pipeline and version badge.

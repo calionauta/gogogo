@@ -23,7 +23,6 @@ const (
 	unitGenUI      = "genui"
 	unitReview     = "review"
 	unitSearch     = "search"
-	unitPerf       = "perf"
 )
 
 // unitCaps maps installer units to registry capability ids.
@@ -41,7 +40,6 @@ var unitCaps = map[string][]string{
 	// no dirs (external dep); trimming the unit plus `go mod tidy`
 	// drops it from the build.
 	unitReview: {"review", "genkit"},
-	unitPerf:   {"perf"},
 }
 
 // scaffoldFileMode matches a git checkout: scaffolded repo files are 0644
@@ -257,13 +255,10 @@ func buildManifestUnits() []trimUnit {
 	for _, u := range baseTrimUnits {
 		byID[u.id] = u
 	}
-	for _, u := range perfTrimUnit {
-		byID[u.id] = u
-	}
 	order := []string{
 		unitDagnats, unitGoAkt, unitWhiteboard, unitLanding,
 		unitConfigView, unitCredits, unitSounds,
-		unitGenUI, unitReview, unitSearch, unitPerf,
+		unitGenUI, unitReview, unitSearch,
 	}
 	out := make([]trimUnit, 0, len(order))
 	for _, id := range order {

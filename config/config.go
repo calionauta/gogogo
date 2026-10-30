@@ -136,7 +136,6 @@ func Load() *Config {
 		DemoAccounts:  envBool("DEMO_ACCOUNTS_ENABLED", dev),
 
 		SignupEnabled: envBool("SIGNUP_ENABLED", dev),
-		PerfEnabled:   envBool("PERF_ENABLED", dev),
 		RateLimitRPM:  int(envInt("RATE_LIMIT_RPM", defaultRateLimitRPM)),
 		AdminToken:    os.Getenv("ADMIN_UNLOCK_TOKEN"),
 		GoAI: GoAIConfig{

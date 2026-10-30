@@ -12,6 +12,10 @@ import (
 	"github.com/calionauta/gogogo/internal/auth"
 )
 
+// bootCredits opens the Turso ledger, builds the engine (nil when the
+// feature is disabled — routes answer 503), starts its workers and
+// registers its shutdown. Split from BootChi to keep both under the
+// function-length gate.
 func bootCredits(
 	ctx context.Context, cfg *config.Config, shutdown []func(),
 	sqlDB *sql.DB, cancelConsumer context.CancelFunc, a *auth.Auth,

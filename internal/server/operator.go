@@ -27,25 +27,7 @@ import (
 func shellMiddleware(
 	cfg *config.Config, a *auth.Auth, q *dbgen.Queries, engine engineWired, next http.Handler,
 ) http.Handler {
-	return perfPageMiddleware(cfg)(operatorPageMiddleware(cfg, a, engine)(inboxBadgeMiddleware(a, q)(next)))
-}
-
-// perfPageMiddleware seeds ui.WithPerf on page navigations when the runtime
-// dashboard is enabled. It needs no session: the menu entry also requires
-// Operator(ctx), which the operator middleware decides, so this flag alone
-// never offers the link.
-func perfPageMiddleware(cfg *config.Config) func(http.Handler) http.Handler {
-	if cfg == nil || !cfg.PerfEnabled {
-		return func(next http.Handler) http.Handler { return next }
-	}
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if pageRequest(r) {
-				r = r.WithContext(ui.WithPerf(r.Context(), true))
-			}
-			next.ServeHTTP(w, r)
-		})
-	}
+	return operatorPageMiddleware(cfg, a, engine)(inboxBadgeMiddleware(a, q)(next))
 }
 
 // engineWired answers "did this binary start a workflow engine?". It is the

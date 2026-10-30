@@ -41,16 +41,14 @@ templ ThemeToggle() {
 // `operator` is admin AND an ADMIN_EMAILS match, resolved per request by the
 // composition root (internal/server/operator.go). The console fence denies
 // everyone else — including the published demo admin — so offering the entry
-// on role alone would be a link that always answers 403. `perf` is the
-// build/runtime flag for the optional diagnostics pair (statsviz + pprof); it
-// is offered only next to `operator`, never on its own.
+// on role alone would be a link that always answers 403.
 //
 // The sign-out form posts via fetch rather than a plain submit: Datastar
 // preventDefaults every submit carrying data-on:submit, so a native POST would
 // never happen through the framework. method/action stay as the no-JS
 // fallback (native POST -> 303 -> /login still works), which is why the test
 // pins `method="POST"` and `action="/logout"`.
-templ UserMenu(userEmail string, userRole string, prefs templ.Component, operator, perf bool) {
+templ UserMenu(userEmail string, userRole string, prefs templ.Component, operator bool) {
 	if userEmail == "" {
 		<a
 			href="/login"
@@ -106,20 +104,6 @@ templ UserMenu(userEmail string, userRole string, prefs templ.Component, operato
 						<a href="/dagnats/" class="flex items-center gap-2">
 							@icon.Icon("material-symbols:account-tree", "app-menu-icon")
 							DagNats console
-						</a>
-					</li>
-				}
-				if operator && perf {
-					<li>
-						<a href="/debug/statsviz/" class="flex items-center gap-2">
-							@icon.Icon("material-symbols:stack", "app-menu-icon")
-							Runtime stats
-						</a>
-					</li>
-					<li>
-						<a href="/debug/pprof/" class="flex items-center gap-2">
-							@icon.Icon("material-symbols:description", "app-menu-icon")
-							Profiles
 						</a>
 					</li>
 				}

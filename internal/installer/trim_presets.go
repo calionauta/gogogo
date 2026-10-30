@@ -42,7 +42,7 @@ var trimPresets = map[string]trimPreset{
 			"pages with sessions, queue and router.",
 		Drop: []string{
 			unitDagnats, unitGoAkt, unitWhiteboard, unitLanding,
-			unitConfigView, unitCredits, unitSounds, unitGenUI, unitReview, unitSearch, unitPerf,
+			unitConfigView, unitCredits, unitSounds, unitGenUI, unitReview, unitSearch,
 		},
 		Note: "GET / 404s (landing owned the only root route); the navbar " +
 			"brand retargets to /todo. Todo stays as the reference " +
@@ -51,14 +51,14 @@ var trimPresets = map[string]trimPreset{
 	presetNoAI: {
 		Idea: "everything except model surface: drop the credits ledger " +
 			"plus the Ask + chat + review demos.",
-		Drop: []string{unitCredits, unitGenUI, unitReview, unitSearch, unitPerf},
+		Drop: []string{unitCredits, unitGenUI, unitReview, unitSearch},
 		Note: "Todo AI Suggest still works with GOAI_API_KEY, unmetered. " +
 			"The LLM client itself is runtime (unset GOAI_API_KEY hides the " +
 			"button) — the preset deletes the demo surfaces, not the client.",
 	},
 	presetNoCollab: {
 		Idea: "no CRDT canvas/docs: drop the whiteboard bundle.",
-		Drop: []string{unitWhiteboard, unitPerf},
+		Drop: []string{unitWhiteboard},
 		Note: "Removes whiteboard+collab+notes (the only honest shape: " +
 			"notes is the second collab consumer, so collab cannot trim " +
 			"alone). Collab is NOT realtime: the SSE record streams, the SSE " +

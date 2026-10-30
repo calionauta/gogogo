@@ -32,15 +32,6 @@ func TestPlanTrimKeepsAllByDefault(t *testing.T) {
 	}
 }
 
-// TestPlanTrimDropsOptInByDefault pins the opposite default: perf is offered
-// but not kept unless named, so a scaffold with no answers drops it.
-func TestPlanTrimDropsOptInByDefault(t *testing.T) {
-	got := dropIDs(planTrim(parseKeep("", "", "")))
-	if len(got) != 1 || got[0] != unitPerf {
-		t.Errorf("planTrim(default) dropped %v, want only perf", got)
-	}
-}
-
 func TestPlanKeepListsSummaries(t *testing.T) {
 	// Deciders reading --format json see what each kept unit IS: the id
 	// lists alone force a second lookup per unit.
@@ -229,59 +220,6 @@ func TestPlanKeepListsStayKindPure(t *testing.T) {
 	}
 }
 
-// TestPromptFormAsksOptIn pins the fifth question: empty keeps none, "1"
-// keeps the first opt-in unit (perf). Red-proof: drop askOptIn from
-// promptForm and the answer is lost.
-func TestPromptFormAsksOptIn(t *testing.T) {
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	fmt.Fprintln(w, "my-app")
-	fmt.Fprintln(w, "myorg")
-	fmt.Fprintln(w, "")  // default plugins: all
-	fmt.Fprintln(w, "")  // default features: all
-	fmt.Fprintln(w, "1") // opt-in: first (perf)
-	_ = w.Close()
-	pr, pw, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	done := make(chan string, 1)
-	go func() {
-		raw, _ := io.ReadAll(pr)
-		done <- string(raw)
-	}()
-	res := promptForm(r, pw)
-	_ = pw.Close()
-	<-done
-	if res.optIn != unitPerf {
-		t.Errorf("optIn = %q, want %q", res.optIn, unitPerf)
-	}
-}
-
-// TestPlanKeepsNamedOptIn pins the keep side: naming perf keeps it by
-// default-off semantics, and the plan labels its scaffold class.
-func TestPlanKeepsNamedOptIn(t *testing.T) {
-	p := buildPlan("x", "y", ".", parseKeep("", "", unitPerf), nil, true)
-	if len(p.KeepOptIn) != 1 || p.KeepOptIn[0] != unitPerf {
-		t.Errorf("KeepOptIn = %v, want [%s]", p.KeepOptIn, unitPerf)
-	}
-	found := false
-	for _, k := range p.Keep {
-		if k.ID != unitPerf {
-			continue
-		}
-		found = true
-		if k.Scaffold != string(capabilities.ScaffoldOptIn) {
-			t.Errorf("perf scaffold = %q, want opt-in", k.Scaffold)
-		}
-	}
-	if !found {
-		t.Error("plan did not keep the named opt-in unit")
-	}
-}
-
 // TestManifestUnitsFollowScaffoldStrategy pins the strategy for every unit:
 // a manifest unit is default or opt-in (never core/manual), and every
 // capability the registry offers is reachable from one. A new unit that
@@ -305,43 +243,13 @@ func TestManifestUnitsFollowScaffoldStrategy(t *testing.T) {
 	}
 }
 
-// TestPerfTrimIsOneWayAndSaysSo pins the residual risk: perf touches core
-// wiring that `add` cannot restore, and both the unit warning and the plan
-// text say so. If a generic add-line mechanism ever makes it reversible,
-// update this test with the new receipt.
-func TestPerfTrimIsOneWayAndSaysSo(t *testing.T) {
-	var u trimUnit
-	for _, candidate := range manifestUnits {
-		if candidate.id == unitPerf {
-			u = candidate
-		}
-	}
-	if u.id == "" {
-		t.Fatal("perf unit missing from the manifest")
-	}
-	manual := strings.Join(addManualWiring(u), "\n")
-	for _, want := range []string{"perfPageMiddleware", "bootPerf", "Perf(ctx)", "PerfEnabled"} {
-		if !strings.Contains(manual, want) {
-			t.Errorf("add manual wiring does not name %q:\n%s", want, manual)
-		}
-	}
-
-	keep := parseKeep("", "", "")
-	p := buildPlan("x", "y", ".", keep, planTrim(keep), true)
-	var b strings.Builder
-	printPlanText(&b, p)
-	if !strings.Contains(b.String(), "One-way trim") {
-		t.Errorf("plan text does not surface the one-way warning:\n%s", b.String())
-	}
-}
-
 // TestParseKeepAllAlias pins the shorthand humans type: "all" means the same
 // as an empty keep list for default units, and still leaves opt-in dropped
 // unless the opt-in list says otherwise.
 func TestParseKeepAllAlias(t *testing.T) {
 	got := dropIDs(planTrim(parseKeep("all", "all", "")))
-	if len(got) != 1 || got[0] != unitPerf {
-		t.Errorf("parseKeep(all) drops %v, want only perf", got)
+	if len(got) != 0 {
+		t.Errorf("parseKeep(all) drops %v, want none (no opt-in units)", got)
 	}
 	if all := dropIDs(planTrim(parseKeep("all", "all", "all"))); len(all) != 0 {
 		t.Errorf("parseKeep(all, all, all) drops %v, want none", all)
@@ -354,14 +262,5 @@ func TestParseSelectionAll(t *testing.T) {
 	ids, all, err := parseSelection("all", []string{"a", "b"})
 	if err != nil || !all || len(ids) != 0 {
 		t.Errorf("parseSelection(all) = (%v, %v, %v), want (nil, true, nil)", ids, all, err)
-	}
-}
-
-// TestTrimPresetRejectsOptIn closes the preset/keep-list hole: a preset is a
-// complete drop set, so adding an opt-in unit on top of it is contradictory.
-func TestTrimPresetRejectsOptIn(t *testing.T) {
-	opt := options{preset: presetMinimal, optIn: unitPerf}
-	if err := resolvePreset(&opt); err == nil {
-		t.Error("resolvePreset(minimal, opt-in perf) = nil, want conflict")
 	}
 }

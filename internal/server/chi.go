@@ -132,12 +132,10 @@ func bootOnboarding(
 	return h, []func(){h.Shutdown}
 }
 
-// bootCredits opens the Turso ledger, builds the engine (nil when the
-// feature is disabled — routes answer 503), starts its workers and
-// registers its shutdown. Split from BootChi to keep both under the
-// function-length gate.
-
-// trims features by dropping exactly those lines (routerCallLines).
+// BootChi boots the flat stack without listening and without JetStream:
+// the returned stack serves its mux and has cross-instance sync off until
+// AttachJetStream runs. js-free by design — the engine owns the NATS, so
+// JetStream is attached after boot, never passed into it.
 //
 //nolint:funlen // composition root: one line per feature, and the installer
 func BootChi(cfg *config.Config) (*ChiStack, error) {
@@ -253,8 +251,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// installed before any request can arrive (Serve happens after BootChi).
 	licStore, modeErr := bootModes(cfg, a, queries, mux)
 	if modeErr != nil {
-		_ = sqlDB.Close()
-		return nil, fmt.Errorf("server: access modes: %w", modeErr)
+		return bootFail(cancelConsumer, sqlDB, "access modes", modeErr)
 	}
 	// Account is an authenticated user surface, not a trimmable demo plugin.
 	mux.MountFeature("account", accounthandlers.NewHandler(cfg, a, queries).Routes())
@@ -262,8 +259,6 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// is loopback-only, so browsers reach it only through here. It stays a
 	// single core line because `gogogo new` anchors its mount below it.
 	mountConsoleProxy(mux, a, cfg)
-	// Runtime dashboard: opt-in, operator-only, mounted before applyRBAC (internal/server/perf.go).
-	perfH := bootPerf(mux, a, cfg, &shutdown)
 	// Inbox is an optional surface next to the console.
 	notificationsH := mountInbox(mux, a, cfg, queries)
 
@@ -273,7 +268,6 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// boot loud. Split out of BootChi for the funlen gate.
 	handler, rerr := applyRBAC(bootCtx, a, cfg, queries, mux)
 	if rerr != nil {
-		closePerf(perfH)
 		return bootFail(cancelConsumer, sqlDB, "rbac", rerr)
 	}
 	// The edge wrappers sit above RBAC on purpose: a 403 and a router 404
@@ -342,11 +336,6 @@ func srvHandler(mux http.Handler) *http.Server {
 	}
 }
 
-// mountOnboarding registers the onboarding routes after the composition,
-// not inside it: buildChiMux takes one concrete pointer per feature, and
-// every extra parameter is a line every trim must edit. The optional mount
-// keeps the signature stable while the engine is present or not. Nil is a
-// no-op, so a stock boot never registers the route.
 // Serve binds addr and serves the stack; the returned func stops it
 // (consumer cancelled, HTTP drained, shutdown hooks, DB closed). The
 // listener binds synchronously so a taken port fails at the call site.
@@ -385,6 +374,11 @@ func StartChi(cfg *config.Config, nc *natsio.Conn, js nats.JetStreamLike) (stop 
 	return stack.Serve(cfg.ChiAddr)
 }
 
+// mountOnboarding registers the onboarding routes after the composition,
+// not inside it: buildChiMux takes one concrete pointer per feature, and
+// every extra parameter is a line every trim must edit. The optional mount
+// keeps the signature stable while the engine is present or not. Nil is a
+// no-op, so a stock boot never registers the route.
 func mountOnboarding(r *Router, onboardingH *onboarding.Handler) {
 	if onboardingH != nil {
 		r.MountFeature("onboarding", onboardingH.Routes())

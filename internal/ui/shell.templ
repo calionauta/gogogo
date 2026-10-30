@@ -115,7 +115,7 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 						}
 					</nav>
 					<div class="app-rail-foot">
-						@authviews.UserMenu(d.Email, d.Role, Preferences(), Operator(ctx), Perf(ctx))
+						@authviews.UserMenu(d.Email, d.Role, Preferences(), Operator(ctx))
 					</div>
 				</aside>
 				<script nonce={ templ.GetNonce(ctx) }>
