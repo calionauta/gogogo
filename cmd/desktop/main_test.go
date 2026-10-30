@@ -1,11 +1,13 @@
 package main
 
 import (
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/internal/cloudcfg"
+	"github.com/calionauta/gogogo/internal/instance"
 )
 
 // TestWebviewURL pins the wildcard mapping: cfg.Host is the LISTEN address
@@ -135,5 +137,33 @@ func TestApplySyncConfig(t *testing.T) {
 	applySyncConfig(envCfg)
 	if envCfg.NATS.LeafNodeURL != "" {
 		t.Fatalf("env override ignored: %q", envCfg.NATS.LeafNodeURL)
+	}
+}
+
+// TestScopeInstanceIdentity pins the same-host collision fix: the server and
+// a desktop on one machine must not share an instance id, or the server
+// discards the desktop's CRUD ops as its own echo. The id is scoped to the
+// profile's database path and survives a restart (same path, same id).
+func TestScopeInstanceIdentity(t *testing.T) {
+	t.Setenv(instance.EnvVar, "")
+	cfg := &config.Config{AppName: "gogogo"}
+	cfg.Turso.DBPath = "/tmp/profile-a/app.db"
+	scopeInstanceIdentity(cfg)
+	a := os.Getenv(instance.EnvVar)
+	if !strings.HasPrefix(a, "gogogo-desktop-") {
+		t.Fatalf("instance id = %q, want a gogogo-desktop- prefix", a)
+	}
+	t.Setenv(instance.EnvVar, "")
+	cfg.Turso.DBPath = "/tmp/profile-b/app.db"
+	scopeInstanceIdentity(cfg)
+	if b := os.Getenv(instance.EnvVar); b == a {
+		t.Fatalf("two profiles share instance id %q", a)
+	}
+
+	// An operator's explicit id always wins.
+	t.Setenv(instance.EnvVar, "pinned-by-operator")
+	scopeInstanceIdentity(cfg)
+	if got := os.Getenv(instance.EnvVar); got != "pinned-by-operator" {
+		t.Fatalf("operator id overwritten: %q", got)
 	}
 }

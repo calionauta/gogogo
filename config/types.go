@@ -70,6 +70,12 @@ type Config struct {
 		// Token authenticates clients when the listener is exposed. Empty
 		// means no auth, which the guard allows only on loopback.
 		Token string
+		// LeafListen is host:port for the leaf-node listener a central
+		// server exposes to desktop edges. NATS serves the leaf protocol on
+		// its own port (the client listener cannot accept it), so sync needs
+		// this second listener. A non-loopback listen requires Token, which
+		// becomes the leaf credential.
+		LeafListen string
 		// LeafNodeURL, when set, makes this instance a NATS Leaf Node that
 		// syncs with a central NATS server (e.g. the demo server). Used by
 		// the desktop/mobile edge to replicate JetStream streams offline

@@ -117,10 +117,25 @@ func StartEmbedded(storeDir string) (*Handle, error) {
 // token is refused: an unauthenticated NATS on a reachable interface lets
 // anyone publish on every subject, and JetStream would persist the damage.
 func StartEmbeddedOn(storeDir, listen, token string) (*Handle, error) {
+	return StartEmbeddedWithLeaf(storeDir, listen, token, "")
+}
+
+// StartEmbeddedWithLeaf is StartEmbeddedOn plus the leaf-node listener a
+// central server exposes to desktop edges. NATS accepts the leaf protocol on
+// its own port (the client listener cannot serve it), so sync needs this
+// second listener. The token doubles as the leaf credential: the device's
+// sync URL carries it as userinfo. Empty leafListen keeps the server
+// client-only.
+func StartEmbeddedWithLeaf(storeDir, listen, token, leafListen string) (*Handle, error) {
 	opts, err := listenOptions(listen, token)
 	if err != nil {
 		return nil, err
 	}
+	leafOpts, err := leafOptions(leafListen, token)
+	if err != nil {
+		return nil, err
+	}
+	opts.LeafNode = *leafOpts
 	opts.NoLog = true
 	opts.NoSigs = true
 	opts.StoreDir = storeDir
@@ -132,7 +147,15 @@ func StartEmbeddedOn(storeDir, listen, token string) (*Handle, error) {
 	ns.Start()
 
 	h := &Handle{Server: ns}
-	if err := h.dial(ns.ClientURL()); err != nil {
+	var connectOpts []natsio.Option
+	if token != "" {
+		// The listener requires the token, so the process's OWN client must
+		// present it too. Without this the dial fails with "Authorization
+		// Violation", the handle is torn down, and a boot with NATS_TOKEN
+		// silently loses realtime (the E2E sync smoke caught it).
+		connectOpts = append(connectOpts, natsio.Token(token))
+	}
+	if err := h.dial(ns.ClientURL(), connectOpts...); err != nil {
 		h.Close()
 		return nil, err
 	}
@@ -209,8 +232,8 @@ func StartLeafNode(storeDir, centralURL string) (*Handle, error) {
 
 // dial connects h.Conn to url and binds h.JS. On error h is left with a nil
 // Conn so the caller's Close() stays safe.
-func (h *Handle) dial(url string) error {
-	nc, err := natsio.Connect(url)
+func (h *Handle) dial(url string, opts ...natsio.Option) error {
+	nc, err := natsio.Connect(url, opts...)
 	if err != nil {
 		return err
 	}
@@ -343,6 +366,36 @@ func listenOptions(listen, token string) (*server.Options, error) {
 	opts.Port = port
 	if token != "" {
 		opts.Authorization = token
+	}
+	return opts, nil
+}
+
+// leafOptions translates NATS_LEAFNODE_LISTEN into the hub's leaf listener.
+// The exposure guard is the client listener's: a non-loopback leaf port
+// without a token would let anyone attach a server to the hub. Token auth on
+// the leaf listener is username-based (NATS sends the token as the user in
+// `nats://token@host`), which is what cloudcfg.LeafURL produces.
+func leafOptions(leafListen, token string) (*server.LeafNodeOpts, error) {
+	opts := &server.LeafNodeOpts{}
+	if leafListen == "" {
+		return opts, nil
+	}
+	host, portStr, err := net.SplitHostPort(leafListen)
+	if err != nil {
+		return nil, fmt.Errorf("nats: NATS_LEAFNODE_LISTEN %q must be host:port: %w", leafListen, err)
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil || port <= 0 || port > 65535 {
+		return nil, fmt.Errorf("nats: NATS_LEAFNODE_LISTEN %q has an invalid port", leafListen)
+	}
+	if !isLoopbackHost(host) && token == "" {
+		return nil, fmt.Errorf(
+			"nats: refusing to expose leaf listener %s without NATS_TOKEN", leafListen)
+	}
+	opts.Host = host
+	opts.Port = port
+	if token != "" {
+		opts.Username = token
 	}
 	return opts, nil
 }

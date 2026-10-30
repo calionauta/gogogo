@@ -98,8 +98,24 @@ type CrudOpData struct {
 type CrudPublisher struct {
 	js     natsio.JetStreamContext
 	origin string
-	mu     sync.Mutex
-	done   bool
+	// core publishes the same op on plain NATS. A leaf node forwards core
+	// messages to the hub, while each side's JetStream stream stays in its
+	// own domain (NATS does not replicate streams across a leaf without a
+	// mirror/source configuration). The desktop edge sets this so its live
+	// writes reach the server; the local stream still serves local
+	// consumers and keeps the op on disk.
+	core *natsio.Conn
+	mu   sync.Mutex
+	done bool
+}
+
+// SetCore wires the plain-NATS connection used to forward ops across a leaf
+// node. Nil keeps the JetStream-only path (in-process and hub instances).
+func (p *CrudPublisher) SetCore(nc *natsio.Conn) {
+	if p == nil {
+		return
+	}
+	p.core = nc
 }
 
 // NewCrudPublisher ensures the APP_CRUD stream exists and returns a
@@ -140,6 +156,14 @@ func (p *CrudPublisher) Publish(op CrudOpType, userID string, data *CrudOpData) 
 		return
 	}
 	subject := crudSubjectPrefix + string(op)
+	// Core first: a leaf forwards this copy to the hub, where the hub's
+	// stream captures it. The local JetStream publish then keeps the op in
+	// this instance's own stream.
+	if p.core != nil {
+		if pubErr := p.core.Publish(subject, payload); pubErr != nil {
+			slog.Warn("crudproxy: core publish failed", "op", op, "subject", subject, "error", pubErr)
+		}
+	}
 	if _, pubErr := p.js.Publish(subject, payload); pubErr != nil {
 		slog.Warn("crudproxy: publish failed", "op", op, "subject", subject, "error", pubErr)
 	}

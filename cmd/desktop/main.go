@@ -27,12 +27,20 @@ import (
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/internal/cloudcfg"
 	"github.com/calionauta/gogogo/internal/collab"
+	"github.com/calionauta/gogogo/internal/instance"
 	"github.com/calionauta/gogogo/internal/nats"
 	"github.com/calionauta/gogogo/internal/server"
 )
 
 func main() {
 	cfg := desktopConfig()
+	// The CRUD wire tags every op with this process's instance id and drops
+	// ops that carry its own id. The server and the desktop often run on the
+	// same host (dev, a self-hosted box), where the hostname-derived id is
+	// identical and the server would discard the desktop's writes as its own
+	// echo. Scope the desktop id to its profile (the database path), the same
+	// key the single-instance lock uses.
+	scopeInstanceIdentity(cfg)
 
 	// The single-instance lock is acquired here, before the backend boots: a
 	// duplicate launch must not open a second listener, a second NATS and a
@@ -167,6 +175,17 @@ func applySyncConfig(cfg *config.Config) {
 	cfg.NATS.Enabled = true
 	cfg.NATS.LeafNodeURL = leaf
 	slog.Info("desktop: cloud sync configured", "url", c.URL)
+}
+
+// scopeInstanceIdentity pins APP_INSTANCE_ID to the desktop profile unless the
+// operator already set one. instance.ID() caches on first use, so this must run
+// before the backend boots.
+func scopeInstanceIdentity(cfg *config.Config) {
+	if os.Getenv(instance.EnvVar) != "" {
+		return
+	}
+	sum := sha256.Sum256([]byte(cfg.Turso.DBPath))
+	os.Setenv(instance.EnvVar, fmt.Sprintf("%s-desktop-%x", cfg.AppName, sum[:8]))
 }
 
 // singleInstanceID scopes the Wails lock to the app AND its database, so a
