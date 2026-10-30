@@ -53,7 +53,7 @@ being one.
 - **Durable offline writes** — one page-side outbox (write-ahead + idempotency receipts) plus an app-shell cache; NATS CRUD proxy for desktop edges (default on).
 - **UI shell + themes** — every page renders inside one shell (`internal/ui`); the palettes (`light`, `dark`, `lofi`, `dim`) are DaisyUI themes chosen from the account panel in the sidebar and catalogued in `internal/themes`. On phones (≤720px) a bottom dock (Todo/Board/Chat/Menu, DaisyUI `dock`) gives one-tap navigation; the Chat page hides it so the docked composer keeps the thumb zone. See [UI themes](ui-themes.md).
 - **Persistence** — One data layer: `internal/db` migrations + generated queries, no strategy switch.
-- **Desktop-edge sync** — Leaf-Node JetStream replication of Loro updates for desktop/edge clients.
+- **Desktop-edge sync** — Leaf-Node live event sync (CRUD + Loro) for desktop/edge clients; offline CRUD replay on reconnect is a follow-up.
 - **Landing page** — The app's own public page on `GET /` (not the GitHub Pages promo site, which is never installed). No auth, no DB. Todo demo lives at `/todo`.
 - **Config + admin users** — Admin-only `GET /config` (always on, even with RBAC off): env-decrypted values, masked secrets, runtime constants, user role changes, session revocation, the audit panel and CSV. Role/session mutations require the admin's password (or a current code on a passwordless admin).
 

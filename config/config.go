@@ -26,6 +26,7 @@
 //	NATS_ENABLED        (default: true)  — enable NATS JetStream
 //	NATS_STORE_DIR      (default: "data/nats")
 //	NATS_LEAFNODE_URL   (default: "")    — connect as NATS Leaf Node
+//	NATS_LEAFNODE_LISTEN (default: "")   — host:port the hub accepts leaf nodes on
 //	DAGNATS_ENABLED     (default: true)  — enable DagNats workflows
 //	GOAKT_ENABLED       (default: true)  — enable GoAkt room actors
 //	DAGNATS_HTTP_ADDR   (default: "127.0.0.1:8090")
@@ -136,6 +137,7 @@ func Load() *Config {
 		DemoAccounts:  envBool("DEMO_ACCOUNTS_ENABLED", dev),
 
 		SignupEnabled: envBool("SIGNUP_ENABLED", dev),
+		PerfEnabled:   envBool("PERF_ENABLED", dev),
 		RateLimitRPM:  int(envInt("RATE_LIMIT_RPM", defaultRateLimitRPM)),
 		AdminToken:    os.Getenv("ADMIN_UNLOCK_TOKEN"),
 		GoAI: GoAIConfig{
@@ -158,6 +160,7 @@ func Load() *Config {
 	cfg.NATS.StoreDir = getEnv("NATS_STORE_DIR", "data/nats")
 	cfg.NATS.Listen = getEnv("NATS_LISTEN", "")
 	cfg.NATS.Token = os.Getenv("NATS_TOKEN")
+	cfg.NATS.LeafListen = getEnv("NATS_LEAFNODE_LISTEN", "")
 	cfg.NATS.LeafNodeURL = getEnv("NATS_LEAFNODE_URL", "")
 
 	cfg.DagNats.Enabled = envBool("DAGNATS_ENABLED", defaultDagNatsEnabled())

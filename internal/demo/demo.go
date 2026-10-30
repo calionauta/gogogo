@@ -3,7 +3,8 @@
 // A fresh clone needs a way in: one idempotent call at boot
 // (internal/server) and on the native window's first run (cmd/gui) signs
 // the same pair up. Signup is idempotent by design — a duplicate email
-// answers ErrBadCredentials, which is exactly the "already seeded" case.
+// answers ErrEmailTaken (ErrBadCredentials on older trees), which is exactly
+// the "already seeded" case.
 //
 // The pair also carries fixed roles so the login card's promise ("Demo 1
 // is the operator, Demo 2 the restricted viewer") is true by construction
@@ -116,7 +117,7 @@ func restoreDisabledPassword(ctx context.Context, a *auth.Auth, q *dbgen.Queries
 
 func seedOne(ctx context.Context, a *auth.Auth, q *dbgen.Queries, acc demoAccount) {
 	if _, _, err := a.Signup(ctx, acc.email, acc.password, acc.name); err != nil {
-		if !errors.Is(err, auth.ErrBadCredentials) {
+		if !errors.Is(err, auth.ErrEmailTaken) && !errors.Is(err, auth.ErrBadCredentials) {
 			slog.WarnContext(ctx, "demo: seed skipped", "error", err)
 			return
 		}

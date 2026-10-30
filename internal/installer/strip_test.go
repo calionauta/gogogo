@@ -294,7 +294,7 @@ func TestStripDagnatsMainKeepsStackWired(t *testing.T) {
 		"\tstartDagNats(lifecycleCtx, cfg, stack.TodoHandler, stack.NotificationsHandler)\n" +
 		"\tdefer shutdownDagNats()\n" +
 		"\n" +
-		"\tstack.AttachJetStream(lifecycleCtx, js)\n"
+		"\tstack.AttachJetStream(lifecycleCtx, nc, js, cfg.NATS.LeafNodeURL != \"\")\n"
 	if err := os.WriteFile(filepath.Join(webDir, "main.go"), []byte(give), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -307,7 +307,7 @@ func TestStripDagnatsMainKeepsStackWired(t *testing.T) {
 	if strings.Contains(string(out), "startDagNats") || strings.Contains(string(out), "shutdownDagNats") {
 		t.Errorf("dagnats boot calls survived trim:\n%s", out)
 	}
-	if !strings.Contains(string(out), "stack.AttachJetStream(lifecycleCtx, js)") {
+	if !strings.Contains(string(out), "stack.AttachJetStream(lifecycleCtx, nc, js, cfg.NATS.LeafNodeURL != \"\")") {
 		t.Errorf("code after the strip was damaged:\n%s", out)
 	}
 }

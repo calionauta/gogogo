@@ -70,6 +70,25 @@ Staged implementation:
    Turso Sync as the alternative: it replicates the whole database (users
    included), which removes the owner-id problem instead of aligning it.
 
+## Turso Sync scenario table
+
+The finding that decides the table: **whole-DB replication breaks per-user
+scoping**. A device that receives the database file receives every row in it,
+so any tenancy model that relies on `owner` columns and handler checks stops
+being a boundary. Turso Sync is therefore a fit only where the database
+boundary already equals the trust boundary.
+
+| scenario | what replicates | verdict |
+|---|---|---|
+| **Single-user local** (one person, one device, optional backup) | the whole DB is that user's data | **Viable** for backup and a second device of the SAME account; no cross-tenant data exists to leak. |
+| **Workspace-per-DB** (one Turso database per workspace/tenant, sync per workspace) | one tenant's DB per workspace | **Viable** — the DB boundary is the tenant boundary. Needs per-workspace credentials and a device→workspace mapping; that is product work, not a sync switch. |
+| **Multi-tenant in one DB** (`owner` column + RBAC, today's shape) | every tenant's rows, users included | **Rejected** — replication hands each device the other tenants' rows and password hashes. The event wire stays; whole-DB sync would delete the scoping guarantee. |
+| **Heavy offline** (long outages, concurrent edits on several devices) | full DB + write log | **Deferred** — Turso Sync is beta and its conflict behavior has to be measured per table (todos are last-writer-wins; users/sessions are not). A spike must show what happens to two offline edits of one row before this replaces the event wires. |
+
+The shipped path is the **event wire** (`app.crud.todo.>` + Loro for docs),
+which carries only the rows a handler already authorized. Turso Sync remains a
+spike, not a replacement.
+
 ## Where the UI goes
 
 Not `/config`: it is operator-gated by `ADMIN_EMAILS` and unreachable on a fresh

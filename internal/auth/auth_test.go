@@ -143,8 +143,8 @@ func TestSignupLoginLogout(t *testing.T) {
 	}
 
 	// Duplicate email: same sentinel as a wrong password.
-	if _, _, derr := a.Signup(ctx, "flat@example.com", "Correct-horse-99!", ""); !errors.Is(derr, ErrBadCredentials) {
-		t.Fatalf("duplicate signup err = %v, want ErrBadCredentials", derr)
+	if _, _, derr := a.Signup(ctx, "flat@example.com", "Correct-horse-99!", ""); !errors.Is(derr, ErrEmailTaken) {
+		t.Fatalf("duplicate signup err = %v, want ErrEmailTaken", derr)
 	}
 
 	// Unknown email and wrong password are indistinguishable.
@@ -241,10 +241,10 @@ func TestHTTPFlow(t *testing.T) {
 		t.Error("session cookie missing HttpOnly")
 	}
 
-	// Duplicate signup → 401, same as a bad login (no enumeration).
+	// Duplicate signup is actionable (409), while login stays opaque below.
 	dup := doSignup(t, r, "http@example.com", "Correct-horse-99!")
-	if dup.Code != http.StatusUnauthorized {
-		t.Fatalf("duplicate signup status = %d, want 401", dup.Code)
+	if dup.Code != http.StatusConflict {
+		t.Fatalf("duplicate signup status = %d, want 409", dup.Code)
 	}
 
 	// Signin round-trips through the same cookie.
@@ -335,5 +335,64 @@ func TestSessionExpiry(t *testing.T) {
 	}
 	if n != 0 {
 		t.Fatal("expired session row survived validation")
+	}
+}
+
+// TestSignupHTTPStatusCodes pins the actionable signup contract: each
+// fixable failure gets its own status and machine-readable code, while
+// success stays 200 and sets the session cookie. Red-proof: make
+// validatePassword accept short secrets and the password_too_short row
+// turns 200 instead of 422.
+func TestSignupHTTPStatusCodes(t *testing.T) {
+	t.Parallel()
+	r := testRouter(t)
+
+	// Seed one account so the duplicate case has something to collide with.
+	if rec := doSignup(t, r, "taken@example.com", "Correct-horse-99!"); rec.Code != http.StatusOK {
+		t.Fatalf("seed signup = %d (%s)", rec.Code, rec.Body.String())
+	}
+
+	cases := []struct {
+		name     string
+		email    string
+		password string
+		status   int
+		code     string
+	}{
+		{"short password", "short@example.com", "short", http.StatusUnprocessableEntity, "password_too_short"},
+		{"invalid email", "not-an-email", "Correct-horse-99!", http.StatusUnprocessableEntity, "invalid_email"},
+		{"email taken", "taken@example.com", "Correct-horse-99!", http.StatusConflict, "email_taken"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := doSignup(t, r, tc.email, tc.password)
+			if rec.Code != tc.status {
+				t.Fatalf("status = %d, want %d (body: %s)", rec.Code, tc.status, rec.Body.String())
+			}
+			var body apiError
+			if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+				t.Fatalf("decode body: %v", err)
+			}
+			if body.Error != tc.code {
+				t.Fatalf("error = %q, want %q", body.Error, tc.code)
+			}
+			if body.Message == "" {
+				t.Fatal("error body has no human message")
+			}
+		})
+	}
+
+	ok := doSignup(t, r, "fresh@example.com", "Correct-horse-99!")
+	if ok.Code != http.StatusOK {
+		t.Fatalf("success status = %d, want 200 (body: %s)", ok.Code, ok.Body.String())
+	}
+	found := false
+	for _, c := range ok.Result().Cookies() {
+		if c.Name == CookieName && c.Value != "" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("success set no %q cookie", CookieName)
 	}
 }

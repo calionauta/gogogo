@@ -278,8 +278,8 @@ var All = append([]Capability{
 		Scaffold:   ScaffoldDefault,
 		Dirs:       []string{"features/credits"},
 		// Owned by no dir: the boot helper is the engine's only
-		// composition-root seam. Deleting it with the unit keeps the
-		// trimmed tree free of unused imports.
+		// composition-root seam. Deleting it with the unit is what keeps
+		// the trimmed tree free of unused imports.
 		Files: []string{"internal/server/boot_credits.go"},
 		Warns: []string{
 			"Todo AI Suggest becomes unmetered (still works with " +
@@ -463,8 +463,11 @@ var All = append([]Capability{
 	},
 }, append(
 	append(
-		append(append([]Capability{}, coreExtraUnits...), identityUnits...),
-		deliveryUnits...,
+		append(
+			append(append([]Capability{}, coreExtraUnits...), identityUnits...),
+			deliveryUnits...,
+		),
+		licenseUnits...,
 	),
-	licenseUnits...,
+	perfUnits...,
 )...)

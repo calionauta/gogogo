@@ -103,6 +103,73 @@ see `exception-to-go.md` for what "native" is allowed to mean.
 13. **Open mode has no login UI**: `/login` redirects to `/` and the account
     security cards are hidden. It is a distribution choice, not a bug.
 
+## When a product needs sync
+
+Add sync only when the product needs **multi-device continuity or cloud
+backup**; local-first is the default and needs no server. If it does:
+
+1. **Expose a leaf listener, not just a client port.** Set
+   `NATS_LEAFNODE_LISTEN` on the hub, `NATS_TOKEN` on both sides, and
+   `CLOUD_SYNC_URL` to the leaf URL. A leaf edge publishes live CRUD on core
+   NATS; each side's JetStream stream stays in its own domain.
+2. **Align identity before writing.** An account token must adopt the server's
+   `user.id` (`LICENSE_MODE=account` + activation). A purely local account
+   never joins the server's rows: `tenantOf` skips unknown owners.
+3. **Scope the instance id per profile.** Two processes on one host share the
+   hostname-derived `APP_INSTANCE_ID`; the receiver then drops the sender's
+   ops as its own echo. `cmd/desktop` hashes the database path; do the same for
+   any new edge.
+4. **Use a private overlay first.** Tailscale/WireGuard plus a token is the
+   lean path. Public exposure needs TLS per connection type and per-device
+   credentials — never a plaintext port, never the demo host.
+5. **Prove it with `make desktop-sync-smoke`.** It creates a row on the
+   desktop and asserts the server has it under the same user id. A green unit
+   test does not prove a leaf attached.
+
+The guard: sync is a product decision, not a template default. If the answer
+is "one device, one user", keep the embedded NATS and skip the server.
+
+## Mobile (Android): a separate entrypoint and a driver matrix
+
+Do not reuse `cmd/desktop` as the Android entrypoint. It owns a desktop window
+and a single-instance lock; Android owns the activity and the WebView origin.
+The 2026-10-30 emulator spike (`spike/mobile`, not merged) proved the shape:
+
+1. **the mobile entrypoint is its own `main`.** Register it with
+   `application.RegisterAndroidMain(main)` in an `android`-tagged `init`; the
+   Wails overlay generator targets the project root, not the mobile entrypoint.
+2. **The database is the gate.** `tursogo` embeds libraries for
+   darwin/linux/windows only (`turso-go-platform-libs/load_turso.go`); Android
+   panics with "turso library is not embedded for the platform". Put the
+   driver behind build tags: tursogo on desktop/server, `ncruces/go-sqlite3`
+   on Android. Do the same for `internal/queue` and the credits ledger. Keep
+   SQL, sqlc queries, migrations and pragmas shared; only the driver name and
+   DSN spelling change (`_busy_timeout` vs `_pragma=busy_timeout(...)`).
+3. **`cmd/gui` already uses ncruces — by configuration, not by default.** It
+   imports `github.com/ncruces/go-sqlite3/driver` and opens `sql.Open("sqlite3",
+   ...)` explicitly; the comment in `cmd/gui/store.go` says it bypasses
+   `internal/db` because tursogo's purego/fakecgo collides with goffi at
+   `CGO_ENABLED=0`. Reuse that driver for Android for the same class of reason.
+4. **Do not expect a Go `Assets.Handler` to serve the Android WebView.** The
+   Android asset path is Java-side (`WailsPathHandler` → `bridge.serveAsset`).
+   The spike listens on a fixed loopback port and the activity loads
+   `http://127.0.0.1:<port>/` with retries and
+   `android:usesCleartextTraffic="true"`.
+5. **Inset the WebView below the system bars.** A rendered page is not proof
+   that the top chrome is reachable: edge-to-edge content lets the status bar
+   consume touches over the header. Use `android:fitsSystemWindows="true"` or
+   explicit `WindowInsets` padding; the spike's bottom dock and checkbox worked
+   while the hamburger/search were dead until the inset.
+6. **The c-shared object needs Android libc shims.** `bcmp`,
+   `__errno_location` and `__xpg_strerror_r` are not exported by Android's
+   libc; provide them in an `_android.c` file plus a cgo-enabling Go file.
+6. **A working spike is not a supported target.** Open auth, a fixed port and
+   cleartext are measurement shortcuts. A release needs Keystore/Keychain,
+   deep-link activation, TLS and a real session model. Say so in the docs.
+
+Evidence and screenshots: `docs/research/mobile-android-2026-10.md`; commands,
+logs and cleanup: the spike report on `spike/mobile`.
+
 ## Common failures
 
 - **App runs, backend logs requests from tests, but no window ever appears** —

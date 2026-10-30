@@ -259,6 +259,8 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// is loopback-only, so browsers reach it only through here. It stays a
 	// single core line because `gogogo new` anchors its mount below it.
 	mountConsoleProxy(mux, a, cfg)
+	// Runtime dashboard: opt-in, operator-only, mounted before applyRBAC (internal/server/perf.go).
+	perfH := bootPerf(mux, a, cfg, &shutdown)
 	// Inbox is an optional surface next to the console.
 	notificationsH := mountInbox(mux, a, cfg, queries)
 
@@ -268,6 +270,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// boot loud. Split out of BootChi for the funlen gate.
 	handler, rerr := applyRBAC(bootCtx, a, cfg, queries, mux)
 	if rerr != nil {
+		closePerf(perfH)
 		return bootFail(cancelConsumer, sqlDB, "rbac", rerr)
 	}
 	// The edge wrappers sit above RBAC on purpose: a 403 and a router 404
@@ -302,8 +305,17 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 //
 // ctx is the caller's lifetime signal (cmd/web passes its lifecycleCtx;
 // StartChi passes Background) — the stack holds no context of its own.
-func (s *ChiStack) AttachJetStream(ctx context.Context, js nats.JetStreamLike) {
-	s.TodoHandler.SetPublisher(natswire.NewCrudPublisher(js, instance.ID()))
+func (s *ChiStack) AttachJetStream(
+	ctx context.Context, nc *natsio.Conn, js nats.JetStreamLike, leafEdge bool,
+) {
+	pub := natswire.NewCrudPublisher(js, instance.ID())
+	if leafEdge {
+		// A leaf edge forwards its live ops over core NATS; its own
+		// JetStream stream stays in the local domain.
+		pub.SetCore(nc)
+	}
+	slog.Info("server: crud wire attached", "leafEdge", leafEdge, "publisher", pub != nil)
+	s.TodoHandler.SetPublisher(pub)
 	startCrudConsumer(ctx, js, s.appName, s.TodoHandler)
 }
 
@@ -367,7 +379,7 @@ func StartChi(cfg *config.Config, nc *natsio.Conn, js nats.JetStreamLike) (stop 
 	if err != nil {
 		return nil, "", err
 	}
-	stack.AttachJetStream(context.Background(), js)
+	stack.AttachJetStream(context.Background(), nc, js, cfg.NATS.LeafNodeURL != "")
 	if aerr := stack.AttachEphemeral(nc); aerr != nil {
 		slog.Warn("server: ephemeral bridge not attached", "error", aerr)
 	}

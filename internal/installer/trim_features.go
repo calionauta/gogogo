@@ -265,7 +265,10 @@ var featureTrimUnits = []trimUnit{
 					`creditshandlers "github.com/calionauta/gogogo/features/credits/handlers"`,
 					"creditsH *creditshandlers.Handler,",
 					// Two tabs: the buildChiMux ARGUMENT line only. The
-					// generic "creditsH," also matched the boot call.
+					// generic "creditsH," also matched the boot call
+					// (one tab, `creditsH, shutdown, err := ...`), which
+					// deleted the line the strip below needs and left the
+					// feature's import dangling.
 					"\t\tcreditsH,",
 				},
 			},

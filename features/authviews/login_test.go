@@ -20,7 +20,7 @@ import (
 func TestLoginPageExplainsDemoRoles(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
-	if err := authviews.LoginPage("/", "", true, "", "").Render(context.Background(), &buf); err != nil {
+	if err := authviews.LoginPage("/", "", true, "", "", false).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("LoginPage: %v", err)
 	}
 	html := buf.String()
@@ -43,7 +43,7 @@ func TestLoginPageExplainsDemoRoles(t *testing.T) {
 func TestLoginPageHidesDemoWhenDisabled(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
-	if err := authviews.LoginPage("/", "", false, "", "").Render(context.Background(), &buf); err != nil {
+	if err := authviews.LoginPage("/", "", false, "", "", false).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("LoginPage: %v", err)
 	}
 	html := buf.String()

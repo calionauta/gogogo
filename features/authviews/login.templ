@@ -26,7 +26,7 @@ func demoValue(on bool, v string) string {
 	return ""
 }
 
-templ LoginPage(next string, errMsg string, demoAccounts bool, totpUser string, notice string) {
+templ LoginPage(next string, errMsg string, demoAccounts bool, totpUser string, notice string, signupEnabled bool) {
 	<!DOCTYPE html>
 	<html lang="en" { ThemeRootAttrs(ctx, "")... }>
 		<head>
@@ -112,6 +112,12 @@ templ LoginPage(next string, errMsg string, demoAccounts bool, totpUser string, 
 							</div>
 						}
 					</form>
+					if signupEnabled {
+						<p class="text-center text-sm mt-4">
+							New here?
+							<a href={ templ.URL("/signup?next=" + next) } class="link link-primary">Create account</a>
+						</p>
+					}
 					}
 					<div class="divider text-xs text-base-content/70">or use email</div>
 					<div class="space-y-2 text-sm">

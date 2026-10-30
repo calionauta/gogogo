@@ -12,8 +12,8 @@ of the file you are about to touch.
 
 ## Registry at a glance
 
-- **Units:** 42 — 15 core · 16 plugin · 11 feature
-- **Offered capabilities:** 11 — 11 default · 0 opt-in (bundled capabilities share one installer unit)
+- **Units:** 43 — 15 core · 17 plugin · 11 feature
+- **Offered capabilities:** 12 — 11 default · 1 opt-in (bundled capabilities share one installer unit)
 - **Manual removal:** 16 (core units are never offered)
 - **Source of truth:** `internal/capabilities/registry.go`; this doc is
   regenerated from it, so the counts above cannot drift.
@@ -304,6 +304,18 @@ durable page outbox + app-shell cache (idempotent replay, NATS CRUD proxy)
 - **Trim:** manual (no installer unit)
 - **Why that class:** Spans a config struct field, the outbox, the worker, and templ registration; deletion is manual.
 
+## `perf` — plugin
+
+opt-in operator diagnostics: statsviz dashboard + stdlib pprof
+
+- **Owned:** `internal/perf`, `internal/server/perf.go`, `internal/server/perf_test.go`, `internal/ui/perf.go`
+- **Routes:** `/debug/pprof`, `/debug/pprof/*`, `/debug/statsviz`, `/debug/statsviz/*`, `/debug/statsviz/ws`
+- **Scaffold:** `opt-in`
+- **Runtime off:** `PERF_ENABLED=false (default off in production)`
+- **Trim:** offered to the installer (a scaffold's keep lists/presets drop it)
+- **Note:** Fenced like /console: session + admin + an ADMIN_EMAILS match. statsviz is net/http only (no second HTTP stack); pprof is stdlib. The installer drops the dependency with the unit.
+- **Warning:** One-way trim: `gogogo add perf` prints the exact wiring lines; re-adding is manual.
+
 ## `search` — plugin
 
 search layers (substring, fuzzy, BM25) behind one seam
@@ -435,7 +447,7 @@ room presence demo (one grain per room, crash hook included)
 Todo MVC demo (reference implementation)
 
 - **Owned:** `features/todo`
-- **Routes:** `/api/todos`, `/api/todos/completed/delete`, `/api/todos/events`, `/api/todos/fragment`, `/api/todos/retry-demo`, `/api/todos/search`, `/api/todos/stream`, `/api/todos/suggest`, `/api/todos/suggest-simulated`, `/api/todos/{id}/confirm-delete`, `/api/todos/{id}/delete`, `/api/todos/{id}/toggle`, `/login`, `/logout`, `/todo`
+- **Routes:** `/api/todos`, `/api/todos/completed/delete`, `/api/todos/events`, `/api/todos/fragment`, `/api/todos/retry-demo`, `/api/todos/search`, `/api/todos/stream`, `/api/todos/suggest`, `/api/todos/suggest-simulated`, `/api/todos/{id}/confirm-delete`, `/api/todos/{id}/delete`, `/api/todos/{id}/toggle`, `/login`, `/logout`, `/signup`, `/todo`
 - **Store calls:** `dbgen.ClaimOpReceipt`, `dbgen.CreateTodo`, `dbgen.DeleteCompletedByOwner`, `dbgen.DeleteTodo`, `dbgen.DeleteTodoByID`, `dbgen.GetTodo`, `dbgen.GetTodoByIdemKey`, `dbgen.GetTodoVisible`, `dbgen.GetUser`, `dbgen.GetUserByEmail`, `dbgen.ListCompletedIDsByOwner`, `dbgen.ListTodosByOwner`, `dbgen.ListTodosForIndex`, `dbgen.ListVisibleTodos`, `dbgen.SearchTodosByOwner`, `dbgen.SetTodoCompletedByID`
 - **Scaffold:** `manual`
 - **Trim:** manual (no installer unit)

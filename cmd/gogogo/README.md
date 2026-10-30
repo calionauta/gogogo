@@ -60,6 +60,16 @@ chat-specific copy — the contract is `features/genui/components/panel.go`, the
 reference is `features/todo/handlers/genui_panel.go`, and the checklist is
 `docs/native-panels.md`.
 
+## Desktop sync
+
+`gogogo --help` prints the sync prerequisites (and the MCP server exposes the
+same text as `sync_prerequisites`): a desktop build needs a NATS **leaf
+listener** the device can reach (`NATS_LEAFNODE_LISTEN`), `NATS_TOKEN` on both
+sides, and `CLOUD_SYNC_URL` pointing at the leaf URL. Tailscale/WireGuard is
+the lean path; public exposure needs TLS and per-device credentials. Never
+point a build at the demo host. Full recipe:
+[`docs/desktop-mobile.md#cloud-sync`](../../docs/desktop-mobile.md#cloud-sync).
+
 ## CLI contract (humans + agents)
 
 `--help` prints the full matrix (units, flags, exit codes). The fast paths:
@@ -144,6 +154,7 @@ appear here (`TestReadmeDocumentsUnits`).
 | `genui` | `features/genui/`, `features/chat/`, `internal/server/genui_stubs_test.go` | Drop the `chatH` handler line and the `/chat` mount in `internal/server/chi.go`; Chat `[]Module` entry stripped; mux target table shrinks (re-add by hand, see follow-ups). Warns: `SMOKE_FEATURES` must drop `genui` |
 | `review` | `features/review/` | Drop the `bootReview` helper + `reviewH` line and the `/review` + `/api/review/` mounts in `internal/server/chi.go` (+ the `newReviewHandlerForTest` fixture in its test); Review `[]Module` entry stripped; `go mod tidy` drops `genkit` + `go-jev`. Warns: `SMOKE_FEATURES` must drop `review` |
 | `search` | `internal/search/` | Delete the package and the capability entry. A consumer keeps working with the SQL-only substring layer (it holds a `Searcher`), and `features/todo/handlers/search_source.go` goes with the unit because it exists only to feed the plugin |
+| `perf` (opt-in) | `internal/perf/`, `internal/server/perf.go` (+ its test), `internal/ui/perf.go` | Drop the `bootPerf`/`closePerf` lines and the `perfPageMiddleware`/menu entry; remove `PerfEnabled` and the `/debug/*` policy rows; drop `arl/statsviz` from `go.mod`. Opt-in: dropped unless `--opt-in perf`. One-way trim: `add perf` prints the exact wiring lines |
 
 Deliberately **not** offered: `todo` (reference implementation — remove manually
 later per `docs/scope-taxonomy.md`), `auth` (middleware is core), `queue`
@@ -173,6 +184,7 @@ env-blessed with the reason recorded.
 | Persistence (single Turso/sqlc store) | — (core, no switch) | — (core data layer, not trimmable) | ❌ |
 | Auth | — (core middleware) | Login UI removable manually; middleware stays | ❌ |
 | Sounds | — (client-side only) | `features/sounds/` + call sites | ✅ `sounds` |
+| Operator diagnostics (statsviz + pprof) | `PERF_ENABLED=false` | `internal/perf/` + mount/menu/config | ✅ opt-in `perf` |
 | Landing / config view | — (zero boot cost) | Package + wiring call | ✅ `landing`, `config-view` |
 
 Full env reference: `docs/configuration.md`. Deletion checklists:
