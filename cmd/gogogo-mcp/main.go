@@ -81,7 +81,7 @@ var toolCatalog = []toolDef{
 	{
 		"trim_plan",
 		"Preview scaffolding/trimming a checkout (validates ids, shows consequences). " +
-			"Defaults are kept unless dropped; opt-in units are dropped unless " +
+			"Defaults are kept unless dropped; opt-in units (perf) are dropped unless " +
 			"named in optIn. Changes nothing. Requires a gogogo checkout at `dir` unless it does not " +
 			"exist yet (then it previews the clone) — on an unrelated project it " +
 			"cannot preview anything, so call advise_stack for guidance instead. " +

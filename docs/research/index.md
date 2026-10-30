@@ -36,6 +36,7 @@ individual notes.
 
 | page | reviewed | answers |
 |---|---|---|
+| [Scaffold choice](scaffold-choice-2026-10.md) | 2026-10-30 | why the prompt offers only the installer units, the three lists that disagree, and the `Scaffold` class that makes every capability an explicit keep-or-drop |
 
 ## Testing and host capacity
 

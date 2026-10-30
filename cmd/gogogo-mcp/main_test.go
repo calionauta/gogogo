@@ -463,19 +463,25 @@ func TestCapabilitiesListExposesScaffold(t *testing.T) {
 	if jerr := json.Unmarshal([]byte(toolText(t, res)), &caps); jerr != nil {
 		t.Fatalf("capabilities_list is not JSON: %v", jerr)
 	}
-	auth := false
+	perf, auth := false, false
 	for _, c := range caps {
 		if c.Offered != nil {
 			t.Errorf("%s still exposes the removed offered field", c.ID)
 		}
-		if c.ID == "auth" {
+		switch c.ID {
+		case "perf":
+			perf = true
+			if c.Scaffold != "opt-in" {
+				t.Errorf("perf scaffold = %q, want opt-in", c.Scaffold)
+			}
+		case "auth":
 			auth = true
 			if c.Scaffold != "core" {
 				t.Errorf("auth scaffold = %q, want core", c.Scaffold)
 			}
 		}
 	}
-	if !auth {
-		t.Error("missing auth in capabilities_list")
+	if !perf || !auth {
+		t.Errorf("missing perf/auth in capabilities_list (perf=%v auth=%v)", perf, auth)
 	}
 }
