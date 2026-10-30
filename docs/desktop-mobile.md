@@ -130,15 +130,25 @@ Relation to the Wails path, so the two are not confused:
   [exception-to-go](exception-to-go.md)); adopting it is a project with its
   own justification, starting from `zig build run-gallery` on a clone.
 
-## Mobile (Android) is opt-in, not in CI
+## Mobile (Android): spike validated, not supported
 
-Wails v3 targets Android from the same `main.go` (Go → `libwails.so`, WebView
-frontend) — no separate mobile project. **Packaging an APK is not wired in this
-repo**: the pinned CLI (v3.0.0-beta.24) has no `android:package` subcommand
-(only `android:overlay:gen`), and the packaging path needs a `Taskfile.yml`.
+Wails v3 targets Android from a Go shared library plus a WebView frontend, but
+**packaging an APK is not wired in this repo**: the pinned CLI
+(v3.0.0-beta.24) has no `android:package` subcommand (only
+`android:overlay:gen`), and the packaging path needs a `Taskfile.yml`.
 `./scripts/desktop-build.sh android` exits with that explanation rather than a
-cryptic error. If you want APKs, scaffold a Taskfile (`wails3 init`) or build
-with the Wails CLI on a project that has one. iOS is analogous but needs Xcode.
+cryptic error.
+
+The 2026-10-30 emulator spike (`spike/mobile`, not merged) proved a working
+path and the constraint that decides it: **tursogo has no Android library**, so
+the data layer must swap to a pure-Go driver (`ncruces/go-sqlite3`) behind
+`android` build tags. With a separate the mobile entrypoint entrypoint, a fixed loopback
+origin and that driver matrix, the real UI rendered and a todo created through
+the API appeared in the list. Master still opens tursogo and ships no mobile
+target. Evidence, screenshots and the strategy:
+[Mobile Android: the database is the gate](research/mobile-android-2026-10.md).
+
+iOS is analogous but needs Xcode and a Keychain-backed token.
 
 ## Edge sync
 
@@ -319,6 +329,9 @@ Android/iOS WebView must be verified, the token belongs in the Keystore/Keychain
 (not a 0600 file), and activation should arrive by deep link/QR instead of a
 paste. Packaging is not wired, so treat mobile as a prepared direction, not a
 supported target, until `make mobile` exists and the smoke runs on a device.
+The 2026-10-30 spike validated the ncruces driver path and the the mobile entrypoint
+entrypoint on an emulator; see
+[Mobile Android: the database is the gate](research/mobile-android-2026-10.md).
 
 **Self-contained by design.** No template instance talks to
 `gogogo.calionauta.com`; that host is only the public demo. `CLOUD_SYNC_URL`,
