@@ -51,6 +51,9 @@ p, anonymous, /health, (GET|HEAD)
 # makes sse-open.js treat a healthy stream as dead and rethrow loudly.
 # RBAC_ENABLED=true without this row breaks every realtime surface.
 p, anonymous, /login, (GET|POST)
+# Public account creation (SIGNUP_ENABLED=true). The handler itself answers
+# 404 when the deployment closes signup, so this row is inert then.
+p, anonymous, /signup, (GET|POST)
 # Activation surface for the distribution gate (LICENSE_MODE=license|account):
 # reachable before any session, and the gate redirects here.
 p, anonymous, /activate, (GET|POST)
@@ -84,6 +87,7 @@ p, user, /api/todos/*, .*
 p, user, /account, .*
 p, user, /account/*, .*
 p, user, /login, (GET|POST)
+p, user, /signup, (GET|POST)
 p, user, /logout, (GET|POST)
 p, user, /whiteboard, .*
 p, user, /whiteboard/*, .*

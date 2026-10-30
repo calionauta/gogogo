@@ -1,0 +1,111 @@
+package authviews
+
+import (
+	"github.com/calionauta/gogogo/features/sounds"
+	"github.com/calionauta/gogogo/internal/components"
+)
+
+// SignupPage is the standalone /signup page. It is only rendered when the
+// deployment has public account creation open (SIGNUP_ENABLED=true, or the
+// desktop's first-run bootstrap); the handler answers 404 otherwise. The
+// layout mirrors LoginPage: no shell chrome, one card, the same assets.
+templ SignupPage(next string, errMsg string, notice string) {
+	<!DOCTYPE html>
+	<html lang="en" { ThemeRootAttrs(ctx, "")... }>
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>Create account — gogogo</title>
+			@components.Assets()
+			@ThemeHead()
+			@sounds.SoundAssets()
+		</head>
+		<body class="bg-base-200 min-h-screen flex items-center justify-center p-4">
+			<div class="ui-card w-full max-w-md">
+				<div class="ui-card-body">
+					<h1 class="text-2xl font-bold text-center mb-2">gogogo</h1>
+					<p class="text-center text-base-content/60 mb-6">
+						Create your account
+					</p>
+
+					if errMsg != "" {
+						<div role="alert" class="alert alert-error mb-4">
+							<span>{ errMsg }</span>
+						</div>
+					}
+					if notice != "" {
+						<div role="status" class="alert alert-info mb-4">
+							<span>{ notice }</span>
+						</div>
+					}
+
+					<form method="POST" action="/signup" class="space-y-4">
+						<input type="hidden" name="next" value={ next }/>
+						<label class="flex flex-col gap-1 w-full">
+							<div class="label">
+								<span>Email</span>
+							</div>
+							<input
+								type="email"
+								name="email"
+								class="input input-sm"
+								required
+								autocomplete="email"
+								autofocus
+							/>
+						</label>
+
+						<label class="flex flex-col gap-1 w-full">
+							<div class="label">
+								<span>Name <span class="text-base-content/50">(optional)</span></span>
+							</div>
+							<input
+								type="text"
+								name="name"
+								class="input input-sm"
+								autocomplete="name"
+							/>
+						</label>
+
+						<label class="flex flex-col gap-1 w-full">
+							<div class="label">
+								<span>Password</span>
+							</div>
+							<input
+								type="password"
+								name="password"
+								class="input input-sm"
+								required
+								minlength="8"
+								autocomplete="new-password"
+							/>
+						</label>
+
+						<label class="flex flex-col gap-1 w-full">
+							<div class="label">
+								<span>Confirm password</span>
+							</div>
+							<input
+								type="password"
+								name="confirm"
+								class="input input-sm"
+								required
+								minlength="8"
+								autocomplete="new-password"
+							/>
+						</label>
+
+						<button type="submit" class="btn btn-primary w-full">
+							Create account
+						</button>
+					</form>
+
+					<p class="text-center text-sm mt-4">
+						Already have an account?
+						<a href={ templ.URL("/login?next=" + next) } class="link link-primary">Sign in</a>
+					</p>
+				</div>
+			</div>
+		</body>
+	</html>
+}

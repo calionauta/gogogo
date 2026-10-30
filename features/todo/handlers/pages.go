@@ -48,7 +48,7 @@ func (h *Handler) handleLoginGet(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	//nolint:contextcheck // templ components receive ctx from Render; the generated boundary is invisible to the lint.
-	_ = authviews.LoginPage(loginNext(r), "", h.DemoAccounts, "", loginNotice(r)).Render(r.Context(), w)
+	_ = authviews.LoginPage(loginNext(r), "", h.DemoAccounts, "", loginNotice(r), h.SignupEnabled).Render(r.Context(), w)
 }
 
 func (h *Handler) handleLoginPost(w http.ResponseWriter, r *http.Request) {
@@ -56,7 +56,8 @@ func (h *Handler) handleLoginPost(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
-	r = r.WithContext(auth.WithUserAgent(r.Context(), r.UserAgent()))
+	ctx := auth.WithUserAgent(r.Context(), r.UserAgent())
+	r = r.WithContext(ctx)
 	if err := r.ParseForm(); err != nil {
 		h.renderLogin(w, r, "Invalid form submission", "", "")
 		return
@@ -82,8 +83,98 @@ func (h *Handler) renderLogin(w http.ResponseWriter, r *http.Request, errMsg, no
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	//nolint:contextcheck // templ components receive ctx from Render.
-	_ = authviews.LoginPage(loginNext(r), errMsg, h.DemoAccounts, totpUser, notice).
+	_ = authviews.LoginPage(loginNext(r), errMsg, h.DemoAccounts, totpUser, notice, h.SignupEnabled).
 		Render(r.Context(), w)
+}
+
+// signupAvailable is the one gate GET and POST share: open auth has no
+// account to create, and a deployment with signup closed must not reveal the
+// page at all.
+func (h *Handler) signupAvailable(w http.ResponseWriter, r *http.Request) bool {
+	if h.Auth.OpenMode() {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return false
+	}
+	if !h.SignupEnabled {
+		http.NotFound(w, r)
+		return false
+	}
+	return true
+}
+
+func (h *Handler) handleSignupGet(w http.ResponseWriter, r *http.Request) {
+	if !h.signupAvailable(w, r) {
+		return
+	}
+	// Re-entry: a signed-in visitor goes to the app, not a second account.
+	if sess, err := h.Auth.Session(r); err == nil && sess != nil {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+	h.renderSignup(w, r, "", "")
+}
+
+func (h *Handler) handleSignupPost(w http.ResponseWriter, r *http.Request) {
+	if !h.signupAvailable(w, r) {
+		return
+	}
+	ctx := auth.WithUserAgent(r.Context(), r.UserAgent())
+	r = r.WithContext(ctx)
+	if err := r.ParseForm(); err != nil {
+		h.renderSignup(w, r, "Invalid form submission.", "")
+		return
+	}
+	if r.PostFormValue("password") != r.PostFormValue("confirm") {
+		h.renderSignup(w, r, "Passwords do not match.", "")
+		return
+	}
+	user, token, err := h.Auth.Signup(
+		ctx,
+		r.PostFormValue("email"),
+		r.PostFormValue("password"),
+		strings.TrimSpace(r.PostFormValue("name")),
+	)
+	if err != nil {
+		h.renderSignup(w, r, signupMessage(err), "")
+		return
+	}
+	if h.Auth.RequiresEmailVerification() {
+		// The signup session is a credential too: revoke it, then send the
+		// link. The verify endpoint needs no session.
+		_ = h.Auth.RevokeAllSessions(ctx, user.ID)
+		if verr := h.Auth.RequestEmailVerificationDefault(ctx, user.Email); verr != nil {
+			h.renderSignup(w, r, "Email verification is not configured on this deployment.", "")
+			return
+		}
+		h.renderSignup(w, r, "", "Check your email to verify the address, then sign in.")
+		return
+	}
+	http.SetCookie(w, h.Auth.SetSessionCookie(token))
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func (h *Handler) renderSignup(w http.ResponseWriter, r *http.Request, errMsg, notice string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	//nolint:contextcheck // templ components receive ctx from Render.
+	_ = authviews.SignupPage(loginNext(r), errMsg, notice).Render(r.Context(), w)
+}
+
+// signupMessage turns a precise Signup failure into the sentence the form
+// shows. The codes are internal/auth's contract; the words are product copy.
+func signupMessage(err error) string {
+	switch {
+	case errors.Is(err, auth.ErrPasswordTooShort):
+		return "Use at least 8 characters for the password."
+	case errors.Is(err, auth.ErrPasswordTooLong):
+		return "That password is too long."
+	case errors.Is(err, auth.ErrInvalidEmail):
+		return "Enter a valid email address."
+	case errors.Is(err, auth.ErrEmailTaken):
+		return "That email is already registered. Sign in instead."
+	default:
+		return "Could not create the account. Try again."
+	}
 }
 
 func (h *Handler) handlePasswordLogin(w http.ResponseWriter, r *http.Request) {
