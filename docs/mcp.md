@@ -65,6 +65,8 @@ JSON-config clients take the Claude Code block verbatim.
 | `add_unit` | Yes (`confirm:true`) | Restore a unit (`dryRun:true` previews). Refuses when `from` is at a different release than the project's base |
 | `export_unit` | Only writes `to` | Port bundle for a tree that is **not** a gogogo checkout: copies the unit's owned files into `to` + writes `PORTING.md` (routes, imports to rewrite, what to write by hand, proof). `dir` is never touched |
 | `new_feature` | Yes (`confirm:true`) | Scaffold one feature (handler + page + wiring + unit + RBAC rows) and prove the gates (`dryRun:true` previews) |
+| `build_prerequisites` | No | How to build the desktop shell or the Android target: prerequisites, `make desktop`/`make mobile`, the smoke gates, the Android driver swap (tursogo → ncruces) and the mobile limits. `platform` is `desktop` or `mobile`; empty returns both. Same text as `gogogo --help` |
+| `sync_prerequisites` | No | Desktop↔server sync prerequisites: a reachable NATS leaf listener, `NATS_TOKEN`, `CLOUD_SYNC_URL`, account identity, and a private overlay before public exposure |
 
 Read-only tools need nothing else. Mutating tools fail closed without
 `confirm:true` — preview with `trim_plan` (or `dryRun:true`) first, then
