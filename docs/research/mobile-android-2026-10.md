@@ -85,7 +85,13 @@ It is not the template default.
 4. **Android needs its own main registration.** The overlay generator targets
    the project root; the mobile package's `android`-tagged `init` calls
    `application.RegisterAndroidMain(main)` directly.
-5. **The c-shared object needs Android libc shims.** `bcmp`,
+5. **Inset the WebView below the system bars.** A rendered page is not proof
+   that the top chrome is reachable: edge-to-edge content lets the status bar
+   consume touches over the header. The spike's first build navigated from the
+   bottom dock and toggled a todo, but the hamburger/search did nothing until
+   `android:fitsSystemWindows="true"` (or explicit `WindowInsets` padding)
+   moved the page below the bars.
+6. **The c-shared object needs Android libc shims.** `bcmp`,
    `__errno_location` and `__xpg_strerror_r` are provided by
    the mobile package's `_android.c` shim; `cgo_android.go` enables cgo so the C file is
    linked.
