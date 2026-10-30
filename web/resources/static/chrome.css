@@ -1141,6 +1141,12 @@ button, a, summary, [role="button"] { touch-action: manipulation; }
   body[data-module="chat"] .app-body {
     padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
   }
+  /* The chat layout is a min-height flex column; its bottom padding is
+     inside the layout, so the composer is lifted above the fixed dock
+     instead of the dock covering the input. */
+  body[data-module="chat"] .chat-layout {
+    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+  }
   .app-dock-icon { font-size: 1.375rem; }
   /* Toasts ride above the bar instead of behind it. */
   #toast-container {
