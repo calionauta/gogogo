@@ -82,7 +82,8 @@ func (h *Handler) activate(w http.ResponseWriter, r *http.Request) {
 	// An owner-minted token can carry the cloud endpoint, so activation also
 	// connects the device without a second form (applies on next launch).
 	if strings.TrimSpace(claims.SyncURL) != "" {
-		if serr := cloudcfg.Save(cloudcfg.Path(h.cfg.DataDir), cloudcfg.Config{URL: claims.SyncURL}); serr != nil {
+		syncCfg := cloudcfg.Config{URL: claims.SyncURL, Token: claims.SyncToken}
+		if serr := cloudcfg.Save(cloudcfg.Path(h.cfg.DataDir), syncCfg); serr != nil {
 			observability.Warn(r.Context(), "license: sync endpoint not saved",
 				append(observability.WithComponent("license", "feature"), "error", serr)...)
 		}

@@ -70,7 +70,11 @@ func TestActivateLicenseMode(t *testing.T) {
 		t.Fatal("invalid token activated the store")
 	}
 
-	token, err := license.Sign(priv, license.Claims{Plan: "pro", SyncURL: "nats://sync.example.test:4222"})
+	const (
+		syncURL   = "nats://sync.example.test:4222"
+		syncToken = "test-sync-token"
+	)
+	token, err := license.Sign(priv, license.Claims{Plan: "pro", SyncURL: syncURL, SyncToken: syncToken})
 	if err != nil {
 		t.Fatalf("sign: %v", err)
 	}
@@ -81,8 +85,12 @@ func TestActivateLicenseMode(t *testing.T) {
 	if !store.Valid(time.Now()) {
 		t.Fatal("valid token did not activate the store")
 	}
-	if c, cerr := cloudcfg.Load(cloudcfg.Path(h.cfg.DataDir)); cerr != nil || c == nil {
-		t.Fatalf("token sync endpoint not applied: %+v, %v", c, cerr)
+	c, cerr := cloudcfg.Load(cloudcfg.Path(h.cfg.DataDir))
+	if cerr != nil || c == nil {
+		t.Fatalf("token sync config not applied: %+v, %v", c, cerr)
+	}
+	if c.URL != syncURL || c.Token != syncToken {
+		t.Fatalf("cloud config = %+v, want URL %q and token %q", c, syncURL, syncToken)
 	}
 }
 

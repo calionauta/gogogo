@@ -23,7 +23,9 @@ func newKey(t *testing.T) (ed25519.PublicKey, ed25519.PrivateKey) {
 
 func TestSignVerifyRoundTrip(t *testing.T) {
 	pub, priv := newKey(t)
-	token, err := Sign(priv, Claims{Sub: "user-1", Email: "a@b.test", Plan: "pro", ExpiresAt: 0})
+	token, err := Sign(priv, Claims{
+		Sub: "user-1", Email: "a@b.test", Plan: "pro", SyncToken: "test-sync-token", ExpiresAt: 0,
+	})
 	if err != nil {
 		t.Fatalf("sign: %v", err)
 	}
@@ -33,6 +35,9 @@ func TestSignVerifyRoundTrip(t *testing.T) {
 	}
 	if c.Sub != "user-1" || c.Email != "a@b.test" || c.Plan != "pro" {
 		t.Fatalf("claims = %+v", c)
+	}
+	if c.SyncToken != "test-sync-token" {
+		t.Fatalf("SyncToken = %q, want test-sync-token", c.SyncToken)
 	}
 	if c.IssuedAt == 0 {
 		t.Fatal("IssuedAt not stamped")

@@ -45,7 +45,8 @@ func main() {
 func usage() {
 	fmt.Fprint(os.Stderr, `usage:
   license keygen [-out license.key]
-  license mint -key license.key [-sub ID] [-email EMAIL] [-plan NAME] [-days N] [-sync URL] [-out FILE]
+  license mint -key license.key [-sub ID] [-email EMAIL] [-plan NAME]
+               [-days N] [-sync URL] [-sync-token TOKEN] [-out FILE]
   license verify -pub <hex|base64> [token]   (reads stdin when omitted)
 `)
 	os.Exit(2)
@@ -77,6 +78,7 @@ func mint(args []string) {
 	plan := fs.String("plan", "pro", "plan label")
 	days := fs.Int("days", 0, "expiry in days (0 = perpetual)")
 	syncURL := fs.String("sync", "", "NATS leaf-node endpoint embedded in the token")
+	syncToken := fs.String("sync-token", "", "NATS credential embedded in the token")
 	out := fs.String("out", "", "output file (default: stdout)")
 	if err := fs.Parse(args); err != nil {
 		os.Exit(2)
@@ -89,7 +91,7 @@ func mint(args []string) {
 	if err != nil {
 		fail("parse private key", err)
 	}
-	c := license.Claims{Sub: *sub, Email: *email, Plan: *plan, SyncURL: *syncURL}
+	c := license.Claims{Sub: *sub, Email: *email, Plan: *plan, SyncURL: *syncURL, SyncToken: *syncToken}
 	if *days > 0 {
 		c.ExpiresAt = time.Now().UTC().Add(time.Duration(*days) * 24 * time.Hour).Unix()
 	}

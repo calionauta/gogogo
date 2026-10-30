@@ -101,10 +101,11 @@ func (h *Handler) deviceToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	claims := license.Claims{
-		Sub:     sess.User.ID,
-		Email:   sess.User.Email,
-		Plan:    "account",
-		SyncURL: h.cfg.CloudSyncURL,
+		Sub:       sess.User.ID,
+		Email:     sess.User.Email,
+		Plan:      "account",
+		SyncURL:   h.cfg.CloudSyncURL,
+		SyncToken: h.cfg.NATS.Token,
 	}
 	if h.cfg.DeviceTokenDays > 0 {
 		claims.ExpiresAt = time.Now().UTC().AddDate(0, 0, h.cfg.DeviceTokenDays).Unix()

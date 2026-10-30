@@ -51,6 +51,9 @@ type Claims struct {
 	// rides in the token so "connect to cloud" cannot be pointed at an
 	// arbitrary host by the end user.
 	SyncURL string `json:"sync,omitempty"`
+	// SyncToken is the NATS credential the desktop uses with SyncURL.
+	//nolint:tagliatelle // The signed token wire format uses snake_case.
+	SyncToken string `json:"sync_token,omitempty"`
 }
 
 // Sign returns the wire token for claims.
