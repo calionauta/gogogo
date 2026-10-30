@@ -78,6 +78,7 @@ type trimUnit struct {
 // and warns union across all caps so the whiteboard bundle reports both.
 type unitMeta struct {
 	kind       capabilities.Kind
+	scaffold   capabilities.Scaffold
 	dirs       []string
 	files      []string
 	warns      []string
@@ -101,6 +102,7 @@ func (u trimUnit) meta() unitMeta {
 		}
 		if i == 0 {
 			m.kind = c.Kind
+			m.scaffold = c.Class()
 			m.note = c.Note
 			m.runtimeOff = c.RuntimeOff
 		}
@@ -110,6 +112,9 @@ func (u trimUnit) meta() unitMeta {
 	}
 	m.dirs = dirs
 	m.files = files
+	if warns == nil {
+		warns = []string{}
+	}
 	m.warns = warns
 	return m
 }

@@ -11,7 +11,7 @@ import (
 func PrintUsage(w io.Writer, fs *flag.FlagSet) {
 	fmt.Fprintln(w, `gogogo `+Version+` — scaffold a project from gogogo.
 
-  Interactive (humans: 4 questions, then a plan to confirm):
+  Interactive (humans: 5 questions, then a plan to confirm):
 
     go run github.com/calionauta/gogogo/cmd/gogogo@latest --run
 
@@ -85,7 +85,9 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
   Units (id, kind). Kind follows the servant principle, not the directory:
   a plugin serves other capabilities (sounds, credits serve pages);
   a feature is a terminal user surface (todo, whiteboard, landing, config).
-  --plugins matches plugin-kind units, --features matches feature-kind units. Not offered here
+  Scaffold class decides the default: --plugins/--features keep default
+  units (empty or all keeps all, none drops all); --opt-in adds opt-in units
+  (empty keeps none, all adds every one; this tree has none). Not offered here
   todo (reference implementation), auth (middleware is core), queue (core),
   nats (runtime: NATS_ENABLED=false), llm (runtime: unset GOAI_API_KEY),
   offline-sync (runtime: OFFLINE_SYNC_ENABLED=false).`)

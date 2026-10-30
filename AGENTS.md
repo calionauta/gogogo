@@ -34,6 +34,7 @@ Go 1.27 | Templ v0.3.1020 | Datastar v1.0.4 (JS core, vendored) + datastar-go v1
 |---------|-------------|
 | `make dev` | Air live reload |
 | `make build` | Unified build, no lint/tests |
+| `make desktop` / `make gui` | Native targets (Wails shell, gogpu/ui window) — built **locally, never in CI**; `make run-desktop` / `make run-gui` build then open (`docs/desktop-mobile.md`) |
 | `make templ` | Generate Templ |
 | `make datastar-lint` | Lint `.templ` (`-only-errors` keeps intentional attrs) |
 | `make css` / `make css-check` | Rebuild the bundle (DaisyUI + its themes; scans `features/`, `web/`, `internal/`) / verify it is current (`css-all` is kept as an alias for CI and Docker) |

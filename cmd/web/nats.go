@@ -36,7 +36,7 @@ func startNATS(cfg *config.Config) (*natsio.Conn, nats.JetStreamLike) {
 		}
 		return h.Conn, h.JS
 	}
-	h, err := nats.StartEmbedded(cfg.NATS.StoreDir)
+	h, err := nats.StartEmbeddedOn(cfg.NATS.StoreDir, cfg.NATS.Listen, cfg.NATS.Token)
 	if err != nil {
 		// Don't take the whole app down if embedded NATS can't start
 		// (e.g. a read-only or full store dir). Fall back to the

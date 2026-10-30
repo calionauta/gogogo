@@ -26,16 +26,16 @@ func TestValidateName(t *testing.T) {
 }
 
 func TestPlanTrimKeepsAllByDefault(t *testing.T) {
-	keep := parseKeep("", "")
+	keep := parseKeep("", "", "all")
 	if got := planTrim(keep); len(got) != 0 {
-		t.Errorf("planTrim(default) dropped %v, want nothing", dropIDs(got))
+		t.Errorf("planTrim(default+all opt-in) dropped %v, want nothing", dropIDs(got))
 	}
 }
 
 func TestPlanKeepListsSummaries(t *testing.T) {
 	// Deciders reading --format json see what each kept unit IS: the id
 	// lists alone force a second lookup per unit.
-	p := buildPlan("x", "y", ".", parseKeep("", ""), nil, true)
+	p := buildPlan("x", "y", ".", parseKeep("", "", "all"), nil, true)
 	if len(p.Keep) != len(manifestUnits) {
 		t.Fatalf("keepUnits = %d, want all %d units", len(p.Keep), len(manifestUnits))
 	}
@@ -66,13 +66,13 @@ func keepAllBut(dropped ...string) keepSet {
 		}
 	}
 	joined := strings.Join(keep, ",")
-	return parseKeep(joined, joined)
+	return parseKeep(joined, joined, "all")
 }
 
 func TestParseKeepDimensionsIndependent(t *testing.T) {
 	// Convention: empty means keep-all IN THAT DIMENSION. Answering only
 	// the plugins question must not drop every feature.
-	keep := parseKeep("dagnats", "")
+	keep := parseKeep("dagnats", "", "")
 	drop := planTrim(keep)
 	ids := map[string]bool{}
 	for _, u := range drop {
@@ -139,8 +139,7 @@ func TestUnitMenusFollowRegistryKinds(t *testing.T) {
 	}
 }
 
-func TestPromptFormRepairsInvalidAnswer(t *testing.T) {
-	// Humans mistype: an invalid plugins answer re-asks instead of
+func TestPromptFormRepairsInvalidAnswer(t *testing.T) { // Humans mistype: an invalid plugins answer re-asks instead of
 	// aborting or silently mis-trimming.
 	r, w, err := os.Pipe()
 	if err != nil {
@@ -176,7 +175,7 @@ func TestPromptFormRepairsInvalidAnswer(t *testing.T) {
 }
 
 func TestParseKeepNoneDropsDimension(t *testing.T) {
-	keep := parseKeep("none", "none")
+	keep := parseKeep("none", "none", "")
 	drop := planTrim(keep)
 	if len(drop) != len(manifestUnits) {
 		t.Errorf("none/none should drop all %d units, dropped %v", len(manifestUnits), dropIDs(drop))
@@ -184,7 +183,7 @@ func TestParseKeepNoneDropsDimension(t *testing.T) {
 }
 
 func TestPlanTrimDropsSkipped(t *testing.T) {
-	keep := parseKeep("landing", "landing")
+	keep := parseKeep("landing", "landing", "")
 	drop := planTrim(keep)
 	ids := map[string]bool{}
 	for _, u := range drop {
@@ -203,7 +202,7 @@ func TestPlanTrimDropsSkipped(t *testing.T) {
 // manifest unit, so the plan printed feature ids under "keep plugins" while
 // the trim right below it deleted those same features.
 func TestPlanKeepListsStayKindPure(t *testing.T) {
-	p := buildPlan("gggtest", "nickchomey", "gggtest", parseKeep("", "none"), nil, true)
+	p := buildPlan("gggtest", "nickchomey", "gggtest", parseKeep("", "none", ""), nil, true)
 	if len(p.KeepFeatures) != 0 {
 		t.Errorf("keepFeatures = %v, want empty (the answer was none)", p.KeepFeatures)
 	}
@@ -218,5 +217,50 @@ func TestPlanKeepListsStayKindPure(t *testing.T) {
 		if kindOf[id] != capabilities.KindPlugin {
 			t.Errorf("keepPlugins lists %q, which is a %s", id, kindOf[id])
 		}
+	}
+}
+
+// TestManifestUnitsFollowScaffoldStrategy pins the strategy for every unit:
+// a manifest unit is default or opt-in (never core/manual), and every
+// capability the registry offers is reachable from one. A new unit that
+// skips the class, or an offered capability with no unit, fails here.
+func TestManifestUnitsFollowScaffoldStrategy(t *testing.T) {
+	for _, u := range manifestUnits {
+		if got := u.meta().scaffold; got != capabilities.ScaffoldDefault && got != capabilities.ScaffoldOptIn {
+			t.Errorf("unit %q scaffold = %q, want default or opt-in", u.id, got)
+		}
+	}
+	covered := map[string]bool{}
+	for _, u := range manifestUnits {
+		for _, id := range u.caps() {
+			covered[id] = true
+		}
+	}
+	for _, id := range capabilities.OfferedIDs() {
+		if !covered[id] {
+			t.Errorf("offered capability %q is not reachable from any manifest unit", id)
+		}
+	}
+}
+
+// TestParseKeepAllAlias pins the shorthand humans type: "all" means the same
+// as an empty keep list for default units, and still leaves opt-in dropped
+// unless the opt-in list says otherwise.
+func TestParseKeepAllAlias(t *testing.T) {
+	got := dropIDs(planTrim(parseKeep("all", "all", "")))
+	if len(got) != 0 {
+		t.Errorf("parseKeep(all) drops %v, want none (no opt-in units)", got)
+	}
+	if all := dropIDs(planTrim(parseKeep("all", "all", "all"))); len(all) != 0 {
+		t.Errorf("parseKeep(all, all, all) drops %v, want none", all)
+	}
+}
+
+// TestParseSelectionAll pins the interactive shorthand: "all" is accepted at
+// the prompt, not just the flag.
+func TestParseSelectionAll(t *testing.T) {
+	ids, all, err := parseSelection("all", []string{"a", "b"})
+	if err != nil || !all || len(ids) != 0 {
+		t.Errorf("parseSelection(all) = (%v, %v, %v), want (nil, true, nil)", ids, all, err)
 	}
 }

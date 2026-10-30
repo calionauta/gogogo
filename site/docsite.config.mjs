@@ -97,6 +97,8 @@ export default {
     desc: "Where a linter's vocabulary lives: authored map versus derived snapshot, the 2026 drift-check evidence, and why daisyui-lint embeds one." },
   { group: "Research", slug: "auth-libraries", file: "research/auth-libraries-2026-10.md",
     desc: "The 2026-10-21 evaluation of limen against owning argon2id and sessions: schema ownership, version skew, and what flips the decision." },
+  { group: "Research", slug: "desktop-auth-sync", file: "research/desktop-auth-sync-2026-10.md",
+    desc: "License gate, account pairing or cloud-only? The 2026 desktop distribution options, the offline-first matrix, and why gogogo keeps one identity per profile." },
   { group: "Research", slug: "ui-engine-research", file: "research/ui-engine-research.md",
     desc: "The 2026-10-21 engine and component-library evaluation behind the UI stack, with local benchmarks and the Rocket assessment." },
   { group: "Research", slug: "ui-components", file: "research/ui-components-2026-10-21.md",

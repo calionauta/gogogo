@@ -51,7 +51,7 @@ Go product:
 Boundaries: web (Templ + Datastar) stays the first product surface; a native
 shell needs a concrete requirement. macOS has the most complete native path
 (Metal + CoreText; webview pages are macOS-only so far) — verify your target.
-Pre-1.0: pin a release tag (the way `WAILS_VERSION` pins `wails/v3`). See
+Pre-1.0: pin a release tag (the way `go.mod` pins `wails/v3`). See
 `docs/exception-to-go.md` ("If the answer IS a UI").
 
 ## Local-docs-first (when Zig exists)

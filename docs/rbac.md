@@ -182,12 +182,13 @@ a 403, never to an unauthorized write. Never gate a mutation on
   allowlist — the typo catcher. Pre-commit subset.
 - **Flat + dedupe**: no `g` rows, no duplicate lines.
 - **Operator surfaces** (`TestRBACUserCannotReachOperatorSurfaces`):
-  `/config`, `/console`, `/dagnats` denied for user on every method, still
-  reachable for admin. The handlers add an always-on fence too, so the same
-  answers hold with `RBAC_ENABLED=false`:
+  `/config`, `/console`, `/dagnats`, `/debug/statsviz`, `/debug/pprof` denied
+  for user on every method, still reachable for admin. The handlers add an
+  always-on fence too, so the same answers hold with `RBAC_ENABLED=false`:
   `rbac.RequireAdmin` on `/config`, and admin **plus** an `ADMIN_EMAILS`
-  match on the console (`/console/`, `/dagnats/`). An empty `ADMIN_EMAILS`
-  closes the console even for the seeded demo admin.
+  match on the console (`/console/`, `/dagnats/`) and on the diagnostics pair
+  (`/debug/statsviz`, `/debug/pprof`). An empty `ADMIN_EMAILS` closes both even
+  for the seeded demo admin.
 - **Viewer matrix + middleware**: allow/deny decisions plus a real
   viewer through the real middleware (create/toggle/delete-own pass at
   the verb; row ownership denies in the handler).
@@ -301,10 +302,11 @@ a substitute for one. Two rules follow:
   `sess == nil` answers 401, before touching a doc, a row or the body. Do
   not rely on "the policy grants /api/x/* to user" - with RBAC off that
   row is inert.
-- **Operator surfaces are not ordinary routes.** `/config` and the DagNats
-  console carry a handler-level fence (`rbac.RequireAdmin` and the operator
-  allowlist) because turning RBAC off must not hand them to every signed-in
-  account. The policy rows stay as the second layer.
+- **Operator surfaces are not ordinary routes.** `/config`, the DagNats
+  console and the diagnostics pair (`/debug/statsviz`, `/debug/pprof`) carry a
+  handler-level fence (`rbac.RequireAdmin` and the operator allowlist) because
+  turning RBAC off must not hand them to every signed-in account. The policy
+  rows stay as the second layer.
 - **An `anonymous` row is a deliberate publication.** Add one only for a
   surface that is safe with no session at all (the landing page, assets,
   `/health`, the SSE open probe). A wildcard that happens to include a

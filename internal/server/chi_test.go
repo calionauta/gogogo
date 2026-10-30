@@ -37,12 +37,12 @@ import (
 func TestStartChiDisabled(t *testing.T) {
 	cfg := config.Load()
 	cfg.ChiAddr = ""
-	stop, err := StartChi(cfg, nil, nil)
+	stop, addr, err := StartChi(cfg, nil, nil)
 	if err != nil {
 		t.Fatalf("disabled StartChi err = %v, want nil", err)
 	}
-	if stop != nil {
-		t.Fatal("disabled StartChi returned a stop func, want nil")
+	if stop != nil || addr != "" {
+		t.Fatalf("disabled StartChi = (%v, %q), want (nil, \"\")", stop != nil, addr)
 	}
 }
 
@@ -56,7 +56,7 @@ func TestStartChiBoot(t *testing.T) {
 	cfg.SignupEnabled = true
 	cfg.Turso.DBPath = t.TempDir() + "/boot.db"
 
-	stop, err := StartChi(cfg, nil, nil)
+	stop, addr, err := StartChi(cfg, nil, nil)
 	if err != nil {
 		t.Fatalf("StartChi err = %v", err)
 	}
@@ -64,6 +64,9 @@ func TestStartChiBoot(t *testing.T) {
 		t.Fatal("StartChi returned nil stop, want a shutdown func")
 	}
 	defer stop()
+	if addr == "" || addr == "127.0.0.1:0" {
+		t.Fatalf("StartChi addr = %q, want the kernel-chosen port", addr)
+	}
 
 	var versions []string
 	sqlDB, err := sql.Open("turso", cfg.Turso.DBPath+"?_busy_timeout=10000")

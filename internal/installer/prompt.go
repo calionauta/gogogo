@@ -38,6 +38,7 @@ type formResult struct {
 	owner    string
 	plugins  string
 	features string
+	optIn    string
 }
 
 // promptForm is the stdlib interactive form. It asks the same four questions
@@ -64,28 +65,24 @@ func promptForm(stdin io.Reader, stdout io.Writer) formResult {
 	res := formResult{}
 	res.name = ask("Project name", "")
 	res.owner = ask("GitHub owner", "calionauta")
-	res.plugins = askKeep(in, stdout, "plugins", capabilities.KindPlugin)
-	res.features = askKeep(in, stdout, "features", capabilities.KindFeature)
+	res.plugins = askKeep(in, stdout, "plugins", capabilities.ScaffoldDefault, capabilities.KindPlugin)
+	res.features = askKeep(in, stdout, "features", capabilities.ScaffoldDefault, capabilities.KindFeature)
+	res.optIn = askOptIn(in, stdout)
 	return res
 }
 
-// askKeep renders one closed-choice question as a numbered menu and loops
-// until the answer parses. Returns a parseKeep-ready string: "" (keep all),
-// "none" (drop all), or comma-joined unit ids. Numbers are 1-based positions
-// in the menu shown above them — never stored, never passed to flags.
-func askKeep(in *bufio.Scanner, stdout io.Writer, dimension string, kind capabilities.Kind) string {
-	var options []string
+// askKeep renders one default-class question. Empty keeps every default unit
+// in the dimension; "none" drops them all.
+func askKeep(
+	in *bufio.Scanner, stdout io.Writer, dimension string,
+	scaffold capabilities.Scaffold, kind capabilities.Kind,
+) string {
+	options := unitIDsOf(scaffold, kind)
 	summaries := map[string]string{}
 	byID := capabilities.ByID()
-	for _, u := range manifestUnits {
-		if u.meta().kind != kind {
-			continue
-		}
-		options = append(options, u.id)
-		if len(u.caps()) > 0 {
-			if c, ok := byID[u.caps()[0]]; ok {
-				summaries[u.id] = c.Summary
-			}
+	for _, id := range options {
+		if c, ok := byID[id]; ok {
+			summaries[id] = c.Summary
 		}
 	}
 	label := "Keep " + dimension
@@ -93,7 +90,7 @@ func askKeep(in *bufio.Scanner, stdout io.Writer, dimension string, kind capabil
 	for i, id := range options {
 		fmt.Fprintf(stdout, "  %d) %-12s %s\n", i+1, id, summaries[id])
 	}
-	fmt.Fprintf(stdout, "Empty = keep all. \"none\" = drop all.\n")
+	fmt.Fprintf(stdout, "Empty or \"all\" = keep all defaults. \"none\" = drop all.\n")
 	for {
 		fmt.Fprintf(stdout, "%s [%s]: ", label, strings.Join(options, ","))
 		if !in.Scan() {
@@ -114,12 +111,54 @@ func askKeep(in *bufio.Scanner, stdout io.Writer, dimension string, kind capabil
 	}
 }
 
+// askOptIn renders the opt-in group: empty (or "none") keeps none, "all"
+// keeps every opt-in unit, and numbers/ids pick a subset. The question is
+// skipped when the registry has no opt-in unit.
+func askOptIn(in *bufio.Scanner, stdout io.Writer) string {
+	options := unitIDsOf(capabilities.ScaffoldOptIn, "")
+	if len(options) == 0 {
+		return ""
+	}
+	summaries := map[string]string{}
+	byID := capabilities.ByID()
+	for _, id := range options {
+		if c, ok := byID[id]; ok {
+			summaries[id] = c.Summary
+		}
+	}
+	label := "Add opt-in units"
+	fmt.Fprintf(stdout, "%s (numbers and/or ids, comma-separated).\n", label)
+	for i, id := range options {
+		fmt.Fprintf(stdout, "  %d) %-12s %s\n", i+1, id, summaries[id])
+	}
+	fmt.Fprintf(stdout, "Empty = none. \"all\" = all opt-in units.\n")
+	for {
+		fmt.Fprintf(stdout, "%s [%s]: ", label, strings.Join(options, ","))
+		if !in.Scan() {
+			return ""
+		}
+		answer := strings.TrimSpace(in.Text())
+		if answer == "" || strings.EqualFold(answer, keepNone) {
+			return ""
+		}
+		if strings.EqualFold(answer, "all") {
+			return strings.Join(options, ",")
+		}
+		ids, _, err := parseSelection(answer, options)
+		if err != nil {
+			fmt.Fprintf(stdout, "gogogo: %v — try again.\n", err)
+			continue
+		}
+		return strings.Join(ids, ",")
+	}
+}
+
 // parseSelection maps one answer to unit ids. Empty means keep-all (all
 // true); "none" means keep nothing; otherwise every comma-separated token
 // must be a 1-based menu number or a unit id. Unknown tokens error naming
 // every valid choice, so neither humans nor agents can silently misspell.
 func parseSelection(input string, options []string) (ids []string, all bool, err error) {
-	if input == "" {
+	if input == "" || strings.EqualFold(input, "all") {
 		return nil, true, nil
 	}
 	if strings.EqualFold(input, keepNone) {
@@ -159,32 +198,42 @@ func selectionError(tok string, options []string) error {
 	for i, id := range options {
 		numbered = append(numbered, fmt.Sprintf("%d=%s", i+1, id))
 	}
-	return fmt.Errorf("unknown %q (valid: %s, empty = all, none = drop all)",
+	return fmt.Errorf("unknown %q (valid: %s, empty/all = all, none = drop all)",
 		tok, strings.Join(numbered, ", "))
 }
 
 type keepSet struct {
 	plugins  map[string]bool
 	features map[string]bool
+	optIn    map[string]bool
 }
 
-func parseKeep(plugins, features string) keepSet {
-	k := keepSet{plugins: map[string]bool{}, features: map[string]bool{}}
-	// Empty means keep-all in that dimension (the prompt asks plugins
-	// and features as separate questions). Never mirror one dimension
-	// into the other: an empty features answer keeps every feature.
-	// The literal "none" keeps nothing (drop everything in scope).
-	// Each dimension fills from its OWN kind; seeding both from every
-	// manifest unit would print features under "keep plugins".
-	if strings.TrimSpace(plugins) == "" {
-		plugins = strings.Join(unitIDsOfKind(capabilities.KindPlugin), ",")
+func parseKeep(plugins, features, optIn string) keepSet {
+	k := keepSet{
+		plugins:  map[string]bool{},
+		features: map[string]bool{},
+		optIn:    map[string]bool{},
+	}
+	// Empty means keep-all defaults in that dimension (the prompt asks
+	// plugins and features as separate questions). Never mirror one
+	// dimension into the other. The literal "none" keeps nothing.
+	// Opt-in is the opposite default: empty/none keeps none, "all" keeps
+	// every opt-in unit.
+	if strings.TrimSpace(plugins) == "" || strings.EqualFold(strings.TrimSpace(plugins), "all") {
+		plugins = strings.Join(unitIDsOf(capabilities.ScaffoldDefault, capabilities.KindPlugin), ",")
 	} else if strings.TrimSpace(plugins) == keepNone {
 		plugins = ""
 	}
-	if strings.TrimSpace(features) == "" {
-		features = strings.Join(unitIDsOfKind(capabilities.KindFeature), ",")
+	if strings.TrimSpace(features) == "" || strings.EqualFold(strings.TrimSpace(features), "all") {
+		features = strings.Join(unitIDsOf(capabilities.ScaffoldDefault, capabilities.KindFeature), ",")
 	} else if strings.TrimSpace(features) == keepNone {
 		features = ""
+	}
+	switch {
+	case strings.TrimSpace(optIn) == "", strings.TrimSpace(optIn) == keepNone:
+		optIn = ""
+	case strings.EqualFold(strings.TrimSpace(optIn), "all"):
+		optIn = strings.Join(unitIDsOf(capabilities.ScaffoldOptIn, ""), ",")
 	}
 	for p := range strings.SplitSeq(plugins, ",") {
 		if v := strings.TrimSpace(p); v != "" {
@@ -194,6 +243,11 @@ func parseKeep(plugins, features string) keepSet {
 	for p := range strings.SplitSeq(features, ",") {
 		if v := strings.TrimSpace(p); v != "" {
 			k.features[v] = true
+		}
+	}
+	for p := range strings.SplitSeq(optIn, ",") {
+		if v := strings.TrimSpace(p); v != "" {
+			k.optIn[v] = true
 		}
 	}
 	return k
@@ -214,11 +268,22 @@ func sortedKeys(m map[string]bool) []string {
 // unitIDsOfKind lists installer unit ids of one registry kind, in manifest
 // order. Feed for menus and prompts sharing one vocabulary.
 func unitIDsOfKind(kind capabilities.Kind) []string {
+	return unitIDsOf(capabilities.ScaffoldDefault, kind)
+}
+
+// unitIDsOf lists manifest units in one scaffold class (empty class = any)
+// and one kind (empty kind = any), in manifest order (the prompt's numbering).
+func unitIDsOf(scaffold capabilities.Scaffold, kind capabilities.Kind) []string {
 	var ids []string
 	for _, u := range manifestUnits {
-		if u.meta().kind == kind {
-			ids = append(ids, u.id)
+		m := u.meta()
+		if scaffold != "" && m.scaffold != scaffold {
+			continue
 		}
+		if kind != "" && m.kind != kind {
+			continue
+		}
+		ids = append(ids, u.id)
 	}
 	return ids
 }
@@ -227,33 +292,57 @@ func unitIDsOfKind(kind capabilities.Kind) []string {
 // Empty means keep-all; unknown ids fail fast in checkKeepIDs.
 const keepNone = "none"
 
-// checkKeepIDs fails fast on unknown unit ids: a typo like --plugins
-// dagnat must error listing valid ids, never silently keep everything.
-func checkKeepIDs(plugins, features string) error {
-	known := map[string]bool{}
+// checkKeepIDs fails fast on unknown or misplaced unit ids: a typo like
+// --plugins dagnat must error listing valid ids, never silently keep
+// everything. --plugins/--features accept default units of that kind only;
+// --opt-in accepts opt-in units only.
+func checkKeepIDs(plugins, features, optIn string) error {
+	defaultPlugins := map[string]bool{}
+	defaultFeatures := map[string]bool{}
+	optInIDs := map[string]bool{}
 	for _, u := range manifestUnits {
-		known[u.id] = true
+		m := u.meta()
+		switch m.scaffold {
+		case capabilities.ScaffoldDefault:
+			if m.kind == capabilities.KindPlugin {
+				defaultPlugins[u.id] = true
+			}
+			if m.kind == capabilities.KindFeature {
+				defaultFeatures[u.id] = true
+			}
+		case capabilities.ScaffoldOptIn:
+			optInIDs[u.id] = true
+		}
+	}
+	groups := []struct {
+		raw, flag string
+		valid     map[string]bool
+	}{
+		{plugins, "--plugins", defaultPlugins},
+		{features, "--features", defaultFeatures},
+		{optIn, "--opt-in", optInIDs},
 	}
 	var unknown []string
 	seen := map[string]bool{}
-	collect := func(raw string) {
-		for p := range strings.SplitSeq(raw, ",") {
+	for _, g := range groups {
+		for p := range strings.SplitSeq(g.raw, ",") {
 			id := strings.TrimSpace(p)
-			if id == "" || id == keepNone || seen[id] {
+			if id == "" || id == keepNone || strings.EqualFold(id, "all") || seen[id] {
 				continue
 			}
 			seen[id] = true
-			if !known[id] {
-				unknown = append(unknown, id)
+			if !g.valid[id] {
+				unknown = append(unknown, fmt.Sprintf("%s (not valid for %s)", id, g.flag))
 			}
 		}
 	}
-	collect(plugins)
-	collect(features)
 	if len(unknown) > 0 {
 		sort.Strings(unknown)
-		return fmt.Errorf("unknown unit id(s) %s (valid: %s)",
-			strings.Join(unknown, ", "), strings.Join(sortedKeys(known), ", "))
+		return fmt.Errorf("unknown unit id(s): %s (valid: --plugins %s; --features %s; --opt-in %s)",
+			strings.Join(unknown, ", "),
+			strings.Join(sortedKeys(defaultPlugins), ", "),
+			strings.Join(sortedKeys(defaultFeatures), ", "),
+			strings.Join(sortedKeys(optInIDs), ", "))
 	}
 	return nil
 }

@@ -484,7 +484,7 @@ Gone with the framework: the `db/` package (app handle + seeds), the
 `features/auth` (the legacy PB middleware), the PB handlers under every
 feature, and the `internal/routeutil` + `internal/collabpb` helpers. One boot
 path remains: `cfg.Host:cfg.Port` is the address, with `CHI_ADDR` as the
-explicit override `cmd/desktop` sets so its webview proxy and the backend agree
+explicit override `cmd/desktop` sets so its webview URL and the backend agree
 ([configuration](configuration.md)). `internal/db/` does not go away; it IS the
 data layer.
 

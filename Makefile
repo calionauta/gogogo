@@ -13,12 +13,11 @@ OS_TMPDIR = $(shell node -e "process.stdout.write(require('os').tmpdir())" 2>/de
 # Prebuilt binary the smoke tests boot. Overridable via environment or
 # command line (SMOKE_BIN=... make ci-local); otherwise the default above.
 SMOKE_BIN ?= $(OS_TMPDIR)/gogogo-ci-local-web
-# Wails v3 pin. Kept in sync with go.mod (wails/v3) and the install line in
-# .github/workflows/desktop.yml. The desktop BUILD does not use the CLI (it is
-# plain `go build`); the pin exists for `wails3 doctor` / `wails3 init` tooling.
-WAILS_VERSION := v3.0.0-beta.24
+# The Wails v3 pin lives in go.mod (github.com/wailsapp/wails/v3). The desktop
+# build does not use the wails3 CLI at all — it is a plain `go build` — so no
+# copy of the version belongs here to drift from the module graph.
 
-.PHONY: all build desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean templ fmt css css-install datastar-lint test lint check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui run-gui lint-gui check-generated install-sh-guard check-classes daisyui-lint vocabulary check-docs docs-index check-mcp site site-check
+.PHONY: all build desktop desktop-smoke run-desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean templ fmt css css-install datastar-lint test lint check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui gui-build gui-test run-gui lint-gui check-generated install-sh-guard check-classes daisyui-lint vocabulary check-docs docs-index check-mcp site site-check
 
 all: build
 
@@ -30,9 +29,26 @@ build: templ
 	@echo "→ Building $(APP_NAME) v$(VERSION)..."
 	@go build $(LDFLAGS) -o $(APP_NAME) ./$(APP_DIR)
 
+# desktop builds the Wails v3 shell. It is a local target only: no CI job
+# compiles it (the GTK4/WebKit install is not worth a gate nobody ships), so
+# the build is proven by whoever runs this. Output goes to build/ — never the
+# repo root, where a 115 MB binary once landed by accident.
 desktop: templ
 	@echo "→ Building desktop shell (Wails v3 + Leaf Node) v$(VERSION)..."
-	@go build $(LDFLAGS) -o gogogo-desktop ./cmd/desktop
+	@mkdir -p build/desktop
+	@go build $(LDFLAGS) -o build/desktop/gogogo-desktop ./cmd/desktop
+	@echo "  → build/desktop/gogogo-desktop"
+
+# desktop-smoke is the GATE: build, open the window, and prove the webview
+# loaded the app (its requests reach the flat stack's access log) plus first-run
+# signup and the single-instance lock. `make desktop` only compiles.
+desktop-smoke:
+	@./scripts/desktop-smoke.sh
+
+# run-desktop opens the window. Wails boots the flat stack itself (embedded
+# NATS unless NATS_LEAFNODE_URL is set), so there is nothing else to start.
+run-desktop: desktop
+	@./build/desktop/gogogo-desktop
 
 # NOTE: `wails3 build` cannot be used in this repo — it takes no `-o` flag and
 # delegates to `wails3 task build`, which needs a Taskfile.yml at the root
@@ -340,7 +356,7 @@ cover-diff:
 #   make go-bump              # newest patch of the tree's line
 #   make go-bump DRY=1        # report what would move, write nothing
 #   make go-bump TO=1.27.4    # name the target explicitly
-.PHONY: all build desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui run-gui lint-gui check-generated install-sh-guard check-classes check-docs docs-index
+.PHONY: all build desktop desktop-smoke run-desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui gui-build gui-test run-gui lint-gui check-generated install-sh-guard check-classes check-docs docs-index
 go-bump:
 	@go run ./cmd/bump-go-toolchain $(if $(TO),--to $(TO)) $(if $(DRY),--dry-run)
 
@@ -549,9 +565,9 @@ reap-stale:
 	@echo "→ reaping stale smoke artifacts (6h+)..."
 	@bash scripts/reap-stale-smoke.sh
 
-.PHONY: all build desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui run-gui lint-gui check-generated install-sh-guard check-classes check-docs docs-index
+.PHONY: all build desktop desktop-smoke run-desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui gui-build gui-test run-gui lint-gui check-generated install-sh-guard check-classes check-docs docs-index
 
-.PHONY: all build desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui run-gui lint-gui check-generated install-sh-guard check-classes check-docs docs-index
+.PHONY: all build desktop desktop-smoke run-desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui gui-build gui-test run-gui lint-gui check-generated install-sh-guard check-classes check-docs docs-index
 
 deps:
 	@go mod tidy
@@ -611,7 +627,11 @@ help:
 	@echo ""
 	@echo "Targets:"
 	@echo "  build          Build binary (unified: everything included)"
-	@echo "  desktop        Build desktop shell (Wails v3, native, fast gate)"
+	@echo "  desktop        Build desktop shell (Wails v3) → build/desktop/ (local only, no CI)"
+	@echo "  run-desktop    Build then open the desktop window"
+	@echo "  gui            Race tests + build the gogpu/ui window → build/gui/ (local only, no CI)"
+	@echo "  run-gui        Open the native gogpu/ui window"
+	@echo "  lint-gui       Full lint on cmd/gui (manual gate, never in CI)"
 	@echo "  desktop-cross  Cross previews win+mac+linux via wails-cross (opt-in, unsigned)"
 	@echo "  desktop-setup-cross  One-time wails-cross Docker setup (~800MB)"
 	@echo "  fmt            Check formatting (gofumpt + goimports)"
@@ -646,27 +666,33 @@ help:
 	@echo "  rename         Rename the project (NAME=my-app [OWNER=myorg] [DRY=1])"
 	@echo "  docker-image   Build and push Docker image"
 
-# gui builds the gogpu/ui native window (proof that the backend is reachable
-# without HTTP). Tests run headless (no window/GPU); the shipped binary
-# builds with CGO_ENABLED=0 per the gogpu requirement. Validated in CI
-# by the gui job in .github/workflows/desktop.yml.
-gui:
+# gui is the gate: the race tests, then the build. No CI job compiles this
+# target, so this is the only thing between a change and a broken window.
+gui: gui-test gui-build
+
+# gui-test runs the headless race suite (no window, no GPU).
+gui-test:
 	@echo "→ Testing native gogpu/ui window v$(VERSION) (headless)..."
 	@go test -race -count=1 ./cmd/gui
-	@echo "→ Building native gogpu/ui window v$(VERSION)..."
-	@CGO_ENABLED=0 go build $(LDFLAGS) -o gogogo-gui ./cmd/gui
 
-# lint-gui runs the full 27-linter gate on cmd/gui. NOT in CI (linting
+# gui-build compiles without the tests — what opening the window needs.
+gui-build:
+	@echo "→ Building native gogpu/ui window v$(VERSION)..."
+	@mkdir -p build/gui
+	@CGO_ENABLED=0 go build $(LDFLAGS) -o build/gui/gogogo-gui ./cmd/gui
+	@echo "  → build/gui/gogogo-gui"
+
+# lint-gui runs the full 27-linter gate on cmd/gui. Never in CI (linting
 # the wgpu/naga tree is minutes-cold per push and only catches style —
-# breakage is caught by vet+tests+build in the gui job). Run this
-# locally before committing any cmd/gui change; keep it at zero issues.
+# breakage is caught by vet+tests+build in `make gui`). Run this before
+# committing any cmd/gui change; keep it at zero issues.
 lint-gui:
 	@echo "→ golangci-lint on cmd/gui (manual gate, see gui NOTE)..."
 	@golangci-lint run ./cmd/gui/...
 
-run-gui:
+run-gui: gui-build
 	@echo "→ Starting the native gogpu/ui window (window + GPU required)..."
-	@./gogogo-gui
+	@./build/gui/gogogo-gui
 
 # --- Docs site (GitHub Pages) ----------------------------------------------
 # site/index.html + descent.css + official.css + assets/ are hand-written sources; everything

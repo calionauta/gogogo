@@ -14,6 +14,7 @@ import (
 type planUnit struct {
 	ID         string   `json:"id"`
 	Kind       string   `json:"kind"`
+	Scaffold   string   `json:"scaffold"`
 	Dirs       []string `json:"dirs"`
 	Files      []string `json:"files"`
 	Warns      []string `json:"warnings"`
@@ -26,9 +27,10 @@ type planUnit struct {
 // reading --format json see what each kept unit IS, not just its id.
 // Additive (the id lists stay): stable field names are untouched.
 type keptUnit struct {
-	ID      string `json:"id"`
-	Kind    string `json:"kind"`
-	Summary string `json:"summary"`
+	ID       string `json:"id"`
+	Kind     string `json:"kind"`
+	Scaffold string `json:"scaffold"`
+	Summary  string `json:"summary"`
 }
 
 // scaffoldPlan is the full preview of what the installer will do.
@@ -40,6 +42,7 @@ type scaffoldPlan struct {
 	Dir          string     `json:"dir"`
 	KeepPlugins  []string   `json:"keepPlugins"`
 	KeepFeatures []string   `json:"keepFeatures"`
+	KeepOptIn    []string   `json:"keepOptIn"`
 	Keep         []keptUnit `json:"keepUnits"`
 	Drop         []planUnit `json:"drop"`
 	DryRun       bool       `json:"dryRun"`
@@ -56,14 +59,17 @@ func buildPlan(name, owner, dir string, keep keepSet, drop []trimUnit, dryRun bo
 		Dir:          dir,
 		KeepPlugins:  sortedKeys(keep.plugins),
 		KeepFeatures: sortedKeys(keep.features),
+		KeepOptIn:    sortedKeys(keep.optIn),
 		Keep:         []keptUnit{},
 		Drop:         []planUnit{},
 		DryRun:       dryRun,
 	}
 	for _, u := range manifestUnits {
 		m := u.meta()
-		kept := m.kind == capabilities.KindPlugin && keep.plugins[u.id] ||
-			m.kind == capabilities.KindFeature && keep.features[u.id]
+		kept := m.scaffold == capabilities.ScaffoldDefault &&
+			(m.kind == capabilities.KindPlugin && keep.plugins[u.id] ||
+				m.kind == capabilities.KindFeature && keep.features[u.id]) ||
+			m.scaffold == capabilities.ScaffoldOptIn && keep.optIn[u.id]
 		if !kept {
 			continue
 		}
@@ -73,13 +79,16 @@ func buildPlan(name, owner, dir string, keep keepSet, drop []trimUnit, dryRun bo
 				summary = c.Summary
 			}
 		}
-		p.Keep = append(p.Keep, keptUnit{ID: u.id, Kind: string(m.kind), Summary: summary})
+		p.Keep = append(p.Keep, keptUnit{
+			ID: u.id, Kind: string(m.kind), Scaffold: string(m.scaffold), Summary: summary,
+		})
 	}
 	for _, u := range drop {
 		m := u.meta()
 		p.Drop = append(p.Drop, planUnit{
 			ID:         u.id,
 			Kind:       string(m.kind),
+			Scaffold:   string(m.scaffold),
 			Dirs:       m.dirs,
 			Files:      m.files,
 			Warns:      m.warns,
@@ -123,6 +132,9 @@ func printPlanText(w io.Writer, p scaffoldPlan) {
 	}
 	fmt.Fprintf(w, "  keep plugins:   %s\n", strings.Join(p.KeepPlugins, ", "))
 	fmt.Fprintf(w, "  keep features:  %s\n", strings.Join(p.KeepFeatures, ", "))
+	if len(p.KeepOptIn) > 0 {
+		fmt.Fprintf(w, "  keep opt-in:    %s\n", strings.Join(p.KeepOptIn, ", "))
+	}
 	if len(p.Drop) == 0 {
 		fmt.Fprintln(w, "  trim:           nothing (full template)")
 		return

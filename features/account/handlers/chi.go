@@ -16,6 +16,7 @@ import (
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/account/components"
 	"github.com/calionauta/gogogo/internal/auth"
+	"github.com/calionauta/gogogo/internal/cloudcfg"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
 )
@@ -47,6 +48,9 @@ func (h *Handler) Routes() chi.Router {
 	r.Post("/account/totp/recovery", h.recoveryCodes)
 	r.Post("/account/sessions/revoke", h.revokeSession)
 	r.Post("/account/sessions/revoke-all", h.revokeAll)
+	r.Post("/account/cloud", h.connectCloud)
+	r.Post("/account/cloud/disconnect", h.disconnectCloud)
+	r.Post("/account/device-token", h.deviceToken)
 	return r
 }
 
@@ -304,10 +308,18 @@ func (h *Handler) pageData(r *http.Request, sess *auth.ValidatedSession) (compon
 	if perr != nil {
 		return components.PageData{}, perr
 	}
-	return components.PageData{
+	data := components.PageData{
 		Email: email, Role: sess.Role, Verified: verified, TOTP: totp,
 		Sessions: views, PasswordSet: passwordSet,
-	}, nil
+		UserID: sess.User.ID, LicenseMode: h.cfg.LicenseMode,
+		LicenseSummary:       licenseSummary(h.cfg),
+		OpenMode:             h.cfg.AuthMode == config.AuthOpen,
+		DeviceTokenAvailable: h.cfg.LicenseMode == config.LicenseAccount && h.cfg.LicensePrivateKey != "",
+	}
+	if c, cerr := cloudcfg.Load(cloudcfg.Path(h.cfg.DataDir)); cerr == nil && c != nil {
+		data.CloudConfigured, data.CloudURL = true, c.URL
+	}
+	return data, nil
 }
 
 // shortID keeps the row scannable while the full opaque id stays in title.

@@ -105,17 +105,19 @@ func renderUnitContracts(t *testing.T, root string) string {
 // (24 vs 35) and no reviewer catches it in a diff.
 func renderRegistrySummary(b *strings.Builder, units []Capability) {
 	counts := map[Kind]int{}
-	offered := 0
+	scaffold := map[Scaffold]int{}
 	for _, c := range units {
 		counts[c.Kind]++
-		if c.Offered {
-			offered++
-		}
+		scaffold[c.Class()]++
 	}
+	offered := scaffold[ScaffoldDefault] + scaffold[ScaffoldOptIn]
 	fmt.Fprintf(b, "## Registry at a glance\n\n")
 	fmt.Fprintf(b, "- **Units:** %d — %d core · %d plugin · %d feature\n",
 		len(units), counts[KindCore], counts[KindPlugin], counts[KindFeature])
-	fmt.Fprintf(b, "- **Offered to the installer:** %d\n", offered)
+	fmt.Fprintf(b, "- **Offered capabilities:** %d — %d default · %d opt-in "+
+		"(bundled capabilities share one installer unit)\n",
+		offered, scaffold[ScaffoldDefault], scaffold[ScaffoldOptIn])
+	fmt.Fprintf(b, "- **Manual removal:** %d (core units are never offered)\n", scaffold[ScaffoldManual])
 	b.WriteString("- **Source of truth:** `internal/capabilities/registry.go`; this doc is\n")
 	b.WriteString("  regenerated from it, so the counts above cannot drift.\n\n")
 }
@@ -140,6 +142,7 @@ func renderUnitCard(b *strings.Builder, rootFS *os.Root, c Capability) {
 	writeList(b, "Owned", append(slices.Clone(c.Dirs), c.Files...))
 	writeList(b, "Routes", routes)
 	writeList(b, "Store calls", queries)
+	fmt.Fprintf(b, "- **Scaffold:** `%s`\n", c.Class())
 	if c.RuntimeOff != "" {
 		fmt.Fprintf(b, "- **Runtime off:** `%s`\n", c.RuntimeOff)
 	}
@@ -166,10 +169,14 @@ func renderUnitCard(b *strings.Builder, rootFS *os.Root, c Capability) {
 // deliberately names no command: there is no `gogogo trim <id>` subcommand —
 // a unit is dropped by excluding it from a scaffold's keep lists/presets.
 func contractTrim(c Capability) string {
-	if c.Offered {
+	switch c.Class() {
+	case ScaffoldCore:
+		return "core (never offered)"
+	case ScaffoldDefault, ScaffoldOptIn:
 		return "offered to the installer (a scaffold's keep lists/presets drop it)"
+	default:
+		return "manual (no installer unit)"
 	}
-	return "manual (no installer unit)"
 }
 
 // writeList writes a labelled inline code list, skipping empty values.

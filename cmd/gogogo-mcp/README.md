@@ -27,9 +27,9 @@ Claude Code (`~/.claude.json`) / Cursor (`~/.cursor/mcp.json`) / BB:
 
 | Tool | Params | Effect |
 |---|---|---|
-| `capabilities_list` | — | Full registry JSON (start here) |
+| `capabilities_list` | — | Full registry JSON, including each capability's `scaffold` class (core/default/opt-in/manual) |
 | `advise_stack` | `need?`, `intent?`, `dir?`, `format?` | Opinions + the command ROUTE: use-case → keep/drop, off switches, and the ordered commands for `intent` (update/port/add-unit/new-feature/scaffold). A `dir` that is not a gogogo checkout gets the copy surface + the export route |
-| `trim_plan` | `name`, `owner?`, `dir?`, `plugins?`, `features?`, `format?` | Validates ids, shows consequences. Changes nothing |
+| `trim_plan` | `name`, `owner?`, `dir?`, `plugins?`, `features?`, `optIn?`, `format?` | Validates ids, shows consequences (default vs opt-in). Changes nothing |
 | `trim_apply` | trim_plan params + `confirm: true` | Rename + trim + tidy + build proof. Refuses without `confirm:true` |
 | `check_tree` | `dir` | `CHECK-OK`/`CHECK-FAIL` drift verdict, changes nothing |
 | `version_status` | `dir?`, `format?` | Is the tool — and the project's recorded base — behind the latest release? Read-only, opt-in, never on startup. "Update exists" is a verdict, not an error |

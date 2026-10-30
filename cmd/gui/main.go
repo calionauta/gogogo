@@ -31,14 +31,14 @@
 // genuinely optional for a native frontend.
 //
 // It is deliberately NOT part of `make build` / `make test`: it is a
-// separate native target like cmd/desktop, validated by the gui job
-// in .github/workflows/desktop.yml (CGO_ENABLED=0, pure Go, so it builds
-// headless anywhere `go` is; tests run headless too, no window/GPU).
+// separate native target like cmd/desktop. `make gui` is its gate (race
+// tests, then a CGO_ENABLED=0 build); no CI job compiles it, so that
+// target is the only thing standing between a change and a broken window.
 //
-// To remove: delete cmd/gui/, drop the `gui` target from the Makefile,
-// drop the gui job from desktop.yml, and re-add cmd/gui to
-// scripts/web-packages.sh's exclusion... (it is currently excluded;
-// removing the directory needs no script change).
+// To remove: delete cmd/gui/, drop the `gui`/`run-gui`/`lint-gui` targets
+// from the Makefile, and re-add cmd/gui to scripts/web-packages.sh's
+// exclusion... (it is currently excluded; removing the directory needs no
+// script change).
 package main
 
 import (
@@ -88,6 +88,14 @@ func main() {
 
 func run() error {
 	cfg := config.Load()
+	// The native window is a distributed binary like the desktop shell, so it
+	// honors the same entitlement gate. Activation happens in the desktop app
+	// or with `cmd/license`; this binary only verifies.
+	cfg.LicenseGate = true
+	if gerr := entitlementCheck(cfg); gerr != nil {
+		fmt.Fprintln(os.Stderr, gerr)
+		return gerr
+	}
 
 	// The same flat stack the web app serves: app file + migrations +
 	// owned auth, minus the HTTP listener. No framework, no bootstrap
@@ -96,7 +104,7 @@ func run() error {
 	// Opened through the ncruces `sqlite3` driver, never internal/db:
 	// importing that package links tursogo (purego), whose fakecgo
 	// collides with goffi's at CGO_ENABLED=0 link time — and this target
-	// is pure Go by requirement (see the gui job in desktop.yml).
+	// is pure Go by requirement (see `make gui`).
 	sqlDB, err := openGUIStore(cfg)
 	if err != nil {
 		return err
@@ -106,7 +114,7 @@ func run() error {
 		return fmt.Errorf("migrate: %w", merr)
 	}
 
-	a, aerr := auth.New(dbgen.New(sqlDB), !cfg.Dev)
+	a, aerr := auth.New(dbgen.New(sqlDB), cfg.Auth.SecureCookies)
 	if aerr != nil {
 		return fmt.Errorf("auth: %w", aerr)
 	}

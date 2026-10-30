@@ -15,11 +15,24 @@ import (
 // Session validates the request's session cookie. Expired or unknown
 // sessions fail closed; callers redirect to /login.
 func (a *Auth) Session(r *http.Request) (*ValidatedSession, error) {
+	if open := a.openSessionState(); open != nil {
+		return open, nil
+	}
 	cookie, err := r.Cookie(CookieName)
 	if err != nil || cookie.Value == "" {
 		return nil, errors.New("auth: no session cookie")
 	}
 	return a.resolveSession(r.Context(), cookie.Value)
+}
+
+// OpenSession mints a session for an existing user and returns the raw cookie
+// value. Activation flows treat a signed entitlement as the credential, so
+// they need the session half of login without a password.
+func (a *Auth) OpenSession(ctx context.Context, userID string) (string, error) {
+	if userID == "" {
+		return "", errors.New("auth: open session: empty user id")
+	}
+	return a.openSession(ctx, userID)
 }
 
 // SessionByToken resolves a session token to its user without an HTTP

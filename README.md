@@ -91,6 +91,7 @@ manifest, then `make docs-index`; `make check-docs` fails when this block drifts
 - [skill-reading-policy](docs/research/skill-reading-policy.md) — Whole vendored skill or component sections? A two-arm measurement: the full read cost +36% tokens and +74% wall clock with identical markup and gates.
 - [daisyui-vocabulary-source](docs/research/daisyui-vocabulary-source.md) — Where a linter's vocabulary lives: authored map versus derived snapshot, the 2026 drift-check evidence, and why daisyui-lint embeds one.
 - [auth-libraries](docs/research/auth-libraries-2026-10.md) — The 2026-10-21 evaluation of limen against owning argon2id and sessions: schema ownership, version skew, and what flips the decision.
+- [desktop-auth-sync](docs/research/desktop-auth-sync-2026-10.md) — License gate, account pairing or cloud-only? The 2026 desktop distribution options, the offline-first matrix, and why gogogo keeps one identity per profile.
 - [ui-engine-research](docs/research/ui-engine-research.md) — The 2026-10-21 engine and component-library evaluation behind the UI stack, with local benchmarks and the Rocket assessment.
 - [ui-components](docs/research/ui-components-2026-10-21.md) — The 2026-10-21 comparison of DaisyUI, Starbase, datastar-ui and dsx on Datastar, SSE, lightness, performance, functionality and forkability.
 - [supply-chain-scanning](docs/research/supply-chain-scanning-2026.md) — The 2026-10-24 SBOM/image-scanning comparison: Syft+Grype against Trivy, Docker Scout and OSV-Scanner, with the pinned-action and fixable-high gate.

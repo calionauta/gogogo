@@ -51,6 +51,11 @@ p, anonymous, /health, (GET|HEAD)
 # makes sse-open.js treat a healthy stream as dead and rethrow loudly.
 # RBAC_ENABLED=true without this row breaks every realtime surface.
 p, anonymous, /login, (GET|POST)
+# Activation surface for the distribution gate (LICENSE_MODE=license|account):
+# reachable before any session, and the gate redirects here.
+p, anonymous, /activate, (GET|POST)
+# A signed-in user re-activates (renewal, account change) without logging out.
+p, user, /activate, (GET|POST)
 p, anonymous, /logout, (GET|POST)
 p, anonymous, /, GET
 # Signed-out auth surface: only the endpoints a visitor without a session

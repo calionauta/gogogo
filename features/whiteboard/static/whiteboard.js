@@ -175,7 +175,7 @@
   window.addEventListener("offline", updateNetStatus);
   updateNetStatus();
 
-  // ---- offline-first outbox (IndexedDB-persisted) ----
+  // ---- offline-capable outbox (IndexedDB-persisted) ----
   // Ops drawn while offline are buffered here and replayed on reconnect.
   // The outbox is persisted to IndexedDB so it survives page close/reload.
   // The server merges each op into the shared Loro doc, so replay is

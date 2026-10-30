@@ -303,8 +303,25 @@ func TestOfferedSetMatchesInstaller(t *testing.T) { // The installer offers exac
 	}
 	for _, id := range want {
 		c, ok := byID[id]
-		if !ok || !c.Offered {
+		if !ok || !c.Class().Offered() {
 			t.Errorf("capability %q must exist and be offered", id)
+		}
+	}
+}
+
+// TestScaffoldClassIsCoherent pins the two ends of the class: core is never
+// offered, a non-core unit is never core, and every opt-in is a real
+// non-core capability (the scaffold prompt lists it as an extra).
+func TestScaffoldClassIsCoherent(t *testing.T) {
+	for _, c := range All {
+		if c.Kind == KindCore && c.Class() != ScaffoldCore {
+			t.Errorf("core capability %q has scaffold %q, want core", c.ID, c.Class())
+		}
+		if c.Kind != KindCore && c.Class() == ScaffoldCore {
+			t.Errorf("non-core capability %q is scaffold-core", c.ID)
+		}
+		if c.Class() == ScaffoldOptIn && c.Kind == KindCore {
+			t.Errorf("core capability %q is opt-in", c.ID)
 		}
 	}
 }
@@ -431,7 +448,7 @@ func TestNonCoreUnitsExplainTheirRemoval(t *testing.T) {
 		if c.Kind == KindCore {
 			continue
 		}
-		if c.Offered || c.Reason != "" || c.Note != "" {
+		if c.Class().Offered() || c.Reason != "" || c.Note != "" {
 			continue
 		}
 		t.Errorf("capability %q (%s) explains neither how it is removed nor what is lost", c.ID, c.Kind)
@@ -443,7 +460,7 @@ func TestNonCoreUnitsExplainTheirRemoval(t *testing.T) {
 // (and let a scaffold delete its own auth or database).
 func TestCoreUnitsAreNeverOffered(t *testing.T) {
 	for _, c := range All {
-		if c.Kind == KindCore && c.Offered {
+		if c.Kind == KindCore && c.Class().Offered() {
 			t.Errorf("core capability %q is offered for trimming — core means never remove", c.ID)
 		}
 	}

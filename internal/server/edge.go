@@ -91,10 +91,10 @@ func cspPolicy(nonce string) string {
 // request before it reaches a handler even if a browser or a future cookie
 // change weakens that.
 //
-// Only requests that carry an Origin are checked: CLI clients, webhooks and
-// the desktop webview send none, and a custom scheme (wails://) cannot be
-// forged by a web page. Two loopback origins are treated as the same trust
-// boundary so a local dev front-end and the desktop proxy keep working.
+// Only requests that carry an Origin are checked: CLI clients and webhooks
+// send none, and a custom scheme (wails://) cannot be forged by a web page.
+// Two loopback origins are treated as the same trust boundary so a local dev
+// front-end and the desktop window keep working.
 func sameOriginGuard(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -102,10 +102,9 @@ func sameOriginGuard(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		// A custom scheme (wails://) cannot be forged by a web page, and the
-		// desktop webview may report itself as cross-site relative to the
-		// localhost proxy. Honour that origin before the fetch-metadata
-		// check, or the desktop's writes become 403.
+		// A custom scheme (wails://) cannot be forged by a web page, so an
+		// Origin that is not http(s) is honoured before the fetch-metadata
+		// check, which a non-HTTP scheme otherwise trips.
 		origin := r.Header.Get("Origin")
 		if origin != "" {
 			if ou, oerr := url.Parse(origin); oerr == nil && ou.Scheme != "" &&

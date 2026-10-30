@@ -19,6 +19,7 @@ import (
 	reviewhandlers "github.com/calionauta/gogogo/features/review/handlers"
 	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 	"github.com/calionauta/gogogo/internal/auth"
+	"github.com/calionauta/gogogo/internal/collab"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/demo"
@@ -46,6 +47,26 @@ func seedDemoAccounts(a *auth.Auth, q *dbgen.Queries) {
 // enforced denies when on — the flag never rewires anything). Viewers
 // promote first so an address in both lists ends admin, never viewer.
 // ctx is the boot context: promotion stops if the boot is cancelled.
+// bootstrapSignup opens signup while the database has no account. A fresh
+// install with production defaults (signup off) has no operator to create
+// user #1; that is true for the desktop and for a licensed web deploy. The
+// flag closes on the next boot, once a row exists.
+func bootstrapSignup(cfg *config.Config, q *dbgen.Queries) {
+	if cfg.SignupEnabled || q == nil {
+		return
+	}
+	n, err := q.CountUsers(context.Background())
+	if err != nil {
+		slog.Warn("server: first-run check skipped, count users", "error", err)
+		return
+	}
+	if n > 0 {
+		return
+	}
+	cfg.SignupEnabled = true
+	slog.Info("server: first-run signup enabled", "reason", "no local accounts yet")
+}
+
 // wireAuth applies the auth deployment switches and installs the standalone
 // email-link pages. The renderer is a callback so internal/auth stays free of
 // the feature/UI dependency.
@@ -360,6 +381,19 @@ func bootFail(cancelConsumer context.CancelFunc, sqlDB *sql.DB, msg string, err 
 	cancelConsumer()
 	_ = sqlDB.Close()
 	return nil, fmt.Errorf("server: chi %s: %w", msg, err)
+}
+
+// bootCollab builds the shared Loro doc store and its snapshot persister.
+// Extracted from BootChi for the funlen gate: the pair travels together, so
+// one helper keeps the two lines that must agree in one place.
+func bootCollab(cfg *config.Config, queries *dbgen.Queries) (collab.Persister, *collab.DocStore, error) {
+	persister, err := collab.SnapshotStore(cfg.Collab.Snapshots, queries)
+	if err != nil {
+		return nil, nil, err
+	}
+	docs := collab.NewDocStore()
+	docs.SetPersister(persister)
+	return persister, docs, nil
 }
 
 // bootAI wires the Chat demo: one surface set, one interaction shape. The

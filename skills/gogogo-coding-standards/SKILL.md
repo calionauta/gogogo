@@ -1,6 +1,6 @@
 ---
 name: gogogo-coding-standards
-description: "Go backend standards for the gogogo template — Turso/SQLite, Templ, Datastar, NATS JetStream, goqite, slog, goroutines/channels/mutex/errgroup, context propagation, golangci-lint, race/synctest/goleak tests, datastar-lint on .templ, pprof/simd/exception-to-go gates. Triggers when: editing .go files, spawning goroutines, creating channels, wiring context, running lint/tests, touching .templ, profiling, or proposing native code. Delegates universal principles to stelow-workflow-coding-standards."
+description: "Go backend standards for the gogogo template — Turso/SQLite, Templ, Datastar, NATS JetStream, goqite, slog, goroutines/channels/mutex/errgroup, context propagation, golangci-lint, race/synctest/goleak tests, datastar-lint on .templ, pprof/simd/exception-to-go gates. Triggers when: editing .go files, spawning goroutines, creating channels, wiring context, running lint/tests, touching .templ, profiling, proposing native code, building the native targets (cmd/desktop with Wails, cmd/gui with gogpu/ui — no CI compiles either), choosing a chart library (interactive vs server-rendered). Delegates universal principles to stelow-workflow-coding-standards."
 ---
 
 # gogogo-coding-standards
@@ -35,14 +35,39 @@ Activate when: editing any `.go` file, spawning a goroutine, creating a channel,
 | Goroutines, channels, `context`, shutdown, lifecycle | **Concurrency (deltas)** + `references/go-concurrency-deltas.md` |
 | Spawning actors, supervision, per-entity state | **Entity actors (GoAkt)** |
 | Hot path, allocation, SIMD, "should this be native?" | **Performance** + `references/go-perf.md` |
+| Runtime diagnostics (statsviz + pprof), the opt-in `perf` unit | [`docs/admin-dashboard.md`](../../docs/admin-dashboard.md) |
 | Any test, fixture, or flake | **Testing** + `references/go-testing.md` |
 | A `.templ` file, Datastar, SSE fragments | **Datastar (.templ)** + `references/datastar.md` |
 | Genui/chat answers, the component catalog, prompts, repair/fallback | `references/genui.md` |
 | Lint failing, adding a rule, CI red | **Enforcement** |
 | Proposing Zig (the native exception), or a NATIVE DESKTOP UI | **Exception-to-go gate** + `references/exception-to-go.md` (a native UI means `nanoui`) |
+| Building the desktop shell (`cmd/desktop`) or the native window (`cmd/gui`) | `references/desktop-native.md` — no CI job compiles either, so the build is the gate |
 | Adding a feature or a `.go` file | **Where new code goes** + [`docs/unit-contracts.md`](../../docs/unit-contracts.md) (`gogogo new feature <name>`) |
 | Choosing which units fit a use-case | [docs/use-cases.md](../../docs/use-cases.md) + `advise` |
 | stdlib-only task (no template deps) | **Toolchain / stdlib-only** (below) |
+
+## Read the doc before answering
+
+`docs/*.md` is the **source of truth**; this skill carries the rules, the doc
+carries the why, the switch, and the full recipe. When a question touches
+behavior, open the matching page instead of reconstructing it from code. When
+code and doc disagree, the doc is the bug you fix in the same commit.
+
+| The question is about | Read |
+|---|---|
+| What the template is, and what it deliberately is not | `docs/overview.md`, `docs/motivation.md` |
+| Env vars, defaults, feature flags | `docs/configuration.md` |
+| Auth, sessions, magic links, TOTP, RBAC | `docs/security.md`, `docs/rbac.md` |
+| Realtime, SSE, NATS, offline writes, CRDT | `docs/realtime-recipe.md`, `docs/async-layers.md` |
+| Routing, wiring, capabilities, unit ownership | `docs/architecture.md`, `docs/unit-contracts.md` |
+| A gate failing, or adding one | `docs/local-ci.md`, `docs/code-quality.md` |
+| Desktop shell or native window | `docs/desktop-mobile.md` + `references/desktop-native.md` |
+| UI vocabulary, themes, components | `docs/ui-themes.md` (and the `gogogo-ui` skill) |
+| Deploying, containers, the server | `docs/deploy.md` |
+| Packages, native floor, a new dependency | `docs/dependency-principles.md`, `docs/exception-to-go.md` |
+
+Not every page is on this list — `docs/` is the index of record, and the site
+map (`site/docsite.config.mjs`) groups all of them.
 
 ## Toolchain / stdlib-only
 
@@ -123,6 +148,9 @@ entries); discovery: `room-authority` advise preset.
 Full runbook: `references/go-perf.md`.
 
 - pprof before SIMD before Zig. No evidence, no native code.
+- Runtime diagnostics (statsviz + pprof) are an opt-in unit in the template;
+  see [`docs/admin-dashboard.md`](../../docs/admin-dashboard.md). Use them
+  before adding an APM: statsviz answers "now", pprof "why".
 - `strconv` over `fmt` on hot paths. Pre-allocate slice/map. `strings.Builder` + `Grow`.
 - Do not set `GOMAXPROCS` (container-aware default since 1.25). Do not add `automaxprocs` without measurement.
 - `encoding/json` is v2-backed in 1.27 (faster decode, error text may differ). Do not migrate APIs manually.
@@ -193,6 +221,11 @@ Full rules: `references/datastar.md`.
   the RBAC rows, regenerates the docs and proves the build. Read the unit's
   card in [`docs/unit-contracts.md`](../../docs/unit-contracts.md) first: it
   lists the routes and generated queries the unit already owns.
+- **A capability entry declares its Scaffold class.** `core` never appears in
+  the prompt; `default` is kept unless dropped; `opt-in` is dropped unless
+  named; `manual` is not offered and carries a `Reason`. The prompt and the
+  MCP read `internal/capabilities`; a `default`/`opt-in` unit without a trim
+  unit fails the installer conformance test. See
 - **New feature code goes in `features/<feature>/handlers/`.** That package is
   the live surface: chi routes, owned auth, `dbgen` queries called directly, the
   same Templ components, the same SSE wire. The entry file is `chi.go` in every

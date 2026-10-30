@@ -105,7 +105,7 @@ func presetPlan(name string) (drop []trimUnit, ok bool) {
 	if len(keep) == 0 {
 		plugins, features = keepNone, keepNone
 	}
-	return planTrim(parseKeep(plugins, features)), true
+	return planTrim(parseKeep(plugins, features, "")), true
 }
 
 // presetKeepLists resolves a named trim preset to the --plugins/--features
@@ -160,8 +160,8 @@ func resolvePreset(opt *options) error {
 	if opt.preset == "" {
 		return nil
 	}
-	if opt.plugins != "" || opt.features != "" {
-		return fmt.Errorf("--preset %q conflicts with --plugins/--features (use one)", opt.preset)
+	if opt.plugins != "" || opt.features != "" || opt.optIn != "" {
+		return fmt.Errorf("--preset %q conflicts with --plugins/--features/--opt-in (use one)", opt.preset)
 	}
 	plugins, features, err := presetKeepLists(opt.preset)
 	if err != nil {

@@ -50,6 +50,7 @@ func TestLatestTagFailsFast(t *testing.T) {
 // withCacheRoot points the cache at a temp dir and restores it after.
 func withCacheRoot(t *testing.T, root string) {
 	t.Helper()
+	t.Setenv("XDG_CACHE_HOME", "") // the explicit override wins; keep the seam in charge
 	old := userCacheDir
 	userCacheDir = func() (string, error) { return root, nil }
 	t.Cleanup(func() { userCacheDir = old })
@@ -355,5 +356,23 @@ func TestUpdateTextNamesTheExitCode(t *testing.T) {
 	})
 	if strings.Contains(quiet.String(), "exit 3") {
 		t.Errorf("a current tree must not mention exit 3:\n%s", quiet.String())
+	}
+}
+
+// TestUpdateCachePathHonorsXDG pins the portable override: on macOS
+// os.UserCacheDir ignores XDG_CACHE_HOME, which made the MCP offline test hit
+// the network. The explicit env must win on every platform.
+func TestUpdateCachePathHonorsXDG(t *testing.T) {
+	xdg := t.TempDir()
+	other := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", xdg)
+	old := userCacheDir
+	userCacheDir = func() (string, error) { return other, nil }
+	t.Cleanup(func() { userCacheDir = old })
+
+	got := updateCachePath()
+	want := filepath.Join(xdg, "gogogo", "update-check.json")
+	if got != want {
+		t.Errorf("updateCachePath = %q, want %q", got, want)
 	}
 }

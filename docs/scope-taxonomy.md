@@ -34,6 +34,22 @@ Three clarifications the table alone does not carry:
   but the unit exists to render answers for chat, todo panels and review, so it
   is classified plugin (and bundled with `features/chat` for trimming).
 
+## The scaffold class
+
+Removal class answers *what disappears*; scaffold class answers *what the
+installer asks*. The two are independent: a plugin can be `default`, `opt-in`
+or `manual`.
+
+| Class | Prompt | Trim unit | Example |
+|-------|--------|-----------|---------|
+| `core` | never | never | `auth`, `server` |
+| `default` | asked, kept by default | required | `dagnats`, `credits` |
+| `opt-in` | asked, dropped by default | required | `perf` |
+| `manual` | not asked; `Reason` explains the hand edit | not required | `nats`, `llm` |
+
+The registry (`internal/capabilities`) is the source of truth; the scaffold
+prompt, the MCP `trim_plan`, and the generated cards all read the same field.
+
 ## The annotation form
 
 Non-test, non-generated `.go` files under `internal/` and `features/` declare

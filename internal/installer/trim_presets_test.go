@@ -270,7 +270,7 @@ func TestPresetKeepListsPinsResolution(t *testing.T) {
 	if err != nil {
 		t.Fatalf("presetKeepLists(no-ai) = %v", err)
 	}
-	drop := dropIDs(planTrim(parseKeep(plugins, features)))
+	drop := dropIDs(planTrim(parseKeep(plugins, features, "")))
 	slices.Sort(drop)
 	if !slices.Equal(drop, []string{"credits", "genui", "review", "search"}) {
 		t.Errorf("no-ai drops = %v, want [credits genui review search]", drop)

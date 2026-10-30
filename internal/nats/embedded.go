@@ -7,7 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/url"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -106,13 +109,23 @@ func setCurrent(h *Handle) {
 // On failure the partially-built handle is torn down before returning, so a
 // failed start leaks neither a server nor a connection.
 func StartEmbedded(storeDir string) (*Handle, error) {
-	ns, err := server.NewServer(&server.Options{
-		Port:      -1,
-		NoLog:     true,
-		NoSigs:    true,
-		StoreDir:  storeDir,
-		JetStream: true,
-	})
+	return StartEmbeddedOn(storeDir, "", "")
+}
+
+// StartEmbeddedOn is StartEmbedded with an explicit listener and token. An
+// empty listen keeps a random loopback port. A non-loopback listen without a
+// token is refused: an unauthenticated NATS on a reachable interface lets
+// anyone publish on every subject, and JetStream would persist the damage.
+func StartEmbeddedOn(storeDir, listen, token string) (*Handle, error) {
+	opts, err := listenOptions(listen, token)
+	if err != nil {
+		return nil, err
+	}
+	opts.NoLog = true
+	opts.NoSigs = true
+	opts.StoreDir = storeDir
+	opts.JetStream = true
+	ns, err := server.NewServer(opts)
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +161,7 @@ func StartEmbedded(storeDir string) (*Handle, error) {
 // syncs with a central NATS server at centralURL. The local server persists
 // JetStream streams on disk and replays buffered events to the central
 // automatically when connectivity returns — this is the edge sync primitive
-// for the desktop/mobile app (offline-first).
+// for the desktop/mobile app (offline-capable writes).
 //
 // storeDir holds the local JetStream file storage; centralURL is the ws/nats
 // URL of the central server (e.g. nats://demo.example.com:7422).
@@ -304,4 +317,43 @@ func Conn() *natsio.Conn {
 // ClientURL returns the current handle's URL, or "" when nothing has started.
 func ClientURL() string {
 	return Current().URL()
+}
+
+// listenOptions translates the operator's listen/token pair into nats-server
+// options, enforcing the exposure guard. Split out so the guard is unit
+// tested without binding a port.
+func listenOptions(listen, token string) (*server.Options, error) {
+	opts := &server.Options{Port: -1}
+	if listen == "" {
+		return opts, nil
+	}
+	host, portStr, err := net.SplitHostPort(listen)
+	if err != nil {
+		return nil, fmt.Errorf("nats: NATS_LISTEN %q must be host:port: %w", listen, err)
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil || port < 0 || port > 65535 {
+		return nil, fmt.Errorf("nats: NATS_LISTEN %q has an invalid port", listen)
+	}
+	if !isLoopbackHost(host) && token == "" {
+		return nil, fmt.Errorf(
+			"nats: refusing to expose %s without NATS_TOKEN (unauthenticated NATS is open pub/sub)", listen)
+	}
+	opts.Host = host
+	opts.Port = port
+	if token != "" {
+		opts.Authorization = token
+	}
+	return opts, nil
+}
+
+func isLoopbackHost(host string) bool {
+	h := strings.ToLower(strings.TrimSpace(host))
+	if h == "" || h == "localhost" {
+		return true
+	}
+	if ip := net.ParseIP(h); ip != nil {
+		return ip.IsLoopback()
+	}
+	return false
 }

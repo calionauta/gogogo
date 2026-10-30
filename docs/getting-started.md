@@ -21,21 +21,27 @@ curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh
 - Agents: skip `--run` (it never returns) — the installer prints
   `cd <name> && make dev` for the scripted path.
 
-What it asks (4 questions):
+What it asks (5 questions):
 
 1. **Project name** (`my-app`) — validates like `make rename` does.
 2. **GitHub owner** — for the module path (`github.com/<owner>/<name>`).
-3. **Plugins** — numbered menu from the registry (`dagnats`,
-   `credits`, `sounds` with one-line summaries). Answer
-   with numbers (`1,3`), ids, or both; empty keeps all, `none` drops all.
-   Unknown answers re-ask instead of mis-trimming. Plugin answers match
-   plugin-kind units only.
-4. **Features** — same numbered-menu shape (`whiteboard`, `landing`,
-   `config-view`). The todo demo is never offered (it is the
-   reference implementation). Realtime (NATS), LLM, and offline sync are
-   not installer units: they disable at runtime via env
-   (`NATS_ENABLED=false`, unset `GOAI_API_KEY`,
-   `OFFLINE_SYNC_ENABLED=false`).
+3. **Default plugins** — numbered menu from the registry (`dagnats`,
+   `credits`, `sounds` with one-line summaries). Answer with numbers (`1,3`),
+   ids, or both; empty or `all` keeps every default plugin, `none` drops them
+   all. Unknown answers re-ask instead of mis-trimming.
+4. **Default features** — same numbered-menu shape (`whiteboard`, `landing`,
+   `config-view`). The todo demo is never offered (it is the reference
+   implementation).
+5. **Opt-in units** — units that are offered but **dropped by default**
+   (`perf`: statsviz + pprof). Empty keeps none; `all` keeps every opt-in;
+   numbers/ids keep a subset.
+
+Scaffold classes are one axis and removal classes another: `core` is never
+offered, `default` is kept unless dropped, `opt-in` is dropped unless named,
+and `manual` is not offered at all (the registry `Reason` records the hand
+edit). Realtime (NATS), LLM, and offline sync remain manual/runtime units:
+they disable at runtime via env (`NATS_ENABLED=false`, unset `GOAI_API_KEY`,
+`OFFLINE_SYNC_ENABLED=false`).
 
 What it does, in order: shows the trim plan with every consequence (never
 silent), and on confirmation clones the template when the directory is
@@ -55,9 +61,11 @@ Non-interactive (CI/scripted) — preview first, then pin `--yes`:
 ```bash
 go run ./cmd/gogogo --name my-app --owner myorg \
   --plugins dagnats,credits,sounds --features whiteboard,landing,config-view \
+  --opt-in perf \
   --no-tui --dry-run --format json --dir ./my-app
 go run ./cmd/gogogo --name my-app --owner myorg \
   --plugins dagnats,credits,sounds --features whiteboard,landing,config-view \
+  --opt-in perf \
   --no-tui --yes --dir ./my-app
 ```
 
@@ -291,8 +299,8 @@ make datastar-lint # Datastar attribute / signal anti-patterns in .templ
 make fmt           # gofumpt + goimports check (CI gate; apply via gofumpt -w)
 make test          # Race tests, parallel across packages
 make ci-local      # Full local gate (= CI): templ + datastar-lint + css-check + golangci-lint + race tests + build
-make gui           # Native gogpu/ui window: headless race tests + CGO_ENABLED=0 build
-make run-gui       # Open the native window (needs DISPLAY/GPU; not exercised in CI)
+make gui           # Native gogpu/ui window: headless race tests + CGO_ENABLED=0 build → build/gui/
+make run-gui       # Open the native window (needs a display + GPU; no CI job builds it)
 make signoff       # `make ci-local` + `gh signoff -f` stamp. Default pre-push gate
 make setup         # Activate lefthook git hooks + verify agent tooling
 make docker-image  # Build and push multi-arch image to ghcr.io

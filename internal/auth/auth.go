@@ -125,6 +125,12 @@ type Auth struct {
 	q      *dbgen.Queries
 	secure bool
 
+	// open is the AUTH_MODE=open synthetic session (nil = login mode).
+	// Held here, not in a package global: two stacks in one process (tests)
+	// must not share a mode.
+	openMu sync.RWMutex
+	open   *ValidatedSession
+
 	mu     sync.Mutex
 	oauth  map[string]OAuthProvider
 	states map[string]oauthState

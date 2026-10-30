@@ -41,6 +41,10 @@ func loginNotice(r *http.Request) string {
 }
 
 func (h *Handler) handleLoginGet(w http.ResponseWriter, r *http.Request) {
+	if h.Auth.OpenMode() {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	//nolint:contextcheck // templ components receive ctx from Render; the generated boundary is invisible to the lint.
@@ -48,6 +52,10 @@ func (h *Handler) handleLoginGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleLoginPost(w http.ResponseWriter, r *http.Request) {
+	if h.Auth.OpenMode() {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
 	r = r.WithContext(auth.WithUserAgent(r.Context(), r.UserAgent()))
 	if err := r.ParseForm(); err != nil {
 		h.renderLogin(w, r, "Invalid form submission", "", "")

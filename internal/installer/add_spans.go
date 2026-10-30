@@ -119,6 +119,9 @@ func addManualWiring(u trimUnit) []string {
 	for _, rp := range u.replaces {
 		out = append(out, rp.path+": one-way replace "+rp.old)
 	}
+	for _, line := range u.desktopDropLines {
+		out = append(out, "cmd/desktop/main.go: import "+line)
+	}
 	return out
 }
 
