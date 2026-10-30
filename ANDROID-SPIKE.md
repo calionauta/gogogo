@@ -88,7 +88,16 @@ The spike swaps those three opens to `ncruces/go-sqlite3` (pure Go/WASM) behind
 The SQL, sqlc queries, migrations and pragmas are shared; only the driver and
 DSN spelling differ (`_busy_timeout` vs `_pragma=busy_timeout(...)`).
 
-**4. The Wails asset origin is Java-side.** The Android activity loads
+**4. The status bar eats the top header.** With the UI rendering, the bottom
+dock and the todo checkbox worked but taps on the top header (hamburger,
+search) did nothing: the activity draws edge-to-edge and the system status bar
+consumes touches over the header. `android:fitsSystemWindows="true"` on the
+root layout insets the WebView below the system bars; the hamburger and search
+then respond. A real shell should apply explicit `WindowInsets` padding rather
+than rely on the flag, but the failure mode is worth knowing: **a rendered page
+is not proof that the top chrome is reachable.**
+
+**5. The Wails asset origin is Java-side.** The Android activity loads
 `https://wails.localhost/`; its `WailsPathHandler` calls `bridge.serveAsset`,
 so a Go `Assets.Handler` proxy is not used. `cmd/mobile` listens on a fixed
 loopback port (`127.0.0.1:18080`) and `MainActivity` loads
