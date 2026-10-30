@@ -768,11 +768,13 @@
     if (panning) { panning = null; return; }
     if (pinch) { if (pointers.size < 2) pinch = null; return; }
     if (!drawing) return;
-    // ignore degenerate shapes
-    const tiny =
-      tool === "pen"
-        ? drawing.points.length < 4
-        : Math.abs(drawing.w) < 4 && Math.abs(drawing.h) < 4;
+    // ignore degenerate shapes. The threshold is SCREEN pixels, not world
+    // ones: the shape lives in world coordinates, so a 20 px deliberate drag
+    // while zoomed 8x is 2.5 world px and was being thrown away as a stray
+    // click. Compare what the user actually saw.
+    const screenW = Math.abs(drawing.w) * view.scale;
+    const screenH = Math.abs(drawing.h) * view.scale;
+    const tiny = tool === "pen" ? drawing.points.length < 4 : screenW < 4 && screenH < 4;
     const done = drawing;
     drawing = null;
     if (tiny) {
@@ -894,6 +896,13 @@
       // fallback: plain stroke
       ctx.strokeStyle = s.color || "#1f2937";
       ctx.lineWidth = 2;
+      if (s.type === "pen" && s.points && s.points.length >= 4) {
+        ctx.beginPath();
+        ctx.moveTo(s.points[0], s.points[1]);
+        for (let i = 2; i < s.points.length; i += 2) ctx.lineTo(s.points[i], s.points[i + 1]);
+        ctx.stroke();
+        return;
+      }
       ctx.strokeRect(s.x, s.y, s.w, s.h);
       return;
     }
@@ -905,8 +914,14 @@
     } else if (s.type === "line") {
       rc.line(s.x, s.y, s.x + s.w, s.y + s.h, opts);
     } else if (s.type === "pen" && s.points && s.points.length >= 4) {
+      // rough's point type is a [x, y] TUPLE, not an {x, y} object. Handed
+      // objects, its curve() takes the other branch of its own overload (a LIST
+      // of curves), skips every element that is not an array, and paints
+      // nothing — silently: no throw, no console line, and the op still reaches
+      // the server. That is why a pen stroke committed but drew nothing, on
+      // every client, from the day the tool shipped.
       const pts = [];
-      for (let i = 0; i < s.points.length; i += 2) pts.push({ x: s.points[i], y: s.points[i + 1] });
+      for (let i = 0; i < s.points.length; i += 2) pts.push([s.points[i], s.points[i + 1]]);
       rc.curve(pts, opts);
     }
   }

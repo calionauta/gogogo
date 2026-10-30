@@ -88,6 +88,13 @@ the durable store but whose *in-progress* state only needs to be seen:
 dragging an existing shape, a resize handle, a live text selection.
 The rule of thumb: **commit on release, relay while moving.**
 
+**Presence is not queued.** Caret, typing and draft frames are worth nothing
+after the fact, so they are the one client→server path with no outbox: they go
+out while `navigator.onLine` and stop there. Offline, a beacon per keystroke
+only fails against the edge that just dropped the link, and fills the console
+for a signal no peer can receive. The durable neighbours are unchanged — the
+notes op batch and the whiteboard shape op still queue and replay.
+
 > **Do not add a parallel SSE-hub re-render for record mutations.** If a record
 > changed, the Hub record event already delivers it, and the visibility-scoped
 > re-list makes the delivery correctly scoped for free.
@@ -274,7 +281,12 @@ authoritative list fits content that falls outside the viewport — a board draw
 on a laptop used to open as an empty white area on a phone (every shape sat to
 the right of a 390 px canvas). Wheel zooms, middle-drag pans, two fingers
 pan/zoom, and the toolbar has −/+/Fit. Cursor and draft frames carry world
-coordinates too, so the same point means the same place on every screen.
+coordinates too, so the same point means the same place on every screen. A pen
+stroke is a polyline of world points and rough.js takes points as `[x, y]`
+TUPLES: handed `{x, y}` objects its `curve()` matches the other branch of its
+own overload (a list of curves), skips every element that is not an array, and
+paints nothing — no throw, no console line, and the op still saves, so the
+stroke was invisible on every client while the server held it.
 
 **A queue that cannot be stored says so.** A full quota or a blocked
 `localStorage` used to be swallowed by the notes and whiteboard writers: the op

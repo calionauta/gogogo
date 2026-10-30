@@ -726,6 +726,81 @@ async function main() {
   await ctxFresh.close();
 
   // ---------------------------------------------------------------------------
+  // OFFLINE PRESENCE: a tab that reports itself offline must not beep the
+  // presence endpoints.
+  //
+  // WHY THIS EXISTS: caret and typing are EPHEMERAL — never queued, worth
+  // nothing until the link is back — so offline they can only produce a failed
+  // POST per keystroke (plus a 5 s heartbeat): console noise, and load on an
+  // edge that is already the reason the tab is offline. The whiteboard gates
+  // its presence frames the same way; the durable paths (text, ops) still go
+  // through the outbox, which is what has to survive the outage.
+  //
+  // The online half is the control: it proves the probe sees the calls it is
+  // asserting are absent offline. The probe is a window.fetch wrapper, not the
+  // request event: Chromium's offline emulation rejects the fetch before
+  // anything reaches the network layer, so a request-event probe would count 0
+  // in BOTH runs and pass against the ungated code (verified — it did).
+  // RED-PROOFED without the gate: the online count still rises and the offline
+  // count is non-zero.
+  // ---------------------------------------------------------------------------
+  const docBeacon = "notes-beacon-" + process.pid;
+  for (const pg of await ctxA.pages()) await pg.close();
+  const A7 = await ctxA.newPage();
+  A7.on("pageerror", (e) => pageErrors.push("A7: " + String(e)));
+  await gotoNote(A7, `${BASE}/notes/${docBeacon}`);
+  await A7.evaluate(() => {
+    window.__beacons = [];
+    const orig = window.fetch;
+    window.fetch = function (input) {
+      const url = typeof input === "string" ? input : (input && input.url) || "";
+      const m = /\/api\/notes\/[^/]+\/(caret|typing)/.exec(url);
+      if (m) window.__beacons.push(m[1]);
+      return orig.apply(window, arguments);
+    };
+  });
+  await A7.locator("#note-text").click();
+  await typeText(A7, "on", 20);
+  // Bounded wait for a beacon (no nap guessing: poll the probe).
+  {
+    const deadline = Date.now() + 8000;
+    while (Date.now() < deadline && (await A7.evaluate(() => window.__beacons.length)) === 0) await sleep(100);
+  }
+  const onlineBeacons = await A7.evaluate(() => window.__beacons.length);
+  if (onlineBeacons > 0) {
+    ok(`presence beacons flow while online (${onlineBeacons})`);
+  } else {
+    bad("the beacon probe never saw a caret/typing call even online (the probe is broken, not the gate)");
+  }
+  // Let the typing throttle expire first: reportTyping() sends at most once per
+  // 2.5 s and the idle timer only clears `typingSent` after 3 s, so typing
+  // offline right after the online control would send nothing even WITHOUT the
+  // gate — a false green (measured: the first version of this check passed
+  // against the ungated code for exactly this reason).
+  await sleep(3200);
+  await ctxA.setOffline(true);
+  await sleep(300);
+  const sawOffline = await A7.evaluate(() => navigator.onLine === false);
+  if (!sawOffline) bad("offline emulation did not reach the page (navigator.onLine stayed true)");
+  await A7.evaluate(() => { window.__beacons = []; });
+  await A7.locator("#note-text").click();
+  await A7.evaluate(() => {
+    const el = document.getElementById("note-text");
+    el.setSelectionRange(1, 1);
+    el.dispatchEvent(new Event("selectionchange", { bubbles: true }));
+  });
+  await typeText(A7, "offline", 20);
+  await sleep(1200);
+  const offlineBeacons = await A7.evaluate(() => window.__beacons.slice());
+  if (offlineBeacons.length === 0) {
+    ok("an offline tab sends no caret/typing beacons");
+  } else {
+    bad(`an offline tab sent ${offlineBeacons.length} presence beacon(s): ${offlineBeacons.slice(0, 4).join(", ")}`);
+  }
+  await ctxA.setOffline(false);
+  await A7.close();
+
+  // ---------------------------------------------------------------------------
   // CONCURRENT TYPING AT THE SAME SPOT MUST KEEP BOTH EDITS.
   //
   // Both browsers type at the end of the same line while both batches are in

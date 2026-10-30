@@ -1228,6 +1228,80 @@ async function main() {
   await cancelCtx.close();
 
   // ---------------------------------------------------------------------------
+  // 17. THE PEN MUST PAINT, and the SAVED stroke must paint for a later reader.
+  //
+  // rough.js takes points as [x, y] TUPLES. The pen handed it {x, y} objects;
+  // its curve() reads that as the other branch of its own overload (a LIST of
+  // curves), every element failed the `a.length` test, and nothing was stroked —
+  // silently. The op still reached the server, so the stroke was stored and
+  // invisible on every client: the reported "the pen stops working".
+  //
+  // Two assertions, because they cover different paths: the ink right after the
+  // drag is the local render (live preview + commit), the ink after a RELOAD is
+  // the committed shape re-rendered from the authoritative list a peer gets.
+  //
+  // RED-PROOFED: with the object form both are 0 while the server still holds
+  // the pen shape, so neither assertion can pass on the broken code.
+  // ---------------------------------------------------------------------------
+  const docPen = "wb-pen-" + process.pid;
+  const penCtx = await browser.newContext();
+  await penCtx.addCookies([{ name: "gogogo_auth", value: cookie, url: BASE + "/" }]);
+  const penPage = await penCtx.newPage();
+  penPage.on("pageerror", (e) => pageErrors.push("pen: " + String(e)));
+  await gotoBoard(penPage, `${BASE}/whiteboard/${docPen}?clientID=wb-pen`);
+  await waitForCanvas(penPage);
+  await penPage.locator('[data-tool="pen"]').click();
+  const PEN = { x: 60, y: 60, w: 280, h: 240 };
+  const pbox = await penPage.locator("#wb-canvas").boundingBox();
+  await penPage.mouse.move(pbox.x + 80, pbox.y + 80);
+  await penPage.mouse.down();
+  for (let i = 1; i <= 10; i++) {
+    await penPage.mouse.move(pbox.x + 80 + i * 16, pbox.y + 80 + i * 10, { steps: 2 });
+  }
+  await penPage.mouse.up();
+  await waitForInk(penPage, [PEN], 8000);
+  const penInk = await penPage.evaluate(inkInRegion(PEN.x, PEN.y, PEN.w, PEN.h));
+  if (penInk > 0) {
+    ok(`a pen stroke paints on the canvas (ink ${penInk})`);
+  } else {
+    bad("the pen stroke committed but painted nothing (rough.js wants [x, y] tuples, not {x, y})");
+  }
+  let penPoints = 0;
+  {
+    const deadline = Date.now() + 10000;
+    while (Date.now() < deadline && penPoints === 0) {
+      const res = await fetch(`${BASE}/api/whiteboard/${docPen}/snapshot`, { headers: { Cookie: "gogogo_auth=" + cookie } }).catch(() => null);
+      if (res && res.ok) {
+        const list = await res.json().catch(() => []);
+        const shape = Array.isArray(list) ? list.find((x) => x && x.type === "pen") : null;
+        if (shape) penPoints = (shape.points || []).length;
+      }
+      if (penPoints === 0) await sleep(200);
+    }
+  }
+  if (penPoints >= 4) {
+    ok(`the pen stroke reached the server (${penPoints} coordinates)`);
+  } else {
+    bad(`the pen stroke never reached the server as a pen shape (points=${penPoints})`);
+  }
+  // Reload: this page now renders the SAVED stroke from the authoritative list
+  // (the same path a peer takes), not the in-progress draft.
+  await penPage.close();
+  const penRead = await penCtx.newPage();
+  penRead.on("pageerror", (e) => pageErrors.push("pen-read: " + String(e)));
+  await gotoBoard(penRead, `${BASE}/whiteboard/${docPen}?clientID=wb-pen-reader`);
+  await waitForCanvas(penRead);
+  const seededInk = (await waitForInk(penRead, [PEN], 10000))
+    ? await penRead.evaluate(inkInRegion(PEN.x, PEN.y, PEN.w, PEN.h))
+    : 0;
+  if (seededInk > 0) {
+    ok(`a saved pen stroke paints for a later reader (ink ${seededInk})`);
+  } else {
+    bad("a saved pen stroke is invisible to a client that did not draw it");
+  }
+  await penCtx.close();
+
+  // ---------------------------------------------------------------------------
   // OFFLINE DRAW + RECONNECT: a shape drawn while the link is down is buffered
   // in the whiteboard's IndexedDB outbox and replayed on reconnect, so the
   // shape is on the SERVER afterwards. This is the feature's offline claim and

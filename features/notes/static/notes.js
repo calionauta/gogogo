@@ -229,7 +229,13 @@
   if (window.GogogoThrottle && window.GogogoThrottle.throttleTrailing) {
     throttleFn = window.GogogoThrottle.throttleTrailing;
   }
+  // Ephemeral presence (caret, typing) is never queued, so offline it can only
+  // fail: one network error per keystroke, plus a 5 s heartbeat, filling the
+  // console for a signal with no value until the link is back. The whiteboard
+  // gates its presence frames the same way (postFrame). Text and ops still go
+  // through the durable outbox, which is what has to survive the outage.
   var reportCaretWire = throttleFn(function (pos, line) {
+    if (!navigator.onLine) return;
     fetch("/api/notes/" + encodeURIComponent(DOC) + "/caret?clientID=" + encodeURIComponent(CID), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -454,6 +460,7 @@
     idleTimer = setTimeout(function () { typingSent = false; sendTyping(false); }, 3000);
   }
   function sendTyping(on) {
+    if (!navigator.onLine) return;
     fetch("/api/notes/" + encodeURIComponent(DOC) + "/typing?clientID=" + encodeURIComponent(CID), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
