@@ -72,6 +72,18 @@ with the same flags (always tracks the latest commit; releases pin a version).
   inverts it — nothing installs, so the same rows become a shopping list of
   owned paths instead of trim switches.
 
+## Build targets (not subcommands)
+
+`gogogo` scaffolds; the build recipes live in the repo and are printed by
+`gogogo --help`:
+
+- `make desktop` / `make desktop-smoke` — Wails shell (local, no CI).
+- `make mobile` — Android APK (local, no CI; `cmd/mobile`, ncruces driver).
+- `make gui` — native window (local, no CI).
+
+The MCP `build_prerequisites` tool returns the same desktop/mobile text, so an
+agent asked to build either target does not have to guess.
+
 Engine internals (alternatives analysis, trim tables, flag matrix):
 [`cmd/gogogo`](https://github.com/calionauta/gogogo/tree/master/cmd/gogogo).
 MCP equivalent: [mcp](mcp.md). Guided tour: [getting-started](getting-started.md#0b-opinions-before-changes-advise).
