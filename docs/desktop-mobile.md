@@ -139,8 +139,8 @@ Gradle project under `build/android/`. No CI job compiles it (the SDK/NDK/
 emulator is ~10 GB), and `./scripts/desktop-build.sh android` still exits with
 that explanation rather than a cryptic error.
 
-The 2026-10-30 emulator spike (`spike/mobile`, not merged) proved a working
-path and the constraint that decides it: **tursogo has no Android library**, so
+The 2026-10-30 emulator spike proved a working path and the constraint that
+decides it: **tursogo has no Android library**, so
 the data layer must swap to a pure-Go driver (`ncruces/go-sqlite3`) behind
 `android` build tags. With a separate the mobile entrypoint entrypoint, a fixed loopback
 origin and that driver matrix, the real UI rendered and a todo created through
