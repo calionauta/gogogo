@@ -1120,10 +1120,9 @@ button, a, summary, [role="button"] { touch-action: manipulation; }
 }
 /* ---------- App dock (mobile webapp bottom bar) ----------
    DaisyUI `dock` supplies the bar; here only when/where it shows. Phone
-   only (≤720px), never on the Chat page (body[data-module="chat"]): the
-   composer owns the thumb zone there and a fixed bar would cover the
-   docked input. z-index sits below the drawer (60), the state sheet (55)
-   and toasts (100). */
+   only (≤720px), on every module including Chat: the composer is lifted
+   above the bar instead of the bar disappearing. z-index sits below the
+   drawer (60), the state sheet (55) and toasts (100). */
 .app-dock { display: none; }
 @media (max-width: 720px) {
   .app-dock.dock {
@@ -1135,7 +1134,13 @@ button, a, summary, [role="button"] { touch-action: manipulation; }
     padding-bottom: env(safe-area-inset-bottom, 0px);
     border-top: 1px solid var(--color-base-300);
   }
-  body[data-module="chat"] .app-dock { display: none; }
+  /* Chat keeps the dock; the composer sits above it and the body clears it. */
+  body[data-module="chat"] .composer-dock {
+    bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+  }
+  body[data-module="chat"] .app-body {
+    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+  }
   .app-dock-icon { font-size: 1.375rem; }
   /* Toasts ride above the bar instead of behind it. */
   #toast-container {

@@ -278,10 +278,10 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 
 // AppDock is the mobile webapp bottom bar: the three daily destinations
 // plus the drawer, one tap instead of two. Desktop never sees it (CSS shows
-// it ≤720px only) and the Chat page hides it (body[data-module="chat"]):
-// the composer owns the thumb zone there, and a fixed bar would cover the
-// docked input. Icons reuse the registry's own names so the dock
-// and the drawer can never disagree about artwork.
+// it ≤720px only). It stays on every module, including Chat: the composer
+// is lifted above the bar there rather than the bar disappearing. Icons
+// reuse the registry's own names so the dock and the drawer can never
+// disagree about artwork.
 //
 // Viewers get Notes as the third destination instead of Chat: the viewer
 // policy denies /chat, so offering it would render a destination that 403s
