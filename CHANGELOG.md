@@ -15,6 +15,23 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.61.0 (2026-10-30)
+
+## What's Changed
+* fix(ui): stop the false offline signals, fix the mobile board and the lost note edit by @calionauta in https://github.com/calionauta/gogogo/pull/338
+* feat(desktop): activation gate, cloud sync, and packaged distribution by @calionauta in https://github.com/calionauta/gogogo/pull/342
+* feat(desktop): activation gate, cloud sync, and opt-in diagnostics by @calionauta in https://github.com/calionauta/gogogo/pull/341
+* feat(perf): opt-in runtime dashboard (statsviz + pprof) by @calionauta in https://github.com/calionauta/gogogo/pull/343
+* feat(auth,sync): signup UI + precise errors, and a desktop↔server sync proof by @calionauta in https://github.com/calionauta/gogogo/pull/344
+* docs(mobile): Android driver evidence and strategy by @calionauta in https://github.com/calionauta/gogogo/pull/345
+* docs(mobile): record the system-bar inset pitfall by @calionauta in https://github.com/calionauta/gogogo/pull/346
+* feat(mobile): opt-in Android target and build guidance by @calionauta in https://github.com/calionauta/gogogo/pull/347
+* fix(chat): lift the composer clear of the mobile dock by @calionauta in https://github.com/calionauta/gogogo/pull/348
+* docs(mobile): drop the stale "not merged" spike note by @calionauta in https://github.com/calionauta/gogogo/pull/349
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.60.0...v0.61.0
+
 ## 0.60.0 (2026-10-29)
 
 ## What's Changed
