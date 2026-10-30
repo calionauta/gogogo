@@ -36,8 +36,10 @@ adb shell am start -n com.wails.app/.MainActivity
 
 ## Blocker (exact)
 
-The first load failed before Go started because Android's libc does not export
-symbols the Go c-shared object references:
+Three layers failed in order. Each one is recorded because the next is only
+visible after fixing the previous.
+
+**1. libc symbols.** The first load failed before Go started:
 
 ```
 java.lang.UnsatisfiedLinkError: dlopen failed: cannot locate symbol "bcmp"
@@ -45,29 +47,39 @@ java.lang.UnsatisfiedLinkError: dlopen failed: cannot locate symbol "bcmp"
 ```
 
 `cmd/desktop/bcmp_android.c` adds the `bcmp`, `__errno_location` and
-`__xpg_strerror_r` aliases; with those the library loads and the process stays
-alive. The UI still does not:
+`__xpg_strerror_r` aliases; the library then loads.
+
+**2. Android main registration.** Wails logged:
 
 ```
-E Wails: [JNI] timeout waiting for app to be ready, dropping request for /index.html
-W WailsPathHandler: Asset not found: /index.html
-D WailsActivity: Page loaded: https://wails.localhost/
+E Wails: No main function registered! Call application.RegisterAndroidMain(main) in init()
 ```
 
-Screenshot: `docs/research/android-spike-2026-10.png` (WebView error page).
+The overlay generator targets the project root, but this binary's main package
+is `cmd/desktop`. `cmd/desktop/main_android.go` (build tag `android`) registers
+`main` directly; the Go entrypoint then runs.
 
-Root cause: `cmd/desktop` is a desktop entrypoint. It boots the loopback HTTP
-server and takes the Wails single-instance lock before `app.Run`, and it has no
-Wails `Assets` handler. Wails Android expects a mobile entrypoint that
-registers `application.RegisterAndroidMain` (the generated overlay does) and
-serves the activity's `wails.localhost` origin; it does not point the WebView at
-the process's loopback server. A real mobile shell needs its own `cmd/mobile`
-entrypoint (asset handler or an explicit loopback URL), Keystore-backed tokens
-and a deep-link activation flow — none of that is in this spike.
+**3. The hard blocker: Turso has no Android library.** With `main` registered
+the process panics before serving anything:
 
-Also note: `purego`/`tursogo` pull glibc-shaped symbols into the shared object
-(the shims above are the symptom). The database layer has not been verified on
-Android.
+```
+E Go: panic: unable to load turso library: turso library is not embedded for the platform in the package
+```
+
+`tursogo` ships no Android build of its native library, and the whole app boots
+through `internal/db`. The UI never renders. This is not a Wails, NDK or
+emulator problem: the product's data layer cannot start on Android.
+
+The earlier WebView error (`https://wails.localhost/` →
+`ERR_CONNECTION_REFUSED`, `Asset not found: /index.html`) is the next layer
+after the data layer: `cmd/desktop` is a desktop entrypoint with a loopback
+server and no Wails `Assets` handler, so the Android activity has nothing to
+load. A real mobile shell needs its own `cmd/mobile` entrypoint, an Android
+build of the database layer (or a different local store), Keystore-backed
+tokens and a deep-link activation flow — none of that is in this spike.
+
+Screenshot: `docs/research/android-spike-2026-10.png` (WebView error page from
+the pre-registration build). The Turso panic is in logcat, not a screenshot.
 
 ## Disk usage and cleanup
 
