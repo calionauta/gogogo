@@ -725,6 +725,153 @@ async function main() {
   }
   await ctxFresh.close();
 
+  // ---------------------------------------------------------------------------
+  // OFFLINE PRESENCE: a tab that reports itself offline must not beep the
+  // presence endpoints.
+  //
+  // WHY THIS EXISTS: caret and typing are EPHEMERAL — never queued, worth
+  // nothing until the link is back — so offline they can only produce a failed
+  // POST per keystroke (plus a 5 s heartbeat): console noise, and load on an
+  // edge that is already the reason the tab is offline. The whiteboard gates
+  // its presence frames the same way; the durable paths (text, ops) still go
+  // through the outbox, which is what has to survive the outage.
+  //
+  // The online half is the control: it proves the probe sees the calls it is
+  // asserting are absent offline. The probe is a window.fetch wrapper, not the
+  // request event: Chromium's offline emulation rejects the fetch before
+  // anything reaches the network layer, so a request-event probe would count 0
+  // in BOTH runs and pass against the ungated code (verified — it did).
+  // RED-PROOFED without the gate: the online count still rises and the offline
+  // count is non-zero.
+  // ---------------------------------------------------------------------------
+  const docBeacon = "notes-beacon-" + process.pid;
+  for (const pg of await ctxA.pages()) await pg.close();
+  const A7 = await ctxA.newPage();
+  A7.on("pageerror", (e) => pageErrors.push("A7: " + String(e)));
+  await gotoNote(A7, `${BASE}/notes/${docBeacon}`);
+  await A7.evaluate(() => {
+    window.__beacons = [];
+    const orig = window.fetch;
+    window.fetch = function (input) {
+      const url = typeof input === "string" ? input : (input && input.url) || "";
+      const m = /\/api\/notes\/[^/]+\/(caret|typing)/.exec(url);
+      if (m) window.__beacons.push(m[1]);
+      return orig.apply(window, arguments);
+    };
+  });
+  await A7.locator("#note-text").click();
+  await typeText(A7, "on", 20);
+  // Bounded wait for a beacon (no nap guessing: poll the probe).
+  {
+    const deadline = Date.now() + 8000;
+    while (Date.now() < deadline && (await A7.evaluate(() => window.__beacons.length)) === 0) await sleep(100);
+  }
+  const onlineBeacons = await A7.evaluate(() => window.__beacons.length);
+  if (onlineBeacons > 0) {
+    ok(`presence beacons flow while online (${onlineBeacons})`);
+  } else {
+    bad("the beacon probe never saw a caret/typing call even online (the probe is broken, not the gate)");
+  }
+  // No nap here on purpose: the app's own typing throttle (one send per 2.5 s
+  // while `typingSent`) is crossed by TYPING through the window instead. Waiting
+  // it out with a sleep would be a fixed nap — the thing this tree bans — and
+  // typing through it is also the honest fixture: a keystroke that lands after
+  // the throttle expires is exactly the one an ungated client would send.
+  await ctxA.setOffline(true);
+  await sleep(300);
+  const sawOffline = await A7.evaluate(() => navigator.onLine === false);
+  if (!sawOffline) bad("offline emulation did not reach the page (navigator.onLine stayed true)");
+  await A7.evaluate(() => { window.__beacons = []; });
+  await A7.locator("#note-text").click();
+  await A7.evaluate(() => {
+    const el = document.getElementById("note-text");
+    el.setSelectionRange(1, 1);
+    el.dispatchEvent(new Event("selectionchange", { bubbles: true }));
+  });
+  await typeText(A7, "offline-boundary-crossing-txt", 100);
+  await sleep(1200); // KEPT: absence check — the window is the assertion (no beacon may appear in it)
+  const offlineBeacons = await A7.evaluate(() => window.__beacons.slice());
+  if (offlineBeacons.length === 0) {
+    ok("an offline tab sends no caret/typing beacons");
+  } else {
+    bad(`an offline tab sent ${offlineBeacons.length} presence beacon(s): ${offlineBeacons.slice(0, 4).join(", ")}`);
+  }
+  await ctxA.setOffline(false);
+  await A7.close();
+
+  // ---------------------------------------------------------------------------
+  // CONCURRENT TYPING AT THE SAME SPOT MUST KEEP BOTH EDITS.
+  //
+  // Both browsers type at the end of the same line while both batches are in
+  // flight (held at a barrier so they really share one base revision). Exactly
+  // one POST wins; the loser gets a 409. The old code "fixed" the 409 by
+  // recomputing the whole tail from the local textarea — which never saw the
+  // winner's insert — so the recomputed diff DELETED it. The rebase maps the
+  // loser's ops onto the winner's text instead: two inserts at the same index
+  // both survive.
+  //
+  // RED-PROOFED: with the 409 branch replaced by `requeue()`, the final text is
+  // "seedA" or "seedB" (one character lost) and this fails.
+  // ---------------------------------------------------------------------------
+  const docRace = "notes-race-" + process.pid;
+  // The offline phase closed every page in both contexts; open fresh ones.
+  const AR = await ctxA.newPage();
+  const BR = await ctxB.newPage();
+  AR.on("pageerror", (e) => pageErrors.push("AR: " + String(e)));
+  BR.on("pageerror", (e) => pageErrors.push("BR: " + String(e)));
+  await gotoNote(AR, `${BASE}/notes/${docRace}`);
+  await gotoNote(BR, `${BASE}/notes/${docRace}`);
+  await AR.locator("#note-text").click();
+  await typeText(AR, "seed", 20);
+  await BR.waitForFunction(() => document.getElementById("note-text").value === "seed", null, { timeout: 10000 });
+
+  // Hold the first op of EACH page until both are parked, then release both.
+  let arrived = 0;
+  let releaseBoth = null;
+  const bothParked = new Promise((resolve) => { releaseBoth = resolve; });
+  const holdOp = async (pg) => {
+    await pg.route("**/api/notes/*/op?*", async (route) => {
+      arrived++;
+      if (arrived === 2) releaseBoth();
+      await bothParked;
+      await route.continue();
+    });
+  };
+  await holdOp(AR);
+  await holdOp(BR);
+
+  await AR.evaluate(() => { const t = document.getElementById("note-text"); t.focus(); t.setSelectionRange(t.value.length, t.value.length); });
+  await BR.evaluate(() => { const t = document.getElementById("note-text"); t.focus(); t.setSelectionRange(t.value.length, t.value.length); });
+  await Promise.all([AR.keyboard.type("A"), BR.keyboard.type("B")]);
+
+  const merged = (t) => t === "seedAB" || t === "seedBA";
+  try {
+    await AR.waitForFunction((want) => {
+      const v = document.getElementById("note-text").value;
+      return want.includes(v);
+    }, ["seedAB", "seedBA"], { timeout: 15000 });
+    await BR.waitForFunction((want) => {
+      const v = document.getElementById("note-text").value;
+      return want.includes(v);
+    }, ["seedAB", "seedBA"], { timeout: 15000 });
+  } catch (e) {
+    // fall through to the assertion below for the diagnostic
+  }
+  const raceA = await AR.evaluate(() => document.getElementById("note-text").value);
+  const raceB = await BR.evaluate(() => document.getElementById("note-text").value);
+  const pageRes = await fetch(`${BASE}/notes/${docRace}`, { headers: { Cookie: "gogogo_auth=" + tokenA } });
+  const pageHtml = await pageRes.text();
+  const seedAt = pageHtml.indexOf('id="note-text"');
+  const tag = seedAt >= 0 ? pageHtml.slice(seedAt, pageHtml.indexOf("</textarea>", seedAt)) : "";
+  const serverRace = tag.includes(">") ? tag.slice(tag.indexOf(">") + 1) : "";
+  if (merged(raceA) && merged(raceB) && merged(serverRace)) {
+    ok(`concurrent same-spot typing kept both edits (${serverRace})`);
+  } else {
+    bad(`concurrent same-spot typing lost an edit: A=${JSON.stringify(raceA)} B=${JSON.stringify(raceB)} server=${JSON.stringify(serverRace)}`);
+  }
+  await AR.unroute("**/api/notes/*/op?*");
+  await BR.unroute("**/api/notes/*/op?*");
+
   if (pageErrors.length) {
     bad(`uncaught page errors: ${pageErrors.slice(0, 3).join(" | ")}`);
   } else {

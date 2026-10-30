@@ -236,6 +236,36 @@ try {
     await ctx.close();
   });
 
+  // ---- 0.5: the banner does not announce a healthy in-flight write --------
+  await check("banner: an online add shows nothing while the request is healthy", async () => {
+    const cookie = await freshCookie(BASE, "syncflash");
+    const ctx = await browser.newContext();
+    await ctx.addCookies([{ name: "gogogo_auth", value: cookie, url: BASE + "/" }]);
+    const page = await newPage(ctx, BASE);
+    await page.evaluate(() => {
+      window.__bars = 0;
+      const b = document.getElementById("offline-banner");
+      const seen = () => {
+        // Any visible bar counts: queued/syncing/offline all read as trouble.
+        if (!b.classList.contains("is-online")) window.__bars++;
+      };
+      new MutationObserver(seen).observe(b, { attributes: true, attributeFilter: ["class"] });
+    });
+    // Slow the create down so a leaked announcement would have time to paint.
+    await page.route("**/api/todos?*", async (r) => {
+      await new Promise((res) => setTimeout(res, 400));
+      await r.continue();
+    });
+    await input(page).fill(`quiet-${Date.now()}`);
+    await input(page).press("Enter");
+    await waitFor(() => page.locator("#todo-list .todo-item").first().isVisible(), 15000, "the created row");
+    await page.waitForTimeout(800); // KEPT: absence check — past the 500 ms announce delay
+    const bars = await page.evaluate(() => window.__bars);
+    await page.unroute("**/api/todos?*");
+    if (bars > 0) throw new Error(`the banner flashed ${bars} time(s) for a healthy online add`);
+    await ctx.close();
+  });
+
   // ---- 1: shared device --------------------------------------------------
   await check("shared device: sign-out purges the queue, the next account inherits nothing", async () => {
     const cookie = await freshCookie(BASE, "shared");

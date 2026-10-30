@@ -104,6 +104,11 @@ func RailInboxBadge(unread int) templ.Component {
 // network changed — tab visible, window focused, bfcache restore, back online.
 // Any tab that already heard a change broadcasts it, so this is the fallback,
 // never the steady state. The endpoint answers with a signal patch, not markup.
+//
+// No signals in the URL: the badge needs none, and Datastar's default sends the
+// WHOLE signal set as a query param (the todos array made a 10 KB URL that
+// landed in logs). No retry either: a refused poll is an answer, not a transient
+// failure, and the default ten retries turned a single 403 into a console storm.
 func railInboxRefresh() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -125,7 +130,7 @@ func railInboxRefresh() templ.Component {
 			templ_7745c5c3_Var5 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<button id=\"rail-inbox-refresh\" type=\"button\" class=\"hidden\" aria-hidden=\"true\" data-on:click=\"@get('/api/notifications/badge')\" data-on:visibilitychange__document=\"if (!document.hidden) document.getElementById('rail-inbox-refresh').click()\" data-on:focus__window=\"if (!document.hidden) document.getElementById('rail-inbox-refresh').click()\" data-on:pageshow__window=\"evt.persisted && document.getElementById('rail-inbox-refresh').click()\" data-on:online__window=\"document.getElementById('rail-inbox-refresh').click()\"></button>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<button id=\"rail-inbox-refresh\" type=\"button\" class=\"hidden\" aria-hidden=\"true\" data-on:click=\"@get('/api/notifications/badge', {filterSignals: {exclude: /.*/}, retryMaxCount: 0})\" data-on:visibilitychange__document=\"if (!document.hidden && navigator.onLine) document.getElementById('rail-inbox-refresh').click()\" data-on:focus__window=\"if (!document.hidden && navigator.onLine) document.getElementById('rail-inbox-refresh').click()\" data-on:pageshow__window=\"evt.persisted && navigator.onLine && document.getElementById('rail-inbox-refresh').click()\" data-on:online__window=\"document.getElementById('rail-inbox-refresh').click()\"></button>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -168,7 +173,7 @@ func railItem(m Module, active bool, unread int) templ.Component {
 		var templ_7745c5c3_Var8 templ.SafeURL
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(m.URL))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/inbox.templ`, Line: 60, Col: 29}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/inbox.templ`, Line: 65, Col: 29}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -194,7 +199,7 @@ func railItem(m Module, active bool, unread int) templ.Component {
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(activeCurrent(active))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/inbox.templ`, Line: 62, Col: 38}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/inbox.templ`, Line: 67, Col: 38}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 		if templ_7745c5c3_Err != nil {
@@ -234,7 +239,7 @@ func railItem(m Module, active bool, unread int) templ.Component {
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(m.Title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/inbox.templ`, Line: 74, Col: 40}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/inbox.templ`, Line: 79, Col: 40}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 		if templ_7745c5c3_Err != nil {

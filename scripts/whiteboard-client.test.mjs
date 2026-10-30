@@ -23,7 +23,7 @@
 //   Needs a prebuilt binary, like scripts/smoke.mjs: SMOKE_BIN=... node ...
 //   Build it with: go build -o "$TMPDIR/gogogo-ci-local-web" ./cmd/web/
 
-import { chromium } from "playwright";
+import { chromium, devices } from "playwright";
 import { spawn } from "node:child_process";
 import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -1013,6 +1013,293 @@ async function main() {
     bad(`the drawn shape stored colour "${stored || "none"}", want ${PICKED} — the picker is not wired`);
   }
   await colorCtx.close();
+
+  // ---------------------------------------------------------------------------
+  // 13. A DESKTOP BOARD MUST BE NAVIGABLE ON A PHONE.
+  //
+  // The canvas is a viewport over world coordinates. Before the view transform,
+  // a phone opened a board drawn on a laptop and saw an empty white area: every
+  // shape sat right of the 390 px canvas and nothing could pan. The first
+  // authoritative list now fits content that falls outside the viewport.
+  //
+  // RED-PROOFED: with `maybeFit` disabled the mobile canvas has zero ink.
+  // ---------------------------------------------------------------------------
+  const docMobile = "wb-mobile-" + process.pid;
+  const deskCtx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  await deskCtx.addCookies([{ name: "gogogo_auth", value: cookie, url: BASE + "/" }]);
+  const deskPage = await deskCtx.newPage();
+  await gotoBoard(deskPage, `${BASE}/whiteboard/${docMobile}?clientID=wb-desk`);
+  await waitForCanvas(deskPage);
+  await drawRect(deskPage, 620, 300, 820, 460);
+  // Wait for the server to HAVE the shape before the phone asks for the page:
+  // a fixed nap here would be the synchronization this suite forbids.
+  {
+    const deadline = Date.now() + 10000;
+    let saved = 0;
+    while (Date.now() < deadline && saved === 0) {
+      const res = await fetch(`${BASE}/api/whiteboard/${docMobile}/snapshot`, { headers: { Cookie: "gogogo_auth=" + cookie } }).catch(() => null);
+      if (res && res.ok) {
+        const list = await res.json().catch(() => []);
+        saved = Array.isArray(list) ? list.length : 0;
+      }
+      if (saved === 0) await sleep(200);
+    }
+    if (saved === 0) bad("the desktop shape never reached the server");
+  }
+  await deskCtx.close();
+
+  const mobCtx = await browser.newContext({ ...devices["iPhone 13"] });
+  await mobCtx.addCookies([{ name: "gogogo_auth", value: cookie, url: BASE + "/" }]);
+  const mobPage = await mobCtx.newPage();
+  mobPage.on("pageerror", (e) => pageErrors.push("mobile: " + String(e)));
+  await gotoBoard(mobPage, `${BASE}/whiteboard/${docMobile}?clientID=wb-mob`);
+  const mobBox = await mobPage.locator("#wb-canvas").boundingBox();
+  // The fit runs on the first authoritative list; WAIT for the ink instead of
+  // guessing how long the round trip takes.
+  await waitForInk(mobPage, [{ x: 0, y: 0, w: mobBox.width, h: mobBox.height }], 15000);
+  const mobInk = await mobPage.evaluate(inkInRegion(0, 0, mobBox.width, mobBox.height));
+  if (mobInk > 0) {
+    ok(`a desktop board is visible on a phone after fit (ink ${mobInk})`);
+  } else {
+    bad("the phone shows an empty canvas for a board drawn off-screen (no fit)");
+  }
+  // The zoom control must work through the real UI, not only by gesture.
+  const inkBeforeZoom = mobInk;
+  await mobPage.locator("#wb-zoom-in").click();
+  await mobPage.locator("#wb-zoom-in").click();
+  await sleep(200);
+  const inkZoomed = await mobPage.evaluate(inkInRegion(0, 0, mobBox.width, mobBox.height));
+  if (inkZoomed !== inkBeforeZoom) {
+    ok("the zoom control redraws the board");
+  } else {
+    bad("the zoom control did nothing");
+  }
+  await mobCtx.close();
+
+  // ---------------------------------------------------------------------------
+  // 13.5 ZOOM MATH: after zooming, a screen point maps to the right world point.
+  //
+  // Coordinates are world px now, so a wrong transform would silently place
+  // every shape somewhere else for every peer. The cursor frame is the probe:
+  // zoom twice around the canvas centre (scale 1.5625), move 100 px right of the
+  // centre, and the frame must carry centre+64 world px.
+  // ---------------------------------------------------------------------------
+  const docZoom = "wb-zoommap-" + process.pid;
+  const zoomCtx = await browser.newContext({ viewport: { width: 1100, height: 760 } });
+  await zoomCtx.addCookies([{ name: "gogogo_auth", value: cookie, url: BASE + "/" }]);
+  const zoomPage = await zoomCtx.newPage();
+  await gotoBoard(zoomPage, `${BASE}/whiteboard/${docZoom}?clientID=wb-zoommap`);
+  await waitForCanvas(zoomPage);
+  const zbox = await zoomPage.locator("#wb-canvas").boundingBox();
+  await zoomPage.locator("#wb-zoom-in").click();
+  await zoomPage.locator("#wb-zoom-in").click();
+  // Let the throttled trailing frame from the button hover flush: it carries
+  // the pre-zoom cursor position and would race the frame we are about to wait
+  // for (the only other frame in flight).
+  await zoomPage.waitForTimeout(200); // KEPT: settle window — trailing throttle frame
+  const frameReq = zoomPage.waitForRequest(
+    (r) => r.url().includes("/presence") && r.method() === "POST",
+    { timeout: 10000 },
+  );
+  await zoomPage.mouse.move(zbox.x + zbox.width / 2 + 100, zbox.y + zbox.height / 2);
+  const frameBody = JSON.parse((await frameReq).postData() || "{}");
+  const expWorldX = zbox.width / 2 + 100 / 1.5625;
+  const expWorldY = zbox.height / 2;
+  if (Math.abs(frameBody.x - expWorldX) < 2 && Math.abs(frameBody.y - expWorldY) < 2) {
+    ok(`a zoomed screen point maps to the right world point (${frameBody.x.toFixed(1)}, ${frameBody.y.toFixed(1)})`);
+  } else {
+    bad(`zoom mapping is wrong: frame ${JSON.stringify({ x: frameBody.x, y: frameBody.y })}, want ~(${expWorldX.toFixed(1)}, ${expWorldY.toFixed(1)})`);
+  }
+  // Panning must move the world under the pointer by exactly the drag delta
+  // divided by the scale (the same view fields the two-finger gesture writes).
+  await zoomPage.mouse.move(zbox.x + zbox.width / 2, zbox.y + zbox.height / 2);
+  await zoomPage.mouse.down({ button: "middle" });
+  await zoomPage.mouse.move(zbox.x + zbox.width / 2 + 50, zbox.y + zbox.height / 2 + 30, { steps: 3 });
+  await zoomPage.mouse.up({ button: "middle" });
+  await zoomPage.waitForTimeout(200); // KEPT: settle window — trailing throttle frame
+  const panReq = zoomPage.waitForRequest(
+    (r) => r.url().includes("/presence") && r.method() === "POST",
+    { timeout: 10000 },
+  );
+  await zoomPage.mouse.move(zbox.x + zbox.width / 2 + 100, zbox.y + zbox.height / 2);
+  const panBody = JSON.parse((await panReq).postData() || "{}");
+  const expPanX = expWorldX - 50 / 1.5625;
+  const expPanY = expWorldY - 30 / 1.5625;
+  if (Math.abs(panBody.x - expPanX) < 2 && Math.abs(panBody.y - expPanY) < 2) {
+    ok(`a middle-drag pan maps the world correctly (${panBody.x.toFixed(1)}, ${panBody.y.toFixed(1)})`);
+  } else {
+    bad(`pan mapping is wrong: frame ${JSON.stringify({ x: panBody.x, y: panBody.y })}, want ~(${expPanX.toFixed(1)}, ${expPanY.toFixed(1)})`);
+  }
+  await zoomCtx.close();
+
+  // ---------------------------------------------------------------------------
+  // 14. PRESENCE: closing a tab must drop the count in real time.
+  // ---------------------------------------------------------------------------
+  const docPresence = "wb-presence-" + process.pid;
+  const pA = await makeCtx("P-A");
+  const pB = await makeCtx("P-B");
+  await gotoBoard(pA, `${BASE}/whiteboard/${docPresence}?clientID=wb-pres-a`);
+  await gotoBoard(pB, `${BASE}/whiteboard/${docPresence}?clientID=wb-pres-b`);
+  await waitForCanvas(pA);
+  await pA.waitForFunction(() => document.getElementById("peer-count")?.textContent === "2", null, { timeout: 10000 });
+  await pB.close();
+  try {
+    await pA.waitForFunction(() => document.getElementById("peer-count")?.textContent === "1", null, { timeout: 15000 });
+    ok("closing a tab drops the peer count in real time");
+  } catch {
+    bad(`the peer count stayed at ${await pA.evaluate(() => document.getElementById("peer-count")?.textContent)} after a tab closed`);
+  }
+  await pA.context().close();
+
+  // ---------------------------------------------------------------------------
+  // 15. The COLOR change event must reach the shape too (iOS/Firefox only
+  //     guarantee `change` when the picker closes).
+  // ---------------------------------------------------------------------------
+  const docColor2 = "wb-color2-" + process.pid;
+  const color2Ctx = await browser.newContext();
+  await color2Ctx.addCookies([{ name: "gogogo_auth", value: cookie, url: BASE + "/" }]);
+  const color2 = await color2Ctx.newPage();
+  await gotoBoard(color2, `${BASE}/whiteboard/${docColor2}?clientID=wb-color2`);
+  await waitForCanvas(color2);
+  const PICKED2 = "#00aa00";
+  await color2.evaluate((hex) => {
+    const el = document.getElementById("color-input");
+    el.value = hex;
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  }, PICKED2);
+  await drawRect(color2, 60, 60, 220, 180);
+  let stored2 = "";
+  {
+    const deadline = Date.now() + 10000;
+    while (Date.now() < deadline && !stored2) {
+      const res = await fetch(`${BASE}/api/whiteboard/${docColor2}/snapshot`, { headers: { Cookie: "gogogo_auth=" + cookie } }).catch(() => null);
+      if (res && res.ok) {
+        const list = await res.json().catch(() => []);
+        const shape = Array.isArray(list) ? list.find((x) => x && x.type === "rect") : null;
+        if (shape) stored2 = shape.color || "";
+      }
+      if (!stored2) await sleep(200);
+    }
+  }
+  if (stored2 === PICKED2) {
+    ok(`a colour chosen with a change event reaches the shape (${stored2})`);
+  } else {
+    bad(`the change event did not colour the shape: stored ${JSON.stringify(stored2)}, want ${PICKED2}`);
+  }
+  await color2Ctx.close();
+
+  // ---------------------------------------------------------------------------
+  // 16. A cancelled pointer must not wedge drawing: the next stroke still lands.
+  // ---------------------------------------------------------------------------
+  const docCancel = "wb-cancel-" + process.pid;
+  const cancelCtx = await browser.newContext();
+  await cancelCtx.addCookies([{ name: "gogogo_auth", value: cookie, url: BASE + "/" }]);
+  const cancelPage = await cancelCtx.newPage();
+  await gotoBoard(cancelPage, `${BASE}/whiteboard/${docCancel}?clientID=wb-cancel`);
+  await waitForCanvas(cancelPage);
+  const cbox = await cancelPage.locator("#wb-canvas").boundingBox();
+  await cancelPage.mouse.move(cbox.x + 40, cbox.y + 40);
+  await cancelPage.mouse.down();
+  await cancelPage.mouse.move(cbox.x + 140, cbox.y + 120, { steps: 4 });
+  await cancelPage.evaluate(() => {
+    const c = document.getElementById("wb-canvas");
+    c.dispatchEvent(new PointerEvent("pointercancel", { bubbles: true, pointerId: 1, pointerType: "mouse" }));
+  });
+  await cancelPage.mouse.up().catch(() => {});
+  // A fresh stroke after the cancel must commit.
+  await drawRect(cancelPage, 200, 60, 320, 160);
+  let shapesAfterCancel = 0;
+  {
+    const deadline = Date.now() + 10000;
+    while (Date.now() < deadline && shapesAfterCancel < 1) {
+      const res = await fetch(`${BASE}/api/whiteboard/${docCancel}/snapshot`, { headers: { Cookie: "gogogo_auth=" + cookie } }).catch(() => null);
+      if (res && res.ok) {
+        const list = await res.json().catch(() => []);
+        shapesAfterCancel = Array.isArray(list) ? list.length : 0;
+      }
+      if (shapesAfterCancel < 1) await sleep(200);
+    }
+  }
+  if (shapesAfterCancel >= 1) {
+    ok("drawing still works after a cancelled pointer");
+  } else {
+    bad("a cancelled pointer wedged the canvas: the next stroke never committed");
+  }
+  await cancelCtx.close();
+
+  // ---------------------------------------------------------------------------
+  // 17. THE PEN MUST PAINT, and the SAVED stroke must paint for a later reader.
+  //
+  // rough.js takes points as [x, y] TUPLES. The pen handed it {x, y} objects;
+  // its curve() reads that as the other branch of its own overload (a LIST of
+  // curves), every element failed the `a.length` test, and nothing was stroked —
+  // silently. The op still reached the server, so the stroke was stored and
+  // invisible on every client: the reported "the pen stops working".
+  //
+  // Two assertions, because they cover different paths: the ink right after the
+  // drag is the local render (live preview + commit), the ink after a RELOAD is
+  // the committed shape re-rendered from the authoritative list a peer gets.
+  //
+  // RED-PROOFED: with the object form both are 0 while the server still holds
+  // the pen shape, so neither assertion can pass on the broken code.
+  // ---------------------------------------------------------------------------
+  const docPen = "wb-pen-" + process.pid;
+  const penCtx = await browser.newContext();
+  await penCtx.addCookies([{ name: "gogogo_auth", value: cookie, url: BASE + "/" }]);
+  const penPage = await penCtx.newPage();
+  penPage.on("pageerror", (e) => pageErrors.push("pen: " + String(e)));
+  await gotoBoard(penPage, `${BASE}/whiteboard/${docPen}?clientID=wb-pen`);
+  await waitForCanvas(penPage);
+  await penPage.locator('[data-tool="pen"]').click();
+  const PEN = { x: 60, y: 60, w: 280, h: 240 };
+  const pbox = await penPage.locator("#wb-canvas").boundingBox();
+  await penPage.mouse.move(pbox.x + 80, pbox.y + 80);
+  await penPage.mouse.down();
+  for (let i = 1; i <= 10; i++) {
+    await penPage.mouse.move(pbox.x + 80 + i * 16, pbox.y + 80 + i * 10, { steps: 2 });
+  }
+  await penPage.mouse.up();
+  await waitForInk(penPage, [PEN], 8000);
+  const penInk = await penPage.evaluate(inkInRegion(PEN.x, PEN.y, PEN.w, PEN.h));
+  if (penInk > 0) {
+    ok(`a pen stroke paints on the canvas (ink ${penInk})`);
+  } else {
+    bad("the pen stroke committed but painted nothing (rough.js wants [x, y] tuples, not {x, y})");
+  }
+  let penPoints = 0;
+  {
+    const deadline = Date.now() + 10000;
+    while (Date.now() < deadline && penPoints === 0) {
+      const res = await fetch(`${BASE}/api/whiteboard/${docPen}/snapshot`, { headers: { Cookie: "gogogo_auth=" + cookie } }).catch(() => null);
+      if (res && res.ok) {
+        const list = await res.json().catch(() => []);
+        const shape = Array.isArray(list) ? list.find((x) => x && x.type === "pen") : null;
+        if (shape) penPoints = (shape.points || []).length;
+      }
+      if (penPoints === 0) await sleep(200);
+    }
+  }
+  if (penPoints >= 4) {
+    ok(`the pen stroke reached the server (${penPoints} coordinates)`);
+  } else {
+    bad(`the pen stroke never reached the server as a pen shape (points=${penPoints})`);
+  }
+  // Reload: this page now renders the SAVED stroke from the authoritative list
+  // (the same path a peer takes), not the in-progress draft.
+  await penPage.close();
+  const penRead = await penCtx.newPage();
+  penRead.on("pageerror", (e) => pageErrors.push("pen-read: " + String(e)));
+  await gotoBoard(penRead, `${BASE}/whiteboard/${docPen}?clientID=wb-pen-reader`);
+  await waitForCanvas(penRead);
+  const seededInk = (await waitForInk(penRead, [PEN], 10000))
+    ? await penRead.evaluate(inkInRegion(PEN.x, PEN.y, PEN.w, PEN.h))
+    : 0;
+  if (seededInk > 0) {
+    ok(`a saved pen stroke paints for a later reader (ink ${seededInk})`);
+  } else {
+    bad("a saved pen stroke is invisible to a client that did not draw it");
+  }
+  await penCtx.close();
 
   // ---------------------------------------------------------------------------
   // OFFLINE DRAW + RECONNECT: a shape drawn while the link is down is buffered

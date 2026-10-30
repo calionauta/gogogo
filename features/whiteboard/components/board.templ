@@ -261,6 +261,11 @@ templ boardBody(meta BoardMeta, shapesJSON string) {
 					<button class="btn btn-sm" data-tool="pen">Pen</button>
 					<input class="input input-sm w-16 cursor-pointer" type="color" value="#1f2937"
 					       id="color-input" name="color" aria-label="Shape color"/>
+					<div class="join" role="group" aria-label="Board zoom">
+						<button type="button" class="btn btn-sm join-item" id="wb-zoom-out" aria-label="Zoom out">−</button>
+						<button type="button" class="btn btn-sm join-item" id="wb-zoom-in" aria-label="Zoom in">+</button>
+						<button type="button" class="btn btn-sm join-item" id="wb-fit" aria-label="Fit board on screen">Fit</button>
+					</div>
 					<div class="online-pill" data-class="{'is-offline': !$bannerOnline}" title="People connected to this board">
 						<span class="pulse-dot"></span>
 						<span class="pill-online">

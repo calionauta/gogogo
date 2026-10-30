@@ -18,6 +18,14 @@ package components
 // the button itself (not a vanilla listener): the id interpolates into
 // attributes, so no script needs it. The load-time go() call stays a
 // script (bootstrap, same class as the SSE opener).
+
+// fragmentOpts keeps a re-list request small. The URL already carries
+// filter/scope/query, so Datastar's default signal blob is dead weight (it rode
+// every request as a `datastar=` param, todos included). Retries stay at the
+// default: the fragment is idempotent and a transient failure should recover on
+// its own.
+const fragmentOpts = "{filterSignals: {exclude: /.*/}}"
+
 templ ListResync(buttonID, fragmentExpr string) {
 	// Offline replays converge through this button too: the SW posts
 	// sync-end when its queue drains, the banner bridge dispatches
@@ -30,9 +38,9 @@ templ ListResync(buttonID, fragmentExpr string) {
 		id={ buttonID }
 		type="button"
 		class="hidden"
-		data-on:click={ "@get(" + fragmentExpr + ")" }
-		data-on:gogogo:synced__window={ "@get(" + fragmentExpr + ")" }
-		data-on:visibilitychange__document={ "if(!document.hidden){document.getElementById('" + buttonID + "').click()}" }
+		data-on:click={ "@get(" + fragmentExpr + ", " + fragmentOpts + ")" }
+		data-on:gogogo:synced__window={ "@get(" + fragmentExpr + ", " + fragmentOpts + ")" }
+		data-on:visibilitychange__document={ "if(!document.hidden && navigator.onLine){document.getElementById('" + buttonID + "').click()}" }
 		data-list-resync="1"
 		aria-hidden="true"
 	></button>
@@ -49,7 +57,9 @@ templ ListResync(buttonID, fragmentExpr string) {
 		// Refetch on load (a change from while the page was gone would
 		// otherwise never arrive). Visibility return is the data-on
 		// attribute above (backgrounded tabs get their streams
-		// throttled/paused by the browser).
-		go();
+		// throttled/paused by the browser). Offline the request cannot
+		// succeed and Datastar logs the failure, so a cold start on the
+		// cached page waits for the online event instead.
+		if (navigator.onLine) go();
 	</script>
 }

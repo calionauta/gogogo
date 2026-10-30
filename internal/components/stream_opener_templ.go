@@ -32,10 +32,14 @@ func querySep(streamURL string) string {
 // because a hidden tab normally drops its connection to save resources —
 // the room keeps it, since its presence IS the connection.
 func streamOpts(openWhenHidden bool) string {
+	// filterSignals: the stream needs the clientID (already in the URL) and
+	// nothing else; Datastar's default appends the whole signal set, which put
+	// the todos array in the stream URL and in every proxy log.
+	base := "{ retry: 'always', filterSignals: { exclude: /.*/ }"
 	if openWhenHidden {
-		return "{ retry: 'always', openWhenHidden: true }"
+		return base + ", openWhenHidden: true }"
 	}
-	return "{ retry: 'always' }"
+	return base + " }"
 }
 
 // StreamOpener is the ONE SSE opener every Datastar page renders (todo,
@@ -82,7 +86,7 @@ func StreamOpener(buttonID, streamURL string, openWhenHidden bool) templ.Compone
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(buttonID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 50, Col: 15}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 54, Col: 15}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -95,7 +99,7 @@ func StreamOpener(buttonID, streamURL string, openWhenHidden bool) templ.Compone
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue("@get('" + streamURL + querySep(streamURL) + "clientID=' + encodeURIComponent(window.__gogogoClientID || '') + '', " + streamOpts(openWhenHidden) + ")")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 54, Col: 169}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 58, Col: 169}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
@@ -108,7 +112,7 @@ func StreamOpener(buttonID, streamURL string, openWhenHidden bool) templ.Compone
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue("window.__gogogoOpenVerified && window.__gogogoOpenVerified('" + buttonID + "')")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 55, Col: 117}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 59, Col: 117}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {
@@ -121,7 +125,7 @@ func StreamOpener(buttonID, streamURL string, openWhenHidden bool) templ.Compone
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue("window.__gogogoSSERefresh && window.__gogogoSSERefresh('" + buttonID + "')")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 56, Col: 103}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 60, Col: 103}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 		if templ_7745c5c3_Err != nil {
@@ -134,7 +138,7 @@ func StreamOpener(buttonID, streamURL string, openWhenHidden bool) templ.Compone
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue("window.__gogogoSSERefresh && window.__gogogoSSERefresh('" + buttonID + "')")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 57, Col: 105}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 61, Col: 105}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 		if templ_7745c5c3_Err != nil {
@@ -147,7 +151,7 @@ func StreamOpener(buttonID, streamURL string, openWhenHidden bool) templ.Compone
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue("(evt.persisted || performance.now() > 1000) && window.__gogogoSSERefresh && window.__gogogoSSERefresh('" + buttonID + "')")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 58, Col: 152}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 62, Col: 152}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 		if templ_7745c5c3_Err != nil {
@@ -160,7 +164,7 @@ func StreamOpener(buttonID, streamURL string, openWhenHidden bool) templ.Compone
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 60, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 64, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 		if templ_7745c5c3_Err != nil {
@@ -173,7 +177,7 @@ func StreamOpener(buttonID, streamURL string, openWhenHidden bool) templ.Compone
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(resources.StaticURL("sse-open.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 60, Col: 99}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 64, Col: 99}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 		if templ_7745c5c3_Err != nil {
@@ -186,7 +190,7 @@ func StreamOpener(buttonID, streamURL string, openWhenHidden bool) templ.Compone
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 61, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 65, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 		if templ_7745c5c3_Err != nil {
