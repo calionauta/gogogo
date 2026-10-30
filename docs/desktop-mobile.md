@@ -169,7 +169,7 @@ tick.
 
 ```bash
 make gui      # headless: go test -race ./cmd/gui + CGO_ENABLED=0 build
-make run-gui  # open the window (needs DISPLAY/GPU)
+make run-gui  # build, then open the window (needs a display + GPU)
 ```
 
 Like `cmd/desktop` it is a separate target: excluded from `web-packages.sh`
