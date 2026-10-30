@@ -75,7 +75,7 @@ var advisePresets = []advisePreset{
 	},
 	{
 		Name: "offline-first",
-		Idea: "local-first writes queued in an outbox, replayed with idempotency keys",
+		Idea: "offline-capable writes queued in an outbox, replayed with idempotency keys",
 		Match: []string{
 			"offline", "flaky", "airplane", "outbox", "sync",
 			"reconnect", "pwa",

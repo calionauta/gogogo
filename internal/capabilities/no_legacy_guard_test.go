@@ -84,6 +84,56 @@ var scanByName = map[string]bool{
 	".golangci.yml": true, "lefthook.yml": true, "sgconfig.yml": true,
 }
 
+// skipScannedDir reports whether a directory is outside what a reader or a
+// build consumes: tool/vendor output, and LOCAL state.
+//
+// Any dot-directory the repo does not version is local by definition — it is
+// gitignored (`.stelow/`, `.pi-subagents/`, `.cali-*/`) — so a planning note
+// left there must never fail a repo gate. The tracked dot-directories stay in
+// scope: `.github/` carries the workflows and the PR template, `.githooks/` the
+// gate wrappers, `.agents/` the skill registrations.
+func skipScannedDir(name string) bool {
+	switch name {
+	case "node_modules", "vendor", "tmp", "data":
+		return true
+	}
+	if strings.HasPrefix(name, ".") {
+		switch name {
+		case ".github", ".githooks", ".agents":
+			return false
+		}
+		return true
+	}
+	return false
+}
+
+// TestSkipScannedDir pins both halves: a local dot-directory is skipped, and
+// the tracked ones are NOT — a blanket "skip dot-dirs" would silently stop
+// scanning the workflows and the PR template this repo versions.
+func TestSkipScannedDir(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name string
+		want bool
+	}{
+		{".stelow", true},           // local planning artifacts
+		{".pi-subagents", true},     // agent transcripts
+		{".cali-ux-critique", true}, // local critique output
+		{".git", true},
+		{"node_modules", true},
+		{".github", false}, // workflows + PR template
+		{".githooks", false},
+		{".agents", false},
+		{"internal", false},
+		{"features", false},
+	}
+	for _, tc := range cases {
+		if got := skipScannedDir(tc.name); got != tc.want {
+			t.Errorf("skipScannedDir(%q) = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
 // TestNoRemovedBrandsInSourcesOrDocs fails when a removed surface is named
 // anywhere a reader or build would consume it.
 func TestNoRemovedBrandsInSourcesOrDocs(t *testing.T) {
@@ -98,8 +148,7 @@ func TestNoRemovedBrandsInSourcesOrDocs(t *testing.T) {
 			return relErr
 		}
 		if d.IsDir() {
-			switch d.Name() {
-			case ".git", "node_modules", "vendor", ".pi", "tmp", "data":
+			if skipScannedDir(d.Name()) {
 				return fs.SkipDir
 			}
 			return nil
@@ -146,8 +195,7 @@ func TestNoDeadMarkupAttributes(t *testing.T) {
 			return err
 		}
 		if d.IsDir() {
-			switch d.Name() {
-			case ".git", "node_modules", "vendor", ".pi", "tmp", "data":
+			if skipScannedDir(d.Name()) {
 				return fs.SkipDir
 			}
 			return nil

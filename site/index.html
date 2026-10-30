@@ -649,12 +649,12 @@
   <div class="cap-head">
     <p class="kicker">The other axis</p>
     <h2>The code has levels.<br><em>The runtime has layers.</em></h2>
-    <p class="cap-lede">A capability is not one folder. Real-time multi-user is the sum of the collaboration, live-record, signal, broadcast and room rows; durable workflows is DagNats; offline-first is the mode below.</p>
+    <p class="cap-lede">A capability is not one folder. Real-time multi-user is the sum of the collaboration, live-record, signal, broadcast and room rows; durable workflows is DagNats; offline-capable writes are the mode below.</p>
   </div>
 
   <p class="outcome-label">Outcomes</p>
   <div class="outcome-row" aria-label="Outcomes">
-    <span class="outcome" data-outcome="offline">Offline-first</span>
+    <span class="outcome" data-outcome="offline">Offline-capable writes</span>
     <span class="outcome" data-outcome="realtime">Real-time multi-user</span>
     <span class="outcome" data-outcome="durable">Durable workflows</span>
   </div>
@@ -677,9 +677,9 @@
   </div>
 
   <aside class="offline-callout">
-    <p class="offline-kicker">Offline-first is a mode, not one of the seven</p>
-    <p>Web: a Service Worker queues mutations in IndexedDB and replays on reconnect; the server dedupes by <code>idem_key</code>. Desktop: a NATS Leaf Node keeps a local JetStream replica and replays when it reconnects.</p>
-    <p class="offline-switch"><span class="label">Switch</span> <code>OFFLINE_SYNC_ENABLED=false</code> disables the Service Worker queue and the NATS CRUD proxy together.</p>
+    <p class="offline-kicker">Offline-capable writes are a mode, not one of the seven</p>
+    <p><strong>Writes go offline; reads stay server-owned.</strong> A mutation is stored in a durable outbox before it leaves the tab, and replayed on reconnect; the server dedupes by <code>idem_key</code>. Reads are queries — a view you never synced is refused, not answered from a stale replica. The desktop build is the exception: a NATS Leaf Node keeps a local JetStream replica, so reads work offline there too.</p>
+    <p class="offline-switch"><span class="label">Switch</span> <code>OFFLINE_SYNC_ENABLED=false</code> disables the Service Worker app-shell cache and the NATS CRUD proxy together. The outbox is never gated — losing a queued write is worse than the cache it protects.</p>
     <p class="offline-meta"><span class="label">Lives in</span> <a href="#layer-features">Features</a> <a href="#layer-plugins">Plugins</a> <a href="#layer-core">Core</a> · <span class="label">Try it</span> disconnect, edit, reconnect.</p>
     <p class="offline-unit">On the SCOPE axis, <a href="#layer-plugins">offline-sync</a> is a plugin unit; on this async axis it is the mode above, not one of the seven.</p>
   </aside>

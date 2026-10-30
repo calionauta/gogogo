@@ -363,7 +363,8 @@ jobs:
           version: v2.14.0
           skip-cache: true
           # cmd/desktop pulls in wails v3, which needs webview CGO headers
-          # unavailable on the ubuntu runner; lint the web-facing packages only
+          # unavailable on the ubuntu runner. No CI job builds it — it is a
+          # local target (`make desktop`) — so lint the web-facing packages
           # (same set as scripts/web-packages.sh; router/ left with
           # the PB removal and must not come back here).
           args: ./cmd/web/ ./config/ ./features/... ./internal/... ./web/...
@@ -387,7 +388,8 @@ jobs:
       - name: Govulncheck (dependency vulnerabilities)
         # Authoritative security gate in CI, matching the local pre-push hook.
         # Scoped to the web/CI packages so cmd/desktop (Wails needs webview
-        # CGO headers absent on this runner) isn't scanned. Fail-fast: runs
+        # CGO headers absent on this runner) isn't scanned — no CI job
+        # compiles or scans it. Fail-fast: runs
         # before the expensive test suite.
         #
         # `go tool govulncheck`, not `go install ...@latest`: the scanner is
@@ -538,9 +540,8 @@ jobs:
         # Plain parallel run: the DagNats tests used to bind fixed ports, and
         # two packages grabbed the same one, which forced `-p 1`. They now bind
         # ephemeral ports and read the address back, so packages run in
-        # parallel (~110s vs ~255s). cmd/desktop is skipped: it is a Wails
-        # build needing GTK/WebKit dev libraries only present on the desktop
-        # runners.
+        # parallel (~110s vs ~255s). cmd/desktop and cmd/gui are skipped: no CI
+        # job builds either native target, so nothing here needs GTK/WebKit.
         #
         # Scope: the changes job resolved the packages this PR can affect (the
         # changed packages plus their transitive dependents) and this job shards

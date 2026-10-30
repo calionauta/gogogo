@@ -78,6 +78,10 @@ posts/
 # stelow skill artifacts
 stelow.json
 
+# Build output for the native targets (`make desktop` → build/desktop/,
+# `make gui` → build/gui/, cross previews → build/cross/).
+/build/
+
 # Pre-built binaries (belong in releases, not in the repo)
 gogogo-desktop
 gogogo-gui
@@ -94,8 +98,8 @@ gogogo-gui
 # Any other stray build output in a cmd/ package dir (same reason, defers to
 # the explicit entries above for the ones already named).
 /cmd/*/gogogo
-# `make desktop` (wails3) drops an untagged binary named after the app at the
-# repo root; ignore it by exact path so a `desktop/` source dir would be safe.
+# A bare `go build ./cmd/desktop` (no -o) drops a binary named after the
+# package at the repo root; `make desktop` writes build/desktop/ instead.
 /desktop
 
 # Investigation spikes (local only, never commit).

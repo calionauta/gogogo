@@ -5,22 +5,39 @@ The same Go backend (flat stack: Turso + owned auth + queue + handlers) runs as 
 business logic — it boots `internal/server.StartChi`, serves the flat stack in a
 goroutine, and points the webview at it through a reverse proxy.
 
-It is a **separate build target**, not part of the default web build/test loop.
-It pulls in Wails v3, which requires GTK + WebKit dev libs
-(`libgtk-4-dev libwebkitgtk-6.0-dev`) that only exist on desktop build hosts.
-`cmd/desktop` carries **no build tag**, so `go build ./...` and `go test ./...`
-from the repo root *do* compile it and will fail without those libs. What
-excludes it is the package list: `scripts/web-packages.sh` filters out
+It is a **separate build target**, not part of the default web build/test loop,
+and **no CI job compiles it**. It pulls in Wails v3, which requires GTK + WebKit
+dev libs (`libgtk-4-dev libwebkitgtk-6.0-dev`) that only exist on desktop build
+hosts. `cmd/desktop` carries **no build tag**, so `go build ./...` and
+`go test ./...` from the repo root *do* compile it and will fail without those
+libs. What excludes it is the package list: `scripts/web-packages.sh` filters out
 `/cmd/desktop` and `/cmd/gui`, and that list is what `make build`, `make test`,
 `make lint` and web CI use. So the exclusion is explicit in the tooling, not
 implicit in the Go toolchain — run `make test`, not a bare `go test ./...`, on a
 box without the desktop headers.
 
+The build recipe is `make desktop`, documented below. It is the only gate: a
+change that breaks the shell compiles nowhere else, so run it before pushing if
+you touched `cmd/desktop` or one of its direct imports.
+
 ## Build commands
+
+Building them means installing GTK/WebKit (Linux) or having the macOS SDK, and a
+gate on that install is not worth the minutes when the binary ships nowhere. The
+build is local, and the commands below are the whole recipe.
+
+**Prerequisites, by host:**
+
+| Host | Needs |
+|---|---|
+| macOS | Xcode Command Line Tools (`xcode-select --install`) — the SDK, CGO on. Nothing else. |
+| Linux (Debian/Ubuntu) | `build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev` |
+| Windows | WebView2 runtime (ships with Windows 11) plus a C toolchain for CGO |
 
 ```bash
 # Native desktop binary — plain go build, no wails CLI needed
-make desktop
+make desktop            # → build/desktop/gogogo-desktop
+make run-desktop        # build, then open the window
 # or, with the output under build/ and cross targets available:
 ./scripts/desktop-build.sh              # native (host OS/arch)
 ./scripts/desktop-build.sh cross-windows
@@ -30,18 +47,16 @@ make desktop
 
 The Wails v3 shell is an ordinary Go program importing `pkg/application`, so
 the CLI is not required to compile it. `make desktop` runs
-`go build -o gogogo-desktop ./cmd/desktop`.
+`go build -o build/desktop/gogogo-desktop ./cmd/desktop`.
 
 > **`wails3 build` does not work in this repo.** It takes no `-o` flag, and it
 delegates to `wails3 task build`, which needs a `Taskfile.yml` at the repo root
 — this repo uses `make` instead. `make wails-build` is kept only as an explicit
 "why not" target that exits with the reason.
 
-> **Version pin rule.** `go.mod` (wails/v3), the `WAILS_VERSION` in the
-> `Makefile`, and the `go install` line in `.github/workflows/desktop.yml` must
-> all carry the same beta — bump them together. (`scripts/desktop-build.sh` no
-> longer pins it: it builds with plain `go build` and the cross path calls
-> Docker directly.)
+> **Version pin.** The pin lives in `go.mod`
+> (`github.com/wailsapp/wails/v3`). Nothing else carries a copy, because nothing
+> else builds it — no CI job, no Makefile variable. Bump it by editing `go.mod`.
 
 ## Cross-platform previews (wails-cross, opt-in)
 
@@ -60,25 +75,20 @@ make desktop-cross         # win+mac+linux previews into build/cross/
 `wails3 task darwin:build:universal`. Build both arches individually and combine
 with `wails3 tool lipo` instead — the script's error message says exactly this.
 
-Use previews for smoke tests without paying for three native runners. **macOS
-cross binaries are unsigned** — sign + notarize on a macOS runner before
-distributing. Release binaries always come from native runners.
+Use previews for smoke tests without paying for three native machines. **macOS
+cross binaries are unsigned** — sign + notarize on a Mac before distributing.
+Nothing in this repository signs or notarizes, and nothing ships these previews:
+they are a local convenience.
 
-Linux desktop builds run in the dedicated `desktop.yml` workflow on pull
-requests and pushes to `master` **that can change the desktop binary**: the
-`cmd/desktop` package, one of its direct imports (`config`, `internal/collab`,
-`internal/nats`, `internal/server`), the module graph, or the desktop build
-tooling. A web-only change — templates, JS, CSS, docs — skips it: those
-packages are already compiled by web CI, and the desktop-only surface is
-`main.go`'s call sites. `TestDesktopWorkflowCoversDirectImports` fails CI when a
-new direct import is not covered. The job runs on Ubuntu 24.04 with GTK4 +
-WebKitGTK 6.0. The
-same workflow offers a manual `cross-preview` job (`gh workflow run Desktop`)
-that builds win+mac+linux previews and uploads them as an artifact.
+**Nothing runs any of this in CI.** The cross image is an ~800 MB download plus a
+Docker build, and the native build needs GTK/WebKit or the macOS SDK — both are
+costs a shared runner should not pay for a binary no release attaches. Run the
+commands above on your own host; if you distribute the shell, add signing as your
+own step.
 
 ## The other native-shell option: nanoui (Zig)
 
-Wails is the shipped desktop path: same Go binary, webview front end. When
+Wails is the full-app desktop path: same Go binary, webview front end. When
 the requirement is a *native* UI instead (drawn by the OS/GPU, not HTML in a
 webview), the named direction is [`justrach/nanoui`](https://github.com/justrach/nanoui)
 — desktop apps in Zig, immediate-mode views, Metal on macOS and a CPU
@@ -106,7 +116,7 @@ Relation to the Wails path, so the two are not confused:
   to the Go server over HTTP (it can serve a page from it), so it does not
   pull `internal/server` in-process the way `cmd/desktop` does.
 - **Pinning.** nanoui is 0.x; pin a release tag in `build.zig.zon`, the same
-  discipline as the `wails/v3` pin (`go.mod` + `WAILS_VERSION` + workflow).
+  discipline as the `wails/v3` pin in `go.mod`.
 - **Not wired here.** No Zig toolchain in this repo (see
   [exception-to-go](exception-to-go.md)); adopting it is a project with its
   own justification, starting from `zig build run-gallery` on a clone.
@@ -159,14 +169,13 @@ tick.
 
 ```bash
 make gui      # headless: go test -race ./cmd/gui + CGO_ENABLED=0 build
-make run-gui  # open the window (needs DISPLAY/GPU; not exercised in CI)
+make run-gui  # open the window (needs DISPLAY/GPU)
 ```
 
 Like `cmd/desktop` it is a separate target: excluded from `web-packages.sh`
-(web CI) and validated by the `gui` job in
-`.github/workflows/desktop.yml` (gofumpt + vet + govulncheck + race tests +
-build, all headless). Full `golangci-lint` is a **manual local step by
-design** — linting wgpu/naga is minutes-cold per push and only catches style.
+(web CI) and **built by no CI job**. `make gui` is the gate — it runs the race
+tests and the build, both headless. Full `golangci-lint` is a **manual local step
+by design** — linting wgpu/naga is minutes-cold per push and only catches style.
 Run `make lint-gui` before committing any `cmd/gui` change. Unlike the Wails
 shell below, gui is pure Go (`CGO_ENABLED=0`), so it ships in the release
 archives next to the CLI (`gogogo-gui`, all six OS×arch, installed by
@@ -191,8 +200,8 @@ while views read `snapshot()` copies; lock order is always `uiMu → stateMu`.
 outbox/replay), no JetStream push (poll only), native `add()` does not trigger
 the onboarding workflow, session token in a `0600` file (no OS keyring).
 
-**To remove:** delete `cmd/gui/`, drop the `gui` Makefile target and the
-`gui` job. No script change needed — it is already excluded from web CI.
+**To remove:** delete `cmd/gui/`, drop the `gui`, `run-gui` and `lint-gui`
+Makefile targets. No script change needed — it is already excluded from web CI.
 
 ## Dropping the Wails shell (opt-out)
 
@@ -202,8 +211,7 @@ web-deployed, drop it — `gui` remains the native story and keeps shipping:
 
 ```bash
 rm -rf cmd/desktop/          # the shell (nothing outside imports wails)
-# then drop the desktop* Makefile targets (+ WAILS_VERSION) and the
-# linux-desktop job from .github/workflows/desktop.yml (keep gui)
+# then drop the desktop* and run-desktop Makefile targets
 go mod tidy                   # drops wails from go.mod
 go build ./...                # must stay green (proven clean)
 ```

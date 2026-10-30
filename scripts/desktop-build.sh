@@ -161,7 +161,7 @@ build_android() {
     error "'wails3 android:package' does not exist in the pinned CLI (v3.0.0-beta.24,"
     error "which only ships 'android:overlay:gen'), and 'wails3 build/package'"
     error "requires a Taskfile.yml at the repo root that this repo does not have."
-    error "Tracked as future work — see the note in .github/workflows/desktop.yml."
+    error "Tracked as future work — see docs/desktop-mobile.md."
     return 1
 }
 

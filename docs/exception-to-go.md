@@ -149,7 +149,7 @@ Boundaries, so this stays a direction and not a mandate:
   (Metal + CoreText; webview pages are macOS-only so far). Linux/Windows
   draw through the CPU rasterizer; verify the target you actually ship.
 - **Pre-1.0.** Pin a release tag in `build.zig.zon`, exactly like the
-  `wails/v3` pin (`WAILS_VERSION` + `go.mod` + the workflow must agree). A
+  `wails/v3` pin in `go.mod`. A
   minor release may change the API; a patch release will not.
 - **This does not open the Zig-kernel door.** nanoui is a *UI toolkit for a
   separate binary*, not a reason to put a Zig kernel behind Go. Adding Zig

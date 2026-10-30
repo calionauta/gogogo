@@ -148,7 +148,7 @@ func StartEmbedded(storeDir string) (*Handle, error) {
 // syncs with a central NATS server at centralURL. The local server persists
 // JetStream streams on disk and replays buffered events to the central
 // automatically when connectivity returns — this is the edge sync primitive
-// for the desktop/mobile app (offline-first).
+// for the desktop/mobile app (offline-capable writes).
 //
 // storeDir holds the local JetStream file storage; centralURL is the ws/nats
 // URL of the central server (e.g. nats://demo.example.com:7422).

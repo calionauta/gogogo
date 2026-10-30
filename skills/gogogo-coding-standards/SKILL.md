@@ -1,6 +1,6 @@
 ---
 name: gogogo-coding-standards
-description: "Go backend standards for the gogogo template — Turso/SQLite, Templ, Datastar, NATS JetStream, goqite, slog, goroutines/channels/mutex/errgroup, context propagation, golangci-lint, race/synctest/goleak tests, datastar-lint on .templ, pprof/simd/exception-to-go gates. Triggers when: editing .go files, spawning goroutines, creating channels, wiring context, running lint/tests, touching .templ, profiling, or proposing native code. Delegates universal principles to stelow-workflow-coding-standards."
+description: "Go backend standards for the gogogo template — Turso/SQLite, Templ, Datastar, NATS JetStream, goqite, slog, goroutines/channels/mutex/errgroup, context propagation, golangci-lint, race/synctest/goleak tests, datastar-lint on .templ, pprof/simd/exception-to-go gates. Triggers when: editing .go files, spawning goroutines, creating channels, wiring context, running lint/tests, touching .templ, profiling, proposing native code, building the native targets (cmd/desktop with Wails, cmd/gui with gogpu/ui — no CI compiles either), choosing a chart library (interactive vs server-rendered). Delegates universal principles to stelow-workflow-coding-standards."
 ---
 
 # gogogo-coding-standards
@@ -35,14 +35,39 @@ Activate when: editing any `.go` file, spawning a goroutine, creating a channel,
 | Goroutines, channels, `context`, shutdown, lifecycle | **Concurrency (deltas)** + `references/go-concurrency-deltas.md` |
 | Spawning actors, supervision, per-entity state | **Entity actors (GoAkt)** |
 | Hot path, allocation, SIMD, "should this be native?" | **Performance** + `references/go-perf.md` |
+| A chart or plot | `references/charts.md` |
 | Any test, fixture, or flake | **Testing** + `references/go-testing.md` |
 | A `.templ` file, Datastar, SSE fragments | **Datastar (.templ)** + `references/datastar.md` |
 | Genui/chat answers, the component catalog, prompts, repair/fallback | `references/genui.md` |
 | Lint failing, adding a rule, CI red | **Enforcement** |
 | Proposing Zig (the native exception), or a NATIVE DESKTOP UI | **Exception-to-go gate** + `references/exception-to-go.md` (a native UI means `nanoui`) |
+| Building the desktop shell (`cmd/desktop`) or the native window (`cmd/gui`) | `references/desktop-native.md` — no CI job compiles either, so the build is the gate |
 | Adding a feature or a `.go` file | **Where new code goes** + [`docs/unit-contracts.md`](../../docs/unit-contracts.md) (`gogogo new feature <name>`) |
 | Choosing which units fit a use-case | [docs/use-cases.md](../../docs/use-cases.md) + `advise` |
 | stdlib-only task (no template deps) | **Toolchain / stdlib-only** (below) |
+
+## Read the doc before answering
+
+`docs/*.md` is the **source of truth**; this skill carries the rules, the doc
+carries the why, the switch, and the full recipe. When a question touches
+behavior, open the matching page instead of reconstructing it from code. When
+code and doc disagree, the doc is the bug you fix in the same commit.
+
+| The question is about | Read |
+|---|---|
+| What the template is, and what it deliberately is not | `docs/overview.md`, `docs/motivation.md` |
+| Env vars, defaults, feature flags | `docs/configuration.md` |
+| Auth, sessions, magic links, TOTP, RBAC | `docs/security.md`, `docs/rbac.md` |
+| Realtime, SSE, NATS, offline writes, CRDT | `docs/realtime-recipe.md`, `docs/async-layers.md` |
+| Routing, wiring, capabilities, unit ownership | `docs/architecture.md`, `docs/unit-contracts.md` |
+| A gate failing, or adding one | `docs/local-ci.md`, `docs/code-quality.md` |
+| Desktop shell or native window | `docs/desktop-mobile.md` + `references/desktop-native.md` |
+| UI vocabulary, themes, components | `docs/ui-themes.md` (and the `gogogo-ui` skill) |
+| Deploying, containers, the server | `docs/deploy.md` |
+| Packages, native floor, a new dependency | `docs/dependency-principles.md`, `docs/exception-to-go.md` |
+
+Not every page is on this list — `docs/` is the index of record, and the site
+map (`site/docsite.config.mjs`) groups all of them.
 
 ## Toolchain / stdlib-only
 
@@ -468,6 +493,7 @@ warnings print and exit 0.
 |---|---|
 | `references/go-concurrency-deltas.md` | wg.Go, errgroup, channels, timers, goleak/synctest/goroutineleak |
 | `references/go-perf.md` | pprof runbook, alloc, GOMAXPROCS, jsonv2, simd gate, demonstration-delay latency |
+| `references/charts.md` | go-echarts (interactive, browser) vs go-analyze/charts (server-rendered PNG/SVG) |
 | `references/go-testing.md` | race, synctest, httptest, B.Loop, SQLite strategy, fix modernizers |
 | `references/datastar.md` | wrapper, scope, PatchElements, whitelist, CSS scan roots |
 | `references/exception-to-go.md` | bans, decision, pin policy, what to vendor and when |
