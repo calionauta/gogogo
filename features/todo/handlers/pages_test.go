@@ -220,3 +220,110 @@ func testTOTPCode(t *testing.T, secret string, at time.Time) string {
 		uint32(sum[off+1])<<16 | uint32(sum[off+2])<<8 | uint32(sum[off+3])
 	return fmt.Sprintf("%06d", code%1000000)
 }
+
+// TestHandlersSignupPageHiddenWhenDisabled pins the closed deployment: the
+// route is not rendered and the login page carries no link to it. Red-proof:
+// drop the SignupEnabled guard in signupAvailable and the 404 rows become 200.
+func TestHandlersSignupPageHiddenWhenDisabled(t *testing.T) {
+	f := newHandlersFixture(t)
+	f.h.SignupEnabled = false
+
+	for _, tc := range []struct{ method, target, form string }{
+		{http.MethodGet, "/signup", ""},
+		{http.MethodPost, "/signup", "email=x@example.com&password=Correct-horse-99%21&confirm=Correct-horse-99%21"},
+	} {
+		rec := f.do(tc.method, tc.target, tc.form, nil)
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("%s %s with signup closed = %d, want 404", tc.method, tc.target, rec.Code)
+		}
+	}
+	login := f.do(http.MethodGet, "/login", "", nil)
+	if strings.Contains(login.Body.String(), "/signup") {
+		t.Fatal("closed signup still linked from /login")
+	}
+}
+
+// TestHandlersSignupPageAndLink pins the open deployment: /login advertises
+// the page and /signup renders every field the handler reads.
+func TestHandlersSignupPageAndLink(t *testing.T) {
+	f := newHandlersFixture(t)
+	f.h.SignupEnabled = true
+
+	login := f.do(http.MethodGet, "/login", "", nil)
+	if login.Code != http.StatusOK {
+		t.Fatalf("GET /login = %d", login.Code)
+	}
+	if !strings.Contains(login.Body.String(), "Create account") ||
+		!strings.Contains(login.Body.String(), `href="/signup`) {
+		t.Fatalf("open signup missing from /login (body: %s)", login.Body.String())
+	}
+
+	rec := f.do(http.MethodGet, "/signup", "", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /signup = %d, want 200", rec.Code)
+	}
+	for _, want := range []string{
+		`name="email"`, `name="name"`, `name="password"`, `name="confirm"`,
+		`action="/signup"`,
+	} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Errorf("signup page missing %q", want)
+		}
+	}
+}
+
+// TestHandlersSignupFormFlow drives the form end to end: a valid submission
+// creates the account, sets the session cookie and lands on the app; every
+// actionable failure renders inline instead of a bare status.
+func TestHandlersSignupFormFlow(t *testing.T) {
+	f := newHandlersFixture(t)
+	f.h.SignupEnabled = true
+
+	const good = "Correct-horse-99%21"
+	ok := f.do(http.MethodPost, "/signup",
+		"email=form%40example.com&name=Form&password="+good+"&confirm="+good, nil)
+	if ok.Code != http.StatusSeeOther {
+		t.Fatalf("signup = %d (body: %s)", ok.Code, ok.Body.String())
+	}
+	if loc := ok.Header().Get("Location"); loc != "/" {
+		t.Fatalf("signup Location = %q, want /", loc)
+	}
+	var cookie *http.Cookie
+	for _, c := range ok.Result().Cookies() {
+		if c.Name == auth.CookieName && c.Value != "" {
+			cookie = c
+		}
+	}
+	if cookie == nil {
+		t.Fatalf("signup set no %q cookie", auth.CookieName)
+	}
+	if page := f.do(http.MethodGet, "/todo", "", cookie); page.Code != http.StatusOK {
+		t.Fatalf("signed-in /todo = %d, want 200", page.Code)
+	}
+
+	cases := []struct {
+		name, form, want string
+	}{
+		{"duplicate", "email=form%40example.com&password=" + good + "&confirm=" + good, "already registered"},
+		{"mismatch", "email=new%40example.com&password=" + good + "&confirm=other-password", "do not match"},
+		{"short", "email=new%40example.com&password=short&confirm=short", "at least 8"},
+		{"bad email", "email=not-an-email&password=" + good + "&confirm=" + good, "valid email"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := f.do(http.MethodPost, "/signup", tc.form, nil)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d, want 200 with the form (body: %s)", rec.Code, rec.Body.String())
+			}
+			if !strings.Contains(rec.Body.String(), tc.want) {
+				t.Fatalf("body missing %q (body: %s)", tc.want, rec.Body.String())
+			}
+		})
+	}
+
+	// Re-entry: a signed-in visitor does not get a second account form.
+	again := f.do(http.MethodGet, "/signup", "", cookie)
+	if again.Code != http.StatusSeeOther || again.Header().Get("Location") != "/" {
+		t.Fatalf("signed-in GET /signup = %d %q, want 303 /", again.Code, again.Header().Get("Location"))
+	}
+}

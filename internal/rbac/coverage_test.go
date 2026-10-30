@@ -37,6 +37,7 @@ var adminOnlyRoutes = map[string]bool{
 var publicRoutes = map[string]bool{
 	"/":                                   true,
 	"/login":                              true,
+	"/signup":                             true,
 	"/activate":                           true,
 	"/logout":                             true,
 	"/health":                             true,

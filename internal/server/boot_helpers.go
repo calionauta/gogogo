@@ -255,6 +255,7 @@ func wireTodoDisplay(todoH *todohandlers.Handler, cfg *config.Config) {
 	todoH.OfflineSyncEnabled = cfg.OfflineSync.Enabled
 	todoH.NATSEnabled = cfg.NATS.Enabled
 	todoH.DemoAccounts = cfg.DemoAccounts
+	todoH.SignupEnabled = cfg.SignupEnabled
 }
 
 // wireTodoLLM builds the LLM clients and attaches the todo slice's queue,

@@ -134,7 +134,7 @@ func run() error {
 
 	nc, js := startNATS(cfg)
 
-	stack.AttachJetStream(lifecycleCtx, js)
+	stack.AttachJetStream(lifecycleCtx, nc, js, cfg.NATS.LeafNodeURL != "")
 	if aerr := stack.AttachEphemeral(nc); aerr != nil {
 		slog.Warn("web: ephemeral bridge not attached", "error", aerr)
 	}

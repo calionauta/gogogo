@@ -33,7 +33,7 @@ func demoValue(on bool, v string) string {
 	return ""
 }
 
-func LoginPage(next string, errMsg string, demoAccounts bool, totpUser string, notice string) templ.Component {
+func LoginPage(next string, errMsg string, demoAccounts bool, totpUser string, notice string, signupEnabled bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -205,31 +205,50 @@ func LoginPage(next string, errMsg string, demoAccounts bool, totpUser string, n
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
+			if signupEnabled {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<p class=\"text-center text-sm mt-4\">New here? <a href=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var9 templ.SafeURL
+				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/signup?next=" + next))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/login.templ`, Line: 118, Col: 50}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "\" class=\"link link-primary\">Create account</a></p>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<div class=\"divider text-xs text-base-content/70\">or use email</div><div class=\"space-y-2 text-sm\"><details><summary class=\"cursor-pointer\">Email me a sign-in link</summary><form method=\"POST\" action=\"/login\" class=\"space-y-2 mt-2\"><input type=\"hidden\" name=\"intent\" value=\"magic\"> <input type=\"hidden\" name=\"next\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<div class=\"divider text-xs text-base-content/70\">or use email</div><div class=\"space-y-2 text-sm\"><details><summary class=\"cursor-pointer\">Email me a sign-in link</summary><form method=\"POST\" action=\"/login\" class=\"space-y-2 mt-2\"><input type=\"hidden\" name=\"intent\" value=\"magic\"> <input type=\"hidden\" name=\"next\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var9 string
-		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(next)
+		var templ_7745c5c3_Var10 string
+		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(next)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/login.templ`, Line: 122, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/login.templ`, Line: 128, Col: 53}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "\"> <input type=\"email\" name=\"email\" class=\"input input-sm w-full\" required placeholder=\"you@example.com\" autocomplete=\"email\"> <button type=\"submit\" class=\"btn btn-ghost btn-sm w-full\">Send link</button></form></details> <details><summary class=\"cursor-pointer\">Forgot password?</summary><form method=\"POST\" action=\"/login\" class=\"space-y-2 mt-2\"><input type=\"hidden\" name=\"intent\" value=\"forgot\"> <input type=\"email\" name=\"email\" class=\"input input-sm w-full\" required placeholder=\"you@example.com\" autocomplete=\"email\"> <button type=\"submit\" class=\"btn btn-ghost btn-sm w-full\">Send reset link</button></form></details> <details><summary class=\"cursor-pointer\">Resend verification email</summary><form method=\"POST\" action=\"/login\" class=\"space-y-2 mt-2\"><input type=\"hidden\" name=\"intent\" value=\"verify\"> <input type=\"email\" name=\"email\" class=\"input input-sm w-full\" required placeholder=\"you@example.com\" autocomplete=\"email\"> <button type=\"submit\" class=\"btn btn-ghost btn-sm w-full\">Send verification</button></form></details></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "\"> <input type=\"email\" name=\"email\" class=\"input input-sm w-full\" required placeholder=\"you@example.com\" autocomplete=\"email\"> <button type=\"submit\" class=\"btn btn-ghost btn-sm w-full\">Send link</button></form></details> <details><summary class=\"cursor-pointer\">Forgot password?</summary><form method=\"POST\" action=\"/login\" class=\"space-y-2 mt-2\"><input type=\"hidden\" name=\"intent\" value=\"forgot\"> <input type=\"email\" name=\"email\" class=\"input input-sm w-full\" required placeholder=\"you@example.com\" autocomplete=\"email\"> <button type=\"submit\" class=\"btn btn-ghost btn-sm w-full\">Send reset link</button></form></details> <details><summary class=\"cursor-pointer\">Resend verification email</summary><form method=\"POST\" action=\"/login\" class=\"space-y-2 mt-2\"><input type=\"hidden\" name=\"intent\" value=\"verify\"> <input type=\"email\" name=\"email\" class=\"input input-sm w-full\" required placeholder=\"you@example.com\" autocomplete=\"email\"> <button type=\"submit\" class=\"btn btn-ghost btn-sm w-full\">Send verification</button></form></details></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if demoAccounts {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<div class=\"divider text-xs text-base-content/70\">or be both at once</div><div data-demo=\"demo-accounts\" class=\"space-y-3\"><div class=\"grid grid-cols-2 gap-2\"><div class=\"rounded-lg border border-base-300 p-3\"><div class=\"flex items-center gap-1.5 mb-1\"><span class=\"badge badge-primary badge-sm\">Demo 1</span> <span class=\"badge badge-outline badge-sm\">admin</span></div><code class=\"text-xs font-mono break-all\">demo1@demo.app</code><p class=\"text-xs text-base-content/60 mt-1\">Full access + <code>/config</code> + Dashboard menu.</p></div><div class=\"rounded-lg border border-base-300 p-3\"><div class=\"flex items-center gap-1.5 mb-1\"><span class=\"badge badge-secondary badge-sm\">Demo 2</span> <span class=\"badge badge-outline badge-sm\">viewer</span></div><code class=\"text-xs font-mono break-all\">demo2@demo.app</code><p class=\"text-xs text-base-content/60 mt-1\">Full rights over own todos; reads, creates, toggles shared. No paid actions.</p></div></div><div class=\"rounded-lg bg-base-200/60 p-3 text-xs space-y-1.5\"><p><strong>Password for both:</strong> <code>demo1234456</code></p><p><strong>Prove collab:</strong> open a <strong>second browser or incognito window</strong>, sign in as the other demo, toggle a shared todo — both screens update live.</p></div><details class=\"text-xs text-base-content/60\"><summary class=\"cursor-pointer font-medium\">How permissions work (Casbin)</summary><p class=\"mt-1\">Per-request decision over a <code>users.role</code> column (<code>internal/rbac</code>, see <code>docs/rbac.md</code>). Enforce with <code>RBAC_ENABLED=true</code>; re-map addresses without a rebuild via <code>ADMIN_EMAILS</code> / <code>VIEWER_EMAILS</code>.</p></details></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<div class=\"divider text-xs text-base-content/70\">or be both at once</div><div data-demo=\"demo-accounts\" class=\"space-y-3\"><div class=\"grid grid-cols-2 gap-2\"><div class=\"rounded-lg border border-base-300 p-3\"><div class=\"flex items-center gap-1.5 mb-1\"><span class=\"badge badge-primary badge-sm\">Demo 1</span> <span class=\"badge badge-outline badge-sm\">admin</span></div><code class=\"text-xs font-mono break-all\">demo1@demo.app</code><p class=\"text-xs text-base-content/60 mt-1\">Full access + <code>/config</code> + Dashboard menu.</p></div><div class=\"rounded-lg border border-base-300 p-3\"><div class=\"flex items-center gap-1.5 mb-1\"><span class=\"badge badge-secondary badge-sm\">Demo 2</span> <span class=\"badge badge-outline badge-sm\">viewer</span></div><code class=\"text-xs font-mono break-all\">demo2@demo.app</code><p class=\"text-xs text-base-content/60 mt-1\">Full rights over own todos; reads, creates, toggles shared. No paid actions.</p></div></div><div class=\"rounded-lg bg-base-200/60 p-3 text-xs space-y-1.5\"><p><strong>Password for both:</strong> <code>demo1234456</code></p><p><strong>Prove collab:</strong> open a <strong>second browser or incognito window</strong>, sign in as the other demo, toggle a shared todo — both screens update live.</p></div><details class=\"text-xs text-base-content/60\"><summary class=\"cursor-pointer font-medium\">How permissions work (Casbin)</summary><p class=\"mt-1\">Per-request decision over a <code>users.role</code> column (<code>internal/rbac</code>, see <code>docs/rbac.md</code>). Enforce with <code>RBAC_ENABLED=true</code>; re-map addresses without a rebuild via <code>ADMIN_EMAILS</code> / <code>VIEWER_EMAILS</code>.</p></details></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</div></div></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</div></div></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

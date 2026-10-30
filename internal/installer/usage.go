@@ -92,6 +92,7 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
   todo (reference implementation), auth (middleware is core), queue (core),
   nats (runtime: NATS_ENABLED=false), llm (runtime: unset GOAI_API_KEY),
   offline-sync (runtime: OFFLINE_SYNC_ENABLED=false).`)
+	fmt.Fprintln(w, "\n"+SyncPrerequisites)
 	fmt.Fprintln(w, "\n  Trim units:")
 	for _, u := range Units() {
 		fmt.Fprintf(w, "    %-12s %-7s %s\n", u.ID, u.Kind, u.Summary)

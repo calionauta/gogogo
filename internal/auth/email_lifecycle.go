@@ -54,6 +54,11 @@ func (a *Auth) emailVerificationRequired() bool {
 	return a.requireEmailVerification
 }
 
+// RequiresEmailVerification reports whether password login waits for a
+// verified address. Signup pages read it to send the verification link and
+// refuse to leave the new account signed in.
+func (a *Auth) RequiresEmailVerification() bool { return a.emailVerificationRequired() }
+
 // SetPasswordResetPage installs the set-a-new-password renderer.
 func (a *Auth) SetPasswordResetPage(fn func(http.ResponseWriter, *http.Request, string, string, string)) {
 	a.mu.Lock()

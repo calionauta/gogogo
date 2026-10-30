@@ -73,8 +73,8 @@ func TestPasswordTooLongRejected(t *testing.T) {
 	rec := postJSON(t, mux, "/api/auth/signup/credential", map[string]string{
 		"email": "long@example.com", "password": strings.Repeat("x", maxPasswordLen+1),
 	})
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("oversized password = %d, want 400", rec.Code)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("oversized password = %d, want 422 (actionable signup error)", rec.Code)
 	}
 }
 

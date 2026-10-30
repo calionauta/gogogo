@@ -143,8 +143,14 @@ with the Wails CLI on a project that has one. iOS is analogous but needs Xcode.
 ## Edge sync
 
 If `NATS_LEAFNODE_URL` is set, the desktop boots as a **NATS Leaf Node** that
-syncs its JetStream streams with your central server — offline edits replay on
-reconnect. Without it, it runs a standalone embedded NATS for local realtime.
+attaches to your central server. Live CRUD ops cross the leaf on **core NATS**
+(the hub's `APP_CRUD` stream captures them, its consumer applies them); each
+side's JetStream stream stays in its own domain, because NATS does not
+replicate streams across a leaf without a mirror/source configuration.
+Consequence: **live sync works; offline CRUD replay on reconnect is not wired
+yet** — the edge's local stream is local history, and a queued write is not
+replayed to the hub automatically. Without a leaf URL the desktop runs a
+standalone embedded NATS for local realtime.
 
 On top of that transport, **Loro CRDT** collaboration (`internal/collab`)
 publishes whiteboard updates on `app.sync.<docID>` and ephemeral multi-user
@@ -192,6 +198,40 @@ Four consequences follow, all handled in `cmd/desktop`:
 `ENVIRONMENT`), so `SIGNUP_ENABLED` and the demo accounts are off. With no
 operator to create user #1 that is a locked door, so `bootstrapSignup` opens
 signup **only while the `users` table is empty**; the next boot closes it again.
+
+**Same-host identity.** The CRUD wire tags every op with `APP_INSTANCE_ID` and
+drops an op that carries the receiver's own id (that is how an instance ignores
+its own echo). The default id is the hostname, so a server and a desktop on the
+same machine would share it and the server would discard the desktop's writes.
+`cmd/desktop` therefore scopes the id to its profile (a hash of
+`TURSO_DB_PATH`) unless the operator set `APP_INSTANCE_ID` explicitly.
+
+## Accounts and signup
+
+`SIGNUP_ENABLED=true` adds a **Create account** link to `/login` and serves a
+standalone `/signup` page (email, optional name, password, confirm). A
+successful form submission creates the account, sets the `gogogo_auth` cookie
+and redirects to `/`. `SIGNUP_ENABLED=false` makes `/signup` answer 404 and
+removes the link; `AUTH_MODE=open` redirects both pages to `/`, because there is
+no account to create.
+
+The JSON API (`POST /api/auth/signup/credential`) answers precisely so a form
+can point at the fix:
+
+| case | status | `error` |
+|---|---|---|
+| password shorter than 8 | 422 | `password_too_short` |
+| malformed email | 422 | `invalid_email` |
+| email already registered | 409 | `email_taken` |
+| success | 200 | — (sets `gogogo_auth`) |
+
+Every failure body is `{"error":"code","message":"human sentence"}`. This is a
+deliberate product decision: **signup may reveal that an address exists**,
+because a form that cannot say "sign in instead" is a dead end. **Login stays
+indistinguishable** — unknown address, wrong password and malformed input all
+answer the same 401, so signup is not an enumeration oracle for the login path.
+`REQUIRE_EMAIL_VERIFICATION=true` sends the verification link and does not
+leave the new account signed in.
 
 **A broken leaf node degrades to embedded NATS**, not to nothing: losing
 cross-instance sync must not cost local realtime.
@@ -251,16 +291,27 @@ opens `/account` → *Device token*: the server signs a token bound to their id
 (with `CLOUD_SYNC_URL` inside) and shows it once. That is the server-side
 issuance path; the owner's CLI remains for `license` mode and offline sales.
 
-**What a real cloud still needs.** A leaf node dials the hub over the network,
-so the hub must expose a listener. The lean, safe path is a **private overlay**:
-Tailscale/WireGuard already encrypts the wire, and `NATS_TOKEN` authenticates
-the peer, so `NATS_LISTEN=100.x.y.z:4222` + `NATS_TOKEN=…` is enough for a real
-end-to-end test. The guard refuses a non-loopback listen without a token.
+### Sync prerequisites (one place)
+
+A device can only sync when **all** of these are true:
+
+| requirement | where it is set | why |
+|---|---|---|
+| the hub accepts leaf nodes | `NATS_LEAFNODE_LISTEN=host:port` | NATS serves the leaf protocol on its own listener; the client port (`NATS_LISTEN`) cannot accept it. |
+| clients and leafs authenticate | `NATS_TOKEN=…` | the guard refuses a non-loopback client **or** leaf listener without a token. The same token is the leaf credential (username in `nats://token@host`). |
+| the device knows the endpoint | `CLOUD_SYNC_URL=nats://…` on the server, or the `/account` form | it rides in the device token, so the user does not type it. |
+| the device can reach it | network path | the lean path is a private overlay (Tailscale/WireGuard): it already encrypts the wire, so `NATS_LEAFNODE_LISTEN=100.x.y.z:7422` + `NATS_TOKEN` is enough. |
+
+`make desktop-sync-smoke` is the end-to-end proof of this table: it starts a
+server in `LICENSE_MODE=account`, issues a device token, activates a desktop,
+restarts it as a leaf, creates a todo on the desktop and asserts the row is on
+the server under the same user id.
 
 Public exposure is a different bar: TLS per connection type, per-device
 credentials (NKey/JWT), and subject permissions so a device sees only its own
 tenant. The NATS docs are explicit about each of those; do not open a plaintext
-port.
+port. **Never point a build at `gogogo.calionauta.com`** — that host is only the
+public demo, and a real deployment owns its own endpoint.
 
 **Mobile (Wails Android/iOS).** The transport and activation code is portable —
 HTTP + signed token — but the shell is not: loopback/cookie behavior in the

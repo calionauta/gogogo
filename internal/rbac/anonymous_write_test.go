@@ -43,6 +43,7 @@ func TestNoMutatingRouteIsAnonymous(t *testing.T) {
 		"/api/auth/totp/login":             true,
 		"/api/auth/signout":                true, // logging out must work with an expired session
 		"/login":                           true, // the credential form itself
+		"/signup":                          true, // public account creation (SIGNUP_ENABLED gates it)
 		"/activate":                        true, // the activation token is the credential (distribution gate)
 		"/logout":                          true,
 	}
@@ -114,7 +115,10 @@ func TestAnonymousPolicyIsMinimal(t *testing.T) {
 			anon = append(anon, strings.TrimSpace(parts[2]))
 		}
 	}
-	const maxAnonymousObjects = 20
+	// 21 since /signup joined the signed-out surface: public account
+	// creation is a deliberate product switch (SIGNUP_ENABLED), reviewed
+	// here so a wildcard cannot widen the block unnoticed.
+	const maxAnonymousObjects = 21
 	if len(anon) > maxAnonymousObjects {
 		t.Errorf("the anonymous block has %d objects (max %d): is every one still public by intent?\n%v",
 			len(anon), maxAnonymousObjects, anon)

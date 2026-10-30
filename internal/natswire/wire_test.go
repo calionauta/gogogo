@@ -1,7 +1,13 @@
 // SCOPE:plugin — Wire protocol unit tests (subjects, durables, nil-safety).
 package natswire
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+	"time"
+
+	"github.com/calionauta/gogogo/internal/nats"
+)
 
 func TestCrudSubjects(t *testing.T) {
 	if CrudSubjectAll != "app.crud.todo.>" {
@@ -36,5 +42,40 @@ func TestCrudInstanceDurable(t *testing.T) {
 	}
 	if got := CrudInstanceDurable("myapp", ""); got != "myapp-crud-local" {
 		t.Fatalf("empty instance durable = %q, want myapp-crud-local", got)
+	}
+}
+
+// TestCrudPublisherForwardsOnCore pins the leaf-edge path: the same op goes
+// out on plain NATS so a leaf node forwards it to the hub, while the local
+// JetStream stream still captures it. Red-proof: drop the core publish and a
+// hub subscriber never sees the message.
+func TestCrudPublisherForwardsOnCore(t *testing.T) {
+	h, err := nats.StartEmbeddedOn(t.TempDir(), "", "")
+	if err != nil {
+		t.Fatalf("embedded NATS: %v", err)
+	}
+	t.Cleanup(h.Close)
+
+	sub, err := h.Conn.SubscribeSync("app.crud.todo.create")
+	if err != nil {
+		t.Fatalf("subscribe: %v", err)
+	}
+	if ferr := h.Conn.Flush(); ferr != nil {
+		t.Fatalf("flush: %v", ferr)
+	}
+	p := NewCrudPublisher(h.JS, "edge")
+	p.SetCore(h.Conn)
+	p.Publish(CrudOpCreate, "user-1", &CrudOpData{ID: "todo-1", Title: "synced"})
+
+	msg, err := sub.NextMsg(5 * time.Second)
+	if err != nil {
+		t.Fatalf("core message did not arrive: %v", err)
+	}
+	var payload CrudPayload
+	if err := json.Unmarshal(msg.Data, &payload); err != nil {
+		t.Fatalf("payload: %v", err)
+	}
+	if payload.UserID != "user-1" || payload.Data == nil || payload.Data.ID != "todo-1" {
+		t.Fatalf("payload = %+v", payload)
 	}
 }

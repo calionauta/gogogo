@@ -66,6 +66,10 @@ type Handler struct {
 	// DemoAccounts lets the login page prefill/advertise the seeded pair.
 	// False on a production deploy that did not opt in.
 	DemoAccounts bool
+	// SignupEnabled mirrors config.SIGNUP_ENABLED (opened by the desktop's
+	// first-run bootstrap while the database is empty). When false the
+	// /signup page is not rendered and /login carries no link to it.
+	SignupEnabled bool
 	// NATSEnabled switches the realtime label between the in-process hub
 	// and JetStream. Set from config at boot.
 	NATSEnabled bool
@@ -213,6 +217,8 @@ func (h *Handler) Routes() chi.Router {
 	r.Post("/api/todos/retry-demo", h.handleRetryDemo)
 	r.Get("/login", h.handleLoginGet)
 	r.Post("/login", h.handleLoginPost)
+	r.Get("/signup", h.handleSignupGet)
+	r.Post("/signup", h.handleSignupPost)
 	r.Post("/logout", h.handleLogoutPost)
 	r.Get("/todo", h.handleIndex)
 	return r

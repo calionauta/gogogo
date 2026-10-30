@@ -91,9 +91,23 @@ const minPasswordLen = 8
 const tokenLen = 32
 
 // ErrBadCredentials is returned by Login when the email is unknown or the
-// password is wrong, and by Signup on a duplicate email. One sentinel for
-// all three so no caller can enumerate accounts.
+// password is wrong. One sentinel for both so no caller can enumerate
+// accounts. Signup deliberately reports its failures precisely (see the
+// Err* values below): creating an account may reveal that an address is
+// already registered, which is the product decision for a signup form.
 var ErrBadCredentials = errors.New("auth: bad credentials")
+
+// Signup failures a form can act on. Login keeps ErrBadCredentials for every
+// failure so the two paths cannot be confused.
+var (
+	// ErrInvalidEmail is a syntactically invalid address.
+	ErrInvalidEmail = errors.New("auth: invalid email")
+	// ErrPasswordTooShort is a password below the length floor.
+	ErrPasswordTooShort = errors.New("auth: password too short")
+	// ErrEmailTaken is a duplicate address. Signup exposes it so the form can
+	// point at "sign in instead"; login still cannot distinguish it.
+	ErrEmailTaken = errors.New("auth: email already registered")
+)
 
 // User is the authenticated identity. ID is a UUIDv7 string, matching the
 // users table and every owner column in the schema.
@@ -216,10 +230,10 @@ func New(q *dbgen.Queries, secureCookies bool) (*Auth, error) {
 func normalizeEmail(email string) (string, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 	if email == "" {
-		return "", errors.New("auth: empty email")
+		return "", ErrInvalidEmail
 	}
 	if _, err := mail.ParseAddress(email); err != nil {
-		return "", fmt.Errorf("auth: invalid email: %w", err)
+		return "", fmt.Errorf("%w: %w", ErrInvalidEmail, err)
 	}
 	return email, nil
 }
@@ -249,7 +263,7 @@ func hashPassword(password string) (string, error) {
 // new password does not log the user out for nothing.
 func validatePassword(password string) error {
 	if len(password) < minPasswordLen {
-		return fmt.Errorf("auth: password too short (min %d chars)", minPasswordLen)
+		return ErrPasswordTooShort
 	}
 	if len(password) > maxPasswordLen {
 		return ErrPasswordTooLong
@@ -309,12 +323,14 @@ func tokenHash(token string) string {
 }
 
 // Signup creates the identity and opens its first session (auto sign-in,
-// matching the previous stack's behaviour). A duplicate email fails with
-// ErrBadCredentials — the same sentinel as a wrong password.
+// matching the previous stack's behaviour). Failures are precise —
+// ErrInvalidEmail, ErrPasswordTooShort/ErrPasswordTooLong, ErrEmailTaken — so
+// a signup form can answer actionably. Login stays indistinguishable: it maps
+// every one of these to ErrBadCredentials.
 func (a *Auth) Signup(ctx context.Context, email, password, name string) (*User, string, error) {
 	addr, err := normalizeEmail(email)
 	if err != nil {
-		return nil, "", err
+		return nil, "", ErrInvalidEmail
 	}
 	hash, err := hashPassword(password)
 	if err != nil {
@@ -326,8 +342,8 @@ func (a *Auth) Signup(ctx context.Context, email, password, name string) (*User,
 		Created: now, Updated: now,
 	})
 	if err != nil {
-		// UNIQUE(email) is the only expected conflict: same sentinel.
-		return nil, "", ErrBadCredentials
+		// UNIQUE(email) is the only expected conflict.
+		return nil, "", ErrEmailTaken
 	}
 	token, err := a.openSession(ctx, row.ID)
 	if err != nil {

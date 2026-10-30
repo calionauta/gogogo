@@ -84,6 +84,42 @@ func writeJSON(w http.ResponseWriter, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
+// apiError is the error envelope every auth form can act on: a stable code
+// for the client and a human sentence for the person.
+type apiError struct {
+	Error   string `json:"error"`
+	Message string `json:"message"`
+}
+
+func writeJSONError(w http.ResponseWriter, status int, code, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(apiError{Error: code, Message: message})
+}
+
+// signupError maps a Signup failure to the status and code the form uses.
+// Unknown failures stay a generic 400: they are programming or infrastructure
+// errors, not something the person can fix by retyping.
+func signupError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, ErrPasswordTooShort):
+		writeJSONError(w, http.StatusUnprocessableEntity, "password_too_short",
+			"Use at least 8 characters for the password.")
+	case errors.Is(err, ErrPasswordTooLong):
+		writeJSONError(w, http.StatusUnprocessableEntity, "password_too_long",
+			"That password is too long.")
+	case errors.Is(err, ErrInvalidEmail):
+		writeJSONError(w, http.StatusUnprocessableEntity, "invalid_email",
+			"Enter a valid email address.")
+	case errors.Is(err, ErrEmailTaken):
+		writeJSONError(w, http.StatusConflict, "email_taken",
+			"That email is already registered. Sign in instead.")
+	default:
+		writeJSONError(w, http.StatusBadRequest, "invalid_request",
+			"That request could not be processed.")
+	}
+}
+
 func (a *Auth) handleSignup(w http.ResponseWriter, r *http.Request) {
 	if a.signupClosed() {
 		http.Error(w, "signup closed", http.StatusForbidden)
@@ -109,11 +145,7 @@ func (a *Auth) handleSignup(w http.ResponseWriter, r *http.Request) {
 	}
 	user, token, err := a.Signup(r.Context(), body.Email, body.Password, body.Name)
 	if err != nil {
-		if errors.Is(err, ErrBadCredentials) {
-			http.Error(w, "invalid credentials", http.StatusUnauthorized)
-			return
-		}
-		http.Error(w, "invalid request", http.StatusBadRequest)
+		signupError(w, err)
 		return
 	}
 	if a.emailVerificationRequired() {
