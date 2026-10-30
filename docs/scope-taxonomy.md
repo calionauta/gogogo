@@ -49,6 +49,7 @@ or `manual`.
 
 The registry (`internal/capabilities`) is the source of truth; the scaffold
 prompt, the MCP `trim_plan`, and the generated cards all read the same field.
+The rationale and migration path: [Scaffold choice](research/scaffold-choice-2026-10.md).
 
 ## The annotation form
 

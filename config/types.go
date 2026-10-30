@@ -47,6 +47,12 @@ type Config struct {
 	// accounts (they only log existing users in).
 	SignupEnabled bool
 
+	// PerfEnabled mounts the optional runtime dashboard (statsviz) at
+	// /debug/statsviz. It defaults to development only. The surface is
+	// operator-only regardless: the session must be admin AND its address
+	// must be listed in ADMIN_EMAILS, so an empty list closes it.
+	PerfEnabled bool
+
 	// RateLimitRPM bounds dynamic requests per session (or per client IP
 	// when signed out) in a sliding minute. 0 disables the in-process
 	// limiter. The edge remains the primary throttle for a fleet; this is
