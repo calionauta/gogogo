@@ -155,7 +155,12 @@ The 2026-10-30 emulator spike (`spike/mobile`, not merged) proved the shape:
    The spike listens on a fixed loopback port and the activity loads
    `http://127.0.0.1:<port>/` with retries and
    `android:usesCleartextTraffic="true"`.
-5. **The c-shared object needs Android libc shims.** `bcmp`,
+5. **Inset the WebView below the system bars.** A rendered page is not proof
+   that the top chrome is reachable: edge-to-edge content lets the status bar
+   consume touches over the header. Use `android:fitsSystemWindows="true"` or
+   explicit `WindowInsets` padding; the spike's bottom dock and checkbox worked
+   while the hamburger/search were dead until the inset.
+6. **The c-shared object needs Android libc shims.** `bcmp`,
    `__errno_location` and `__xpg_strerror_r` are not exported by Android's
    libc; provide them in an `_android.c` file plus a cgo-enabling Go file.
 6. **A working spike is not a supported target.** Open auth, a fixed port and
