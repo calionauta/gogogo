@@ -67,8 +67,24 @@ E Go: panic: unable to load turso library: turso library is not embedded for the
 ```
 
 `tursogo` ships no Android build of its native library, and the whole app boots
-through `internal/db`. The UI never renders. This is not a Wails, NDK or
-emulator problem: the product's data layer cannot start on Android.
+through `internal/db`. The exact source is
+`turso-go-platform-libs@v0.8.3/load_turso.go`: `libraryFilename()` only maps
+`darwin`, `linux` and `windows`; every other GOOS falls through to
+`lib_fallback.go`, which returns no embedded library. `internal/queue` imports
+tursogo too, so both the app database and the job queue are blocked. The UI
+never renders. This is not a Wails, NDK or emulator problem: the product's data
+layer cannot start on Android.
+
+Two realistic paths, neither implemented:
+
+1. **Build the native Turso SDK for Android** (`libturso_sync_sdk_kit.so` for
+   `aarch64-linux-android`) and load it with `LoadStrategy: system`/`mixed`.
+   Needs the Rust toolchain + Android target and a build of the Turso SDK; the
+   platform-libs module has no Android artifact today.
+2. **Swap the mobile build to a pure-Go SQLite driver.** `ncruces/go-sqlite3`
+   is already a dependency (`cmd/gui` uses it). A `cmd/mobile` entrypoint plus
+   `android`-tagged `internal/db` and `internal/queue` openers would keep the
+   sqlc queries and migrations, at the cost of a second driver path to test.
 
 The earlier WebView error (`https://wails.localhost/` →
 `ERR_CONNECTION_REFUSED`, `Asset not found: /index.html`) is the next layer
