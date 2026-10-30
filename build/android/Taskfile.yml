@@ -90,7 +90,7 @@ tasks:
         mkdir -p build/android/app/src/main/jniLibs/$JNI_DIR
 
         go build -buildmode=c-shared -overlay build/android/overlay.json {{.BUILD_FLAGS}} \
-          -o build/android/app/src/main/jniLibs/$JNI_DIR/libwails.so ./cmd/desktop
+          -o build/android/app/src/main/jniLibs/$JNI_DIR/libwails.so ./cmd/mobile
     vars:
       BUILD_FLAGS: '{{if eq .PRODUCTION "true"}}-tags production,android -trimpath -buildvcs=false -ldflags="-w -s"{{else}}-tags android,debug -buildvcs=false -gcflags=all="-l"{{end}}'
 

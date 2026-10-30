@@ -14,6 +14,8 @@ import android.net.Uri;
 import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.PowerManager;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
@@ -22,6 +24,7 @@ import android.provider.MediaStore;
 import android.provider.OpenableColumns;
 import android.util.Base64;
 import android.util.Log;
+import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
@@ -53,6 +56,9 @@ public class MainActivity extends AppCompatActivity {
     private static final boolean DEBUG = BuildConfig.DEBUG;
     private static final String WAILS_SCHEME = "https";
     private static final String WAILS_HOST = "wails.localhost";
+    // The gogogo spike serves its real UI from the Go loopback listener. The
+    // Wails asset origin is a Java-side loader and cannot proxy to it.
+    private static final String APP_URL = "http://127.0.0.1:18080/";
     private static final int FILE_PICKER_REQUEST = 7001;
 
     private WebView webView;
@@ -65,6 +71,7 @@ public class MainActivity extends AppCompatActivity {
 
     // The Go-side dialog ID of the in-flight file picker (-1 when idle)
     private int pendingFilePickerCallbackID = -1;
+    private int loadAttempts = 0;
     private static final int PHOTO_CAPTURE_REQUEST = 7002;
     private static final int VIDEO_CAPTURE_REQUEST = 7003;
     private static final int CAMERA_PERMISSION_REQUEST = 7010;
@@ -185,6 +192,18 @@ public class MainActivity extends AppCompatActivity {
             }
 
             @Override
+            public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+                super.onReceivedError(view, request, error);
+                // The Go server boots after the bridge; retry the loopback
+                // origin until it answers instead of showing the WebView error.
+                if (request.isForMainFrame() && loadAttempts < 20) {
+                    loadAttempts++;
+                    if (DEBUG) Log.d(TAG, "Loopback not ready, retry " + loadAttempts);
+                    new Handler(Looper.getMainLooper()).postDelayed(() -> loadApplication(), 500);
+                }
+            }
+
+            @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
                 if (DEBUG) Log.d(TAG, "Page loaded: " + url);
@@ -200,9 +219,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void loadApplication() {
-        String url = WAILS_SCHEME + "://" + WAILS_HOST + "/";
-        if (DEBUG) Log.d(TAG, "Loading URL: " + url);
-        webView.loadUrl(url);
+        long delay = loadAttempts == 0 ? 1500 : 500;
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            if (DEBUG) Log.d(TAG, "Loading app URL: " + APP_URL);
+            webView.loadUrl(APP_URL);
+        }, delay);
     }
 
     /**

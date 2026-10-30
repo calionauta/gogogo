@@ -1,10 +1,16 @@
 # Android spike (2026-10-30)
 
-**Verdict: not supported.** The APK builds, installs and launches on the
-emulator, but the WebView never reaches the app: the activity loads
-`https://wails.localhost/` and gets `ERR_CONNECTION_REFUSED`. No product claim
-follows from this branch; `docs/desktop-mobile.md` still says mobile is
-"prepared, not wired".
+**Verdict: the ncruces path works on the emulator; Android is still not a
+supported target and this branch is not merged.** The APK builds, installs and
+renders the real gogogo UI (landing page, Todo list, create via API) against a
+pure-Go SQLite database. Master still boots `internal/db` through tursogo, which
+has no Android library, so nothing on master claims Android support.
+
+Screenshots:
+
+- `docs/research/android-spike-2026-10-landing.png` — landing page + mobile dock
+- `docs/research/android-spike-2026-10-todo.png` — Todo page with a row created
+  through the loopback API (proves the database, not just the shell)
 
 ## Environment installed
 
@@ -13,10 +19,10 @@ follows from this branch; `docs/desktop-mobile.md` still says mobile is
 | Android command-line tools | `brew install --cask android-commandlinetools` → `/opt/homebrew/share/android-commandlinetools` |
 | JDK | `brew install openjdk@21` → `/opt/homebrew/opt/openjdk@21` (21.0.13) |
 | SDK packages | `platform-tools`, `platforms;android-35`, `build-tools;35.0.0`, `ndk;27.2.12479018`, `emulator`, `system-images;android-35;google_apis;arm64-v8a` |
-| AVD | `gogogo-api35` (Pixel 7, arm64-v8a), booted headless with `-no-window -no-audio -no-boot-anim -gpu swiftshader_indirect` |
+| AVD | `gogogo-api35` (Pixel 7, arm64-v8a) |
 | Wails CLI | v3.0.0-beta.24; `wails3 doctor` reports "ready" with the SDK/JDK set |
 
-## Commands that built the APK
+## Commands that build and run the working spike
 
 ```bash
 export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
@@ -24,30 +30,31 @@ export ANDROID_SDK_ROOT=$ANDROID_HOME
 export ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018
 export JAVA_HOME=/opt/homebrew/opt/openjdk@21
 
-wails3 task android:build        # compiles cmd/desktop → libwails.so (arm64)
+wails3 task android:build        # compiles cmd/mobile → libwails.so (arm64)
 wails3 task android:assemble:apk # Gradle assembleDebug → bin/gogogo.apk
 adb install -r bin/gogogo.apk
 adb shell am start -n com.wails.app/.MainActivity
 ```
 
 `Taskfile.yml` and `build/android/` are the minimum Wails mobile project
-(Taskfile + Gradle app). The Go build target is `./cmd/desktop`, with
+(Taskfile + Gradle app). The Go build target is `./cmd/mobile`, with
 `-tags android,debug`.
 
-## Blocker (exact)
+## What had to change (and why)
 
-Three layers failed in order. Each one is recorded because the next is only
-visible after fixing the previous.
+The desktop entrypoint cannot be reused as-is. Four layers failed in order;
+each fix exposed the next.
 
-**1. libc symbols.** The first load failed before Go started:
+**1. libc symbols.** The c-shared object references symbols Android's libc does
+not export:
 
 ```
 java.lang.UnsatisfiedLinkError: dlopen failed: cannot locate symbol "bcmp"
-  referenced by .../lib/arm64/libwails.so
 ```
 
-`cmd/desktop/bcmp_android.c` adds the `bcmp`, `__errno_location` and
-`__xpg_strerror_r` aliases; the library then loads.
+`cmd/mobile/bcmp_android.c` provides `bcmp`, `__errno_location` and
+`__xpg_strerror_r`; `cmd/mobile/cgo_android.go` enables cgo so the C file is
+linked. This is an Android packaging shim, not a product change.
 
 **2. Android main registration.** Wails logged:
 
@@ -55,47 +62,78 @@ java.lang.UnsatisfiedLinkError: dlopen failed: cannot locate symbol "bcmp"
 E Wails: No main function registered! Call application.RegisterAndroidMain(main) in init()
 ```
 
-The overlay generator targets the project root, but this binary's main package
-is `cmd/desktop`. `cmd/desktop/main_android.go` (build tag `android`) registers
-`main` directly; the Go entrypoint then runs.
+The overlay generator targets the project root, but the main package is
+`cmd/mobile`. `cmd/mobile/register.go` (build tag `android`) calls
+`application.RegisterAndroidMain(main)` directly.
 
-**3. The hard blocker: Turso has no Android library.** With `main` registered
-the process panics before serving anything:
+**3. Turso has no Android library.** With `main` registered:
 
 ```
 E Go: panic: unable to load turso library: turso library is not embedded for the platform in the package
 ```
 
-`tursogo` ships no Android build of its native library, and the whole app boots
-through `internal/db`. The exact source is
-`turso-go-platform-libs@v0.8.3/load_turso.go`: `libraryFilename()` only maps
-`darwin`, `linux` and `windows`; every other GOOS falls through to
-`lib_fallback.go`, which returns no embedded library. `internal/queue` imports
-tursogo too, so both the app database and the job queue are blocked. The UI
-never renders. This is not a Wails, NDK or emulator problem: the product's data
-layer cannot start on Android.
+`turso-go-platform-libs@v0.8.3/load_turso.go` maps only `darwin`, `linux` and
+`windows`; Android falls through to `lib_fallback.go`. `internal/db`,
+`internal/queue` and `features/credits/handlers` all opened through tursogo.
 
-Two realistic paths, neither implemented:
+The spike swaps those three opens to `ncruces/go-sqlite3` (pure Go/WASM) behind
+`android` build tags:
 
-1. **Build the native Turso SDK for Android** (`libturso_sync_sdk_kit.so` for
-   `aarch64-linux-android`) and load it with `LoadStrategy: system`/`mixed`.
-   Needs the Rust toolchain + Android target and a build of the Turso SDK; the
-   platform-libs module has no Android artifact today.
-2. **Swap the mobile build to a pure-Go SQLite driver.** `ncruces/go-sqlite3`
-   is already a dependency (`cmd/gui` uses it). A `cmd/mobile` entrypoint plus
-   `android`-tagged `internal/db` and `internal/queue` openers would keep the
-   sqlc queries and migrations, at the cost of a second driver path to test.
+| Package | Desktop/server | Android |
+|---|---|---|
+| `internal/db` | tursogo (`turso`) | ncruces (`sqlite3`) |
+| `internal/queue` | tursogo | ncruces |
+| `features/credits/handlers` | tursogo | ncruces |
 
-The earlier WebView error (`https://wails.localhost/` →
-`ERR_CONNECTION_REFUSED`, `Asset not found: /index.html`) is the next layer
-after the data layer: `cmd/desktop` is a desktop entrypoint with a loopback
-server and no Wails `Assets` handler, so the Android activity has nothing to
-load. A real mobile shell needs its own `cmd/mobile` entrypoint, an Android
-build of the database layer (or a different local store), Keystore-backed
-tokens and a deep-link activation flow — none of that is in this spike.
+The SQL, sqlc queries, migrations and pragmas are shared; only the driver and
+DSN spelling differ (`_busy_timeout` vs `_pragma=busy_timeout(...)`).
 
-Screenshot: `docs/research/android-spike-2026-10.png` (WebView error page from
-the pre-registration build). The Turso panic is in logcat, not a screenshot.
+**4. The Wails asset origin is Java-side.** The Android activity loads
+`https://wails.localhost/`; its `WailsPathHandler` calls `bridge.serveAsset`,
+so a Go `Assets.Handler` proxy is not used. `cmd/mobile` listens on a fixed
+loopback port (`127.0.0.1:18080`) and `MainActivity` loads
+`http://127.0.0.1:18080/` after the bridge boots, with retries and
+`android:usesCleartextTraffic="true"`. This is a spike shortcut: a real mobile
+shell should own the origin and the auth/session model.
+
+`cmd/mobile` also sets `AUTH_MODE=open` (fixed local owner), disables NATS,
+DagNats, GoAkt and offline sync, and uses `application.Mobile.StoragePath()` for
+the database directory.
+
+## `cmd/gui` and ncruces: configured, not native
+
+`cmd/gui` uses ncruces because the repo chose it, not because SQLite or
+`database/sql` defaults to it:
+
+- `cmd/gui/main.go` imports `_ "github.com/ncruces/go-sqlite3/driver"`.
+- `cmd/gui/store.go` opens `sql.Open("sqlite3", dsn)` with
+  `_pragma=busy_timeout(10000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(ON)`.
+- The comment there states the reason: `internal/db` opens through tursogo,
+  which links purego/fakecgo; that collides with goffi at `CGO_ENABLED=0`.
+  `cmd/gui` therefore bypasses `internal/db` and keeps a CGO-free build.
+
+So: **ncruces is a deliberate `cmd/gui` configuration**, and the Android spike
+reuses the same driver for the same class of reason (a platform where tursogo
+cannot run). It is not the template's default driver.
+
+## Mobile strategy learned
+
+1. **A mobile shell is its own entrypoint** (`cmd/mobile`), not `cmd/desktop`.
+   The desktop shell owns a window and a single-instance lock; Android owns the
+   activity and the WebView origin.
+2. **The data layer needs a platform driver matrix.** tursogo is desktop/server
+   only today. A pure-Go driver (ncruces) keeps SQL/migrations shared; the
+   alternative is building the Turso native SDK for Android and loading it with
+   `LoadStrategy: system`.
+3. **Do not rely on the Wails asset handler for a server-rendered UI.** The
+   Android asset path is Java-side. A real shell either loads the loopback
+   origin (spike) or implements a deliberate origin/proxy with cookies.
+4. **Spike shortcuts are not product decisions.** Open auth, a fixed port,
+   cleartext HTTP and a paste-free token are acceptable for a measurement; a
+   real mobile release needs Keystore/Keychain, deep-link activation, TLS and a
+   session model that survives the WebView origin.
+5. **Emulator cost is real.** The SDK/NDK/system image is ~8 GB and the AVD
+   ~2 GB; the emulator's System UI can ANR on a loaded host (dismiss "Wait").
 
 ## Disk usage and cleanup
 
@@ -105,7 +143,7 @@ Measured after the spike:
 |---|---|
 | `/opt/homebrew/share/android-commandlinetools` (SDK + NDK + emulator + system image) | 8.1 GB |
 | `~/.android/avd/gogogo-api35.avd` | 2.0 GB |
-| `bin/gogogo.apk` (generated, not committed) | 91 MB |
+| `bin/gogogo.apk` (generated, not committed) | 49 MB |
 
 Cleanup:
 

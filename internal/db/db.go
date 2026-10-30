@@ -1,12 +1,9 @@
 // SCOPE:core — application database: the one place that knows the Turso
 // Database connection string, file layout, and pragmas. Schema, versions,
 // IDs and timestamps live in internal/dbschema (driver-free, shared with
-// zero-CGO targets); this package owns only the tursogo open, so importing
-// it links tursogo (purego) — native targets must not import it.
-//
-// Turso Database is the ground-up Rust rewrite of SQLite; `tursogo` is its Go
-// driver — a database/sql driver named "turso", loaded through purego, so
-// there is no CGO and no libSQL anywhere in the tree. Handlers never touch
+// zero-CGO targets); this package owns the open through a platform driver —
+// tursogo on desktop/server, ncruces on Android (tursogo embeds no Android
+// library). Handlers never touch
 // this package directly: they receive sqlc-generated queries (internal/db/queries)
 // built on the *sql.DB returned here.
 package db
@@ -17,15 +14,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/calionauta/gogogo/config"
-
-	_ "turso.tech/database/tursogo"
 )
 
-// Driver is the database/sql driver name registered by tursogo.
-const Driver = "turso"
+// Driver is the database/sql driver name for this platform: tursogo on
+// desktop/server, ncruces on Android (tursogo has no Android library).
+const Driver = sqlDriver
 
 // busyTimeoutMS is how long a writer waits for a competing writer before
 // returning SQLITE_BUSY. Turso serializes writes; 10s matches the previous
@@ -74,17 +69,6 @@ func Open(cfg *config.Config) (*sql.DB, error) {
 		return nil, err
 	}
 	return sqlDB, nil
-}
-
-// localDSN builds the `<path>?<options>` DSN tursogo parses. The DSN is the
-// only place a connection option survives database/sql pooling: per-connection
-// PRAGMAs run once on a pooled connection and are lost on the next one, so
-// anything the engine accepts as an option belongs here.
-func localDSN(path string) string {
-	if strings.ContainsAny(path, "?") {
-		return path
-	}
-	return fmt.Sprintf("%s?_busy_timeout=%d", path, busyTimeoutMS)
 }
 
 // applyPragmas sets the connection-level pragmas the engine does not take as
