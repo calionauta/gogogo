@@ -106,7 +106,7 @@ type Handler struct {
 // Every method takes the caller's transaction, so a row and its postings
 // commit or roll back together.
 type SearchIndexer interface {
-	IndexTodo(ctx context.Context, tx *sql.Tx, owner, docID, title string) error
+	IndexTodo(ctx context.Context, tx *sql.Tx, owner, docID, title, visibility string) error
 	DeleteTodo(ctx context.Context, tx *sql.Tx, owner, docID string) error
 }
 

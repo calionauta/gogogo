@@ -86,4 +86,4 @@ LIMIT ?;
 -- quote -- the generated SQL came out as "FROM tod", silently, with sqlc
 -- exiting 0). Keep this comment ASCII, and if a query ever generates a
 -- suspiciously short statement, check for non-ASCII bytes before anything else.
-SELECT id, owner, title FROM todos;
+SELECT id, owner, title, visibility FROM todos;

@@ -77,7 +77,7 @@ func HealSearchIndex(ctx context.Context, q *dbgen.Queries, ix TodoIndexer, db *
 	// keeps a large install from paying a commit per todo on every boot.
 	return dbschema.Transact(ctx, db, "todo search heal", func(ctx context.Context, tx *sql.Tx) error {
 		for _, r := range missing {
-			if ierr := ix.IndexTodo(ctx, tx, r.Owner, r.ID, r.Title); ierr != nil {
+			if ierr := ix.IndexTodo(ctx, tx, r.Owner, r.ID, r.Title, r.Visibility); ierr != nil {
 				return ierr
 			}
 		}

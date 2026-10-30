@@ -35,7 +35,7 @@ func createTodoIndexed(ctx context.Context, q *dbgen.Queries, ix SearchIndexer, 
 		if _, err := q.WithTx(tx).CreateTodo(ctx, p); err != nil {
 			return err
 		}
-		return ix.IndexTodo(ctx, tx, p.Owner, p.ID, p.Title)
+		return ix.IndexTodo(ctx, tx, p.Owner, p.ID, p.Title, p.Visibility)
 	})
 }
 

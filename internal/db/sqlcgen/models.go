@@ -85,13 +85,14 @@ type RecoveryCode struct {
 }
 
 type SearchPosting struct {
-	Owner  string
-	Kind   string
-	DocID  string
-	Field  string
-	Term   string
-	Count  int64
-	Length int64
+	Owner      string
+	Kind       string
+	DocID      string
+	Field      string
+	Term       string
+	Count      int64
+	Length     int64
+	Visibility string
 }
 
 type SecurityEvent struct {

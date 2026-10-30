@@ -88,6 +88,9 @@ func TestInboxDagNatsLinkIsOperatorOnly(t *testing.T) {
 	if strings.Contains(plain, `href="/dagnats/"`) {
 		t.Error("a non-operator page links to the operator console")
 	}
+	if !strings.Contains(plain, "DagNats&#32;<code>sleep") || strings.Contains(plain, "DagNatssleep") {
+		t.Errorf("reminder hint lost the space before sleep: %s", plain)
+	}
 	operator := renderPage(ui.WithOperator(context.Background(), true), t, false, samplePageData())
 	if !strings.Contains(operator, `href="/dagnats/"`) {
 		t.Error("an operator page does not link the DagNats console")

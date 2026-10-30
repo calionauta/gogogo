@@ -229,7 +229,7 @@ another package imports the deleted one. Check these when you trim:
 | **Sounds** | `features/sounds/`, `web/resources/static/cuelume.js`, `web/resources/static/cuelume/` | Drop `@sounds.SoundAssets()` from page layouts and `@sounds.SoundSwitch()` from each page's `*Sound()` wrapper. |
 
 **After any removal, run `make test`** (not a bare `go test ./...` — that
-compiles `cmd/desktop`/`cmd/gui`, which need GTK + WebKit headers; see
+compiles `cmd/desktop`/`cmd/gui`/`cmd/mobile`, which need GTK + WebKit or the Android SDK; see
 [desktop & mobile](desktop-mobile.md)). If a compilation error mentions the
 deleted package in a test file, delete that test file too. Cross-package tests
 that import a trimmed package are the usual culprit; `make check-flatdeps` and

@@ -215,9 +215,10 @@ risk in defaults, not primitives, so the defaults changed:
 - **Credential changes revoke every session** (`password`, TOTP disable,
   `sessions/revoke-all`), and **authenticated requests are bounded per
   session** (`RATE_LIMIT_RPM`), never per client IP behind a tunnel.
-- **The operator console is not an admin-role side effect**: the public demo's
-  `demo1` is an admin, so `/console` and `/dagnats` require an explicit
-  `ADMIN_EMAILS` entry.
+- **The operator console is not an admin-role side effect**: a production
+  demo's `demo1` is an admin, so `/console` and `/dagnats` require an explicit
+  `ADMIN_EMAILS` entry. A development demo adds `demo1` to that list so the
+  console/stats menus are demonstrable.
 - **The container is non-root, read-only, all caps dropped, no privilege
   escalation**; the data volume and a 64 MB `/tmp` tmpfs are the writable
   paths.

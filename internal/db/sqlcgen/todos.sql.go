@@ -260,13 +260,14 @@ func (q *Queries) ListTodosByOwner(ctx context.Context, owner string) ([]Todo, e
 }
 
 const listTodosForIndex = `-- name: ListTodosForIndex :many
-SELECT id, owner, title FROM todos
+SELECT id, owner, title, visibility FROM todos
 `
 
 type ListTodosForIndexRow struct {
-	ID    string
-	Owner string
-	Title string
+	ID         string
+	Owner      string
+	Title      string
+	Visibility string
 }
 
 // Every row's (id, owner, title) -- the input the search index heal needs.
@@ -297,7 +298,12 @@ func (q *Queries) ListTodosForIndex(ctx context.Context) ([]ListTodosForIndexRow
 	items := []ListTodosForIndexRow{}
 	for rows.Next() {
 		var i ListTodosForIndexRow
-		if err := rows.Scan(&i.ID, &i.Owner, &i.Title); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Owner,
+			&i.Title,
+			&i.Visibility,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

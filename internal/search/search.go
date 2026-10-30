@@ -38,11 +38,14 @@ type Span struct {
 // names ("title" today), so a consumer with more than one field indexes
 // both and reads hits for either.
 type Query struct {
-	Owner  string
-	Text   string
-	Field  string
-	Limit  int
-	Target string
+	Owner string
+	Text  string
+	Field string
+	Limit int
+	// IncludePublic widens the corpus to rows the consumer marks public.
+	// The owner scope stays: a private row of another owner is never a hit.
+	IncludePublic bool
+	Target        string
 }
 
 // Searcher is the whole contract a consumer sees. The three layers differ

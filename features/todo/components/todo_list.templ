@@ -204,12 +204,6 @@ templ searchBox(signals todo.Signals) {
 				data-bind="searchQuery"
 				data-on:input__debounce.300ms={ ui.TodoSearchOn() }
 			/>
-			<button
-				type="button"
-				class="btn btn-ghost btn-sm join-item"
-				aria-label="Clear search"
-				data-show="$searchQuery"
-				data-on:click={ ui.TodoSearchClearOn() }>✕</button>
 			@searchModeSelect(signals)
 		</div>
 	}

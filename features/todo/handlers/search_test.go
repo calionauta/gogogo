@@ -126,13 +126,21 @@ func TestSearchEndpointNarrowsScopedList(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("indexed create: %v", err)
 	}
-	// A matching row owned by someone else, indexed too: search must not
-	// surface it, because the caller cannot list it.
+	// A matching private row owned by someone else, indexed too: search must
+	// not surface it, because the caller cannot list it.
 	if err := createTodoIndexed(ctx, f.q, f.h.Index, f.h.DB, dbgen.CreateTodoParams{
 		ID: dbschema.NewID(), Owner: theirs, Title: "smoke signals elsewhere",
 		Visibility: todo.VisibilityPrivate, Created: dbschema.Now(), Updated: dbschema.Now(),
 	}); err != nil {
 		t.Fatalf("indexed create (other): %v", err)
+	}
+	// A PUBLIC row of another owner is in the caller's visible set, so search
+	// must surface it too (the shared-search regression).
+	if err := createTodoIndexed(ctx, f.q, f.h.Index, f.h.DB, dbgen.CreateTodoParams{
+		ID: dbschema.NewID(), Owner: theirs, Title: "smoke shared plan",
+		Visibility: todo.VisibilityPublic, Created: dbschema.Now(), Updated: dbschema.Now(),
+	}); err != nil {
+		t.Fatalf("indexed create (shared): %v", err)
 	}
 	// A posting with NO row: the shape a crash between index and row (or a
 	// hand-edited index) leaves behind. The visible set has no such id, so
@@ -149,7 +157,10 @@ func TestSearchEndpointNarrowsScopedList(t *testing.T) {
 		t.Errorf("my matching row missing from the patched list:\n%s", body)
 	}
 	if contains(body, "smoke signals elsewhere") {
-		t.Error("another owner's matching row leaked into my search results")
+		t.Error("another owner's private matching row leaked into my search results")
+	}
+	if !contains(body, "smoke shared plan") {
+		t.Errorf("another owner's public matching row is missing from my search results:\n%s", body)
 	}
 	if contains(body, "ghost-id") {
 		t.Error("a posting without a row was rendered (should be skipped)")

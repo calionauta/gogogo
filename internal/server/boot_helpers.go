@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"slices"
 	"time"
 
 	"github.com/calionauta/gogogo/config"
@@ -207,6 +208,12 @@ func demoQueries(cfg *config.Config, a *auth.Auth, sqlDB *sql.DB) *dbgen.Queries
 	q := dbgen.New(sqlDB)
 	if cfg.DemoAccounts {
 		seedDemoAccounts(a, q)
+		// A development demo shows the operator surfaces (DagNats console,
+		// stats) so the demo can prove them. A production demo keeps the
+		// allowlist empty: demo1 is an admin, never an operator.
+		if cfg.Dev && !slices.Contains(cfg.AdminEmails, demo.Email) {
+			cfg.AdminEmails = append(cfg.AdminEmails, demo.Email)
+		}
 	} else {
 		demo.Disable(context.Background(), q)
 	}

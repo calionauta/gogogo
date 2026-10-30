@@ -34,8 +34,10 @@ away with the old framework). Inspect data with `sqlite3` against the Turso file
 up with `scripts/backup.sh`. `/config` is admin-only in the handler even
 with `RBAC_ENABLED=false`; for a real deployment still put an IP allowlist
 or `oauth2-proxy` in front of it, like any operator surface. The console
-adds a second fence: the session address must be in `ADMIN_EMAILS`, so the
-published demo admin cannot reach it.
+adds a second fence: the session address must be in `ADMIN_EMAILS`, so a
+production demo admin cannot reach it. A development demo with
+`DEMO_ACCOUNTS_ENABLED=true` adds `demo1@demo.app` to that list so the console
+and stats menus are demonstrable.
 
 ## App session cookie (why one)
 
@@ -86,14 +88,15 @@ automatically on first login.
 
 On a deployment that lists its operator in `ADMIN_EMAILS` it is reachable
 at `/console/` behind the same tunnel; the branded alias `/dagnats/`
-re-roots onto the same tree. The public demo does not list one, so the
-console is closed there.
+re-roots onto the same tree. A production demo does not list one, so the
+console is closed there; the development demo adds `demo1@demo.app` to the
+allowlist.
 
 The account menu carries the console entry (`/dagnats/`) exactly when that
 fence would answer: a workflow engine was started in this binary, the session is
 an admin, and the address is listed in `ADMIN_EMAILS`. The composition root
 resolves it once per page (`internal/server/operator.go` → `ui.WithOperator`),
-so an admin who is not an operator — the published demo account — is not offered
+so an admin who is not an operator — a production demo account — is not offered
 a link that 403s, and a trimmed build without the engine offers no link at all
 (the console mount stays as the scaffold anchor, so a config-only gate would
 advertise a proxy with no upstream).
@@ -103,7 +106,9 @@ advertise a proxy with no upstream).
 The Casbin demo needs no new page — it reuses the surfaces with two roles,
 and the demo pair is seeded with them **when `DEMO_ACCOUNTS_ENABLED=true`**
 (the development default): `demo1` boots as `admin`, `demo2` as `viewer`
-(`internal/demo`, rewritten every boot). With the flag off, an existing pair
+(`internal/demo`, rewritten every boot). In development `demo1` is also added
+to the operator allowlist, so the DagNats console and stats entries appear; a
+production demo does not add it. With the flag off, an existing pair
 is disabled on boot (unusable password, plain user role, sessions revoked). A production deploy must opt in;
 otherwise neither account exists. You do not need a third account or
 `VIEWER_EMAILS` to see enforcement when the seed is on.

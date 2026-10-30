@@ -25,6 +25,14 @@ type SQLIndex struct {
 
 // DeleteDoc removes every posting for one document, all fields, so a deleted
 // or renamed row cannot keep matching.
+// boolInt is the SQL spelling of a Go bool (SQLite has no boolean type).
+func boolInt(v bool) int {
+	if v {
+		return 1
+	}
+	return 0
+}
+
 func (ix SQLIndex) DeleteDoc(ctx context.Context, ex Execer, owner, kind, docID string) error {
 	_, err := ex.ExecContext(ctx,
 		`DELETE FROM search_postings WHERE owner = ? AND kind = ? AND doc_id = ?`,

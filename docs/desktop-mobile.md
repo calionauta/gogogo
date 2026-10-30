@@ -11,7 +11,7 @@ dev libs (`libgtk-4-dev libwebkitgtk-6.0-dev`) that only exist on desktop build
 hosts. `cmd/desktop` carries **no build tag**, so `go build ./...` and
 `go test ./...` from the repo root *do* compile it and will fail without those
 libs. What excludes it is the package list: `scripts/web-packages.sh` filters out
-`/cmd/desktop` and `/cmd/gui`, and that list is what `make build`, `make test`,
+`/cmd/desktop`, `/cmd/gui` and `/cmd/mobile`, and that list is what `make build`, `make test`,
 `make lint` and web CI use. So the exclusion is explicit in the tooling, not
 implicit in the Go toolchain — run `make test`, not a bare `go test ./...`, on a
 box without the desktop headers.

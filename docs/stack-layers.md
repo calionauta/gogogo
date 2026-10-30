@@ -36,7 +36,7 @@ layered async topology see [Seven async layers](async-layers.md).
 | **Live reload** | [Air](https://github.com/air-verse/air) | `make dev` regenerates templ and restarts the binary |
 | **Native window (PoC)** | [gogpu/ui](https://github.com/gogpu/ui) (pure Go, zero CGO) | `cmd/gui`: a second frontend over the same Turso/sqlc store — no HTTP, no webview. See [Desktop & Mobile](desktop-mobile.md). |
 | **Linting** | [golangci-lint](https://golangci-lint.run) + [datastar-lint](https://github.com/calionauta/datastar-lint) | The linters pinned in `.golangci.yml`, across correctness, errors, resources, cancellation, tests, complexity and style — categories and what each catches in [Code quality](code-quality.md). Datastar attribute/signal mistakes are caught by `datastar-lint` (`make datastar-lint`); project-specific footguns are `ruleguard` rules in [`rules/rules.go`](https://github.com/calionauta/gogogo/blob/master/rules/rules.go), which CI fails on. |
-| **CI/CD** | GitHub Actions | `ci.yml` (lint + test + build) + `deploy.yml` (cross-compiles the prod binary and ships it to the server on `master`; `make docker-image` pushes a multi-arch image to ghcr.io, locally, when you want one). Two off-path maintenance workflows: `stelow-drift.yml` (weekly, fails when the vendored stelow standards pin is stale) and `stelow-auto-bump.yml` (weekly, opens the bump PR). The native targets (`cmd/desktop`, `cmd/gui`) are built locally, never in CI |
+| **CI/CD** | GitHub Actions | `ci.yml` (lint + test + build) + `deploy.yml` (cross-compiles the prod binary and ships it to the server on `master`; `make docker-image` pushes a multi-arch image to ghcr.io, locally, when you want one). Two off-path maintenance workflows: `stelow-drift.yml` (weekly, fails when the vendored stelow standards pin is stale) and `stelow-auto-bump.yml` (weekly, opens the bump PR). The native targets (`cmd/desktop`, `cmd/gui`, `cmd/mobile`) are built locally, never in CI |
 
 ## How the pieces combine
 
@@ -113,7 +113,7 @@ Two hard rules once native code is in:
   opening through ncruces instead — see `internal/dbschema`). A binary
   that links goffi (gui, desktop) cannot also link purego without CGO.
 - **New native surface updates the local build recipe.** CGO additions touch
-  the `make desktop` / `make gui` prerequisites (gcc, GTK/WebKit, the macOS SDK),
+  the `make desktop` / `make gui` / `make mobile` prerequisites (gcc, GTK/WebKit, the macOS SDK, Android SDK/NDK),
   the cross story (`GOOS=linux` from mac must still work), and the package-audit
   scan — never just `go.mod`. No CI job compiles either target, so the recipe in
   [Desktop & Mobile](desktop-mobile.md) is the only place that stays true.
