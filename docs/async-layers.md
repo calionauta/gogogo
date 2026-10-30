@@ -475,9 +475,11 @@ attaches to it, so there is only one NATS process in the binary.
 ## Offline-capable writes, not offline-first reads
 
 Web clients store each mutation in a durable outbox before sending it and replay
-it while the app is open; the desktop build becomes a NATS Leaf Node that keeps
-its JetStream replica in sync while offline. Replays are deduplicated server-side
-(creates by `idem_key`, the non-idempotent toggle by the `Idempotency-Key` receipt).
+it while the app is open; the desktop build becomes a NATS Leaf Node that carries
+live CRUD and Loro events to/from the hub. Each side's JetStream stream stays in
+its own domain, so offline CRUD replay on reconnect is not wired yet. Replays are
+deduplicated server-side (creates by `idem_key`, the non-idempotent toggle by the
+`Idempotency-Key` receipt).
 
 **What this is, precisely.** In the three-model split the 2026 guidance uses —
 online-first with caching, offline-first, local-first — gogogo sits in the middle

@@ -60,6 +60,16 @@ chat-specific copy — the contract is `features/genui/components/panel.go`, the
 reference is `features/todo/handlers/genui_panel.go`, and the checklist is
 `docs/native-panels.md`.
 
+## Desktop sync
+
+`gogogo --help` prints the sync prerequisites (and the MCP server exposes the
+same text as `sync_prerequisites`): a desktop build needs a NATS **leaf
+listener** the device can reach (`NATS_LEAFNODE_LISTEN`), `NATS_TOKEN` on both
+sides, and `CLOUD_SYNC_URL` pointing at the leaf URL. Tailscale/WireGuard is
+the lean path; public exposure needs TLS and per-device credentials. Never
+point a build at the demo host. Full recipe:
+[`docs/desktop-mobile.md#cloud-sync`](../../docs/desktop-mobile.md#cloud-sync).
+
 ## CLI contract (humans + agents)
 
 `--help` prints the full matrix (units, flags, exit codes). The fast paths:

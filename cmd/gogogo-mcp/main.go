@@ -68,6 +68,15 @@ var toolCatalog = []toolDef{
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleCapabilitiesList) },
 	},
 	{
+		"sync_prerequisites",
+		"Read-only: what a desktop build needs to sync with a server (a reachable " +
+			"NATS leaf listener, NATS_TOKEN, CLOUD_SYNC_URL, account identity, a " +
+			"private overlay first). Same guidance as `gogogo --help`; the normative " +
+			"recipe is docs/desktop-mobile.md#cloud-sync. Takes no arguments and " +
+			"changes nothing.",
+		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleSyncPrerequisites) },
+	},
+	{
 		"version_status",
 		"Read-only version check: compares this tool AND the project's recorded " +
 			"template revision (the scaffolded-from: line in its AGENTS.md) against " +

@@ -103,6 +103,32 @@ see `exception-to-go.md` for what "native" is allowed to mean.
 13. **Open mode has no login UI**: `/login` redirects to `/` and the account
     security cards are hidden. It is a distribution choice, not a bug.
 
+## When a product needs sync
+
+Add sync only when the product needs **multi-device continuity or cloud
+backup**; local-first is the default and needs no server. If it does:
+
+1. **Expose a leaf listener, not just a client port.** Set
+   `NATS_LEAFNODE_LISTEN` on the hub, `NATS_TOKEN` on both sides, and
+   `CLOUD_SYNC_URL` to the leaf URL. A leaf edge publishes live CRUD on core
+   NATS; each side's JetStream stream stays in its own domain.
+2. **Align identity before writing.** An account token must adopt the server's
+   `user.id` (`LICENSE_MODE=account` + activation). A purely local account
+   never joins the server's rows: `tenantOf` skips unknown owners.
+3. **Scope the instance id per profile.** Two processes on one host share the
+   hostname-derived `APP_INSTANCE_ID`; the receiver then drops the sender's
+   ops as its own echo. `cmd/desktop` hashes the database path; do the same for
+   any new edge.
+4. **Use a private overlay first.** Tailscale/WireGuard plus a token is the
+   lean path. Public exposure needs TLS per connection type and per-device
+   credentials — never a plaintext port, never the demo host.
+5. **Prove it with `make desktop-sync-smoke`.** It creates a row on the
+   desktop and asserts the server has it under the same user id. A green unit
+   test does not prove a leaf attached.
+
+The guard: sync is a product decision, not a template default. If the answer
+is "one device, one user", keep the embedded NATS and skip the server.
+
 ## Common failures
 
 - **App runs, backend logs requests from tests, but no window ever appears** —
