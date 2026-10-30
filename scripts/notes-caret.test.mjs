@@ -772,12 +772,11 @@ async function main() {
   } else {
     bad("the beacon probe never saw a caret/typing call even online (the probe is broken, not the gate)");
   }
-  // Let the typing throttle expire first: reportTyping() sends at most once per
-  // 2.5 s and the idle timer only clears `typingSent` after 3 s, so typing
-  // offline right after the online control would send nothing even WITHOUT the
-  // gate — a false green (measured: the first version of this check passed
-  // against the ungated code for exactly this reason).
-  await sleep(3200);
+  // No nap here on purpose: the app's own typing throttle (one send per 2.5 s
+  // while `typingSent`) is crossed by TYPING through the window instead. Waiting
+  // it out with a sleep would be a fixed nap — the thing this tree bans — and
+  // typing through it is also the honest fixture: a keystroke that lands after
+  // the throttle expires is exactly the one an ungated client would send.
   await ctxA.setOffline(true);
   await sleep(300);
   const sawOffline = await A7.evaluate(() => navigator.onLine === false);
@@ -789,8 +788,8 @@ async function main() {
     el.setSelectionRange(1, 1);
     el.dispatchEvent(new Event("selectionchange", { bubbles: true }));
   });
-  await typeText(A7, "offline", 20);
-  await sleep(1200);
+  await typeText(A7, "offline-boundary-crossing-txt", 100);
+  await sleep(1200); // KEPT: absence check — the window is the assertion (no beacon may appear in it)
   const offlineBeacons = await A7.evaluate(() => window.__beacons.slice());
   if (offlineBeacons.length === 0) {
     ok("an offline tab sends no caret/typing beacons");
