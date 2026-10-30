@@ -70,6 +70,14 @@ the lean path; public exposure needs TLS and per-device credentials. Never
 point a build at the demo host. Full recipe:
 [`docs/desktop-mobile.md#cloud-sync`](../../docs/desktop-mobile.md#cloud-sync).
 
+## Mobile (Android)
+
+The opt-in Android target is `cmd/mobile`; build it with `make mobile` (needs
+the Android SDK/NDK, JDK 21 and the pinned Wails CLI). The driver matrix swaps
+tursogo for `ncruces/go-sqlite3` behind `android` build tags, and the APK is
+local-only (no CI). Prerequisites, limits and the emulator recipe:
+[`docs/desktop-mobile.md`](../../docs/desktop-mobile.md#mobile-android-opt-in-target-not-supported).
+
 ## CLI contract (humans + agents)
 
 `--help` prints the full matrix (units, flags, exit codes). The fast paths:

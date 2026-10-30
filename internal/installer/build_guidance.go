@@ -26,4 +26,4 @@ const MobilePrerequisites = `Mobile Android (local, opt-in; no CI compiles it):
      insets. The Wails asset origin is Java-side and cannot proxy to Go.
   5. Limits: open auth, fixed port, no Keystore/deep-link/TLS; not a support
      claim. Full recipe: references/mobile-android.md
-  Docs: docs/desktop-mobile.md#mobile-android-spike-validated-not-supported`
+  Docs: docs/desktop-mobile.md#mobile-android-opt-in-target-not-supported`

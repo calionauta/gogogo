@@ -121,9 +121,10 @@ Two hard rules once native code is in:
 ### Why `ncruces/go-sqlite3`?
 
 It is the pure-Go (no cgo) SQLite engine for the paths that open plain
-SQLite files directly (the native window registration, the credits test
-databases) — registered as the `sqlite3` `database/sql` driver. The app
-database itself (tables + queue) runs on `tursogo` (driver name `turso`).
+SQLite files directly (the native window, the credits ledger, and the opt-in
+Android target) — registered as the `sqlite3` `database/sql` driver. The
+desktop/server app database and queue run on `tursogo` (driver name `turso`);
+Android selects ncruces behind `android` build tags.
 
 Being cgo-free means clean cross-compilation of the production binary (the
 deploy workflow builds `GOOS=linux` from any runner).

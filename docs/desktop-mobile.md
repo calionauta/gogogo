@@ -130,7 +130,7 @@ Relation to the Wails path, so the two are not confused:
   [exception-to-go](exception-to-go.md)); adopting it is a project with its
   own justification, starting from `zig build run-gallery` on a clone.
 
-## Mobile (Android): spike validated, not supported
+## Mobile (Android): opt-in target, not supported
 
 Wails v3 targets Android from a Go shared library plus a WebView frontend.
 **`make mobile` is the opt-in packaging path**: it runs the pinned Wails CLI's
@@ -142,10 +142,10 @@ that explanation rather than a cryptic error.
 The 2026-10-30 emulator spike proved a working path and the constraint that
 decides it: **tursogo has no Android library**, so
 the data layer must swap to a pure-Go driver (`ncruces/go-sqlite3`) behind
-`android` build tags. With a separate the mobile entrypoint entrypoint, a fixed loopback
+`android` build tags. With a separate mobile entrypoint, a fixed loopback
 origin and that driver matrix, the real UI rendered and a todo created through
-the API appeared in the list. Master still opens tursogo and ships no mobile
-target. Evidence, screenshots and the strategy:
+the API appeared in the list. The web build still opens tursogo; the opt-in
+`cmd/mobile` target swaps to ncruces. Evidence, screenshots and the strategy:
 [Mobile Android: the database is the gate](research/mobile-android-2026-10.md).
 
 **Build it locally (opt-in, no CI).** Prerequisites: Android command-line
