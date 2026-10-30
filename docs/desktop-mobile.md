@@ -200,8 +200,9 @@ while views read `snapshot()` copies; lock order is always `uiMu → stateMu`.
 outbox/replay), no JetStream push (poll only), native `add()` does not trigger
 the onboarding workflow, session token in a `0600` file (no OS keyring).
 
-**To remove:** delete `cmd/gui/`, drop the `gui`, `run-gui` and `lint-gui`
-Makefile targets. No script change needed — it is already excluded from web CI.
+**To remove:** delete `cmd/gui/`, drop the `gui`, `gui-build`, `gui-test`,
+`run-gui` and `lint-gui` Makefile targets. No script change needed — it is
+already excluded from web CI.
 
 ## Dropping the Wails shell (opt-out)
 
