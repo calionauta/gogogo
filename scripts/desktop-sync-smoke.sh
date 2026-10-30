@@ -47,6 +47,13 @@ cleanup() {
   for pid in "$DESKTOP_PID" "$SERVER_PID"; do
     if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
       kill "$pid" 2>/dev/null || true
+      # Wails/WebKit can ignore SIGTERM while a window is closing; never let
+      # cleanup become the hang that hides the real failure.
+      for _ in $(seq 1 25); do
+        kill -0 "$pid" 2>/dev/null || break
+        sleep 0.2
+      done
+      kill -9 "$pid" 2>/dev/null || true
       wait "$pid" 2>/dev/null || true
     fi
   done
@@ -123,7 +130,7 @@ env \
 SERVER_PID=$!
 
 deadline=$((SECONDS + TIMEOUT_S))
-until curl -sf "http://127.0.0.1:$HTTP_PORT/health" >/dev/null 2>&1; do
+until curl --max-time 20 -sf "http://127.0.0.1:$HTTP_PORT/health" >/dev/null 2>&1; do
   if ! kill -0 "$SERVER_PID" 2>/dev/null; then
     sed -n '1,120p' "$TMP/server.log" >&2
     fail "server exited before it answered /health"
@@ -134,7 +141,7 @@ done
 pass "server booted on 127.0.0.1:$HTTP_PORT with NATS client :$NATS_PORT and leaf :$LEAF_PORT"
 
 # --- 3. create the account, then mint a device token for it ----------------
-SIGNUP_CODE="$(curl -s -o "$TMP/signup.json" -w '%{http_code}' \
+SIGNUP_CODE="$(curl --max-time 20 -s -o "$TMP/signup.json" -w '%{http_code}' \
   -c "$TMP/server-cookies.txt" \
   -H 'Content-Type: application/json' \
   -d '{"email":"sync@example.com","password":"Correct-horse-99!","name":"Sync"}' \
@@ -142,7 +149,7 @@ SIGNUP_CODE="$(curl -s -o "$TMP/signup.json" -w '%{http_code}' \
 [ "$SIGNUP_CODE" = "200" ] || { cat "$TMP/signup.json" >&2; fail "signup returned $SIGNUP_CODE, want 200"; }
 pass "account created (200) and session cookie stored"
 
-TOKEN_PAGE_CODE="$(curl -s -o "$TMP/device-token.html" -w '%{http_code}' \
+TOKEN_PAGE_CODE="$(curl --max-time 20 -s -o "$TMP/device-token.html" -w '%{http_code}' \
   -b "$TMP/server-cookies.txt" -X POST "http://127.0.0.1:$HTTP_PORT/account/device-token")"
 [ "$TOKEN_PAGE_CODE" = "200" ] || fail "device-token returned $TOKEN_PAGE_CODE, want 200"
 TOKEN="$(grep -oE 'gogogo1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+' "$TMP/device-token.html" | head -1)"
@@ -181,7 +188,7 @@ wait_for_log "$DESKTOP_PID" "$TMP/desktop-1.log" "desktop: window on flat stack"
 ADDR="$(sed -nE 's/.*"desktop: window on flat stack".*"addr":"([^"]+)".*/\1/p' "$TMP/desktop-1.log" | tail -1)"
 [ -n "$ADDR" ] || fail "could not read the desktop's bound address"
 
-ACT_CODE="$(curl -s -o "$TMP/activate.html" -w '%{http_code}' \
+ACT_CODE="$(curl --max-time 20 -s -o "$TMP/activate.html" -w '%{http_code}' \
   -c "$TMP/desktop-cookies.txt" -X POST --data-urlencode "token=$TOKEN" "http://$ADDR/activate")"
 [ "$ACT_CODE" = "303" ] || { sed -n '1,80p' "$TMP/activate.html" >&2; fail "activation returned $ACT_CODE, want 303"; }
 [ -f "$TMP/desktop/data/sync.json" ] || fail "activation wrote no <DATA_DIR>/sync.json"
@@ -208,7 +215,7 @@ ADDR="$(sed -nE 's/.*"desktop: window on flat stack".*"addr":"([^"]+)".*/\1/p' "
 pass "desktop restart applied sync.json and started the NATS leaf node"
 
 # --- 6. create a todo on the desktop, find it on the server ----------------
-CREATE_CODE="$(curl -s -o "$TMP/create.out" -w '%{http_code}' \
+CREATE_CODE="$(curl --max-time 20 -s -o "$TMP/create.out" -w '%{http_code}' \
   -b "$TMP/desktop-cookies.txt" -X POST \
   --data-urlencode "title=Synced from desktop" "http://$ADDR/api/todos")"
 [ "$CREATE_CODE" = "200" ] || { sed -n '1,40p' "$TMP/create.out" >&2; fail "desktop todo create returned $CREATE_CODE, want 200"; }
@@ -217,7 +224,7 @@ pass "todo created on the desktop (200)"
 SYNC_DEADLINE=$((SECONDS + SYNC_TIMEOUT_S))
 SYNCED=0
 while [ "$SECONDS" -lt "$SYNC_DEADLINE" ]; do
-  if curl -s -b "$TMP/server-cookies.txt" \
+  if curl --max-time 20 -s -b "$TMP/server-cookies.txt" \
       "http://127.0.0.1:$HTTP_PORT/api/todos/fragment?filter=all" \
       | grep -q "Synced from desktop"; then
     SYNCED=1
