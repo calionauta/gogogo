@@ -77,7 +77,7 @@ One backend, three frontends:
 | Entry point | Transport | Purpose |
 |---|---|---|
 | `cmd/web` | HTTP + SSE | The main server: router, queue, realtime |
-| `cmd/desktop` | Wails v3 webview over a local HTTP proxy | Native desktop/edge shell, 100% shared backend |
+| `cmd/desktop` | Wails v3 webview over loopback HTTP | Native desktop/edge shell, 100% shared backend |
 | `cmd/gui` | gogpu/ui native window | Second frontend with **no** HTTP at all — proves the domain layer is transport-agnostic |
 
 `cmd/desktop` and `cmd/gui` are separate build targets, excluded from web CI and
@@ -164,7 +164,9 @@ or security headers; `RealIP` trusts a client-controlled header, and `Throttle`
 is per-process. The security properties here are owned:
 
 - argon2id passwords, opaque sessions, a `SameSite=Lax` + `HttpOnly` cookie
-  that is `Secure` in production (`internal/auth`).
+  that is `Secure` in production (`internal/auth`); the desktop shell clears
+  `Secure` because its webview loads loopback HTTP, where WebKit drops the
+  cookie.
 - CSRF in layers: the cookie's `SameSite=Lax` keeps it off cross-site
   POSTs; `sameOriginGuard` refuses an unsafe method when
   `Sec-Fetch-Site: cross-site` or a browser `Origin` does not match the
@@ -172,9 +174,10 @@ is per-process. The security properties here are owned:
   strict same-browser is opt-in) and the OAuth handshake is bound to the
   requesting browser by a short-lived cookie. A reverse proxy
   in front must preserve the `Host` header (cloudflared and Caddy do); a
-  proxy that rewrites it makes every browser write a 403. CLI clients,
-  webhooks and the desktop webview send no `Origin` (or a custom scheme) and
-  pass; two loopback origins share the dev trust boundary.
+  proxy that rewrites it makes every browser write a 403. CLI clients and
+  webhooks send no `Origin` and pass; a custom-scheme webview (`wails://`)
+  passes on its scheme alone; the desktop window loads a loopback origin, which
+  the loopback rule covers.
 - Casbin policy at the edge of the router plus per-handler session checks,
   because `RBAC_ENABLED` defaults to true in production (false in development)
   (`docs/rbac.md`). Operator surfaces

@@ -1,0 +1,75 @@
+// SCOPE:feature — standalone activation page (rendered before any session).
+package components
+
+import (
+	"github.com/calionauta/gogogo/features/authviews"
+	"github.com/calionauta/gogogo/internal/components"
+)
+
+// PageData is what the activation page needs.
+type PageData struct {
+	Mode  string // "license" or "account"
+	Error string
+}
+
+// ActivatePage is the /activate screen: no shell chrome, no session, no
+// scripts beyond the shared assets block.
+templ ActivatePage(data PageData) {
+	<!DOCTYPE html>
+	<html lang="en" { authviews.ThemeRootAttrs(ctx, "")... }>
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>Activate — gogogo</title>
+			@components.Assets()
+		</head>
+		<body class="bg-base-200 min-h-screen flex items-center justify-center p-4">
+			<div class="card bg-base-100 shadow-xl w-full max-w-xl">
+				<div class="card-body gap-4">
+					<h1 class="card-title text-2xl">Activate this app</h1>
+					if data.Mode == "account" {
+						<p class="text-sm opacity-70">
+							Paste the account token you received. Activation links this
+							device to your account and signs you in; from then on the app
+							works offline.
+						</p>
+					} else {
+						<p class="text-sm opacity-70">
+							Paste the license token you received. It is checked on this
+							device, once, and the app works offline afterwards.
+						</p>
+					}
+					if data.Error != "" {
+						<div role="alert" class="alert alert-error text-sm">
+							<span>{ data.Error }</span>
+						</div>
+					}
+					<form method="POST" action="/activate" class="flex flex-col gap-3">
+						<label class="flex flex-col gap-1">
+							<span class="text-sm font-semibold">Activation token</span>
+							<textarea name="token" class="textarea textarea h-32 font-mono text-xs"
+								placeholder="gogogo1.…" required autofocus></textarea>
+						</label>
+						if data.Mode == "account" {
+							<label class="flex flex-col gap-1">
+								<span class="text-sm font-semibold">Local password (optional)</span>
+								<input type="password" name="password" class="input input-sm"
+									autocomplete="new-password" minlength="8"
+									placeholder="at least 8 characters"/>
+							</label>
+							<p class="text-xs opacity-60">
+								Set one now to sign in on this device after logging out;
+								without it, re-paste the token.
+							</p>
+						}
+						<button type="submit" class="btn btn-primary">Activate</button>
+					</form>
+					<p class="text-xs opacity-60">
+						Offline check: the token is verified with a key built into this
+						app. No account or network is required for the license mode.
+					</p>
+				</div>
+			</div>
+		</body>
+	</html>
+}

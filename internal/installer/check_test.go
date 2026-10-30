@@ -91,7 +91,7 @@ func TestCheckAnchorReportsDeadAnchors(t *testing.T) {
 		case "cmd/desktop/main.go":
 			// The desktop anchor is a different line; each entry point must be
 			// probed against its OWN content.
-			return "package main\n\nfunc main() {\n\taddr := fmt.Sprintf(\"%s:%d\", cfg.Host, cfg.Port)\n}\n", true
+			return "package main\n\nfunc main() {\n\tviewURL := webviewURL(cfg.Host, port)\n}\n", true
 		default:
 			return "", false
 		}

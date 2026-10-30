@@ -23,7 +23,7 @@ function parseUnits(md) {
   for (const line of md.split("\n")) {
     const h = line.match(/^## `([^`]+)` — (core|plugin|feature)\s*$/);
     if (h) {
-      cur = { id: h[1], kind: h[2], summary: "", owned: [], runtimeOff: "", trim: "" };
+      cur = { id: h[1], kind: h[2], summary: "", owned: [], runtimeOff: "", trim: "", scaffold: "" };
       units.push(cur);
       continue;
     }
@@ -41,6 +41,8 @@ function parseUnits(md) {
       cur.runtimeOff = f[2].replace(/`/g, "").trim();
     } else if (key === "trim") {
       cur.trim = f[2].replace(/`/g, "").replace(/\s+/g, " ").trim();
+    } else if (key === "scaffold") {
+      cur.scaffold = f[2].replace(/`/g, "").trim();
     }
   }
   return units;
@@ -177,7 +179,7 @@ const pluginOrder = [...commonPlugins, ...units.filter((u) => u.kind === "plugin
 function planRow(id) {
   const u = unit(id);
   const env = u.runtimeOff || (u.trim && u.trim.startsWith("offered") ? "installer" : "manual");
-  const tag = id === "offline-sync" ? '<span class="plan-tag">async mode</span>' : id === "datastar" ? '<span class="plan-tag">Go seam</span>' : "";
+  const tag = u.scaffold === "opt-in" ? '<span class="plan-tag">opt-in</span>' : id === "offline-sync" ? '<span class="plan-tag">async mode</span>' : id === "datastar" ? '<span class="plan-tag">Go seam</span>' : "";
   return `<label class="plan-row">
           <input type="checkbox" checked data-cap="${esc(u.id)}">
           <span class="plan-box" aria-hidden="true"></span>

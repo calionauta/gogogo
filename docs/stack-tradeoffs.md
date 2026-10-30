@@ -442,6 +442,25 @@ the `ENTITY_STORE` switch left with it. The ban is mechanical rather than
 advisory, `cmd/check-flatdeps` refuses `github.com/pocketbase/` by module prefix,
 so it survives an edit to this page.
 
+## Runtime dashboard: statsviz (and not monigo)
+
+Opt-in (`PERF_ENABLED`, dev on / prod off) and net/http-only: statsviz plots
+`runtime/metrics` on the chi tree, adding one small dependency
+(`gorilla/websocket`) and no second HTTP stack.
+
+Rejected: **monigo**. Its dashboard is net/http, but the package imports Fiber
+v2/fasthttp unconditionally (`GetFiberHandler`), so the module graph grows a
+second HTTP framework even when only the net/http handlers are mounted.
+
+It also registers its own SIGINT/SIGTERM in `Start()` and buys function-level
+tracing plus a time-series store — more than this surface needs. **pprof** is
+stdlib and rides the same fence; it supplies the depth (CPU, heap, goroutine,
+trace) without a dependency.
+
+Cost: no persistence and no function tracing ("what is the process doing now",
+not "what did this call cost last hour"). Revisit with Pyroscope or
+Prometheus/OTLP when per-function profiles over time become the question.
+
 ## Related
 
 - [Stack in layers](stack-layers.md) — what is in the box and what it buys.

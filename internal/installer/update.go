@@ -97,10 +97,16 @@ type updateCache struct {
 
 // updateCachePath is where the resolved tag lives, or "" when the OS gives no
 // cache directory (then every call is a live lookup: slower, still correct).
+// XDG_CACHE_HOME wins when set: os.UserCacheDir ignores it on macOS, and the
+// MCP test (and Linux users) need the same override on every platform.
 func updateCachePath() string {
-	root, err := userCacheDir()
-	if err != nil || root == "" {
-		return ""
+	root := os.Getenv("XDG_CACHE_HOME")
+	if root == "" {
+		var err error
+		root, err = userCacheDir()
+		if err != nil || root == "" {
+			return ""
+		}
 	}
 	return filepath.Join(root, "gogogo", "update-check.json")
 }

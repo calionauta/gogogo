@@ -138,7 +138,7 @@ var All = append([]Capability{
 		Kind:       KindPlugin,
 		Summary:    "durable workflows (DagNats over JetStream) + onboarding worker",
 		RuntimeOff: "DAGNATS_ENABLED=false",
-		Offered:    true,
+		Scaffold:   ScaffoldDefault,
 		UISignal:   "DagNatsEnabled",
 		Dirs:       []string{"internal/dagnats", "features/onboarding"},
 		Files: []string{
@@ -212,11 +212,11 @@ var All = append([]Capability{
 		Reason:  "Every .templ page renders through it; deletion is manual.",
 	},
 	{
-		ID:      "genui",
-		Kind:    KindPlugin,
-		Summary: "generative UI: the Chat demo renders LLM answers as Templ directives over the SSE hub",
-		Offered: true,
-		Dirs:    []string{"features/genui"},
+		ID:       "genui",
+		Kind:     KindPlugin,
+		Summary:  "generative UI: the Chat demo renders LLM answers as Templ directives over the SSE hub",
+		Scaffold: ScaffoldDefault,
+		Dirs:     []string{"features/genui"},
 		// Owned by no dir: the composition test's model stubs, and the todo
 		// feature's half of the panel seam (all of them would otherwise outlive
 		// the unit and trip the deadcode or import gate).
@@ -275,7 +275,7 @@ var All = append([]Capability{
 		Kind:       KindPlugin,
 		Summary:    "AI credits + BYOK ledger (ai-credits)",
 		RuntimeOff: "CREDITS_ENABLED=false (already the default)",
-		Offered:    true,
+		Scaffold:   ScaffoldDefault,
 		Dirs:       []string{"features/credits"},
 		Warns: []string{
 			"Todo AI Suggest becomes unmetered (still works with " +
@@ -285,12 +285,12 @@ var All = append([]Capability{
 			"`go mod tidy` drops stripe-go too.",
 	},
 	{
-		ID:      depSounds,
-		Kind:    KindPlugin,
-		Summary: "UI sound feedback (cuelume, vendored)",
-		Offered: true,
-		Dirs:    []string{"features/sounds", "web/resources/static/cuelume"},
-		Files:   []string{"web/resources/static/cuelume.js"},
+		ID:       depSounds,
+		Kind:     KindPlugin,
+		Summary:  "UI sound feedback (cuelume, vendored)",
+		Scaffold: ScaffoldDefault,
+		Dirs:     []string{"features/sounds", "web/resources/static/cuelume"},
+		Files:    []string{"web/resources/static/cuelume.js"},
 		Warns: []string{
 			"data-cuelume-* attributes stay in the markup but are inert " +
 				"without cuelume.js.",
@@ -300,11 +300,11 @@ var All = append([]Capability{
 		Note: "Call sites are stripped automatically (this used to be manual).",
 	},
 	{
-		ID:      "search",
-		Kind:    KindPlugin,
-		Summary: "search layers (substring, fuzzy, BM25) behind one seam",
-		Offered: true,
-		Dirs:    []string{"internal/search"},
+		ID:       "search",
+		Kind:     KindPlugin,
+		Summary:  "search layers (substring, fuzzy, BM25) behind one seam",
+		Scaffold: ScaffoldDefault,
+		Dirs:     []string{"internal/search"},
 		// Every file that imports internal/search goes here, or trimming
 		// leaves a dangling import: the consumer half of the seam, its test,
 		// the boot heal, and the composition-root wiring. The handler's search
@@ -362,7 +362,7 @@ var All = append([]Capability{
 		ID:        "review",
 		Kind:      KindFeature,
 		Summary:   "review loop demo (writer → critic → classifier judge, streamed verdict)",
-		Offered:   true,
+		Scaffold:  ScaffoldDefault,
 		DependsOn: []string{"genkit"},
 		Dirs:      []string{"features/review"},
 		Warns: []string{
@@ -387,7 +387,7 @@ var All = append([]Capability{
 		Kind:       KindPlugin,
 		Summary:    "entity actors (GoAkt rooms: roster + presenter lock)",
 		RuntimeOff: "GOAKT_ENABLED=false",
-		Offered:    true,
+		Scaffold:   ScaffoldDefault,
 		Dirs:       []string{"internal/goakt", "features/room"},
 		Files: []string{
 			// Owned by no dir: the engine boot in the web entry point.
@@ -403,20 +403,20 @@ var All = append([]Capability{
 			"the unit's mainStrips.",
 	},
 	{
-		ID:      "room",
-		Kind:    KindFeature,
-		Summary: "room presence demo (one grain per room, crash hook included)",
-		Offered: true,
-		Dirs:    []string{"features/room"},
+		ID:       "room",
+		Kind:     KindFeature,
+		Summary:  "room presence demo (one grain per room, crash hook included)",
+		Scaffold: ScaffoldDefault,
+		Dirs:     []string{"features/room"},
 		Warns: []string{
 			"The Room sidebar entry is stripped automatically.",
 		},
 	},
 	{
-		ID:      "whiteboard",
-		Kind:    KindFeature,
-		Summary: "collaborative canvas (Loro + Rough.js + presence)",
-		Offered: true,
+		ID:       "whiteboard",
+		Kind:     KindFeature,
+		Summary:  "collaborative canvas (Loro + Rough.js + presence)",
+		Scaffold: ScaffoldDefault,
 		DependsOn: []string{
 			depCollab,
 			depSounds,
@@ -444,10 +444,10 @@ var All = append([]Capability{
 			"this entry.",
 	},
 	{
-		ID:      "landing",
-		Kind:    KindFeature,
-		Summary: "public entry page on GET / (inside the shared shell)",
-		Offered: true,
+		ID:       "landing",
+		Kind:     KindFeature,
+		Summary:  "public entry page on GET / (inside the shared shell)",
+		Scaffold: ScaffoldDefault,
 		DependsOn: []string{
 			depSounds,
 		},
@@ -457,25 +457,13 @@ var All = append([]Capability{
 				"the shell brand is retargeted to /todo, which is kept.",
 		},
 	},
-	{
-		ID:      "observability",
-		Kind:    KindCore,
-		Summary: "core observability (slog + tracing)",
-		Dirs:    []string{"internal/observability"},
-		Note:    "core infra, removal=core",
-	},
-	{
-		ID:      "rbac",
-		Kind:    KindCore,
-		Summary: "RBAC with Casbin (embedded model + policy, enforced at the mux)",
-		Dirs:    []string{"internal/rbac"},
-		Note: "Wired middleware, not a dormant package: BootChi builds one " +
-			"enforcer and wraps the whole mux (pass-through when " +
-			"RBAC_ENABLED=false, enforced denies with 403 + warn log when " +
-			"true). Roles come from users.role (migration 0008, ADMIN_EMAILS " +
-			"promotes existing rows at boot). /config is admin-only in the handler " +
-			"too (rbac.RequireAdmin), so RBAC_ENABLED=false does not expose it; " +
-			"the console adds an ADMIN_EMAILS allowlist. The policy test pins " +
-			"every mux route for user-or-admin.",
-	},
-}, append(identityUnits, deliveryUnits...)...)
+}, append(
+	append(
+		append(
+			append(append([]Capability{}, coreExtraUnits...), identityUnits...),
+			deliveryUnits...,
+		),
+		licenseUnits...,
+	),
+	perfUnits...,
+)...)

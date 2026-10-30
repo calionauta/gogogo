@@ -3,7 +3,7 @@
 The same Go backend (flat stack: Turso + owned auth + queue + handlers) runs as a
 **native desktop app** via Wails v3. The desktop build reuses 100% of the
 business logic — it boots `internal/server.StartChi`, serves the flat stack in a
-goroutine, and points the webview at it through a reverse proxy.
+goroutine, and opens a webview window on it over loopback HTTP.
 
 It is a **separate build target**, not part of the default web build/test loop,
 and **no CI job compiles it**. It pulls in Wails v3, which requires GTK + WebKit
@@ -37,6 +37,7 @@ build is local, and the commands below are the whole recipe.
 ```bash
 # Native desktop binary — plain go build, no wails CLI needed
 make desktop            # → build/desktop/gogogo-desktop
+make desktop-smoke      # THE GATE: build, open the window, prove it loaded
 make run-desktop        # build, then open the window
 # or, with the output under build/ and cross targets available:
 ./scripts/desktop-build.sh              # native (host OS/arch)
@@ -44,6 +45,14 @@ make run-desktop        # build, then open the window
 ./scripts/desktop-build.sh cross-darwin
 ./scripts/desktop-build.sh cross-linux
 ```
+
+`make desktop` only compiles, and a shell can compile, boot, serve — and never
+show a window (`app.Run()` creates none). **`make desktop-smoke`** is the gate
+that observes the window: it launches with a temp database, waits for the
+webview's own `GET /` and `/static/app.min.css` in the flat stack's access log,
+then checks first-run signup and the single-instance lock. Run it before pushing
+any `cmd/desktop` change. `SKIP_BUILD=1` reuses the binary; `KEEP=1` keeps the
+temp dir.
 
 The Wails v3 shell is an ordinary Go program importing `pkg/application`, so
 the CLI is not required to compile it. `make desktop` runs
@@ -145,18 +154,142 @@ via SSE (`GET /api/collab/presence/{docID}`).
 
 ## Which backend `cmd/desktop` boots
 
-`cmd/desktop` boots the **flat stack** (`internal/server.StartChi`) and
-points the Wails webview at it through a reverse proxy, so the desktop and
-the web frontend share the same business logic. It sets `cfg.ChiAddr` to
-`<host>:<port>` itself rather than relying on `CHI_ADDR` from the
-environment, which keeps the seam explicit at the one place it needs to be.
+`cmd/desktop` boots the **flat stack** (`internal/server.StartChi`) and opens a
+Wails window on it over **loopback HTTP** (`http://127.0.0.1:<port>`), so the
+desktop and the web frontend share the same business logic. It sets
+`cfg.ChiAddr` to `<host>:0` itself — an **ephemeral port**, because the default
+`:8080` is taken by any dev server and the shell must not refuse to open because
+of it — and `StartChi` returns the address the listener actually holds, which is
+what the window loads. An explicit `PORT` still pins the port.
+
+Loopback HTTP, not a Wails asset handler (`wails://`): WebKit does not persist
+cookies set on a custom scheme, so the session cookie never came back and every
+page rendered logged out. A real loopback origin keeps cookies, `SameSite=Lax`,
+CSP nonces, the service worker and SSE behaving exactly as they do in the
+browser.
+
+Four consequences follow, all handled in `cmd/desktop`:
+
+- **The window is created explicitly** (`app.Window.NewWithOptions`).
+  `app.Run()` alone starts NSApplication with no window: the process looks
+  healthy and serves normally while the screen stays empty.
+- **`SecureCookies` is cleared.** WebKit also drops a `Secure` cookie set over
+  `http://127.0.0.1` (verified with a `WKWebView` harness), so a production
+  config would leave every page logged out. Loopback is the only hop the cookie
+  crosses, where `Secure` protects nothing.
+- **The listener binds `127.0.0.1` by default.** The shell has exactly one
+  client, its own webview; `HOST` still overrides for an operator who wants the
+  desktop served on the network.
+- **One instance per profile.** The Wails single-instance lock is taken before
+  the backend boots, scoped by the database path so two profiles can coexist.
+  Without it a duplicate launch reaches the database and dies on Turso's
+  `File is locked by another process` error instead of exiting quietly.
+
+`cfg.Host` is the *listen* address; a webview cannot navigate to the wildcard
+`0.0.0.0`, so `webviewURL` maps it to `127.0.0.1`.
+
+**First run.** A desktop build carries production defaults (no build tag sets
+`ENVIRONMENT`), so `SIGNUP_ENABLED` and the demo accounts are off. With no
+operator to create user #1 that is a locked door, so `bootstrapSignup` opens
+signup **only while the `users` table is empty**; the next boot closes it again.
+
+**A broken leaf node degrades to embedded NATS**, not to nothing: losing
+cross-instance sync must not cost local realtime.
 
 Everything else in the file — the Leaf Node / embedded NATS choice, the
-collab demo publish, the presence ticker, the proxy, `OnShutdown` — is
+collab demo publish, the presence ticker, the window, `OnShutdown` — is
 backend-agnostic and unchanged. The previous command-line passthrough
 (the old `RootCmd.SetArgs(os.Args[1:])` for `serve --http …`) is gone with it:
 there is no subcommand to forward, the stack serves on the configured
 address.
+
+## Activation (distribution gate)
+
+The owner decides per release with `LICENSE_MODE`:
+
+| mode | who can use it | what the user does |
+|---|---|---|
+| `none` (default) | anyone with the build | installs and uses it; local accounts only |
+| `license` | buyers | pastes an owner-minted token at `/activate`, once |
+| `account` | invited users | pastes an account-bound token; activation adopts the server id and signs in |
+
+Tokens are Ed25519-signed (`gogogo1.<payload>.<sig>`) and verified locally, with
+no phone-home. `go run ./cmd/license keygen` prints the public key that ships in
+`LICENSE_PUBLIC_KEY`; the private key stays with the owner, who mints with
+`mint -email … -plan … [-days N] [-sync URL]`. Expiry is optional (no `exp` =
+perpetual). A stored token that fails verification boots **gated**, never
+half-open.
+
+The gate runs **on the shell**, not on the issuer: a web deploy in `account`
+mode needs to stay reachable for login and device-token issuance, so it
+verifies nothing locally and serves normally. `LICENSE_GATE` is set by
+`cmd/desktop`; the server only needs the private key.
+
+`AUTH_MODE=open` is the other owner choice: no login at all, one fixed local
+owner, every request already signed in. It is independent of the gate (`open` +
+`license` is a valid pair) and it refuses a non-loopback `HOST` unless
+`AUTH_OPEN_ALLOW_REMOTE=true`, because a no-login app on the network is an
+unauthenticated instance for anyone who can reach the port.
+
+## Cloud sync (connect this device)
+
+The connection is configured at **`/account`**, not `/config`. `/config` is the
+operator surface: it needs an admin session **and** an `ADMIN_EMAILS` match, so
+on a fresh desktop it is closed — and the person connecting a device is the
+user, not the operator. `/account` already owns the user's security settings;
+"Cloud sync" sits next to them.
+
+The form takes a server URL (`nats://`, `tls://`, `ws://`, `wss://`) and an
+optional device token, writes `<DATA_DIR>/sync.json` (0600) and applies on the
+**next launch**, because the NATS transport is built at boot. A token minted
+with `cmd/license mint -sync nats://…` writes the same file during activation,
+so an invited user never types the endpoint. `CLOUD_SYNC_ALLOW` can pin the
+hosts the form accepts.
+
+**Getting a token without the owner.** In `account` mode the signed-in user
+opens `/account` → *Device token*: the server signs a token bound to their id
+(with `CLOUD_SYNC_URL` inside) and shows it once. That is the server-side
+issuance path; the owner's CLI remains for `license` mode and offline sales.
+
+**What a real cloud still needs.** A leaf node dials the hub over the network,
+so the hub must expose a listener. The lean, safe path is a **private overlay**:
+Tailscale/WireGuard already encrypts the wire, and `NATS_TOKEN` authenticates
+the peer, so `NATS_LISTEN=100.x.y.z:4222` + `NATS_TOKEN=…` is enough for a real
+end-to-end test. The guard refuses a non-loopback listen without a token.
+
+Public exposure is a different bar: TLS per connection type, per-device
+credentials (NKey/JWT), and subject permissions so a device sees only its own
+tenant. The NATS docs are explicit about each of those; do not open a plaintext
+port.
+
+**Mobile (Wails Android/iOS).** The transport and activation code is portable —
+HTTP + signed token — but the shell is not: loopback/cookie behavior in the
+Android/iOS WebView must be verified, the token belongs in the Keystore/Keychain
+(not a 0600 file), and activation should arrive by deep link/QR instead of a
+paste. Packaging is not wired, so treat mobile as a prepared direction, not a
+supported target, until `make mobile` exists and the smoke runs on a device.
+
+**Self-contained by design.** No template instance talks to
+`gogogo.calionauta.com`; that host is only the public demo. `CLOUD_SYNC_URL`,
+`APP_URL` and every endpoint are operator config, empty by default.
+
+**Revocation.** A token is verified offline, so revocation cannot be instant.
+Bound it with `DEVICE_TOKEN_DAYS` and re-issue; a deleted `sync.json`/
+`license.token` re-gates the device. Short-lived tokens plus re-issue is the
+2026-accepted trade-off for offline activation.
+
+**Switching modes.** Activation is meant to happen before use: the account gate
+blocks the app, so there is no pre-existing data to migrate. Running `none`
+first and switching to `account` later adopts a new user id and leaves the old
+rows owned by the old local user — export/import them deliberately. An explicit
+`NATS_LEAFNODE_URL` always wins over the file, so an operator's environment is
+never overridden by a UI setting.
+
+Identity is the catch: the CRUD wire skips any op whose owner id is unknown
+locally, so rows converge only when the account id matches on both sides.
+`LICENSE_MODE=account` activation creates the local row with the token's `sub`,
+which is the supported way to reach that state; a purely local account never
+joins the server's rows.
 
 ## Native window (gogpu/ui)
 

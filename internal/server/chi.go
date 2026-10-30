@@ -33,7 +33,6 @@ import (
 	accounthandlers "github.com/calionauta/gogogo/features/account/handlers"
 	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
 	confighandlers "github.com/calionauta/gogogo/features/config/handlers"
-	"github.com/calionauta/gogogo/features/credits"
 	creditshandlers "github.com/calionauta/gogogo/features/credits/handlers"
 	landinghandlers "github.com/calionauta/gogogo/features/landing/handlers"
 	"github.com/calionauta/gogogo/features/notes"
@@ -46,7 +45,6 @@ import (
 	"github.com/calionauta/gogogo/features/whiteboard"
 	wbhandlers "github.com/calionauta/gogogo/features/whiteboard/handlers"
 	"github.com/calionauta/gogogo/internal/auth"
-	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
@@ -138,37 +136,14 @@ func bootOnboarding(
 // feature is disabled — routes answer 503), starts its workers and
 // registers its shutdown. Split from BootChi to keep both under the
 // function-length gate.
-func bootCredits(
-	ctx context.Context, cfg *config.Config, shutdown []func(),
-	sqlDB *sql.DB, cancelConsumer context.CancelFunc, a *auth.Auth,
-) (*creditshandlers.Handler, []func(), error) {
-	ledgerDB, lerr := creditshandlers.OpenTursoLedger(cfg.DataDir)
-	if lerr != nil {
-		cancelConsumer()
-		_ = sqlDB.Close()
-		return nil, shutdown, fmt.Errorf("server: chi ledger: %w", lerr)
-	}
-	shutdown = append(shutdown, func() { _ = ledgerDB.Close() })
-	//nolint:contextcheck // engine constructor takes no context (same as the
-	// previous stack's wiring); cancellation starts at Service.Start.
-	creditsSvc, cerr := credits.NewOnDB(ledgerDB, cfg)
-	if cerr != nil {
-		cancelConsumer()
-		_ = sqlDB.Close()
-		return nil, shutdown, fmt.Errorf("server: chi credits: %w", cerr)
-	}
-	if creditsSvc == nil {
-		return creditshandlers.NewHandler(a, nil), shutdown, nil
-	}
-	creditsSvc.Start(ctx)
-	return creditshandlers.NewHandler(a, creditsSvc), shutdown, nil
-}
 
-// BootChi boots the flat stack without listening and without JetStream:
-// the returned stack serves its mux and has cross-instance sync off
-// until AttachJetStream runs. js-free by design — the engine owns the
-// NATS, so JetStream is attached after boot, never passed into it.
+// trims features by dropping exactly those lines (routerCallLines).
+//
+//nolint:funlen // composition root: one line per feature, and the installer
 func BootChi(cfg *config.Config) (*ChiStack, error) {
+	if verr := cfg.ValidateModes(); verr != nil {
+		return nil, verr
+	}
 	sqlDB, err := db.Open(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("server: chi db open: %w", err)
@@ -177,12 +152,15 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		_ = sqlDB.Close()
 		return nil, fmt.Errorf("server: chi db migrate: %w", merr)
 	}
+	// First-run door: production defaults close signup, so an empty database
+	// would have no way to create user #1. Runs before wireAuth reads the flag.
+	bootstrapSignup(cfg, dbgen.New(sqlDB))
 	// Cross-instance identity: names the CRUD durable and tags every
 	// published event so an instance ignores its own echo. Derived (hostname)
 	// unless APP_INSTANCE_ID pins it.
 	slog.Info("server: instance identity", "id", instance.ID())
 
-	a, aerr := auth.New(dbgen.New(sqlDB), !cfg.Dev)
+	a, aerr := auth.New(dbgen.New(sqlDB), cfg.Auth.SecureCookies)
 	if aerr != nil {
 		_ = sqlDB.Close()
 		return nil, fmt.Errorf("server: chi auth: %w", aerr)
@@ -251,12 +229,10 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		return nil, err
 	}
 
-	persister, perr := collab.SnapshotStore(cfg.Collab.Snapshots, queries)
+	persister, docs, perr := bootCollab(cfg, queries)
 	if perr != nil {
 		return bootFail(cancelConsumer, sqlDB, "collab snapshots", perr)
 	}
-	docs := collab.NewDocStore()
-	docs.SetPersister(persister)
 	// One argument per line, deliberately: every line belongs to exactly one
 	// feature, so trimming a feature drops its lines without touching its
 	// neighbours. A shared line would make a line drop take two features at
@@ -272,12 +248,22 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		creditsH,
 	)
 	mountOnboarding(mux, onboardingH)
+	// Distribution axes (open auth + activation gate). Mounted here because
+	// the activation feature is a normal router mount; the open-auth owner is
+	// installed before any request can arrive (Serve happens after BootChi).
+	licStore, modeErr := bootModes(cfg, a, queries, mux)
+	if modeErr != nil {
+		_ = sqlDB.Close()
+		return nil, fmt.Errorf("server: access modes: %w", modeErr)
+	}
 	// Account is an authenticated user surface, not a trimmable demo plugin.
 	mux.MountFeature("account", accounthandlers.NewHandler(cfg, a, queries).Routes())
 	// Console rides the same mount-after-composition rule: the engine listener
 	// is loopback-only, so browsers reach it only through here. It stays a
 	// single core line because `gogogo new` anchors its mount below it.
 	mountConsoleProxy(mux, a, cfg)
+	// Runtime dashboard: opt-in, operator-only, mounted before applyRBAC (internal/server/perf.go).
+	perfH := bootPerf(mux, a, cfg, &shutdown)
 	// Inbox is an optional surface next to the console.
 	notificationsH := mountInbox(mux, a, cfg, queries)
 
@@ -287,12 +273,16 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// boot loud. Split out of BootChi for the funlen gate.
 	handler, rerr := applyRBAC(bootCtx, a, cfg, queries, mux)
 	if rerr != nil {
+		closePerf(perfH)
 		return bootFail(cancelConsumer, sqlDB, "rbac", rerr)
 	}
 	// The edge wrappers sit above RBAC on purpose: a 403 and a router 404
 	// carry the same headers, and the access log sees both. The rate limiter
 	// sits just inside them so a 429 gets the same headers.
 	handler = rateLimit(cfg.RateLimitRPM, shellMiddleware(cfg, a, queries, notificationsH, handler))
+	// Inside the edge wrappers (headers/log still apply) and outside the
+	// router (every route is gated). Only the shell gates.
+	handler = applyLicenseGate(cfg, licStore, handler)
 	handler = edgeHandler(cfg, slog.Default(), handler)
 	return &ChiStack{
 		sqlDB:          sqlDB,
@@ -331,41 +321,6 @@ func (s *ChiStack) AttachEphemeral(nc *natsio.Conn) error {
 	return s.hub.AttachEphemeral(nc)
 }
 
-// Serve binds addr and serves the stack; the returned func stops it
-// (consumer cancelled, HTTP drained, shutdown hooks, DB closed). The
-// listener binds synchronously so a taken port fails at the call site.
-// Callers defer the stop func.
-func (s *ChiStack) Serve(addr string) (func(), error) {
-	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", addr)
-	if err != nil {
-		s.cancelConsumer()
-		_ = s.sqlDB.Close()
-		return nil, fmt.Errorf("server: chi listen %s: %w", addr, err)
-	}
-	return serveChiOnListener(ln, srvHandler(s.mux), s), nil
-}
-
-// StartChi boots, attaches JetStream and serves in one call — the
-// single-function entry for frontends whose boot order allows it
-// (cmd/desktop: NATS is up before the stack boots). A nil return with a
-// nil error means "seam disabled" (no ChiAddr), so a stock env never
-// changes behaviour. cmd/web uses Boot/Attach/Serve directly: its
-// DagNats engine owns the NATS and must boot first.
-func StartChi(cfg *config.Config, nc *natsio.Conn, js nats.JetStreamLike) (stop func(), err error) {
-	if cfg.ChiAddr == "" {
-		return nil, nil
-	}
-	stack, err := BootChi(cfg)
-	if err != nil {
-		return nil, err
-	}
-	stack.AttachJetStream(context.Background(), js)
-	if aerr := stack.AttachEphemeral(nc); aerr != nil {
-		slog.Warn("server: ephemeral bridge not attached", "error", aerr)
-	}
-	return stack.Serve(cfg.ChiAddr)
-}
-
 // srvHandler wraps the mux for serveChiOnListener (kept separate so the
 // listener stays the caller's: tests bind :0 and read the port back).
 //
@@ -387,33 +342,49 @@ func srvHandler(mux http.Handler) *http.Server {
 	}
 }
 
-// serveChiOnListener serves an already-bound listener until stop. Tests
-// bind 127.0.0.1:0 and drive real HTTP through ln.Addr — the automated
-// preflight for the serve path manual runs used to cover.
-func serveChiOnListener(ln net.Listener, srv *http.Server, stack *ChiStack) func() {
-	go func() {
-		if serr := srv.Serve(ln); serr != nil && serr != http.ErrServerClosed {
-			slog.Error("server: chi stack stopped", "error", serr)
-		}
-	}()
-	slog.Info("server: chi flat stack listening", "addr", ln.Addr())
-	return func() {
-		stack.cancelConsumer()
-		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
-		defer cancel()
-		_ = srv.Shutdown(ctx)
-		for _, stop := range stack.shutdown {
-			stop()
-		}
-		_ = stack.sqlDB.Close()
-	}
-}
-
 // mountOnboarding registers the onboarding routes after the composition,
 // not inside it: buildChiMux takes one concrete pointer per feature, and
 // every extra parameter is a line every trim must edit. The optional mount
 // keeps the signature stable while the engine is present or not. Nil is a
 // no-op, so a stock boot never registers the route.
+// Serve binds addr and serves the stack; the returned func stops it
+// (consumer cancelled, HTTP drained, shutdown hooks, DB closed). The
+// listener binds synchronously so a taken port fails at the call site.
+// bound is the address the listener actually holds — a :0 request reports
+// the kernel-chosen port, so a caller (the desktop window) knows where to
+// point. Callers defer the stop func.
+func (s *ChiStack) Serve(addr string) (stop func(), bound string, err error) {
+	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", addr)
+	if err != nil {
+		s.cancelConsumer()
+		_ = s.sqlDB.Close()
+		return nil, "", fmt.Errorf("server: chi listen %s: %w", addr, err)
+	}
+	return serveChiOnListener(ln, srvHandler(s.mux), s), ln.Addr().String(), nil
+}
+
+// StartChi boots, attaches JetStream and serves in one call — the
+// single-function entry for frontends whose boot order allows it
+// (cmd/desktop: NATS is up before the stack boots). A nil stop with a nil
+// error means "seam disabled" (no ChiAddr), so a stock env never changes
+// behaviour. addr is the address the listener holds after a :0 request.
+// cmd/web uses Boot/Attach/Serve directly: its DagNats engine owns the NATS
+// and must boot first.
+func StartChi(cfg *config.Config, nc *natsio.Conn, js nats.JetStreamLike) (stop func(), addr string, err error) {
+	if cfg.ChiAddr == "" {
+		return nil, "", nil
+	}
+	stack, err := BootChi(cfg)
+	if err != nil {
+		return nil, "", err
+	}
+	stack.AttachJetStream(context.Background(), js)
+	if aerr := stack.AttachEphemeral(nc); aerr != nil {
+		slog.Warn("server: ephemeral bridge not attached", "error", aerr)
+	}
+	return stack.Serve(cfg.ChiAddr)
+}
+
 func mountOnboarding(r *Router, onboardingH *onboarding.Handler) {
 	if onboardingH != nil {
 		r.MountFeature("onboarding", onboardingH.Routes())

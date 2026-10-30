@@ -12,22 +12,32 @@ import (
 
 // planTrim returns the units to DROP given the keep set. Unknown ids in the
 // keep set are ignored so a future unit never breaks an old command line.
-// Matching is by kind: plugin units read the plugins dimension, feature
-// units the features dimension — the two prompt questions stay independent.
+// Default units are kept unless their kind's list drops them; opt-in units
+// are dropped unless keep.optIn names them (the opposite default).
 func planTrim(keep keepSet) []trimUnit {
 	var drop []trimUnit
 	for _, u := range manifestUnits {
-		switch u.meta().kind {
-		case capabilities.KindPlugin:
-			if !keep.plugins[u.id] {
+		m := u.meta()
+		switch m.scaffold {
+		case capabilities.ScaffoldDefault:
+			kept := false
+			switch m.kind {
+			case capabilities.KindPlugin:
+				kept = keep.plugins[u.id]
+			case capabilities.KindFeature:
+				kept = keep.features[u.id]
+			default:
+				kept = true // fail safe — never delete on confusion
+			}
+			if !kept {
 				drop = append(drop, u)
 			}
-		case capabilities.KindFeature:
-			if !keep.features[u.id] {
+		case capabilities.ScaffoldOptIn:
+			if !keep.optIn[u.id] {
 				drop = append(drop, u)
 			}
 		default:
-			// Unknown kind: keep (fail safe — never delete on confusion).
+			// Not a scaffold unit: keep it (fail safe).
 		}
 	}
 	return drop

@@ -39,6 +39,18 @@ type PageData struct {
 	PasswordSet   bool
 	Notice        string
 	Error         string
+
+	// Cloud sync + distribution gate.
+	UserID         string
+	CloudConfigured bool
+	CloudURL       string
+	LicenseMode    string
+	LicenseSummary string
+	OpenMode       bool
+
+	// Device token: shown once after /account/device-token.
+	DeviceTokenAvailable bool
+	DeviceToken          string
 }
 
 // Page renders /account inside the shared shell.
@@ -101,6 +113,7 @@ templ body(data PageData) {
 			</div>
 		</section>
 
+		if !data.OpenMode {
 		<section class="ui-card">
 			<div class="ui-card-body">
 				<h2 class="ui-title">Password</h2>
@@ -265,5 +278,66 @@ templ body(data PageData) {
 				</form>
 			</div>
 		</section>
+		}
+
+		<section class="ui-card">
+			<div class="ui-card-body">
+				<h2 class="ui-title">Cloud sync</h2>
+				<p class="text-sm opacity-70">
+					Connect this device to a server. Rows converge only when this
+					account exists on that server with the same id — activation in
+					account mode does that for you.
+				</p>
+				<p class="text-xs font-mono opacity-60">device id: { data.UserID }</p>
+				if data.CloudConfigured {
+					<p class="text-sm">
+						Configured: <span class="font-mono">{ data.CloudURL }</span>
+						<span class="badge badge-info badge-sm">applies on next launch</span>
+					</p>
+					<form method="POST" action="/account/cloud/disconnect" class="mt-3">
+						<button type="submit" class="btn btn-sm btn-error">Disconnect</button>
+					</form>
+				} else {
+					<form method="POST" action="/account/cloud" class="space-y-3 max-w-md">
+						<label class="flex flex-col gap-1 w-full">
+							<div class="label"><span>Server URL</span></div>
+							<input type="text" name="url" class="input input-sm font-mono"
+								placeholder="nats://host:4222" required/>
+						</label>
+						<label class="flex flex-col gap-1 w-full">
+							<div class="label"><span>Device token (optional)</span></div>
+							<input type="password" name="token" class="input input-sm"
+								autocomplete="off" placeholder="from the server"/>
+						</label>
+						<button type="submit" class="btn btn-sm btn-primary">Connect</button>
+					</form>
+				}
+				if data.LicenseSummary != "" {
+					<p class="text-xs opacity-60 mt-3">
+						Activation: { data.LicenseSummary }
+						· <a class="link" href="/activate">re-activate</a>
+					</p>
+				}
+			</div>
+		</section>
+
+		if data.DeviceTokenAvailable {
+			<section class="ui-card">
+				<div class="ui-card-body">
+					<h2 class="ui-title">Device token</h2>
+					<p class="text-sm opacity-70">
+						Use this token to activate a desktop in account mode. It links
+						that device to this account and carries the sync endpoint.
+					</p>
+					if data.DeviceToken != "" {
+						<textarea class="textarea textarea w-full h-32 font-mono text-xs" readonly>{ data.DeviceToken }</textarea>
+						<p class="text-xs opacity-60">Shown once. If you lose it, generate another.</p>
+					}
+					<form method="POST" action="/account/device-token" class="mt-3">
+						<button type="submit" class="btn btn-sm btn-primary">Generate device token</button>
+					</form>
+				</div>
+			</section>
+		}
 	</div>
 }

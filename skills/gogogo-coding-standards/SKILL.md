@@ -36,6 +36,7 @@ Activate when: editing any `.go` file, spawning a goroutine, creating a channel,
 | Spawning actors, supervision, per-entity state | **Entity actors (GoAkt)** |
 | Hot path, allocation, SIMD, "should this be native?" | **Performance** + `references/go-perf.md` |
 | A chart or plot | `references/charts.md` |
+| Runtime diagnostics (statsviz + pprof), the opt-in `perf` unit | [`docs/admin-dashboard.md`](../../docs/admin-dashboard.md) |
 | Any test, fixture, or flake | **Testing** + `references/go-testing.md` |
 | A `.templ` file, Datastar, SSE fragments | **Datastar (.templ)** + `references/datastar.md` |
 | Genui/chat answers, the component catalog, prompts, repair/fallback | `references/genui.md` |
@@ -148,6 +149,11 @@ entries); discovery: `room-authority` advise preset.
 Full runbook: `references/go-perf.md`.
 
 - pprof before SIMD before Zig. No evidence, no native code.
+- The template's own diagnostics are opt-in and operator-only: `PERF_ENABLED`
+  (dev on, prod off) mounts statsviz at `/debug/statsviz` and pprof at
+  `/debug/pprof` behind the same admin + `ADMIN_EMAILS` fence (`internal/perf`,
+  [`docs/admin-dashboard.md`](../../docs/admin-dashboard.md)). Use them before
+  adding an APM; statsviz answers "now", pprof "why".
 - `strconv` over `fmt` on hot paths. Pre-allocate slice/map. `strings.Builder` + `Grow`.
 - Do not set `GOMAXPROCS` (container-aware default since 1.25). Do not add `automaxprocs` without measurement.
 - `encoding/json` is v2-backed in 1.27 (faster decode, error text may differ). Do not migrate APIs manually.
@@ -218,6 +224,12 @@ Full rules: `references/datastar.md`.
   the RBAC rows, regenerates the docs and proves the build. Read the unit's
   card in [`docs/unit-contracts.md`](../../docs/unit-contracts.md) first: it
   lists the routes and generated queries the unit already owns.
+- **A capability entry declares its Scaffold class.** `core` never appears in
+  the prompt; `default` is kept unless dropped; `opt-in` is dropped unless
+  named; `manual` is not offered and carries a `Reason`. The prompt and the
+  MCP read `internal/capabilities`; a `default`/`opt-in` unit without a trim
+  unit fails the installer conformance test. See
+  [`docs/research/scaffold-choice-2026-10.md`](../../docs/research/scaffold-choice-2026-10.md).
 - **New feature code goes in `features/<feature>/handlers/`.** That package is
   the live surface: chi routes, owned auth, `dbgen` queries called directly, the
   same Templ components, the same SSE wire. The entry file is `chi.go` in every

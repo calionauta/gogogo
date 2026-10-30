@@ -94,7 +94,7 @@ The [Todo feature](todo-example.md) is the full reference implementation.
 | Room demo | `/room` | Auth-gated. Heartbeat roster + presenter lock owned by a GoAkt grain |
 | Config view | `/config` | Admin-only runtime view; user role/session actions |
 | DagNats console | `:8090` / `/dagnats/` | Workflow runs and steps; admin + `ADMIN_EMAILS`, closed when the list is empty |
-| Runtime dashboard | `/debug/statsviz` | Opt-in (`PERF_ENABLED`, dev on / prod off); operator-only (admin + `ADMIN_EMAILS`), closed when the list is empty. statsviz runtime metrics over `net/http` |
+| Runtime diagnostics | `/debug/statsviz` + `/debug/pprof` | Opt-in (`PERF_ENABLED`, dev on / prod off); operator-only (admin + `ADMIN_EMAILS`), closed when the list is empty. statsviz runtime metrics + stdlib pprof |
 
 Details in [Admin & Dashboard](admin-dashboard.md).
 

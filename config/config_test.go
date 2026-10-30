@@ -223,3 +223,24 @@ func TestRBACDefaultsByEnvironment(t *testing.T) {
 		t.Error("development default RBACEnabled = true, want false")
 	}
 }
+
+// TestPerfDefaultsByEnvironment pins the dashboard default: development on,
+// production off, explicit PERF_ENABLED always wins. Red-proof: change the
+// fallback to true and the production case goes red.
+func TestPerfDefaultsByEnvironment(t *testing.T) {
+	// Not parallel: t.Setenv forbids t.Parallel.
+	t.Setenv("ENVIRONMENT", "production")
+	t.Setenv("PERF_ENABLED", "")
+	if got := Load(); got.PerfEnabled {
+		t.Error("production default PerfEnabled = true, want false")
+	}
+	t.Setenv("PERF_ENABLED", "true")
+	if got := Load(); !got.PerfEnabled {
+		t.Error("explicit PERF_ENABLED=true ignored")
+	}
+	t.Setenv("ENVIRONMENT", "development")
+	t.Setenv("PERF_ENABLED", "")
+	if got := Load(); !got.PerfEnabled {
+		t.Error("development default PerfEnabled = false, want true")
+	}
+}

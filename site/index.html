@@ -332,7 +332,7 @@
         <!--PLUGINS:START-->
         <div class="trim-head">
           <span class="trim-title">Trim plan</span>
-          <span class="trim-count" id="trim-count" aria-live="polite">16 of 16 kept</span>
+          <span class="trim-count" id="trim-count" aria-live="polite">17 of 17 kept</span>
         </div>
         <p class="plan-group">Common opt-outs</p>
         <label class="plan-row">
@@ -427,6 +427,12 @@
           <span class="plan-env">installer</span>
         </label>
         <label class="plan-row">
+          <input type="checkbox" checked data-cap="perf">
+          <span class="plan-box" aria-hidden="true"></span>
+          <span class="plan-main"><span class="plan-name">perf<span class="plan-tag">opt-in</span></span><span class="plan-desc">opt-in operator diagnostics: statsviz dashboard + stdlib pprof</span></span>
+          <span class="plan-env">PERF_ENABLED=false (default off in production)</span>
+        </label>
+        <label class="plan-row">
           <input type="checkbox" checked data-cap="sounds">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">Sounds</span><span class="plan-desc">UI sound feedback (cuelume, vendored)</span></span>
@@ -480,10 +486,12 @@
         </div>
         <div class="bricks">
           <div class="brick"><span class="brick-name">App config</span><span class="brick-desc">env config (single source of truth for vars + defaults)</span><span class="brick-path">config</span></div>
+          <div class="brick"><span class="brick-name">cloudcfg</span><span class="brick-desc">local cloud-connection settings (sync.json, 0600)</span><span class="brick-path">cloudcfg</span></div>
           <div class="brick"><span class="brick-name">CRUD wire</span><span class="brick-desc">todo CRUD wire protocol (subjects + payloads + publisher)</span><span class="brick-path">natswire</span></div>
           <div class="brick"><span class="brick-name">Demo seed</span><span class="brick-desc">fresh-install demo account (one idempotent Signup)</span><span class="brick-path">demo</span></div>
           <div class="brick"><span class="brick-name">Host gate</span><span class="brick-desc">host-capacity gate for heavy Go tests (skip on saturated boxes)</span><span class="brick-path">hostgate</span></div>
           <div class="brick"><span class="brick-name">Instance</span><span class="brick-desc">stable instance identity for cross-instance durables and event origins</span><span class="brick-path">instance</span></div>
+          <div class="brick"><span class="brick-name">license</span><span class="brick-desc">offline entitlement tokens (Ed25519 license/account activation)</span><span class="brick-path">license</span></div>
           <div class="brick"><span class="brick-name">Observability</span><span class="brick-desc">core observability (slog + tracing)</span><span class="brick-path">observability</span></div>
           <div class="brick"><span class="brick-name">RBAC</span><span class="brick-desc">RBAC with Casbin (embedded model + policy, enforced at the mux)</span><span class="brick-path">rbac</span></div>
           <div class="brick"><span class="brick-name">Secrets</span><span class="brick-desc">age-decrypted env loader</span><span class="brick-path">secrets</span></div>

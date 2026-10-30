@@ -143,12 +143,12 @@ func run() error {
 	// uses for its webview proxy target). Empty keeps the default, so a
 	// stock env never changes behaviour.
 	addr := listenAddr(cfg)
-	stop, err := stack.Serve(addr)
+	stop, bound, err := stack.Serve(addr)
 	if err != nil {
 		return err
 	}
 	defer stop()
-	slog.Info("listening", "addr", addr)
+	slog.Info("listening", "addr", bound)
 
 	// The process is the server now (there is no framework run loop
 	// underneath): block on signals so the deferred cleanups above —

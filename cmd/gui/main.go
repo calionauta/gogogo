@@ -88,6 +88,14 @@ func main() {
 
 func run() error {
 	cfg := config.Load()
+	// The native window is a distributed binary like the desktop shell, so it
+	// honors the same entitlement gate. Activation happens in the desktop app
+	// or with `cmd/license`; this binary only verifies.
+	cfg.LicenseGate = true
+	if gerr := entitlementCheck(cfg); gerr != nil {
+		fmt.Fprintln(os.Stderr, gerr)
+		return gerr
+	}
 
 	// The same flat stack the web app serves: app file + migrations +
 	// owned auth, minus the HTTP listener. No framework, no bootstrap
@@ -106,7 +114,7 @@ func run() error {
 		return fmt.Errorf("migrate: %w", merr)
 	}
 
-	a, aerr := auth.New(dbgen.New(sqlDB), !cfg.Dev)
+	a, aerr := auth.New(dbgen.New(sqlDB), cfg.Auth.SecureCookies)
 	if aerr != nil {
 		return fmt.Errorf("auth: %w", aerr)
 	}

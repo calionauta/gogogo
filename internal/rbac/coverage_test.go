@@ -24,6 +24,11 @@ var adminOnlyRoutes = map[string]bool{
 	"/config/users/role":   true,
 	"/config/users/revoke": true,
 	"/config/audit.csv":    true,
+	"/debug/statsviz":      true,
+	"/debug/statsviz/*":    true,
+	"/debug/statsviz/ws":   true,
+	"/debug/pprof":         true,
+	"/debug/pprof/*":       true,
 }
 
 // publicRoutes declares the routes a signed-out visitor may reach. An
@@ -32,6 +37,7 @@ var adminOnlyRoutes = map[string]bool{
 var publicRoutes = map[string]bool{
 	"/":                                   true,
 	"/login":                              true,
+	"/activate":                           true,
 	"/logout":                             true,
 	"/health":                             true,
 	"/sw.js":                              true,
@@ -244,6 +250,7 @@ func registeredRoutes(t *testing.T) []routeEntry {
 		"internal/server/chi.go",
 		"internal/server/static.go",
 		"internal/auth/http.go",
+		"internal/perf/perf.go",
 	} {
 		raw, rerr := os.ReadFile(filepath.Join(root, rel))
 		if rerr != nil {

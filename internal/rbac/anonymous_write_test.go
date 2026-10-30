@@ -43,6 +43,7 @@ func TestNoMutatingRouteIsAnonymous(t *testing.T) {
 		"/api/auth/totp/login":             true,
 		"/api/auth/signout":                true, // logging out must work with an expired session
 		"/login":                           true, // the credential form itself
+		"/activate":                        true, // the activation token is the credential (distribution gate)
 		"/logout":                          true,
 	}
 

@@ -3,6 +3,10 @@ package config
 
 import "time"
 
+// defaultDeviceTokenDays bounds an issued desktop device token. Offline
+// revocation is impossible, so a bounded lifetime plus re-issue is the story.
+const defaultDeviceTokenDays = 365
+
 // DefaultReplayBufferSize is the per-client SSEHub ring-buffer length.
 // Sized for ~64KB of Datastar patch-signals at ~1KB each.
 const DefaultReplayBufferSize = 64

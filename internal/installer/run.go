@@ -20,6 +20,7 @@ type options struct {
 	owner    string
 	plugins  string
 	features string
+	optIn    string
 	preset   string
 	noTUI    bool
 	dir      string
@@ -106,7 +107,7 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) 
 		}
 		return printUpdateCheck(ctx, stdout, opt.format, dir)
 	}
-	keep := parseKeep(opt.plugins, opt.features)
+	keep := parseKeep(opt.plugins, opt.features, opt.optIn)
 	drop := planTrim(keep)
 	plan := buildPlan(opt.name, opt.owner, opt.dir, keep, drop, opt.dryRun)
 	plan.Preset = opt.preset
@@ -156,8 +157,9 @@ func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, err
 	opt := options{}
 	fs.StringVar(&opt.name, "name", "", "new project name (e.g. my-app)")
 	fs.StringVar(&opt.owner, "owner", "calionauta", "GitHub owner/org for the module path")
-	fs.StringVar(&opt.plugins, "plugins", "", "comma-separated plugins to KEEP (default: all; none drops all)")
-	fs.StringVar(&opt.features, "features", "", "comma-separated features to KEEP (default: all; none drops all)")
+	fs.StringVar(&opt.plugins, "plugins", "", "comma-separated default plugins to KEEP (default: all; none drops all)")
+	fs.StringVar(&opt.features, "features", "", "comma-separated default features to KEEP (default: all; none drops all)")
+	fs.StringVar(&opt.optIn, "opt-in", "", "comma-separated opt-in units to ADD (default: none; all adds every opt-in)")
 	fs.StringVar(&opt.preset, "preset", "",
 		"named drop set instead of keep lists: minimal|no-ai|no-collab (conflicts with --plugins/--features)")
 	fs.BoolVar(&opt.noTUI, "no-tui", false, "non-interactive mode (requires --name)")
@@ -198,6 +200,7 @@ func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, err
 		opt.owner = interactive.owner
 		opt.plugins = interactive.plugins
 		opt.features = interactive.features
+		opt.optIn = interactive.optIn
 	}
 	if opt.name == "" {
 		fs.Usage()
@@ -206,7 +209,7 @@ func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, err
 	if err := validateName(opt.name); err != nil {
 		return opt, err
 	}
-	if err := checkKeepIDs(opt.plugins, opt.features); err != nil {
+	if err := checkKeepIDs(opt.plugins, opt.features, opt.optIn); err != nil {
 		return opt, err
 	}
 	if err := resolvePreset(&opt); err != nil {

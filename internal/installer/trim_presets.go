@@ -42,7 +42,7 @@ var trimPresets = map[string]trimPreset{
 			"pages with sessions, queue and router.",
 		Drop: []string{
 			unitDagnats, unitGoAkt, unitWhiteboard, unitLanding,
-			unitConfigView, unitCredits, unitSounds, unitGenUI, unitReview, unitSearch,
+			unitConfigView, unitCredits, unitSounds, unitGenUI, unitReview, unitSearch, unitPerf,
 		},
 		Note: "GET / 404s (landing owned the only root route); the navbar " +
 			"brand retargets to /todo. Todo stays as the reference " +
@@ -51,14 +51,14 @@ var trimPresets = map[string]trimPreset{
 	presetNoAI: {
 		Idea: "everything except model surface: drop the credits ledger " +
 			"plus the Ask + chat + review demos.",
-		Drop: []string{unitCredits, unitGenUI, unitReview, unitSearch},
+		Drop: []string{unitCredits, unitGenUI, unitReview, unitSearch, unitPerf},
 		Note: "Todo AI Suggest still works with GOAI_API_KEY, unmetered. " +
 			"The LLM client itself is runtime (unset GOAI_API_KEY hides the " +
 			"button) — the preset deletes the demo surfaces, not the client.",
 	},
 	presetNoCollab: {
 		Idea: "no CRDT canvas/docs: drop the whiteboard bundle.",
-		Drop: []string{unitWhiteboard},
+		Drop: []string{unitWhiteboard, unitPerf},
 		Note: "Removes whiteboard+collab+notes (the only honest shape: " +
 			"notes is the second collab consumer, so collab cannot trim " +
 			"alone). Collab is NOT realtime: the SSE record streams, the SSE " +
@@ -105,7 +105,7 @@ func presetPlan(name string) (drop []trimUnit, ok bool) {
 	if len(keep) == 0 {
 		plugins, features = keepNone, keepNone
 	}
-	return planTrim(parseKeep(plugins, features)), true
+	return planTrim(parseKeep(plugins, features, "")), true
 }
 
 // presetKeepLists resolves a named trim preset to the --plugins/--features
@@ -160,8 +160,8 @@ func resolvePreset(opt *options) error {
 	if opt.preset == "" {
 		return nil
 	}
-	if opt.plugins != "" || opt.features != "" {
-		return fmt.Errorf("--preset %q conflicts with --plugins/--features (use one)", opt.preset)
+	if opt.plugins != "" || opt.features != "" || opt.optIn != "" {
+		return fmt.Errorf("--preset %q conflicts with --plugins/--features/--opt-in (use one)", opt.preset)
 	}
 	plugins, features, err := presetKeepLists(opt.preset)
 	if err != nil {

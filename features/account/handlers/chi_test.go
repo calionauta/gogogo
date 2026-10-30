@@ -3,10 +3,13 @@ package handlers
 
 import (
 	"context"
+	"crypto/ed25519"
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha1" //nolint:gosec // RFC 6238 TOTP uses SHA-1.
 	"encoding/base32"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -19,6 +22,7 @@ import (
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
+	"github.com/calionauta/gogogo/internal/license"
 )
 
 func accountFixture(t *testing.T) (*auth.Auth, *dbgen.Queries, *http.ServeMux) {
@@ -284,5 +288,56 @@ func TestDeviceLabel(t *testing.T) {
 		if got := deviceLabel(ua); got != want {
 			t.Fatalf("deviceLabel(%q) = %q, want %q", ua, got, want)
 		}
+	}
+}
+
+// TestDeviceTokenMintsForSession is the server-side issuance path: a signed-in
+// user gets a token bound to their own id, carrying the cloud endpoint. No
+// owner CLI is involved.
+func TestDeviceTokenMintsForSession(t *testing.T) {
+	a, q, _ := accountFixture(t)
+	u, err := auth.EnsureOpenUser(context.Background(), q)
+	if err != nil {
+		t.Fatalf("open user: %v", err)
+	}
+	a.EnableOpen(u)
+	t.Cleanup(a.DisableOpen)
+
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("key: %v", err)
+	}
+	cfg := &config.Config{
+		LicenseMode:       config.LicenseAccount,
+		LicensePrivateKey: hex.EncodeToString(priv),
+		CloudSyncURL:      "nats://sync.example.test:4222",
+		DeviceTokenDays:   30,
+		DataDir:           t.TempDir(),
+	}
+	h := NewHandler(cfg, a, q)
+
+	rec := httptest.NewRecorder()
+	h.deviceToken(rec, httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/account/device-token", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("device token: code=%d", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "gogogo1.") {
+		t.Fatal("page did not show a token")
+	}
+	idx := strings.Index(body, "gogogo1.")
+	if idx < 0 {
+		t.Fatal("token marker missing")
+	}
+	raw := body[idx:]
+	if end := strings.Index(raw, "<"); end >= 0 {
+		raw = raw[:end]
+	}
+	c, verr := license.Verify(pub, strings.TrimSpace(raw), time.Now())
+	if verr != nil {
+		t.Fatalf("minted token does not verify: %v", verr)
+	}
+	if c.Sub != u.ID || c.SyncURL != cfg.CloudSyncURL || c.ExpiresAt == 0 {
+		t.Fatalf("claims = %+v", c)
 	}
 }

@@ -9,6 +9,7 @@ The built-in surfaces, available as soon as the binary boots:
 | **Session stream** | `/api/session/stream` | `data: {"type":"session","authed": bool, "unread": number}` frames for the shared session banner and the rail's inbox badge on pages with **no feature stream** (todo/room/chat carry the same state as a `sessionAuthed` signal on their own stream; notes/whiteboard use their frame; those pages refetch the badge on visibility/focus/online instead of opening a second connection). One VISIBLE tab per browser holds this stream (Web Locks + BroadcastChannel); going hidden hands the lock on. One frame on connect and one only when the state changes (session expiry or unread count); the server closes after `authed:false` so the client stops reconnecting. Never 401s: this reports a state, it is not a gate |
 | **Health + build tag** | `/health` | `"ok"` body (container healthcheck) + `X-Gogogo-Build` header (stale-tab reload across deploys) |
 | **DagNats console** | `/console/` | Workflow runs, step inspection, JSON API for durable workflows (same-tunnel reverse proxy to the engine listener; admin **and** `ADMIN_EMAILS`-listed, always on — an empty list closes it) |
+| **Runtime diagnostics** | `/debug/statsviz/` + `/debug/pprof/` | statsviz runtime metrics (heap, goroutines, GC, scheduler) and the stdlib pprof profiles. Opt-in (`PERF_ENABLED`), admin **and** `ADMIN_EMAILS`-listed, always on — an empty list closes both |
 
 The map for these controls is [Security model](security.md).
 
@@ -41,7 +42,8 @@ published demo admin cannot reach it.
 Login issues a single cookie: `gogogo_auth` — an opaque session token (only
 its SHA-256 reaches the `sessions` table), read by `internal/auth.Session`.
 HttpOnly + SameSite=Lax; `Secure` follows the environment (off in dev over
-plain HTTP, on in production). Logout revokes the row; unknown and expired
+plain HTTP, on in production, off in the desktop shell whose webview loads
+loopback HTTP). Logout revokes the row; unknown and expired
 sessions fail closed. There is no second cookie and no separate admin
 namespace to clobber — one cookie, one session.
 

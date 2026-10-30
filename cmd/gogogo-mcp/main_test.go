@@ -447,3 +447,41 @@ func TestExportUnitWritesOnlyTheScratchDirectory(t *testing.T) {
 		t.Errorf("recipe missing: %v", statErr)
 	}
 }
+
+// TestCapabilitiesListExposesScaffold pins the agent-facing schema: the class
+// replaces the old offered boolean, and every capability carries it.
+func TestCapabilitiesListExposesScaffold(t *testing.T) {
+	res, _, err := handleCapabilitiesList(context.Background(), nil, struct{}{})
+	if err != nil {
+		t.Fatalf("capabilities_list: %v", err)
+	}
+	var caps []struct {
+		ID       string `json:"id"`
+		Scaffold string `json:"scaffold"`
+		Offered  *bool  `json:"offered"`
+	}
+	if jerr := json.Unmarshal([]byte(toolText(t, res)), &caps); jerr != nil {
+		t.Fatalf("capabilities_list is not JSON: %v", jerr)
+	}
+	perf, auth := false, false
+	for _, c := range caps {
+		if c.Offered != nil {
+			t.Errorf("%s still exposes the removed offered field", c.ID)
+		}
+		switch c.ID {
+		case "perf":
+			perf = true
+			if c.Scaffold != "opt-in" {
+				t.Errorf("perf scaffold = %q, want opt-in", c.Scaffold)
+			}
+		case "auth":
+			auth = true
+			if c.Scaffold != "core" {
+				t.Errorf("auth scaffold = %q, want core", c.Scaffold)
+			}
+		}
+	}
+	if !perf || !auth {
+		t.Errorf("missing perf/auth in capabilities_list (perf=%v auth=%v)", perf, auth)
+	}
+}

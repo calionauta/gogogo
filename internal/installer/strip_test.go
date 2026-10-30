@@ -218,12 +218,24 @@ func TestApplyReceiptCountsStrips(t *testing.T) {
 	if err := os.MkdirAll(desktopDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	give := "\t// Edge sync (Phase C): publish local Loro updates on app.sync.<docID>.\n" +
-		"\tif js != nil {\n" +
-		"\t\tpub := collab.NewPublisher(nats.Conn())\n" +
-		"\t}\n" +
+	give := "import (\n\t\"context\"\n\t\"time\"\n\n" +
+		"\t\"github.com/calionauta/gogogo/internal/collab\"\n)\n" +
 		"\n" +
-		"\taddr := fmt.Sprintf(\"%s:%d\", cfg.Host, cfg.Port)\n"
+		"func main() {\n" +
+		"\t_ = context.Background()\n" +
+		"\t// Edge sync (Phase C): a demo publish keeps the edge path exercised.\n" +
+		"\tdefer publishDemoCollab(nat, js)()\n" +
+		"\n" +
+		"\tviewURL := webviewURL(cfg.Host, port)\n" +
+		"}\n" +
+		"\n" +
+		"// publishDemoCollab exercises the edge-sync publish paths end to end.\n" +
+		"func publishDemoCollab(nat *nats.Handle, js nats.JetStreamLike) context.CancelFunc {\n" +
+		"\tpub := collab.NewPublisher(nat.Conn)\n" +
+		"\tt := time.NewTicker(time.Second)\n" +
+		"\t_ = t\n" +
+		"\treturn context.CancelFunc(func() {})\n" +
+		"}\n"
 	if err := os.WriteFile(filepath.Join(desktopDir, "main.go"), []byte(give), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -241,8 +253,8 @@ func TestApplyReceiptCountsStrips(t *testing.T) {
 	if wb == nil {
 		t.Fatalf("receipt = %+v", rc.Units)
 	}
-	if wb.StripsApplied != 1 {
-		t.Errorf("StripsApplied = %d, want 1", wb.StripsApplied)
+	if wb.StripsApplied != 2 {
+		t.Errorf("StripsApplied = %d, want 2 (defer + function)", wb.StripsApplied)
 	}
 	if len(wb.StripsMissed) != 0 {
 		t.Errorf("StripsMissed = %v, want none", wb.StripsMissed)
@@ -302,9 +314,9 @@ func TestStripDagnatsMainKeepsStackWired(t *testing.T) {
 
 func TestStripWhiteboardRemovesWiringAndDesktopPhaseC(t *testing.T) {
 	// Flat BootChi/buildChiMux shape: trimming the whiteboard drops its
-	// handler construction lines. The desktop Phase C demo (brace-mode
-	// block) must go too, or `go mod tidy` (which parses cmd/desktop)
-	// fails on the orphaned import.
+	// handler construction lines. The desktop Phase C demo (a deferred call
+	// plus its function) must go too, or `go mod tidy` (which parses
+	// cmd/desktop) fails on the orphaned import.
 	dir := t.TempDir()
 	routerDir := filepath.Join(dir, "internal", "server")
 	desktopDir := filepath.Join(dir, "cmd", "desktop")
@@ -325,12 +337,24 @@ func TestStripWhiteboardRemovesWiringAndDesktopPhaseC(t *testing.T) {
 	dgive := "import (\n\t\"context\"\n\t\"time\"\n\n" +
 		"\t\"github.com/calionauta/gogogo/internal/collab\"\n)\n" +
 		"\n" +
-		"\t// Edge sync (Phase C): publish local Loro updates on app.sync.<docID>.\n" +
-		"\tif js != nil && nats.Conn() != nil {\n" +
-		"\t\tpub := collab.NewPublisher(nats.Conn())\n" +
-		"\t}\n" +
+		"func main() {\n" +
+		"\t_ = context.Background()\n" +
+		"\t// Edge sync (Phase C): a demo publish keeps the edge path exercised.\n" +
+		"\tdefer publishDemoCollab(nat, js)()\n" +
 		"\n" +
-		"\taddr := fmt.Sprintf(\"%s:%d\", cfg.Host, cfg.Port)\n"
+		"\tviewURL := webviewURL(cfg.Host, port)\n" +
+		"}\n" +
+		"\n" +
+		"// publishDemoCollab exercises the edge-sync publish paths end to end.\n" +
+		"func publishDemoCollab(nat *nats.Handle, js nats.JetStreamLike) context.CancelFunc {\n" +
+		"\tpub := collab.NewPublisher(nat.Conn)\n" +
+		"\tt := time.NewTicker(time.Second)\n" +
+		"\t_ = t\n" +
+		"\treturn context.CancelFunc(func() {})\n" +
+		"}\n" +
+		"\n" +
+		"// desktopConfig loads config.\n" +
+		"func desktopConfig() {}\n"
 	if err := os.WriteFile(filepath.Join(desktopDir, "main.go"), []byte(dgive), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -347,12 +371,15 @@ func TestStripWhiteboardRemovesWiringAndDesktopPhaseC(t *testing.T) {
 		t.Errorf("onboarding wiring was wrongly removed:\n%s", out)
 	}
 	dout, _ := os.ReadFile(filepath.Join(desktopDir, "main.go"))
-	for _, want := range []string{"collab", `"context"`, `"time"`} {
+	for _, want := range []string{"collab", `"time"`} {
 		if strings.Contains(string(dout), want) {
 			t.Errorf("desktop still references %q after trim:\n%s", want, dout)
 		}
 	}
-	if !strings.Contains(string(dout), "addr :=") {
+	if !strings.Contains(string(dout), `"context"`) {
+		t.Errorf("desktop lost the context import still used outside the demo:\n%s", dout)
+	}
+	if !strings.Contains(string(dout), "viewURL :=") {
 		t.Errorf("desktop lost code after the strip:\n%s", dout)
 	}
 }

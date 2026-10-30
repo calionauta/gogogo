@@ -47,9 +47,17 @@ var featureTrimUnits = []trimUnit{
 					`	"github.com/calionauta/gogogo/features/notes"`,
 					`	wbhandlers "github.com/calionauta/gogogo/features/whiteboard/handlers"`,
 					`	noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"`,
-					`	"github.com/calionauta/gogogo/internal/collab"`,
 					"wbH *wbhandlers.Handler,",
 					"notesH *noteshandlers.Handler,",
+				},
+			},
+			{
+				// The collab import moved with bootCollab (boot_helpers.go
+				// holds the store and its persister now): the helper is
+				// stripped below, so its import drops here.
+				path: bootHelpersFile,
+				substrs: []string{
+					`	"github.com/calionauta/gogogo/internal/collab"`,
 				},
 			},
 			{
@@ -67,31 +75,23 @@ var featureTrimUnits = []trimUnit{
 				},
 			},
 		},
-		replaces: []fileReplace{
-			{
-				// nat feeds collab only; without the unit the JetStream
-				// handle is all the desktop keeps.
-				path:        "cmd/desktop/main.go",
-				matchSubstr: "leaf-node transport (nat feeds collab only)",
-				old:         "nat, js = h, h.JS",
-				newStr:      "js = h.JS",
-			},
-			{
-				path:        "cmd/desktop/main.go",
-				matchSubstr: "embedded transport (nat feeds collab only)",
-				old:         "nat, js = h, h.JS",
-				newStr:      "js = h.JS",
-			},
-		},
+		// The nat handle stays: startTransport feeds the desktop's realtime
+		// connection, not collab alone. The Phase C demo is a deferred call
+		// plus its own function; both go with the unit. Context stays (the
+		// first-run signup uses it); time goes with the demo.
 		desktopStrips: []stripRule{
 			{
-				startMarker: "// Edge sync (Phase C): publish local " +
-					"Loro updates on app.sync.<docID>.",
+				startMarker: "// Edge sync (Phase C): a demo publish keeps the edge path exercised.",
+				endMarker:   "defer publishDemoCollab(nat, js)()",
+			},
+			{
+				startMarker:       "// publishDemoCollab exercises the edge-sync publish paths end to end",
 				endIsClosingBrace: true,
-				endBrace:          "\t}",
+				endBrace:          "}",
+				addBefore:         "// desktopConfig loads config",
 			},
 		},
-		desktopDropLines: []string{`internal/collab"`, `"context"`, `"time"`, `nat *nats.Handle`},
+		desktopDropLines: []string{`internal/collab"`, `"time"`},
 		// No runtimeOff: the whiteboard has no boot-costly servers, so
 		// deletion is the off switch (a flag would be config surface
 		// with no benefit).
@@ -106,14 +106,28 @@ var featureTrimUnits = []trimUnit{
 				},
 			},
 			{
-				// The persister block: dropping its lines piecemeal leaves
-				// the `if perr` check referencing nothing, so it goes as
-				// one block from construction through wiring.
+				// The collab wiring: bootCollab returns the store and its
+				// persister as a pair, so the call site and the error check
+				// go as one block — piecemeal leaves `perr` referencing
+				// nothing. The end marker is the block's own closing brace:
+				// it is the only tab-indented brace between the call and it.
 				path: chiGoFile,
 				rules: []stripRule{
 					{
-						startMarker: "persister, perr := collab.SnapshotStore(cfg.Collab.Snapshots, queries)",
-						endMarker:   "docs.SetPersister(persister)",
+						startMarker: "persister, docs, perr := bootCollab(cfg, queries)",
+						endMarker:   "\t}",
+					},
+				},
+			},
+			{
+				// The helper itself, in the file the funlen/file-size gates
+				// moved it to. Nothing calls it once the block above is gone.
+				path: bootHelpersFile,
+				rules: []stripRule{
+					{
+						startMarker:       "// bootCollab builds",
+						endIsClosingBrace: true,
+						endBrace:          "}",
 					},
 				},
 			},
@@ -248,10 +262,17 @@ var featureTrimUnits = []trimUnit{
 				path: chiGoFile,
 				substrs: []string{
 					`r.MountFeature("credits", creditsH.Routes())`,
-					`"github.com/calionauta/gogogo/features/credits"`,
-					`creditshandlers "github.com/calionauta/gogogo/features/credits/handlers"`,
 					"creditsH *creditshandlers.Handler,",
 					"creditsH,",
+				},
+			},
+			{
+				// bootCredits lives beside the composition root, so its two
+				// imports move with it.
+				path: "internal/server/boot_credits.go",
+				substrs: []string{
+					`"github.com/calionauta/gogogo/features/credits"`,
+					`creditshandlers "github.com/calionauta/gogogo/features/credits/handlers"`,
 				},
 			},
 			{

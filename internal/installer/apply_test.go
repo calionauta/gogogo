@@ -50,6 +50,7 @@ func TestPlanJSONEncodesEmptySlices(t *testing.T) {
 	out := captureStdout(t, func(w *os.File) {
 		err := Run(context.Background(), []string{
 			"--name", "my-app", "--no-tui", "--dry-run", "--format", "json",
+			"--opt-in", "all",
 			"--dir", "./my-app",
 		}, devNull(t), w)
 		if err != nil {
@@ -142,13 +143,13 @@ func TestRunHelpMentionsContract(t *testing.T) {
 }
 
 func TestCheckKeepIDsFailsFast(t *testing.T) {
-	if err := checkKeepIDs("dagnats,sounds", "landing"); err != nil {
+	if err := checkKeepIDs("dagnats,sounds", "landing", ""); err != nil {
 		t.Errorf("valid ids rejected: %v", err)
 	}
-	if err := checkKeepIDs("", ""); err != nil {
+	if err := checkKeepIDs("", "", ""); err != nil {
 		t.Errorf("empty (keep-all) rejected: %v", err)
 	}
-	err := checkKeepIDs("dagnats,nats", "todo")
+	err := checkKeepIDs("dagnats,nats", "todo", "")
 	if err == nil {
 		t.Fatal("unknown ids nats/todo accepted silently")
 	}

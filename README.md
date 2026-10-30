@@ -91,6 +91,7 @@ manifest, then `make docs-index`; `make check-docs` fails when this block drifts
 - [skill-reading-policy](docs/research/skill-reading-policy.md) — Whole vendored skill or component sections? A two-arm measurement: the full read cost +36% tokens and +74% wall clock with identical markup and gates.
 - [daisyui-vocabulary-source](docs/research/daisyui-vocabulary-source.md) — Where a linter's vocabulary lives: authored map versus derived snapshot, the 2026 drift-check evidence, and why daisyui-lint embeds one.
 - [auth-libraries](docs/research/auth-libraries-2026-10.md) — The 2026-10-21 evaluation of limen against owning argon2id and sessions: schema ownership, version skew, and what flips the decision.
+- [desktop-auth-sync](docs/research/desktop-auth-sync-2026-10.md) — License gate, account pairing or cloud-only? The 2026 desktop distribution options, the offline-first matrix, and why gogogo keeps one identity per profile.
 - [ui-engine-research](docs/research/ui-engine-research.md) — The 2026-10-21 engine and component-library evaluation behind the UI stack, with local benchmarks and the Rocket assessment.
 - [ui-components](docs/research/ui-components-2026-10-21.md) — The 2026-10-21 comparison of DaisyUI, Starbase, datastar-ui and dsx on Datastar, SSE, lightness, performance, functionality and forkability.
 - [supply-chain-scanning](docs/research/supply-chain-scanning-2026.md) — The 2026-10-24 SBOM/image-scanning comparison: Syft+Grype against Trivy, Docker Scout and OSV-Scanner, with the pinned-action and fixable-high gate.
@@ -98,6 +99,7 @@ manifest, then `make docs-index`; `make check-docs` fails when this block drifts
 - [browser-automation](docs/research/browser-automation-2026-10.md) — chrome-headless-shell vs Lightpanda vs happy-dom vs remote CDP on a shared 8 GB box, and why a Playwright suite's lifecycle, not its engine, is what took the host down.
 - [notify](docs/research/notify-2026-10.md) — The 2026-10-27 notify evaluation: what to copy from a delivery engine, why the inbox stays local, and where an external provider fits.
 - [ci-wall-clock](docs/research/ci-wall-clock-2026-10.md) — Where CI's minutes go, measured per job and per package: sharding by cost, PR-only test selection, narrow caches, and the options that were rejected with evidence.
+- [scaffold-choice](docs/research/scaffold-choice-2026-10.md) — Why the scaffold prompt offers only the installer units, the three lists that disagree, and the Scaffold class that makes every capability an explicit keep-or-drop.
 
 **Ship**
 - [deploy](docs/deploy.md) — Server layout, first-time setup, deploy workflow, build pipeline and version badge.
