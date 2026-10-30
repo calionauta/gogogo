@@ -146,7 +146,8 @@ build_native() {
     # binary (the shell is just a Go program importing pkg/application), and
     # `wails3 build` cannot be used in this repo anyway:
     #   - it takes no `-o` flag (real flags: -tags, -obfuscated, -garbleargs,
-    #     -nocolour), so the output path must come from wails.json;
+    #     -nocolour), so the output path would have to come from a project
+    #     descriptor this repo does not keep;
     #   - it delegates to `wails3 task build`, which needs a Taskfile.yml at
     #     the repo root, and this repo has none (make is the task runner).
     # Using `go build` also keeps the native path free of any wails3-on-PATH
