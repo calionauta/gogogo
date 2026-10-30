@@ -80,8 +80,8 @@ One backend, three frontends:
 | `cmd/desktop` | Wails v3 webview over a local HTTP proxy | Native desktop/edge shell, 100% shared backend |
 | `cmd/gui` | gogpu/ui native window | Second frontend with **no** HTTP at all — proves the domain layer is transport-agnostic |
 
-`cmd/desktop` and `cmd/gui` are separate build targets, excluded from the web
-CI and built by no workload: `make desktop` / `make gui` are the only gates.
+`cmd/desktop` and `cmd/gui` are separate build targets, excluded from web CI and
+built by no CI job: `make desktop` / `make gui` are the only gates.
 See [Desktop & Mobile](desktop-mobile.md).
 
 ## Route wiring
