@@ -129,6 +129,42 @@ backup**; local-first is the default and needs no server. If it does:
 The guard: sync is a product decision, not a template default. If the answer
 is "one device, one user", keep the embedded NATS and skip the server.
 
+## Mobile (Android): a separate entrypoint and a driver matrix
+
+Do not reuse `cmd/desktop` as the Android entrypoint. It owns a desktop window
+and a single-instance lock; Android owns the activity and the WebView origin.
+The 2026-10-30 emulator spike (`spike/mobile`, not merged) proved the shape:
+
+1. **the mobile entrypoint is its own `main`.** Register it with
+   `application.RegisterAndroidMain(main)` in an `android`-tagged `init`; the
+   Wails overlay generator targets the project root, not the mobile entrypoint.
+2. **The database is the gate.** `tursogo` embeds libraries for
+   darwin/linux/windows only (`turso-go-platform-libs/load_turso.go`); Android
+   panics with "turso library is not embedded for the platform". Put the
+   driver behind build tags: tursogo on desktop/server, `ncruces/go-sqlite3`
+   on Android. Do the same for `internal/queue` and the credits ledger. Keep
+   SQL, sqlc queries, migrations and pragmas shared; only the driver name and
+   DSN spelling change (`_busy_timeout` vs `_pragma=busy_timeout(...)`).
+3. **`cmd/gui` already uses ncruces — by configuration, not by default.** It
+   imports `github.com/ncruces/go-sqlite3/driver` and opens `sql.Open("sqlite3",
+   ...)` explicitly; the comment in `cmd/gui/store.go` says it bypasses
+   `internal/db` because tursogo's purego/fakecgo collides with goffi at
+   `CGO_ENABLED=0`. Reuse that driver for Android for the same class of reason.
+4. **Do not expect a Go `Assets.Handler` to serve the Android WebView.** The
+   Android asset path is Java-side (`WailsPathHandler` → `bridge.serveAsset`).
+   The spike listens on a fixed loopback port and the activity loads
+   `http://127.0.0.1:<port>/` with retries and
+   `android:usesCleartextTraffic="true"`.
+5. **The c-shared object needs Android libc shims.** `bcmp`,
+   `__errno_location` and `__xpg_strerror_r` are not exported by Android's
+   libc; provide them in an `_android.c` file plus a cgo-enabling Go file.
+6. **A working spike is not a supported target.** Open auth, a fixed port and
+   cleartext are measurement shortcuts. A release needs Keystore/Keychain,
+   deep-link activation, TLS and a real session model. Say so in the docs.
+
+Evidence and screenshots: `docs/research/mobile-android-2026-10.md`; commands,
+logs and cleanup: the spike report on `spike/mobile`.
+
 ## Common failures
 
 - **App runs, backend logs requests from tests, but no window ever appears** —

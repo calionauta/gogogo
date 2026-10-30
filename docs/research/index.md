@@ -31,6 +31,7 @@ individual notes.
 | [Native kernel PoCs](native-kernels-2026-10.md) | 2026-10-25 | FNV-1a tie (Go wins) vs grayscale survivor (Zig 2.2x, SIMD verbs gap), loader prices, Rust/Odin probes; procedure held, no threshold change |
 | [notify](notify-2026-10.md) | 2026-10-27 | a delivery engine adopted, embedded or mined for its contract: why the inbox stays local, delivery becomes a per-channel seam, and the DagNats engine is never shared |
 | [Desktop auth and sync](desktop-auth-sync-2026-10.md) | 2026-10-30 | license gate vs account pairing vs cloud-only vs remote DB: offline-first matrix, why one identity per profile, and the staged `LICENSE_MODE` + sync plan |
+| [Mobile Android: the database is the gate](mobile-android-2026-10.md) | 2026-10-30 | the 2026-10-30 emulator spike: tursogo has no Android library, ncruces keeps SQL/migrations shared, cmd/gui chose ncruces explicitly, and a separate the mobile entrypoint is the mobile strategy |
 
 ## Scaffolding and installer
 
