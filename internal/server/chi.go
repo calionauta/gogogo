@@ -259,6 +259,8 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// is loopback-only, so browsers reach it only through here. It stays a
 	// single core line because `gogogo new` anchors its mount below it.
 	mountConsoleProxy(mux, a, cfg)
+	// Runtime dashboard: opt-in, operator-only, mounted before applyRBAC (internal/server/perf.go).
+	perfH := bootPerf(mux, a, cfg, &shutdown)
 	// Inbox is an optional surface next to the console.
 	notificationsH := mountInbox(mux, a, cfg, queries)
 
@@ -268,6 +270,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// boot loud. Split out of BootChi for the funlen gate.
 	handler, rerr := applyRBAC(bootCtx, a, cfg, queries, mux)
 	if rerr != nil {
+		closePerf(perfH)
 		return bootFail(cancelConsumer, sqlDB, "rbac", rerr)
 	}
 	// The edge wrappers sit above RBAC on purpose: a 403 and a router 404

@@ -14,6 +14,7 @@ require (
 	filippo.io/age v1.3.2
 	github.com/a-h/templ v0.3.1070
 	github.com/aholstenson/loro-go v0.5.0
+	github.com/arl/statsviz v0.8.2
 	github.com/avast/retry-go/v4 v4.7.0
 	github.com/calionauta/ai-credits v0.5.0
 	github.com/calionauta/daisyui-lint v0.2.1
@@ -88,6 +89,7 @@ require (
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/dotprompt/go v0.0.0-20260708220100-73beb993ac95 // indirect
 	github.com/google/go-tpm v0.9.8 // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.31.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect

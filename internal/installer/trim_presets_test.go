@@ -216,8 +216,8 @@ func TestPresetDryRunJSON(t *testing.T) {
 		ids = append(ids, u.ID)
 	}
 	slices.Sort(ids)
-	if !slices.Equal(ids, []string{"credits", "genui", "review", "search"}) {
-		t.Errorf("drops = %v, want [credits genui review search]", ids)
+	if !slices.Equal(ids, []string{"credits", "genui", "perf", "review", "search"}) {
+		t.Errorf("drops = %v, want [credits genui perf review search]", ids)
 	}
 }
 
@@ -272,8 +272,8 @@ func TestPresetKeepListsPinsResolution(t *testing.T) {
 	}
 	drop := dropIDs(planTrim(parseKeep(plugins, features, "")))
 	slices.Sort(drop)
-	if !slices.Equal(drop, []string{"credits", "genui", "review", "search"}) {
-		t.Errorf("no-ai drops = %v, want [credits genui review search]", drop)
+	if !slices.Equal(drop, []string{"credits", "genui", "perf", "review", "search"}) {
+		t.Errorf("no-ai drops = %v, want [credits genui perf review search]", drop)
 	}
 	if _, _, err := presetKeepLists("does-not-exist"); err == nil {
 		t.Error("presetKeepLists(unknown) = nil, want error listing presets")

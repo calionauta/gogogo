@@ -463,8 +463,11 @@ var All = append([]Capability{
 	},
 }, append(
 	append(
-		append(append([]Capability{}, coreExtraUnits...), identityUnits...),
-		deliveryUnits...,
+		append(
+			append(append([]Capability{}, coreExtraUnits...), identityUnits...),
+			deliveryUnits...,
+		),
+		licenseUnits...,
 	),
-	licenseUnits...,
+	perfUnits...,
 )...)
