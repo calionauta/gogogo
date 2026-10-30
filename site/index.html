@@ -627,7 +627,7 @@
     <article class="chapter" id="layer-go" data-layer="go" data-name="Go" data-scope="substrate" data-line="The material, not a layer.">
       <div class="chapter-head"><span class="chapter-num">07</span><span class="chapter-meta">substrate</span></div>
       <h2>Go</h2>
-      <p class="chapter-lede">Every level above is Go. One backend, four shells: web, desktop, Android and a native window. Zig only enters with a profiled native need.</p>
+      <p class="chapter-lede">Every level above is Go. One backend, four shells: web, desktop, Android (opt-in) and a native window. Zig only enters with a profiled native need.</p>
 
       <div class="viz build">
         <div class="build-head"><span class="prompt">$</span> go build ./cmd/web <span class="build-ok">✓</span></div>
@@ -636,14 +636,14 @@
           <span class="binary-meta">one binary · no docker · no services to run</span>
         </div>
         <div class="shells" aria-label="Delivery targets">
-          <span class="label">Ships as</span>
-          <span>web</span><span>desktop</span><span>Android</span><span>native</span>
+          <span class="label">Builds as</span>
+          <span>web</span><span>desktop</span><span>Android (opt-in)</span><span>native</span>
         </div>
         <p class="build-fine">Go 1.27 · <code>//go:embed</code> · Zig only by exception</p>
       </div>
 
       <div class="chapter-foot">
-        <p class="foot-line"><span class="label">Inside</span> Go 1.27 <code>go build ./cmd/web</code> <code>//go:embed</code> <code>cmd/desktop</code> <code>cmd/gui</code></p>
+        <p class="foot-line"><span class="label">Inside</span> Go 1.27 <code>go build ./cmd/web</code> <code>//go:embed</code> <code>cmd/desktop</code> <code>cmd/gui</code> <code>cmd/mobile</code></p>
         <p class="foot-line"><span class="label">Proof</span> <code>go build ./cmd/web</code></p>
         <p class="foot-line remove"><span class="label">Remove it</span> There is no binary.</p>
         <p class="foot-line doc"><a href="./docs/exception-to-go/">Exception to Go</a> · <a href="./docs/motivation/">Why Go</a> · <a href="./docs/desktop-mobile/">Desktop &amp; mobile</a></p>
@@ -686,7 +686,7 @@
 
   <aside class="offline-callout">
     <p class="offline-kicker">Offline-capable writes are a mode, not one of the seven</p>
-    <p><strong>Writes go offline; reads stay server-owned.</strong> A mutation is stored in a durable outbox before it leaves the tab, and replayed on reconnect; the server dedupes by <code>idem_key</code>. Reads are queries — a view you never synced is refused, not answered from a stale replica. The desktop build is the exception: a NATS Leaf Node keeps a local JetStream replica, so reads work offline there too.</p>
+    <p><strong>Writes go offline; reads stay server-owned.</strong> A mutation is stored in a durable outbox before it leaves the tab, and replayed on reconnect; the server dedupes by <code>idem_key</code>. Reads are queries — a view you never synced is refused, not answered from a stale replica. The desktop build is the exception: it has its own local database and loopback server, so reads work offline; the NATS leaf carries live CRUD, and offline replay is a follow-up.</p>
     <p class="offline-switch"><span class="label">Switch</span> <code>OFFLINE_SYNC_ENABLED=false</code> disables the Service Worker app-shell cache and the NATS CRUD proxy together. The outbox is never gated — losing a queued write is worse than the cache it protects.</p>
     <p class="offline-meta"><span class="label">Lives in</span> <a href="#layer-features">Features</a> <a href="#layer-plugins">Plugins</a> <a href="#layer-core">Core</a> · <span class="label">Try it</span> disconnect, edit, reconnect.</p>
     <p class="offline-unit">On the SCOPE axis, <a href="#layer-plugins">offline-sync</a> is a plugin unit; on this async axis it is the mode above, not one of the seven.</p>

@@ -128,7 +128,7 @@ deliberately deferred with the reason:
 | Mode-switch orphans | **documented** — activation happens before use; switching after use requires a deliberate export/import. |
 | Multi-user / workspaces | **deferred** — a product phase (invites, roles, shared rows), not a sync bug. Convergence already needs identical ids. |
 | Turso Sync | **deferred** — beta; a spike must measure conflicts before replacing the event wires. |
-| Signing / notarization / mobile | **prepared, not wired** — portable transport/token; mobile needs Keystore + deep-link activation + WebView verification. No SDK is installed, so no spike can claim support yet. |
+| Signing / notarization / mobile | **partly wired** — the opt-in Android target exists (`cmd/mobile`, `make mobile`) and was validated on an emulator; signing/notarization and mobile Keystore/deep-link/TLS remain. No support claim. |
 
 Still open, in the order they block real use:
 

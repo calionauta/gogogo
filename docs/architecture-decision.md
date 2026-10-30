@@ -15,8 +15,9 @@ the sections below:
   without a framework — and the choice is ergonomic, not a performance claim
   (see `stack-tradeoffs.md#routers-chi-for-ergonomics-not-speed`).
 - 🗄️ **Data: sqlc functions called directly.** Handlers call `dbgen.*`
-  — no repository layer, no strategy switch — over Turso Database
-  (SQLite-compatible, embedded).
+  — no repository layer — over one SQLite-compatible schema. The driver is
+  platform-selected: tursogo on desktop/server, `ncruces/go-sqlite3` on the
+  opt-in Android target.
 - 🔑 **Auth: owned argon2id.** `internal/auth`: password hashes, opaque
   sessions, `gogogo_auth` cookie, zero auth dependencies.
 - 🛡️ **Permissions: Casbin.** Model plus embedded policy, enforced by

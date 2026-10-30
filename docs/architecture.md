@@ -7,11 +7,12 @@ kept current with the code.
 
 ## Principles
 
-- **Unified build.** One `go build ./cmd/web` compiles everything — no build
-  tags. `turso` (tursogo) is the always-on Turso driver, registered by
-  `internal/db`; handlers call the generated `dbgen.*` queries directly, so
-  nothing is gated behind a tag. Opt out at runtime with env vars
-  (`NATS_ENABLED=false`, `DAGNATS_ENABLED=false`).
+- **Unified build.** One `go build ./cmd/web` compiles the whole web stack —
+  no build tags there. `turso` (tursogo) is the desktop/server driver,
+  registered by `internal/db`; the opt-in Android target selects
+  `ncruces/go-sqlite3` behind `android` build tags. Handlers call the
+  generated `dbgen.*` queries directly either way. Opt out at runtime with
+  env vars (`NATS_ENABLED=false`, `DAGNATS_ENABLED=false`).
 - **Features in `features/`, infrastructure in `internal/`.** Features depend
   on infra, never the reverse.
 - **Wiring in `internal/server/chi.go`.** `BootChi` builds one handler per

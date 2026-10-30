@@ -152,7 +152,7 @@ its top-level unit too).
 |---|---|---|
 | `cmd/web/` | 🔴 CORE | Never — entry point |
 | `config/` | 🔴 CORE | Never — env config |
-| `internal/db/` | 🔴 CORE | Never — Turso connection open (tursogo); importing it links the driver |
+| `internal/db/` | 🔴 CORE | Never — platform driver open (tursogo on desktop/server, ncruces on Android); importing it links the driver |
 | `internal/dbschema/` | 🔴 CORE | Never — driver-free migrations + IDs/timestamps; shared with zero-CGO targets |
 | `internal/secrets/` | 🔴 CORE | Never — age loader |
 | `internal/queue/` | 🔴 CORE | Never — SSE Hub (every streaming handler names `*queue.SSEHub`) + goqite jobs + workers + retry |
