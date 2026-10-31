@@ -341,9 +341,10 @@ var baseTrimUnits = []trimUnit{
 				path: chiGoFile,
 				rules: []stripRule{
 					{
-						startMarker:       "if roomHost != nil {",
-						endIsClosingBrace: true,
-						endBrace:          "\t}",
+						startMarker:        "if roomHost != nil {",
+						endIsClosingBrace:  true,
+						endBrace:           "\t}",
+						alsoDeleteContains: []string{"// trim:whiteboard-presence"},
 					},
 					{
 						startMarker:       "// bootRoomActor starts the GoAkt actor system",

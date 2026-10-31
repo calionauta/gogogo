@@ -22,7 +22,7 @@ import (
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
-func wbFixture(t *testing.T) http.Handler {
+func newWBHandler(t *testing.T) *Handler {
 	t.Helper()
 	sqlDB, err := db.OpenAt(t.TempDir() + "/wb.db")
 	if err != nil {
@@ -40,10 +40,15 @@ func wbFixture(t *testing.T) http.Handler {
 	if perr != nil {
 		t.Fatalf("persister: %v", perr)
 	}
-	h := NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister,
+	return NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister,
 		collab.NewDocStore(), config.Load())
+}
+
+func wbFixture(t *testing.T) http.Handler {
+	t.Helper()
+	h := newWBHandler(t)
 	mux := http.NewServeMux()
-	mux.Handle("/api/auth/", a.Routes())
+	mux.Handle("/api/auth/", h.auth.Routes())
 	mux.Handle("/", h.Routes())
 	return mux
 }

@@ -263,14 +263,14 @@ generative UI: the Chat demo renders LLM answers as Templ directives over the SS
 
 ## `goakt` — plugin
 
-entity actors (GoAkt rooms: roster + presenter lock)
+entity actors (GoAkt: room lease + whiteboard presence)
 
 - **Owned:** `internal/goakt`, `features/room`, `cmd/web/goakt.go`, `cmd/web/goakt_test.go`
 - **Routes:** `/room`, `/room/acquire`, `/room/crash`, `/room/heartbeat`, `/room/join`, `/room/leave`, `/room/release`, `/room/roster`, `/room/stream`
 - **Scaffold:** `default`
 - **Runtime off:** `GOAKT_ENABLED=false`
 - **Trim:** offered to the installer (a scaffold's keep lists/presets drop it)
-- **Note:** Deletion removes the engine + room demo. The Room sidebar entry is stripped automatically; main.go boot lines go with the unit's mainStrips.
+- **Note:** Deletion removes the engine + room demo; whiteboard presence falls back to the in-process PeerSet. The Room sidebar entry is stripped automatically; main.go boot lines go with the unit's mainStrips.
 - **Warning:** Runtime alternative (no deletion): GOAKT_ENABLED=false.
 
 ## `llm` — plugin

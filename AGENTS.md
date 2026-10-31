@@ -14,7 +14,7 @@ Go template: Datastar + Templ + Turso (sqlc) + owned auth + goqite + DagNats + N
 
 ## Stack (exact versions)
 
-Go 1.27 | Templ v0.3.1020 | Datastar v1.0.4 (JS core, vendored) + datastar-go v1.2.2 (Go SDK) | Turso (tursogo v0.8.2, sqlc queries) | TailwindCSS v4.3.3 + DaisyUI v5.7.42 | goqite v0.4.0 | retry-go v4 | DagNats v0.0.30 | GoAkt v4.6.1 | NATS JetStream | age v1.3.2 | uuid v1.6.0
+Go 1.27 | Templ v0.3.1020 | Datastar v1.0.4 (JS core, vendored) + datastar-go v1.2.2 (Go SDK) | Turso (tursogo v0.8.3, sqlc queries) | TailwindCSS v4.3.3 + DaisyUI v5.7.42 | goqite v0.4.0 | retry-go v4 | DagNats v0.0.30 | GoAkt v4.6.1 (room lease + whiteboard presence) | NATS JetStream | age v1.3.2 | uuid v1.6.0
 
 ## Skills
 
@@ -52,7 +52,7 @@ Go 1.27 | Templ v0.3.1020 | Datastar v1.0.4 (JS core, vendored) + datastar-go v1
 ## Don'ts
 
 - NO HTMX/Alpine (Datastar), NO `fmt.Sprintf` HTML (Templ), NO `log` (`log/slog`).
-- Driver is `turso` (tursogo, registered by `internal/db`) — the only data layer; handlers call `dbgen.*` directly, no strategy switch. NO removing goqite for JetStream; different problems.
+- Driver is platform-selected (tursogo/`turso` on web/desktop, ncruces/`sqlite3` on `cmd/gui`/Android) over one schema; handlers call `dbgen.*` directly. NO removing goqite for JetStream; different problems.
 - NO hand-rolled IDs on rows — use `dbschema.NewID()` (UUIDv7 string, matches every owner column).
 - NO authorization by ad-hoc `role == "admin"` in a handler (ruleguard `RoleCompareOutsideRBAC` fails CI) — route decisions go in `casbin/policy.csv`, per-record decisions in `canDeleteDoc`/`canDeleteRow`. NO shared-doc read/write without a session check in the handler: `RBAC_ENABLED` defaults to true in production (false in development), and the policy is inert only if an operator opts out explicitly (`docs/rbac.md`).
 - NO `PatchElements` without top-level `id` + `WithSelector` (`PatchElementsNoTargetsFound`). Use `internal/datastar.RenderAndPatch`.

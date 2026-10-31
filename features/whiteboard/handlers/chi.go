@@ -44,12 +44,12 @@ const wireShapes = "shapes"
 // Handler serves the whiteboard routes on chi. It holds the shared
 // WebSyncWorker (CRDT convergence + persistence) and the SSE hub.
 type Handler struct {
-	q      *dbgen.Queries
-	auth   *auth.Auth
-	hub    *queue.SSEHub
-	cfg    *config.Config
-	worker *collab.WebSyncWorker
-	peers  *collab.PeerSet
+	q        *dbgen.Queries
+	auth     *auth.Auth
+	hub      *queue.SSEHub
+	cfg      *config.Config
+	worker   *collab.WebSyncWorker
+	presence collab.PresenceSeam
 
 	// registry answers "does this doc id have a metadata row?". Nil means
 	// the production rule (the boards table). Only a transport fixture sets
@@ -69,8 +69,8 @@ func NewHandler(
 	}
 	return &Handler{
 		q: q, auth: a, hub: hub, cfg: cfg,
-		worker: collab.NewWebSyncWorker(hub, persister, docs, nil),
-		peers:  collab.NewPeerSet(),
+		worker:   collab.NewWebSyncWorker(hub, persister, docs, nil),
+		presence: collab.NewPeerPresence(),
 	}
 }
 
@@ -342,7 +342,12 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 			if session := collab.SessionEvent(docID, authed); session != nil {
 				_ = send(session)
 			}
-			others := h.peerJoin(docID, clientID)
+			others, joinErr := h.peerJoin(r.Context(), docID, clientID)
+			if joinErr != nil {
+				obsArgs := append(observability.WithComponent("whiteboard", "feature"), "error", joinErr)
+				observability.Warn(r.Context(), "whiteboard: peer join failed", obsArgs...)
+				return
+			}
 			joinMsg, mErr := json.Marshal(collab.PresenceMsg{Doc: docID, User: clientID, Type: "join"})
 			if mErr != nil {
 				obsArgs := append(observability.WithComponent("whiteboard", "feature"), "error", mErr)

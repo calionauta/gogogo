@@ -28,7 +28,11 @@ var featureTrimUnits = []trimUnit{
 					// Single-argument lines: dropping removes exactly that
 					// argument, and the signature loses the parameters in
 					// replaces below, so both sides agree.
-					"wbhandlers.NewHandler(queries, a, hub, persister, docs, cfg),",
+					"wbH := wbhandlers.NewHandler(queries, a, hub, persister, docs, cfg)",
+					"wbH,",
+					"// trim:whiteboard-presence",
+					"wbH.SetPresence(appgoakt.NewDocPresence(roomHost))",
+					`slog.Info("server: whiteboard presence actor", "backend", "goakt")`,
 					"noteshandlers.NewHandler(queries, a, hub, persister, docs, cfg),",
 					// One mount line for the feature's own router (see
 					// MountFeature), plus the feature's own static subtree: the
