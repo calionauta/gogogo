@@ -7,14 +7,15 @@ import (
 	"strings"
 )
 
-// Postings implements Index: the rows for the queried terms, owner- and
-// field-scoped in SQL so a search cannot see another owner's corpus.
+// Postings implements Index: the rows for the queried terms, owner-scoped in
+// SQL (plus public rows only when the query asks) so a search cannot see
+// another owner's private corpus.
 func (ix SQLIndex) Postings(ctx context.Context, q Query, terms []string) ([]Posting, error) {
 	if len(terms) == 0 {
 		return nil, nil
 	}
-	args := make([]any, 0, len(terms)+2)
-	args = append(args, q.Owner, q.Field)
+	args := make([]any, 0, len(terms)+3)
+	args = append(args, q.Owner, boolInt(q.IncludePublic), q.Field)
 	placeholders := make([]string, 0, len(terms))
 	for _, t := range terms {
 		placeholders = append(placeholders, "?")
@@ -22,7 +23,8 @@ func (ix SQLIndex) Postings(ctx context.Context, q Query, terms []string) ([]Pos
 	}
 	rows, err := ix.DB.QueryContext(ctx,
 		`SELECT doc_id, term, count, length FROM search_postings
-		 WHERE owner = ? AND field = ? AND term IN (`+strings.Join(placeholders, ", ")+`)`,
+		 WHERE (owner = ? OR (? = 1 AND visibility = 'public'))
+		   AND field = ? AND term IN (`+strings.Join(placeholders, ", ")+`)`,
 		args...)
 	if err != nil {
 		return nil, fmt.Errorf("search: read postings: %w", err)
@@ -40,7 +42,8 @@ func (ix SQLIndex) Postings(ctx context.Context, q Query, terms []string) ([]Pos
 }
 
 // Stats implements Index: the corpus size and the average field length, over
-// every indexed document for this owner and field (not just the matching
+// every indexed document for this owner and field (plus public docs when
+// asked; not just the matching
 // ones — an IDF denominator that only counted matches would be meaningless).
 func (ix SQLIndex) Stats(ctx context.Context, q Query) (CorpusStats, error) {
 	var out CorpusStats
@@ -48,8 +51,8 @@ func (ix SQLIndex) Stats(ctx context.Context, q Query) (CorpusStats, error) {
 	err := ix.DB.QueryRowContext(ctx,
 		`SELECT COUNT(*), AVG(length) FROM (
 		   SELECT DISTINCT doc_id, length FROM search_postings
-		    WHERE owner = ? AND field = ?)`,
-		q.Owner, q.Field).Scan(&out.Docs, &avg)
+		    WHERE (owner = ? OR (? = 1 AND visibility = 'public')) AND field = ?)`,
+		q.Owner, boolInt(q.IncludePublic), q.Field).Scan(&out.Docs, &avg)
 	if err != nil {
 		return out, fmt.Errorf("search: corpus stats: %w", err)
 	}

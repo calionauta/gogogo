@@ -481,7 +481,7 @@ warnings print and exit 0.
 - `_test.go`: excluded from `goconst`/`mnd`/`funlen`/`gocyclo`/`bodyclose` (do not close httptest bodies) and `forbidigo` (a test legitimately sleeps to assert absence, pace a fixture, or let a watcher catch up). Read the exclusion list from `.golangci.yml` rather than trusting this line — it is the single source and this prose has drifted before.
 - cuelume `data-cuelume-*` attrs: intentional, keep `-only-errors`; add truly shared ones to `.datastar-lint.yaml`.
 - `site/**`, `docs/**`: not scanned by Tailwind, not deployed in binary. Never gate them with `css-check`.
-- `cmd/desktop`, `cmd/gui`: separate targets, excluded from web gate (`scripts/web-packages.sh`). Full lint manual (`make lint-gui`).
+- `cmd/desktop`, `cmd/gui`, `cmd/mobile`: separate targets, excluded from web gate (`scripts/web-packages.sh`). Full lint manual (`make lint-gui`); mobile is android-tagged.
 - Go 1.27 `gofmt` alignment churn: expect a one-time whitespace diff on old files.
 
 ## Test Cases

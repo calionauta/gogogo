@@ -25,7 +25,7 @@ flag away rather than one service away.
 | Layer | `Match` label | Where the work happens | Extra write | Ranking | Typos |
 |---|---|---|---|---|---|
 | `substring` | exact | SQL `LIKE` in the consumer's own query | none | list order | no |
-| `fuzzy` | typo-tolerant | Go, over the owner's candidate rows | none | tier score | yes |
+| `fuzzy` | typo-tolerant | Go, over the viewer's visible candidate rows (own + public) | none | tier score | yes |
 | `bm25` | relevance | Go scoring of `search_postings` in the same DB | one postings row per distinct term per mutation | BM25 | no (stemmed tokens) |
 
 **`substring` is the floor.** It costs nothing — no extra write, no scan in Go
@@ -73,7 +73,8 @@ a fourth layer a one-line addition — see
 
 ## The contract: search only narrows
 
-Both halves are owner-scoped **in SQL**, and the handler intersects the hits
+Both halves are visibility-scoped **in SQL**: the viewer's own rows plus public
+rows, never another owner's private row. The handler intersects the hits
 with the list it already scoped for visibility and filter. A hit whose row is
 not in that list is dropped, never resurrected — even if a stale posting
 outlived its row.
@@ -96,7 +97,9 @@ rolled-back crash or a backup taken before the index existed.
 
 It deliberately does not delete postings for rows that no longer exist: an
 orphan cannot match anything (every hit is intersected with the visible set),
-and a boot-time delete is a worse failure mode than a stale key.
+and the postings carry the row's visibility so BM25 can include public rows
+without dropping the owner scope. A boot-time delete is a worse failure mode
+than a stale key.
 
 ## Trim and degrade
 

@@ -11,7 +11,7 @@ import (
 // already cleared the old ones), which is how a cleared title stops
 // matching.
 func (ix SQLIndex) IndexDoc(
-	ctx context.Context, ex Execer, owner, kind, docID, field, text string,
+	ctx context.Context, ex Execer, owner, kind, docID, field, text, visibility string,
 ) error {
 	if err := ix.DeleteDoc(ctx, ex, owner, kind, docID); err != nil {
 		return fmt.Errorf("search: clear postings for %s/%s: %w", kind, docID, err)
@@ -33,9 +33,9 @@ func (ix SQLIndex) IndexDoc(
 	for term, n := range counts {
 		if _, err := ex.ExecContext(ctx,
 			`INSERT INTO search_postings
-			   (owner, kind, doc_id, field, term, count, length)
-			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			owner, kind, docID, field, term, n, indexLen,
+			   (owner, kind, doc_id, field, term, count, length, visibility)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			owner, kind, docID, field, term, n, indexLen, visibility,
 		); err != nil {
 			return fmt.Errorf("search: index %s/%s term %q: %w", kind, docID, term, err)
 		}

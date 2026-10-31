@@ -32,7 +32,7 @@ func TestSQLIndexRanksThroughTheTransaction(t *testing.T) {
 	// Re-indexing the same document must replace its postings, not stack
 	// them: that is the primary key plus the delete, and it is what makes a
 	// title edit safe.
-	editErr := ix.IndexDoc(context.Background(), sqlDB, "owner-a", "todo", "1", "title", "Invoice the client")
+	editErr := ix.IndexDoc(context.Background(), sqlDB, "owner-a", "todo", "1", "title", "Invoice the client", "private")
 	if editErr != nil {
 		t.Fatalf("re-index: %v", editErr)
 	}

@@ -188,7 +188,8 @@ a 403, never to an unauthorized write. Never gate a mutation on
   `rbac.RequireAdmin` on `/config`, and admin **plus** an `ADMIN_EMAILS`
   match on the console (`/console/`, `/dagnats/`) and on the diagnostics pair
   (`/debug/statsviz`, `/debug/pprof`). An empty `ADMIN_EMAILS` closes both even
-  for the seeded demo admin.
+  for the seeded demo admin; a development demo adds `demo1` to the allowlist
+  so the console/stats menus are demonstrable, a production demo does not.
 - **Viewer matrix + middleware**: allow/deny decisions plus a real
   viewer through the real middleware (create/toggle/delete-own pass at
   the verb; row ownership denies in the handler).

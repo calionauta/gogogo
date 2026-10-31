@@ -12,9 +12,9 @@ import (
 
 // TestTodoSourceFiltersAndScopes pins the consumer half: layer 1 finds a
 // middle substring that an exact match would miss, the in-memory layer gets
-// this owner's rows to score, and neither ever sees another owner's title.
-// Red-proof: drop the owner predicate from either query and the leak
-// assertion fails.
+// the viewer's own rows plus public rows, and neither ever sees another
+// owner's PRIVATE title. Red-proof: drop the owner/public predicate from
+// either query and one of the leak/shared assertions fails.
 func TestTodoSourceFiltersAndScopes(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -24,6 +24,7 @@ func TestTodoSourceFiltersAndScopes(t *testing.T) {
 	create(t, f, mine, "Ship the smoke guard")
 	create(t, f, mine, "Read the parser diff")
 	create(t, f, theirs, "Smoke signals for another owner")
+	createVisible(t, f, theirs, "Shared smoke plan", "public")
 
 	src := NewTodoSource(f.q)
 
@@ -31,20 +32,20 @@ func TestTodoSourceFiltersAndScopes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("substring: %v", err)
 	}
-	if len(hits) != 1 {
-		t.Fatalf("hits = %+v, want exactly my own matching row", hits)
+	if len(hits) != 2 {
+		t.Fatalf("hits = %+v, want my row plus the shared row", hits)
 	}
 
 	docs, err := src.Candidates(ctx, search.Query{Owner: mine, Field: SearchTitleField})
 	if err != nil {
 		t.Fatalf("candidates: %v", err)
 	}
-	if len(docs) != 2 {
-		t.Fatalf("candidates = %d rows, want my two", len(docs))
+	if len(docs) != 3 {
+		t.Fatalf("candidates = %d rows, want my two plus the shared row", len(docs))
 	}
 	for _, d := range docs {
 		if d.Fields[SearchTitleField] == "Smoke signals for another owner" {
-			t.Error("another owner's title reached the matcher")
+			t.Error("another owner's private title reached the matcher")
 		}
 	}
 }
@@ -52,8 +53,13 @@ func TestTodoSourceFiltersAndScopes(t *testing.T) {
 // create inserts one todo for an owner, the way the feature's own handlers do.
 func create(t *testing.T, f *handlersFixture, owner, title string) {
 	t.Helper()
+	createVisible(t, f, owner, title, "private")
+}
+
+func createVisible(t *testing.T, f *handlersFixture, owner, title, visibility string) {
+	t.Helper()
 	if _, err := f.q.CreateTodo(context.Background(), dbgen.CreateTodoParams{
-		ID: dbschema.NewID(), Owner: owner, Title: title, Visibility: "private",
+		ID: dbschema.NewID(), Owner: owner, Title: title, Visibility: visibility,
 	}); err != nil {
 		t.Fatalf("create %q: %v", title, err)
 	}

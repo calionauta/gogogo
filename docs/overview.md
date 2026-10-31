@@ -95,7 +95,7 @@ seeded demo account when the deployment enables the demo seed
 `demo2@demo.app` takes the same password — a second browser or incognito
 window makes you both at once. The admin-only env view is at [`/config`](https://gogogo.calionauta.com/config)
 (sign in first) and the DagNats workflow console
-at `/dagnats/` (admin **and** `ADMIN_EMAILS`; closed on the public demo). What each surface
+at `/dagnats/` (admin **and** `ADMIN_EMAILS`; closed on a production demo; the development demo adds `demo1` to the allowlist). What each surface
 gives you: [Admin & Dashboard](admin-dashboard.md).
 
 ## Related

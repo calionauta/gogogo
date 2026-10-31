@@ -321,7 +321,7 @@ opt-in operator diagnostics: statsviz dashboard + stdlib pprof
 search layers (substring, fuzzy, BM25) behind one seam
 
 - **Owned:** `internal/search`, `features/todo/handlers/search_source.go`, `features/todo/handlers/search_source_test.go`, `features/todo/handlers/search_test.go`, `features/todo/handlers/search_mode_test.go`, `features/todo/handlers/search_heal.go`, `features/todo/handlers/search_heal_test.go`, `internal/search/sqlindex_inventory.go`, `internal/server/boot_search.go`
-- **Store calls:** `dbgen.ListTodosByOwner`, `dbgen.ListTodosForIndex`, `dbgen.SearchTodosByOwner`
+- **Store calls:** `dbgen.ListTodosForIndex`, `dbgen.ListVisibleTodos`, `dbgen.SearchTodosVisible`
 - **Scaffold:** `default`
 - **Trim:** offered to the installer (a scaffold's keep lists/presets drop it)
 - **Note:** No external engine on purpose: this driver ships no FTS5 and no Turso native FTS (tursogo v0.8.2/v0.8.3/v0.9.0-pre.1), and a second index store would put a row's truth in two places.
@@ -448,7 +448,7 @@ Todo MVC demo (reference implementation)
 
 - **Owned:** `features/todo`
 - **Routes:** `/api/todos`, `/api/todos/completed/delete`, `/api/todos/events`, `/api/todos/fragment`, `/api/todos/retry-demo`, `/api/todos/search`, `/api/todos/stream`, `/api/todos/suggest`, `/api/todos/suggest-simulated`, `/api/todos/{id}/confirm-delete`, `/api/todos/{id}/delete`, `/api/todos/{id}/toggle`, `/login`, `/logout`, `/signup`, `/todo`
-- **Store calls:** `dbgen.ClaimOpReceipt`, `dbgen.CreateTodo`, `dbgen.DeleteCompletedByOwner`, `dbgen.DeleteTodo`, `dbgen.DeleteTodoByID`, `dbgen.GetTodo`, `dbgen.GetTodoByIdemKey`, `dbgen.GetTodoVisible`, `dbgen.GetUser`, `dbgen.GetUserByEmail`, `dbgen.ListCompletedIDsByOwner`, `dbgen.ListTodosByOwner`, `dbgen.ListTodosForIndex`, `dbgen.ListVisibleTodos`, `dbgen.SearchTodosByOwner`, `dbgen.SetTodoCompletedByID`
+- **Store calls:** `dbgen.ClaimOpReceipt`, `dbgen.CreateTodo`, `dbgen.DeleteCompletedByOwner`, `dbgen.DeleteTodo`, `dbgen.DeleteTodoByID`, `dbgen.GetTodo`, `dbgen.GetTodoByIdemKey`, `dbgen.GetTodoVisible`, `dbgen.GetUser`, `dbgen.GetUserByEmail`, `dbgen.ListCompletedIDsByOwner`, `dbgen.ListTodosByOwner`, `dbgen.ListTodosForIndex`, `dbgen.ListVisibleTodos`, `dbgen.SearchTodosVisible`, `dbgen.SetTodoCompletedByID`
 - **Scaffold:** `manual`
 - **Trim:** manual (no installer unit)
 - **Why that class:** Reference implementation — remove manually later per docs/scope-taxonomy.md.

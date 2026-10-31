@@ -41,7 +41,7 @@ approach had a deeper issue.**
 
 | Command | What it checks |
 |---|---|
-| `make lint` | `go vet` + `golangci-lint` over the web packages — `scripts/web-packages.sh` excludes `cmd/desktop` and `cmd/gui` |
+| `make lint` | `go vet` + `golangci-lint` over the web packages — `scripts/web-packages.sh` excludes `cmd/desktop`, `cmd/gui` and `cmd/mobile` |
 | `make lint-safe` | Host-aware lint: sizes the run to free RAM/cores, scopes to changed packages when memory is tight, caps the run in a cgroup (`scripts/lint-safe.sh`). Prefer over `make lint` on a shared host. |
 | `make datastar-lint` | Datastar anti-patterns in `.templ` files and the Go SDK calls behind them (`bin/datastar-lint` runs the pinned `go tool datastar-lint` with the html, templ and go analyzers) |
 | `make daisyui-lint` | DaisyUI class vocabulary in `.templ`/HTML: a typo'd or retired class renders with no styles and no error anywhere else. Runs the pinned `go tool daisyui-lint --strict` (version in `go.mod`) over `features/` + `internal/` and reads `chrome.css`/`app.css`, so classes this repo defines are not reported as foreign |

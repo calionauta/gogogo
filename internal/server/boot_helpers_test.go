@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
+	"github.com/calionauta/gogogo/internal/demo"
 	"github.com/calionauta/gogogo/internal/rbac"
 )
 
@@ -207,5 +209,41 @@ func TestApplyRBACWiresPermissive(t *testing.T) {
 	}
 	if code := drive(false); code != http.StatusForbidden {
 		t.Errorf("enforcing user /config via boot wiring = %d, want 403", code)
+	}
+}
+
+// TestDemoAdminOperatorOnlyInDev pins the demo/operator boundary: a
+// development demo adds demo1 to the operator allowlist so the console and
+// stats menus are demonstrable; a production demo (the public one) keeps the
+// list empty and demo1 stays an admin without operator surfaces.
+func TestDemoAdminOperatorOnlyInDev(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		dev  bool
+		want bool
+	}{
+		{"development", true, true},
+		{"production", false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			sqlDB, err := db.OpenAt(t.TempDir() + "/demo-operator.db")
+			if err != nil {
+				t.Fatalf("db open: %v", err)
+			}
+			t.Cleanup(func() { sqlDB.Close() })
+			if merr := dbschema.Migrate(sqlDB); merr != nil {
+				t.Fatalf("db migrate: %v", merr)
+			}
+			a, aerr := auth.New(dbgen.New(sqlDB), false)
+			if aerr != nil {
+				t.Fatalf("auth new: %v", aerr)
+			}
+			cfg := &config.Config{Dev: tc.dev, DemoAccounts: true}
+			demoQueries(cfg, a, sqlDB)
+			got := slices.Contains(cfg.AdminEmails, demo.Email)
+			if got != tc.want {
+				t.Fatalf("demo1 in AdminEmails = %v, want %v (list %v)", got, tc.want, cfg.AdminEmails)
+			}
+		})
 	}
 }

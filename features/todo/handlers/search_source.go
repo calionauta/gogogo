@@ -31,11 +31,11 @@ func NewTodoSource(q *dbgen.Queries) *TodoSource {
 	return &TodoSource{Q: q}
 }
 
-// Candidates returns the owner's rows for the in-memory layer to score.
-// Owner-scoped by the query itself, so no layer above can widen the scope it
-// was handed.
+// Candidates returns the rows the viewer may see (own + public) for the
+// in-memory layer to score. The query itself is the visibility scope, so no
+// layer above can widen it.
 func (s *TodoSource) Candidates(ctx context.Context, q search.Query) ([]search.Doc, error) {
-	rows, err := s.Q.ListTodosByOwner(ctx, q.Owner)
+	rows, err := s.Q.ListVisibleTodos(ctx, q.Owner)
 	if err != nil {
 		return nil, fmt.Errorf("todo: search candidates: %w", err)
 	}
@@ -52,7 +52,7 @@ func (s *TodoSource) Candidates(ctx context.Context, q search.Query) ([]search.D
 // a search box should match nothing here, not everything, and the two
 // smarter layers treat it as text anyway.
 func (s *TodoSource) Substring(ctx context.Context, q search.Query) ([]search.Hit, error) {
-	rows, err := s.Q.SearchTodosByOwner(ctx, dbgen.SearchTodosByOwnerParams{
+	rows, err := s.Q.SearchTodosVisible(ctx, dbgen.SearchTodosVisibleParams{
 		Owner: q.Owner, LOWER: "%" + blankLikeMeta(q.Text) + "%", Limit: int64(limitOr(q.Limit)),
 	})
 	if err != nil {
@@ -106,6 +106,7 @@ func NewTodoSearcher(s search.Searcher) *TodoSearcher {
 func (t *TodoSearcher) SearchIDs(ctx context.Context, owner, query string) ([]string, error) {
 	hits, err := t.S.Search(ctx, search.Query{
 		Owner: owner, Text: query, Field: SearchTitleField, Limit: defaultSearchLimit,
+		IncludePublic: true,
 	})
 	if err != nil {
 		return nil, err
@@ -132,8 +133,8 @@ func NewTodoIndexer(ix search.SQLIndex) TodoIndexer { return TodoIndexer{IX: ix}
 
 // IndexTodo writes (replaces) a row's postings inside the caller's
 // transaction, so the row and its index entry commit or roll back together.
-func (i TodoIndexer) IndexTodo(ctx context.Context, tx *sql.Tx, owner, docID, title string) error {
-	return i.IX.IndexDoc(ctx, tx, owner, searchDocKind, docID, SearchTitleField, title)
+func (i TodoIndexer) IndexTodo(ctx context.Context, tx *sql.Tx, owner, docID, title, visibility string) error {
+	return i.IX.IndexDoc(ctx, tx, owner, searchDocKind, docID, SearchTitleField, title, visibility)
 }
 
 // DeleteTodo drops a row's postings inside the caller's transaction.

@@ -80,9 +80,11 @@ One backend, three frontends:
 | `cmd/web` | HTTP + SSE | The main server: router, queue, realtime |
 | `cmd/desktop` | Wails v3 webview over loopback HTTP | Native desktop/edge shell, 100% shared backend |
 | `cmd/gui` | gogpu/ui native window | Second frontend with **no** HTTP at all — proves the domain layer is transport-agnostic |
+| `cmd/mobile` | Wails Android webview over loopback HTTP | Opt-in Android target; driver matrix swaps tursogo for ncruces |
 
-`cmd/desktop` and `cmd/gui` are separate build targets, excluded from web CI and
-built by no CI job: `make desktop` / `make gui` are the only gates.
+`cmd/desktop`, `cmd/gui` and `cmd/mobile` are separate build targets, excluded
+from web CI and built by no CI job: `make desktop` / `make gui` / `make mobile`
+are the only gates.
 See [Desktop & Mobile](desktop-mobile.md).
 
 ## Route wiring
@@ -184,8 +186,9 @@ is per-process. The security properties here are owned:
   (`docs/rbac.md`). Operator surfaces
   (`/config`, `/console/`, `/dagnats/`) carry an always-on fence that does not
   depend on the flag: admin role for `/config`, and admin **plus** an
-  `ADMIN_EMAILS` match for the console (the public demo's `demo1` is an admin,
-  so "is admin" alone is not an operator identity).
+  `ADMIN_EMAILS` match for the console (a production demo's `demo1` is an
+  admin, so "is admin" alone is not an operator identity; a development demo
+  adds `demo1` to the allowlist so the console/stats menus are demonstrable).
 - templ escaping and sqlc parameters on the data paths.
 - a per-request CSP nonce (`script-src 'self' 'nonce-…'`), with the nonce on
   `<html data-nonce>` for Datastar's expression evaluator; plus

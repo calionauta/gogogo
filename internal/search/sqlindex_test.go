@@ -33,7 +33,7 @@ func seed(t *testing.T, ix SQLIndex, sqlDB *sql.DB, owner string, titles map[str
 		t.Fatalf("tx: %v", err)
 	}
 	for id, title := range titles {
-		if err := ix.IndexDoc(ctx, tx, owner, "todo", id, "title", title); err != nil {
+		if err := ix.IndexDoc(ctx, tx, owner, "todo", id, "title", title, "private"); err != nil {
 			t.Fatalf("index %s: %v", id, err)
 		}
 	}
