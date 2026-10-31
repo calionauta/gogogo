@@ -350,7 +350,7 @@
         <label class="plan-row">
           <input type="checkbox" checked data-cap="goakt">
           <span class="plan-box" aria-hidden="true"></span>
-          <span class="plan-main"><span class="plan-name">GoAkt</span><span class="plan-desc">entity actors (GoAkt: room lease + whiteboard presence)</span></span>
+          <span class="plan-main"><span class="plan-name">GoAkt</span><span class="plan-desc">entity actors (GoAkt: room lease + collaborative presence)</span></span>
           <span class="plan-env">GOAKT_ENABLED=false</span>
         </label>
         <label class="plan-row">
@@ -574,37 +574,38 @@
           <button class="gate" type="button" aria-describedby="gate-note" style="--i:4" data-note="a workflow that uses Node or Go without installing it">ci-deps</button>
           <button class="gate" type="button" aria-describedby="gate-note" style="--i:5" data-note="an installer that plants a go entry in $BIN_DIR">install-sh</button>
           <button class="gate" type="button" aria-describedby="gate-note" style="--i:6" data-note="a file without a SCOPE line">scope-lint</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:7" data-note="a DaisyUI class not in the registry">class-integrity</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:8" data-note="a retired or typo'd DaisyUI class">daisyui-lint</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:9" data-note="a dependency that breaks the flat stack">flatdeps-lint</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:10" data-note="a test that cannot fail">test-value</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:11" data-note="a hand-written count or a dead path">docs-claims</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:12" data-note="a secret read outside the loader">secrets-env</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:13" data-note="a route with no user row in the policy">rbac-policy</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:14" data-note="a DagNats version outside the pin">dagnats-pin</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:15" data-note="a key in a commit">secrets-scan</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:16" data-note="a skill not registered for the hosts">skill-frontmatter</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:17" data-note="a Datastar attribute that does nothing">datastar-lint</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:18" data-note="a route missing from the generated inventory">api-routes</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:19" data-note="an MCP tool whose test stopped pinning it">mcp-tests</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:20" data-note="a unit that left the registry">registry-conformance</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:21" data-note="a committed _templ.go that drifted">generated-templ</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:22" data-note="a stale app.min.css">css-check</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:23" data-note="a template that slipped into JSX">no-jsx</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:24" data-note="unchecked errors, leaked contexts, template mistakes">golangci-lint</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:25" data-note="AGENTS.md drifted from the tree">agents-md-staleness</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:26" data-note="the vendored stelow skill drifted">stelow-drift</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:27" data-note="the vendored DaisyUI skill drifted">daisyui-drift</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:28" data-note="docs that did not move with the code">docs-staleness</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:7" data-note="a hook in .lefthook.yml">ci-scripts</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:8" data-note="a DaisyUI class not in the registry">class-integrity</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:9" data-note="a retired or typo'd DaisyUI class">daisyui-lint</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:10" data-note="a dependency that breaks the flat stack">flatdeps-lint</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:11" data-note="a test that cannot fail">test-value</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:12" data-note="a hand-written count or a dead path">docs-claims</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:13" data-note="a secret read outside the loader">secrets-env</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:14" data-note="a route with no user row in the policy">rbac-policy</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:15" data-note="a DagNats version outside the pin">dagnats-pin</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:16" data-note="a key in a commit">secrets-scan</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:17" data-note="a skill not registered for the hosts">skill-frontmatter</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:18" data-note="a Datastar attribute that does nothing">datastar-lint</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:19" data-note="a route missing from the generated inventory">api-routes</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:20" data-note="an MCP tool whose test stopped pinning it">mcp-tests</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:21" data-note="a unit that left the registry">registry-conformance</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:22" data-note="a committed _templ.go that drifted">generated-templ</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:23" data-note="a stale app.min.css">css-check</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:24" data-note="a template that slipped into JSX">no-jsx</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:25" data-note="unchecked errors, leaked contexts, template mistakes">golangci-lint</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:26" data-note="AGENTS.md drifted from the tree">agents-md-staleness</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:27" data-note="the vendored stelow skill drifted">stelow-drift</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:28" data-note="the vendored DaisyUI skill drifted">daisyui-drift</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:29" data-note="docs that did not move with the code">docs-staleness</button>
         </div>
         <p class="gate-group">pre-push</p>
         <div class="gate-row">
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:29" data-note="a known CVE in a dependency">govulncheck</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:30" data-note="code no test or route reaches">deadcode</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:30" data-note="a known CVE in a dependency">govulncheck</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:31" data-note="code no test or route reaches">deadcode</button>
         </div>
         <p class="gate-group">post-merge</p>
         <div class="gate-row">
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:31" data-note="templ/css artifacts out of date">regen-assets</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:32" data-note="templ/css artifacts out of date">regen-assets</button>
           <span class="gate gate-merge">merge</span>
         </div>
 

@@ -50,6 +50,14 @@ pre-commit:
       run: go run ./cmd/check-scope
       glob: "{internal,features}/**/*.go"
 
+    # The scripts that decide WHICH gates run (docs-only classifier) and WHICH
+    # tests they run (race-shard split). A wrong verdict here is a green build
+    # that skipped lint + race + browser + image boot, so the contract tests run
+    # whenever the policies or their consumers change. Milliseconds.
+    - name: ci-scripts
+      run: make check-ci-scripts
+      glob: "{scripts/ci-changes-classifier.sh,scripts/ci-changes-classifier.test.sh,scripts/ci-shard-packages.sh,scripts/ci-shard-packages.test.sh,.github/workflows/ci.yml}"
+
     # Markup ↔ stylesheet ↔ doc, plus the DaisyUI part rules. Globs are the
     # three things it compares: a change to any of them can break the invariant.
     - name: class-integrity

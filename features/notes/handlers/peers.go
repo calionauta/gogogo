@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP notes peers (presence bookkeeping, split for size)
+// SCOPE:feature — HTTP notes presence (peer bookkeeping, stream seeding, split for size)
 package handlers
 
 import (
@@ -9,16 +9,21 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/observability"
 )
 
-// peerJoin registers clientID as connected to docID and returns the list
-// of clientIDs already on the doc.
-func (h *Handler) peerJoin(docID, clientID string) []string {
-	return h.peers.Join(docID, clientID)
+// SetPresence swaps the presence backend. The composition root installs the
+// shared federated seam (actor-backed when GoAkt runs, PeerSet otherwise), so
+// this feature never owns a roster of its own. Nil keeps the built-in fallback:
+// a trimmed or engine-less tree still serves presence locally.
+func (h *Handler) SetPresence(p collab.PresenceSeam) {
+	if p != nil {
+		h.presence = p
+	}
 }
 
 // setPeerName captures the display name for a clientID; peerLeave runs
@@ -40,40 +45,50 @@ func (h *Handler) peerNameOf(clientID string) string {
 	return clientID
 }
 
-// peerLeave removes clientID from docID's peer set and broadcasts a
-// "leave" plus a recount. Skipped when the clientID re-registered during
-// an EventSource reconnect.
+// forgetPeerName drops a departed connection's display name. Without it the map
+// grows for the life of the process — one entry per tab ever opened.
+func (h *Handler) forgetPeerName(clientID string) {
+	h.peerNamesMu.Lock()
+	defer h.peerNamesMu.Unlock()
+	delete(h.peerNames, clientID)
+}
+
+// peerLeave removes clientID from docID's roster and broadcasts the departure
+// plus a recount. Skipped when the clientID re-registered during an
+// EventSource reconnect (the new handler owns it; broadcasting a leave would
+// make the pill oscillate 1→0→1→0).
 func (h *Handler) peerLeave(ctx context.Context, docID, clientID string) {
+	// The stream's request context is already cancelled when this runs; an
+	// actor Ask on it would fail and leave the closed tab on the roster.
+	ctx = context.WithoutCancel(ctx)
 	if h.hub.IsRegistered(clientID) {
 		return
 	}
-	h.peers.Leave(docID, clientID)
-	name := h.peerNameOf(clientID)
-	h.peerNamesMu.Lock()
-	delete(h.peerNames, clientID)
-	h.peerNamesMu.Unlock()
-	leaveMsg, lErr := json.Marshal(collab.PresenceMsg{Doc: docID, User: name, From: clientID, Type: "leave"})
-	if lErr != nil {
-		obsArgs := append(observability.WithComponent("notes", "feature"), "error", lErr)
-		observability.Warn(ctx, "notes: marshal leave", obsArgs...)
+	peers, err := h.presence.Leave(ctx, docID, clientID)
+	if err != nil {
+		collab.WarnPresence(ctx, "notes", "leave failed", docID, err)
 		return
 	}
+	name := h.peerNameOf(clientID)
+	h.forgetPeerName(clientID)
 	// Doc-scoped like the join: a leave on docA must not touch docB rosters.
-	h.hub.BroadcastExceptToDoc(leaveMsg, docID, clientID)
-	h.broadcastPeerCount(ctx, docID)
+	collab.BroadcastPresence(ctx, h.hub, "notes", docID, clientID,
+		collab.PresenceMsg{Doc: docID, User: name, Type: "leave"})
+	// The Leave answer IS the authoritative remaining set: re-listing would
+	// pay a second Ask for the same truth.
+	collab.BroadcastRoster(ctx, h.hub, "notes", docID, peers)
 }
 
-// broadcastPeerCount sends the authoritative full peer set for THIS doc
-// to the clients watching it. Doc-scoped: a global broadcast merged
-// every doc's roster into one, so opening docB inflated docA's pill.
+// broadcastPeerCount sends the authoritative roster for THIS doc to the tabs
+// watching it. Doc-scoped: a global broadcast merged every doc's roster into
+// one, so opening docB inflated docA's pill.
 func (h *Handler) broadcastPeerCount(ctx context.Context, docID string) {
-	msg, err := json.Marshal(collab.PresenceMsg{Doc: docID, Type: "count", Peers: h.peers.List(docID)})
+	peers, err := h.presence.List(ctx, docID)
 	if err != nil {
-		obsArgs := append(observability.WithComponent("notes", "feature"), "error", err)
-		observability.Warn(ctx, "notes: marshal peer count", obsArgs...)
+		collab.WarnPresence(ctx, "notes", "count list failed", docID, err)
 		return
 	}
-	h.hub.BroadcastToDoc(msg, docID)
+	collab.BroadcastRoster(ctx, h.hub, "notes", docID, peers)
 }
 
 // displayName resolves the human identity for presence via the shared
@@ -87,18 +102,12 @@ func (h *Handler) displayName(sess *auth.ValidatedSession, clientID string) stri
 	return collab.DisplayName(email, clientID)
 }
 
-// relay broadcasts one ephemeral presence event to the watchers of
-// docID (no persistence, no NATS). From is stamped from the sender's
-// clientID so peers can tell two tabs of the same user apart (User alone
-// cannot — it is the shared display email).
-func (h *Handler) relay(from, docID string, msg collab.PresenceMsg) error {
-	msg.From = from
-	payload, err := json.Marshal(msg)
-	if err != nil {
-		return err
-	}
-	h.hub.BroadcastExceptToDoc(payload, docID, from)
-	return nil
+// relay broadcasts one ephemeral presence event to the watchers of docID (no
+// persistence). From is stamped from the sender's clientID so peers can tell
+// two tabs of the same user apart (User alone cannot — it is the shared
+// display email).
+func (h *Handler) relay(ctx context.Context, from, docID string, msg collab.PresenceMsg) {
+	collab.BroadcastPresence(ctx, h.hub, "notes", docID, from, msg)
 }
 
 func (h *Handler) handleTyping(w http.ResponseWriter, r *http.Request) {
@@ -130,17 +139,12 @@ func (h *Handler) handleTyping(w http.ResponseWriter, r *http.Request) {
 	if req.Typing {
 		typ = "typing"
 	}
-	if err := h.relay(from, docID, collab.PresenceMsg{
+	h.relay(r.Context(), from, docID, collab.PresenceMsg{
 		Doc:  docID,
 		User: h.displayName(sess, from),
 		Type: typ,
 		TS:   time.Now().UnixMilli(),
-	}); err != nil {
-		obsArgs := append(observability.WithComponent("notes", "feature"), "error", err)
-		observability.Warn(r.Context(), "notes: relay typing failed", obsArgs...)
-		writeText(w, http.StatusInternalServerError, "marshal typing")
-		return
-	}
+	})
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
@@ -149,10 +153,10 @@ func (h *Handler) handleTyping(w http.ResponseWriter, r *http.Request) {
 // from sleep, a proxy blip) makes the old connection's teardown race the
 // new registration: hub.IsRegistered then reports the client as still
 // present and the leave is skipped, so peers keep the departed tab's dot
-// until the 8s TTL. pagehide fires while the tab is genuinely going away,
-// so this path announces the departure immediately and idempotently —
-// peerLeave itself is safe to run twice (the peer set is a set, and the
-// second broadcast is just a recount).
+// until the lease expires. pagehide fires while the tab is genuinely going
+// away, so this path announces the departure immediately and idempotently —
+// leaveNow itself is safe to run twice (the roster is a set, and the second
+// broadcast is just a recount).
 func (h *Handler) handleLeavePresence(w http.ResponseWriter, r *http.Request) {
 	sess := h.session(r)
 	if sess == nil {
@@ -165,7 +169,7 @@ func (h *Handler) handleLeavePresence(w http.ResponseWriter, r *http.Request) {
 		writeText(w, http.StatusBadRequest, "missing doc id or client id")
 		return
 	}
-	// Announce now and drop the peer set entry directly: the stream's own
+	// Announce now and drop the roster entry directly: the stream's own
 	// teardown may still be in flight, so it cannot be relied on to do this.
 	h.leaveNow(r.Context(), docID, from)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
@@ -174,19 +178,17 @@ func (h *Handler) handleLeavePresence(w http.ResponseWriter, r *http.Request) {
 // leaveNow is peerLeave without the "did it reconnect?" guard: the caller
 // already knows the tab is going away.
 func (h *Handler) leaveNow(ctx context.Context, docID, clientID string) {
-	h.peers.Leave(docID, clientID)
-	name := h.peerNameOf(clientID)
-	h.peerNamesMu.Lock()
-	delete(h.peerNames, clientID)
-	h.peerNamesMu.Unlock()
-	leaveMsg, err := json.Marshal(collab.PresenceMsg{Doc: docID, User: name, From: clientID, Type: "leave"})
+	ctx = context.WithoutCancel(ctx)
+	peers, err := h.presence.Leave(ctx, docID, clientID)
 	if err != nil {
-		obsArgs := append(observability.WithComponent("notes", "feature"), "error", err)
-		observability.Warn(ctx, "notes: marshal leave", obsArgs...)
+		collab.WarnPresence(ctx, "notes", "leave (pagehide) failed", docID, err)
 		return
 	}
-	h.hub.BroadcastExceptToDoc(leaveMsg, docID, clientID)
-	h.broadcastPeerCount(ctx, docID)
+	name := h.peerNameOf(clientID)
+	h.forgetPeerName(clientID)
+	collab.BroadcastPresence(ctx, h.hub, "notes", docID, clientID,
+		collab.PresenceMsg{Doc: docID, User: name, Type: "leave"})
+	collab.BroadcastRoster(ctx, h.hub, "notes", docID, peers)
 }
 
 func (h *Handler) handleCaret(w http.ResponseWriter, r *http.Request) {
@@ -222,18 +224,88 @@ func (h *Handler) handleCaret(w http.ResponseWriter, r *http.Request) {
 		writeText(w, http.StatusBadRequest, "pos must be >= 0")
 		return
 	}
-	if err := h.relay(from, docID, collab.PresenceMsg{
+	h.relay(r.Context(), from, docID, collab.PresenceMsg{
 		Doc:  docID,
 		User: h.displayName(sess, from),
 		Type: "caret",
 		X:    float64(req.Line),
 		Y:    float64(req.Pos),
 		TS:   time.Now().UnixMilli(),
-	}); err != nil {
-		obsArgs := append(observability.WithComponent("notes", "feature"), "error", err)
-		observability.Warn(r.Context(), "notes: relay caret failed", obsArgs...)
-		writeText(w, http.StatusInternalServerError, "marshal caret")
+	})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+// handleStream serves the note's SSE stream: session frame, live roster, the
+// current text, then the hub's heartbeat loop.
+//
+// It lives beside the presence helpers because everything it sends on open is a
+// presence frame plus the seed the roster accompanies; the channel and its
+// bookkeeping are one subject.
+func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
+	sess := h.session(r)
+	if sess == nil {
+		// A stream is a READ of the doc body: every signed-in user may read
+		// every shared note, but an anonymous tab must not. The browser's
+		// EventSource cannot sign in, so 401 makes it stop reconnecting
+		// (the page itself already redirects to /login).
+		writeText(w, http.StatusUnauthorized, "sign in to read")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	docID := chi.URLParam(r, "docID")
+	clientID := r.URL.Query().Get("clientID")
+	if clientID == "" {
+		clientID = uuid.NewString()
+	}
+	h.setPeerName(clientID, h.displayName(sess, clientID))
+	authed := sess != nil
+
+	if serr := h.hub.ServeStream(w, r, clientID, docID,
+		func(send func([]byte) error) {
+			h.seedStream(r, send, docID, clientID, sess, authed)
+		},
+		//nolint:contextcheck // SSE-sink boundary: the leave chain ends in
+		// hub.BroadcastToDoc/BroadcastExceptToDoc, which take no context
+		// (fan-out to other connections; a disconnect surfaces on their next
+		// failed write). Growing ctx on the hub is a repo-wide refactor.
+		func() { h.peerLeave(r.Context(), docID, clientID) }); serr != nil {
+		obsArgs := append(observability.WithComponent("notes", "feature"), "doc", docID, "error", serr)
+		observability.Warn(r.Context(), "notes: stream failed", obsArgs...)
+		return
+	}
+}
+
+// seedStream sends everything a joining tab needs on its own connection: the
+// session frame, the roster it walked into, its own join announcement, the
+// authoritative count, and the current note text.
+func (h *Handler) seedStream(
+	r *http.Request, send func([]byte) error, docID, clientID string,
+	sess *auth.ValidatedSession, authed bool,
+) {
+	if session := collab.SessionEvent(docID, authed); session != nil {
+		_ = send(session)
+	}
+	others, joinErr := h.presence.Join(r.Context(), docID, clientID)
+	if joinErr != nil {
+		collab.WarnPresence(r.Context(), "notes", "join failed", docID, joinErr)
+		return
+	}
+	if len(others) > 0 {
+		// The joiner seeds its pill from the authoritative roster; a peer that
+		// was already here gets the join frame below and the recount after it.
+		if snap, sErr := json.Marshal(collab.PresenceMsg{Doc: docID, Type: "snapshot", Peers: others}); sErr == nil {
+			_ = send(snap)
+		}
+	}
+	// Doc-scoped: a join on docA must not recreate rosters on docB.
+	collab.BroadcastPresence(r.Context(), h.hub, "notes", docID, clientID,
+		collab.PresenceMsg{Doc: docID, User: h.displayName(sess, clientID), From: clientID, Type: "join"})
+	h.broadcastPeerCount(r.Context(), docID)
+	if text := h.docs.GetOrCreate(docID).Text(); text != "" {
+		h.revsMu.Lock()
+		rev := h.revs[docID]
+		h.revsMu.Unlock()
+		if payload, err := json.Marshal(NoteTextEvent{Type: wireNoteText, Doc: docID, Text: text, Rev: rev}); err == nil {
+			_ = send(payload)
+		}
+	}
 }

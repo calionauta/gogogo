@@ -22,7 +22,7 @@ SSE record   → record-change push, visibility-scoped (always on)
 SSE ephemeral→ UI signals via Datastar protocol (always on; core-NATS bridge
                for cross-instance when enabled)
 JetStream    → multi-instance broadcast + cross-instance state (opt-out: NATS_ENABLED=false)
-GoAkt grains → one addressable owner per room/doc: roster, locks, supervision (opt-out: GOAKT_ENABLED=false; whiteboard presence falls back to PeerSet)
+GoAkt grains → one addressable owner per room/doc: roster, locks, supervision (opt-out: GOAKT_ENABLED=false; collaborative presence falls back to PeerSet)
 ```
 
 Jobs run once: the queue visibility window (10min) exceeds the slowest
@@ -67,9 +67,11 @@ them via Datastar's SSE protocol (`internal/datastar.RenderAndPatch` /
 `MergeSignals`).
 
 The todo feature uses both: the record event for CRUD propagation, ephemeral
-signals for toasts and live hints. The whiteboard uses the SSE Hub directly for shape and cursor broadcast; its
-roster is actor-backed when GoAkt runs (one grain per doc), with `PeerSet` as
-the fallback.
+signals for toasts and live hints. The whiteboard and notes use the SSE Hub
+directly for shape/text and cursor broadcast; both answer "who is on this doc?"
+through ONE seam (`collab.PresenceSeam`), actor-backed when GoAkt runs (one
+grain per doc) and `PeerSet` otherwise. One seam for both features is what stops
+a deployment ending up with two rosters that disagree about the same tab.
 
 **Ephemeral draft channel (a reusable pattern).** The whiteboard's live
 drawing is the reference for "show work in progress without committing it".
@@ -88,6 +90,23 @@ sequencing or acks. Reuse it for anything whose *finished* state belongs in
 the durable store but whose *in-progress* state only needs to be seen:
 dragging an existing shape, a resize handle, a live text selection.
 The rule of thumb: **commit on release, relay while moving.**
+
+**Presence crosses instances in two layers, and needs both.** The doc bridge
+(`hub.BroadcastToDoc` / `BroadcastExceptToDoc` → `app.docbridge.<doc>`) carries
+the FRAMES — a join, a leave, a cursor, a draft reaches a tab on another pod.
+The federated roster (`collab.FederatedPresence` → `app.roster.<doc>`) makes the
+COUNT honest: each instance publishes its own connections and merges the peers',
+so `List` is the union. The bridge alone was not enough — every count still read
+"1 online" while two browsers shared the document, because the roster each
+instance counted was its own. Federation alone is not enough either: the leaves
+and cursors ride the bridge.
+
+Federation is snapshots, not deltas: each instance republishes its full roster on
+a 10s lease, a remote entry expires after three missed leases (a SIGKILLed pod
+cannot announce its own death), and an orderly shutdown publishes an empty roster
+so peers drop those connections at once. Convergence comes from the next
+snapshot, never from sequencing or acks. Both wires are core NATS, best-effort,
+and neither is persisted.
 
 **Presence is not queued.** Caret, typing and draft frames are worth nothing
 after the fact, so they are the one client→server path with no outbox: they go
@@ -462,6 +481,7 @@ rebuild from connections.
 | DagNats streams/KV (upstream) | engine-owned; 10 GiB store cap + 30d DLQ | same as above |
 | Browser outbox (IndexedDB) | device-local, drains on reconnect | not backed up (client state) |
 | Grain roster (GoAkt) | in-memory soft state, connection-rebuilt | not backed up (rebuilt, by design) |
+| Federated roster (NATS) | in-memory lease state, 30s expiry | not persisted; rebuilt from connections |
 
 Restore drill (monthly, cheap): `./scripts/restore.sh --dry-run <backup>`
 — an untested backup is a rumor. Full procedure lives in

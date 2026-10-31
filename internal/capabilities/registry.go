@@ -190,6 +190,11 @@ var All = append([]Capability{
 		Kind:    KindPlugin,
 		Summary: "Loro CRDT transport: DocStore, sync workers, presence",
 		Dirs:    []string{"internal/collab"},
+		// The presence wiring's test imports the seam type from this package,
+		// so a tree without internal/collab cannot compile it. Deleted with
+		// the transport; the goakt unit deletes it too (either removal alone
+		// breaks the file, and trim deletes are idempotent).
+		Files: []string{"internal/server/presence_test.go"},
 		Note: "Shared by whiteboard + notes on the flat stack (their chi " +
 			"slices wire the transport). Snapshot durability is runtime: " +
 			"COLLAB_SNAPSHOTS=memory keeps snapshots process-local (draw " +
@@ -389,7 +394,7 @@ var All = append([]Capability{
 	{
 		ID:         "goakt",
 		Kind:       KindPlugin,
-		Summary:    "entity actors (GoAkt: room lease + whiteboard presence)",
+		Summary:    "entity actors (GoAkt: room lease + collaborative presence)",
 		RuntimeOff: "GOAKT_ENABLED=false",
 		Scaffold:   ScaffoldDefault,
 		Dirs:       []string{"internal/goakt", "features/room"},
@@ -398,13 +403,20 @@ var All = append([]Capability{
 			// internal/server/chi.go is EDITED (line drops), not deleted.
 			"cmd/web/goakt.go",
 			"cmd/web/goakt_test.go",
+			// The presence wiring's own test: it imports internal/goakt to boot
+			// a real actor host and assert the seam routes to it, so a tree
+			// with the engine deleted cannot compile it. Deleted with the
+			// unit, which is honest — the claim it guards stops existing.
+			"internal/server/presence_test.go",
 		},
 		Warns: []string{
 			"Runtime alternative (no deletion): GOAKT_ENABLED=false.",
 		},
-		Note: "Deletion removes the engine + room demo; whiteboard presence " +
-			"falls back to the in-process PeerSet. The Room sidebar entry is " +
-			"stripped automatically; main.go boot lines go with the unit's mainStrips.",
+		Note: "Deletion removes the engine + room demo; collaborative presence " +
+			"(whiteboard AND notes) falls back to the in-process PeerSet behind the " +
+			"same seam, so the cross-instance roster still works. The Room sidebar " +
+			"entry is stripped automatically; main.go boot lines go with the unit's " +
+			"mainStrips.",
 	},
 	{
 		ID:       "room",
@@ -426,6 +438,10 @@ var All = append([]Capability{
 			depSounds,
 		},
 		Dirs: []string{"features/whiteboard"},
+		// The presence wiring is whiteboard+notes infrastructure: with both
+		// trimmed there is no seam to build, no roster to federate, and no
+		// collab import left in the server package.
+		Files: []string{"internal/server/presence.go"},
 		Warns: []string{
 			"The Whiteboard sidebar entry is stripped automatically.",
 			"ci-local smoke: export SMOKE_FEATURES without whiteboard " +

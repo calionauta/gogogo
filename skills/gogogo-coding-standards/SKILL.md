@@ -144,6 +144,13 @@ entries); discovery: `room-authority` advise preset.
   forever. Crash hooks (`RoomCrash`-style) must exist to prove it.
 - Standalone only: no placement, no cluster, no grain persistence
   claims. Cross-process entities are out of scope for this unit.
+- **Presence is the exception to "standalone only", and it needs two wires.**
+  A per-document grain owns the LOCAL roster (or `PeerSet` when the engine is
+  trimmed), and two NATS families make it cross-instance: `app.docbridge.<doc>`
+  for the frames and `app.roster.<doc>` for the roster union. Either alone
+  produces a plausible bug — frames-only under-reports the count, roster-only
+  never delivers a leave. Whiteboard and notes share ONE seam. Full contract,
+  rules and red-proof checklist: `references/presence-multi-instance.md`.
 
 ## Performance
 
@@ -509,5 +516,6 @@ warnings print and exit 0.
 | `references/charts.md` | go-echarts (interactive, browser) vs go-analyze/charts (server-rendered PNG/SVG) |
 | `references/go-testing.md` | race, synctest, httptest, B.Loop, SQLite strategy, fix modernizers |
 | `references/datastar.md` | wrapper, scope, PatchElements, whitelist, CSS scan roots |
+| `references/presence-multi-instance.md` | collaborative presence: seam, doc bridge, federated roster, lease, red-proof checklist |
 | `references/exception-to-go.md` | bans, decision, pin policy, what to vendor and when |
 | `references/email-secrets.md` | APP_URL + SMTP config, project-scoped age secrets, Mailpit vs real provider |

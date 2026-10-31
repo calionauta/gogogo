@@ -45,6 +45,7 @@ import (
 	"github.com/calionauta/gogogo/features/whiteboard"
 	wbhandlers "github.com/calionauta/gogogo/features/whiteboard/handlers"
 	"github.com/calionauta/gogogo/internal/auth"
+	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
@@ -81,6 +82,9 @@ type ChiStack struct {
 	// DagNats reminder worker writes the notification row through it, so
 	// cmd/web passes this to startDagNats before NATS exists.
 	NotificationsHandler *notificationshandlers.Handler
+	// presence is the roster seam both collaborative features share (created
+	// at boot, federated by AttachPresenceFederation). Nil = features trimmed.
+	presence *collab.FederatedPresence
 }
 
 // bootRoomActor starts the GoAkt actor system and returns the room grains
@@ -231,15 +235,19 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	if perr != nil {
 		return bootFail(cancelConsumer, sqlDB, "collab snapshots", perr)
 	}
-	// The whiteboard's presence is actor-backed when GoAkt is running; the
-	// handler keeps its in-process PeerSet fallback for a disabled/trimmed
-	// engine (cmd/mobile, GOAKT_ENABLED=false).
 	wbH := wbhandlers.NewHandler(queries, a, hub, persister, docs, cfg)
-	// trim:whiteboard-presence
+	notesH := noteshandlers.NewHandler(queries, a, hub, persister, docs, cfg)
+	// Collaborator presence: ONE local seam for both features (the actor when
+	// GoAkt runs, the in-process PeerSet otherwise), so a deployment cannot end
+	// up with two rosters that disagree about the same tab. It is federated
+	// across instances in AttachPresenceFederation once NATS exists.
+	federated := bootPresence(hub)
+	// trim:presence-actor
 	if roomHost != nil {
-		wbH.SetPresence(appgoakt.NewDocPresence(roomHost))
-		slog.Info("server: whiteboard presence actor", "backend", "goakt")
+		upgradePresenceToActor(federated, appgoakt.NewDocPresence(roomHost))
 	}
+	wbH.SetPresence(federated)
+	notesH.SetPresence(federated)
 	// One argument per line, deliberately: every line belongs to exactly one
 	// feature, so trimming a feature drops its lines without touching its
 	// neighbours. A shared line would make a line drop take two features at
@@ -248,7 +256,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		landinghandlers.NewHandler(cfg, a),
 		confighandlers.NewHandler(cfg, a, queries),
 		wbH,
-		noteshandlers.NewHandler(queries, a, hub, persister, docs, cfg),
+		notesH,
 		roomH,
 		chatH,
 		reviewH,
@@ -303,6 +311,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		// DagNats reminder worker writes the notification row through it, so
 		// cmd/web passes this to startDagNats before NATS exists.
 		NotificationsHandler: notificationsH,
+		presence:             federated,
 	}, nil
 }
 
@@ -326,14 +335,6 @@ func (s *ChiStack) AttachJetStream(
 	slog.Info("server: crud wire attached", "leafEdge", leafEdge, "publisher", pub != nil)
 	s.TodoHandler.SetPublisher(pub)
 	startCrudConsumer(ctx, js, s.appName, s.TodoHandler)
-}
-
-// AttachEphemeral bridges the hub's ephemeral signals (chat answers,
-// onboarding progress, suggest/retry toasts) across instances over core NATS.
-// Nil (NATS off) leaves the hub in-process; record and collab fan-out keep
-// their own wires. Call once, after Boot.
-func (s *ChiStack) AttachEphemeral(nc *natsio.Conn) error {
-	return s.hub.AttachEphemeral(nc)
 }
 
 // srvHandler wraps the mux for serveChiOnListener (kept separate so the
@@ -391,6 +392,9 @@ func StartChi(cfg *config.Config, nc *natsio.Conn, js nats.JetStreamLike) (stop 
 	stack.AttachJetStream(context.Background(), nc, js, cfg.NATS.LeafNodeURL != "")
 	if aerr := stack.AttachEphemeral(nc); aerr != nil {
 		slog.Warn("server: ephemeral bridge not attached", "error", aerr)
+	}
+	if derr := stack.AttachDocBridge(nc); derr != nil {
+		slog.Warn("server: doc bridge not attached", "error", derr)
 	}
 	return stack.Serve(cfg.ChiAddr)
 }

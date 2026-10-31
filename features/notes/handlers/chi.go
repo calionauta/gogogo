@@ -43,8 +43,16 @@ type Handler struct {
 	cfg       *config.Config
 	docs      *collab.DocStore
 	persister collab.Persister
-	peers     *collab.PeerSet
+	// presence is the roster seam: the GoAkt grain per document when the
+	// engine runs, the in-process PeerSet otherwise (SetPresence swaps it).
+	// Same seam the whiteboard uses, so the two collaborative features cannot
+	// diverge on who is present or how a leave is announced.
+	presence collab.PresenceSeam
 
+	// peerNamesMu guards peerNames, the clientID → display name map a leave
+	// needs (the leave runs after the request is gone). Entries are deleted on
+	// leave; the doc-delete path clears the names it can, since those tabs
+	// never reconnect to a deleted doc to trigger their own leave.
 	peerNamesMu sync.Mutex
 	peerNames   map[string]string
 
@@ -80,7 +88,7 @@ func NewHandler(
 	return &Handler{
 		q: q, auth: a, hub: hub, cfg: cfg,
 		docs: docs, persister: persister,
-		peers:     collab.NewPeerSet(),
+		presence:  collab.NewPeerPresence(),
 		peerNames: make(map[string]string),
 		revs:      make(map[string]uint64),
 	}
@@ -304,6 +312,16 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
 		obsArgs := append(observability.WithComponent("notes", "feature"), "doc", docID, "error", ferr)
 		observability.Warn(r.Context(), "notes: forget doc snapshot failed", obsArgs...)
 	}
+	// Drop the roster too: the note no longer exists, so its departed client
+	// ids must not linger in memory or be resurrected by a reconnect to the
+	// same id. Best-effort — the delete already happened. The display-name map
+	// cannot be cleared per doc (it is keyed by clientID), so entries for tabs
+	// that never come back are bounded by the process lifetime; every ordinary
+	// leave does delete its own entry.
+	if rerr := h.presence.ForgetDoc(r.Context(), docID); rerr != nil {
+		obsArgs := append(observability.WithComponent("notes", "feature"), "doc", docID, "error", rerr)
+		observability.Warn(r.Context(), "notes: forget doc roster failed", obsArgs...)
+	}
 	h.revsMu.Lock()
 	delete(h.revs, docID)
 	h.revsMu.Unlock()
@@ -319,60 +337,6 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("datastar-mode", "outer")
 	w.WriteHeader(http.StatusOK)
 	_ = notescomponents.NotesListFragment(notes).Render(r.Context(), w)
-}
-
-func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
-	sess := h.session(r)
-	if sess == nil {
-		// A stream is a READ of the doc body: every signed-in user may read
-		// every shared note, but an anonymous tab must not. The browser's
-		// EventSource cannot sign in, so 401 makes it stop reconnecting
-		// (the page itself already redirects to /login).
-		writeText(w, http.StatusUnauthorized, "sign in to read")
-		return
-	}
-	docID := chi.URLParam(r, "docID")
-	clientID := r.URL.Query().Get("clientID")
-	if clientID == "" {
-		clientID = uuid.NewString()
-	}
-	h.setPeerName(clientID, h.displayName(sess, clientID))
-	authed := sess != nil
-
-	if serr := h.hub.ServeStream(w, r, clientID, docID,
-		//nolint:contextcheck // Hub fan-out calls take no context; disconnects
-		// surface when the next write fails, which ServeStream handles.
-		func(send func([]byte) error) {
-			if session := collab.SessionEvent(docID, authed); session != nil {
-				_ = send(session)
-			}
-			h.peerJoin(docID, clientID)
-			joinUser := h.displayName(sess, clientID)
-			joinMsg, mErr := json.Marshal(collab.PresenceMsg{Doc: docID, User: joinUser, From: clientID, Type: "join"})
-			if mErr == nil {
-				// Doc-scoped: a join on docA must not recreate rosters on docB.
-				h.hub.BroadcastExceptToDoc(joinMsg, docID, clientID)
-			} else {
-				obsArgs := append(observability.WithComponent("notes", "feature"), "error", mErr)
-				observability.Warn(r.Context(), "notes: marshal join", obsArgs...)
-			}
-			h.broadcastPeerCount(r.Context(), docID)
-			if text := h.docs.GetOrCreate(docID).Text(); text != "" {
-				h.revsMu.Lock()
-				rev := h.revs[docID]
-				h.revsMu.Unlock()
-				if payload, err := json.Marshal(NoteTextEvent{Type: wireNoteText, Doc: docID, Text: text, Rev: rev}); err == nil {
-					_ = send(payload)
-				}
-			}
-		},
-		//nolint:contextcheck // leave chain ends in Hub.Broadcast, which
-		// takes no context; disconnects surface on the next failed write.
-		func() { h.peerLeave(r.Context(), docID, clientID) }); serr != nil {
-		obsArgs := append(observability.WithComponent("notes", "feature"), "doc", docID, "error", serr)
-		observability.Warn(r.Context(), "notes: stream failed", obsArgs...)
-		return
-	}
 }
 
 func (h *Handler) handleOp(w http.ResponseWriter, r *http.Request) {

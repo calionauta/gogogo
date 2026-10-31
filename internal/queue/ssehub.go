@@ -74,6 +74,11 @@ type SSEHub struct {
 	// (see ssehub_ephemeral.go). Nil = in-process only.
 	ephemeral *ephemeralBridge
 
+	// docBridge bridges BroadcastToDoc/BroadcastExceptToDoc across instances
+	// when NATS is wired (see ssehub_doc_bridge.go). Nil = in-process only,
+	// which is the single-instance whiteboard/notes behaviour.
+	docBridge *docBridge
+
 	// onDrop is invoked once per dropped event (slow client or
 	// failed delivery). Defaults to a slog.Warn; tests can inject a
 	// counter to assert drop behaviour.

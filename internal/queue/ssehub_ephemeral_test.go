@@ -10,36 +10,10 @@ import (
 )
 
 // bridgedHubs boots an embedded NATS and two hubs on separate connections —
-// two instances of the same app.
+// two instances of the same app — with the EPHEMERAL bridge attached.
 func bridgedHubs(t *testing.T) (*queue.SSEHub, *queue.SSEHub, *nats.Handle) {
 	t.Helper()
-	srv, err := nats.StartEmbedded(t.TempDir() + "/nats")
-	if err != nil {
-		t.Fatalf("embedded nats: %v", err)
-	}
-	t.Cleanup(srv.Close)
-
-	a, aerr := nats.ConnectExisting(srv.URL())
-	if aerr != nil {
-		t.Fatalf("connect A: %v", aerr)
-	}
-	t.Cleanup(a.Close)
-	b, berr := nats.ConnectExisting(srv.URL())
-	if berr != nil {
-		t.Fatalf("connect B: %v", berr)
-	}
-	t.Cleanup(b.Close)
-
-	hubA, hubB := queue.NewSSEHub(), queue.NewSSEHub()
-	t.Cleanup(hubA.Close)
-	t.Cleanup(hubB.Close)
-	if aerr := hubA.AttachEphemeral(a.Conn); aerr != nil {
-		t.Fatalf("attach A: %v", aerr)
-	}
-	if berr := hubB.AttachEphemeral(b.Conn); berr != nil {
-		t.Fatalf("attach B: %v", berr)
-	}
-	return hubA, hubB, a
+	return twoHubsOn(t, (*queue.SSEHub).AttachEphemeral)
 }
 
 // receive asserts one delivery on ch within the deadline.

@@ -87,3 +87,37 @@ func TestDocPresenceCrashIsIsolated(t *testing.T) {
 		t.Fatalf("doc-a after rejoin = %v, %v", got, err)
 	}
 }
+
+// TestDocPresenceForgetDocDropsRoster pins the delete path: a document that
+// no longer exists must not keep client ids in memory, and a reconnect to the
+// same id must start from an empty roster rather than resurrect departed
+// connections.
+//
+// RED-PROOFED: make ForgetDoc a no-op and the list below still returns c1.
+func TestDocPresenceForgetDocDropsRoster(t *testing.T) {
+	ctx, host := testHost(t)
+	p := NewDocPresence(host)
+	if _, err := p.Join(ctx, "doc-gone", "c1"); err != nil {
+		t.Fatalf("join: %v", err)
+	}
+	if _, err := p.Join(ctx, "doc-kept", "k1"); err != nil {
+		t.Fatalf("doc-kept join: %v", err)
+	}
+
+	if ferr := p.ForgetDoc(ctx, "doc-gone"); ferr != nil {
+		t.Fatalf("forget: %v", ferr)
+	}
+	got, err := p.List(ctx, "doc-gone")
+	if err != nil || len(got) != 0 {
+		t.Fatalf("roster after ForgetDoc = %v, %v; want empty", got, err)
+	}
+	// Never-forgotten docs are untouched.
+	kept, kerr := p.List(ctx, "doc-kept")
+	if kerr != nil || !slices.Equal(kept, []string{"k1"}) {
+		t.Fatalf("doc-kept roster = %v, %v; want [k1]", kept, kerr)
+	}
+	// Nothing to forget is not an error: delete is idempotent.
+	if ferr := p.ForgetDoc(ctx, "doc-never-seen"); ferr != nil {
+		t.Fatalf("forget unknown doc: %v", ferr)
+	}
+}

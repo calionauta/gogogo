@@ -20,15 +20,16 @@ func (h *SSEHub) SetDoc(clientID, docID string) {
 // or note-text event for one doc must never reach another doc's tabs
 // (cross-doc adoption corrupted both sides' views). Clients with no
 // recorded doc are skipped. Drop policy is identical to Broadcast.
+//
+// With AttachDocBridge the event also crosses instances, so a peer tab
+// served by instance B sees a join/leave/count that happened on instance A —
+// without it, presence was silently per-instance: the pill said "1 online"
+// while a peer sat on the same board through another pod.
 func (h *SSEHub) BroadcastToDoc(data []byte, docID string) {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-	for id, ch := range h.clients {
-		if h.docOf[id] != docID {
-			continue
-		}
-		h.deliverOrDrop(id, ch, data, "slow-client-broadcast-doc")
+	if h.publishDocBridge(docID, "", data) {
+		return
 	}
+	h.deliverDocLocal(docID, "", data)
 }
 
 // BroadcastExceptToDoc sends data to all currently connected clients
@@ -36,15 +37,8 @@ func (h *SSEHub) BroadcastToDoc(data []byte, docID string) {
 // BroadcastExcept (the originator already holds its own optimistic
 // state), scoped to one doc so peers on other docs are undisturbed.
 func (h *SSEHub) BroadcastExceptToDoc(data []byte, docID, excludeClientID string) {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-	for id, ch := range h.clients {
-		if id == excludeClientID {
-			continue
-		}
-		if h.docOf[id] != docID {
-			continue
-		}
-		h.deliverOrDrop(id, ch, data, "slow-client-broadcast-doc")
+	if h.publishDocBridge(docID, excludeClientID, data) {
+		return
 	}
+	h.deliverDocLocal(docID, excludeClientID, data)
 }

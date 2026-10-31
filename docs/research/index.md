@@ -45,6 +45,7 @@ individual notes.
 |---|---|---|
 | [Browser automation on a shared host](browser-automation-2026-10.md) | 2026-10-28 | chrome-headless-shell vs Lightpanda vs happy-dom vs remote CDP on a 4-vCPU / 8 GB box that also runs co-tenant agents; why the engine was never the failure and the lifecycle was |
 | [CI wall-clock](ci-wall-clock-2026-10.md) | 2026-10-29 | measured per-job and per-package cost of CI: sharding by measured cost instead of count, PR-only test selection over the dependent closure, narrow caches behind `continue-on-error`, and why the installer suite and the browser suites stay on the pre-merge gate |
+| [The Boardy CI playbook](ci-playbook-boardy-2026-10.md) | 2026-10-30 | the 20x/40min-to-2min claim cross-checked against this repo: eight of nine levers already shipped, the paid lever rejected, the untested skip classifier extracted into a tested pure function (`make check-ci-scripts`), and the wall-clock reality that three jobs tie within 5s so a single-job win buys nothing |
 
 ## Decisions and rationale
 
