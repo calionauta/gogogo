@@ -326,13 +326,22 @@ func TestStripWhiteboardRemovesWiringAndDesktopPhaseC(t *testing.T) {
 	if err := os.MkdirAll(desktopDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
+	// A hand-copy of the real chi.go block, kept deliberately minimal: the
+	// whiteboard unit's drops must remove every line that names the feature,
+	// the shared presence seam, and the collab import it needs.
 	give := "\t// Optional capabilities: one wiring line each.\n" +
 		"\tonboardingH, onbShutdown := bootOnboarding(cfg, a, todoH, hub)\n" +
 		"\twbH := wbhandlers.NewHandler(queries, a, hub, persister, docs, cfg)\n" +
-		"\t// trim:whiteboard-presence\n" +
+		"\tnotesH := noteshandlers.NewHandler(queries, a, hub, persister, docs, cfg)\n" +
+		"\t// Collaborator presence: ONE local seam for both features (the actor when\n" +
+		"\t// GoAkt runs, the in-process PeerSet otherwise).\n" +
+		"\tfederated := bootPresence(hub)\n" +
+		"\t// trim:presence-actor\n" +
 		"\tif roomHost != nil {\n" +
-		"\t\twbH.SetPresence(appgoakt.NewDocPresence(roomHost))\n" +
+		"\t\tupgradePresenceToActor(federated, appgoakt.NewDocPresence(roomHost))\n" +
 		"\t}\n" +
+		"\twbH.SetPresence(federated)\n" +
+		"\tnotesH.SetPresence(federated)\n" +
 		"\n" +
 		"\tif cfg.OfflineSync.Enabled {\n"
 	if err := os.WriteFile(filepath.Join(routerDir, "chi.go"), []byte(give), 0o600); err != nil {

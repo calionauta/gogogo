@@ -182,7 +182,7 @@ capability registry + installer engine (CLI and MCP share it)
 
 Loro CRDT transport: DocStore, sync workers, presence
 
-- **Owned:** `internal/collab`
+- **Owned:** `internal/collab`, `internal/server/presence_test.go`
 - **Store calls:** `dbgen.DeleteSnapshot`, `dbgen.GetSnapshot`, `dbgen.UpsertSnapshot`
 - **Scaffold:** `manual`
 - **Trim:** manual (no installer unit)
@@ -263,14 +263,14 @@ generative UI: the Chat demo renders LLM answers as Templ directives over the SS
 
 ## `goakt` — plugin
 
-entity actors (GoAkt: room lease + whiteboard presence)
+entity actors (GoAkt: room lease + collaborative presence)
 
-- **Owned:** `internal/goakt`, `features/room`, `cmd/web/goakt.go`, `cmd/web/goakt_test.go`
+- **Owned:** `internal/goakt`, `features/room`, `cmd/web/goakt.go`, `cmd/web/goakt_test.go`, `internal/server/presence_test.go`
 - **Routes:** `/room`, `/room/acquire`, `/room/crash`, `/room/heartbeat`, `/room/join`, `/room/leave`, `/room/release`, `/room/roster`, `/room/stream`
 - **Scaffold:** `default`
 - **Runtime off:** `GOAKT_ENABLED=false`
 - **Trim:** offered to the installer (a scaffold's keep lists/presets drop it)
-- **Note:** Deletion removes the engine + room demo; whiteboard presence falls back to the in-process PeerSet. The Room sidebar entry is stripped automatically; main.go boot lines go with the unit's mainStrips.
+- **Note:** Deletion removes the engine + room demo; collaborative presence (whiteboard AND notes) falls back to the in-process PeerSet behind the same seam, so the cross-instance roster still works. The Room sidebar entry is stripped automatically; main.go boot lines go with the unit's mainStrips.
 - **Warning:** Runtime alternative (no deletion): GOAKT_ENABLED=false.
 
 ## `llm` — plugin
@@ -457,7 +457,7 @@ Todo MVC demo (reference implementation)
 
 collaborative canvas (Loro + Rough.js + presence)
 
-- **Owned:** `features/whiteboard`
+- **Owned:** `features/whiteboard`, `internal/server/presence.go`
 - **Routes:** `/api/whiteboard/{docID}/delete`, `/api/whiteboard/{docID}/presence`, `/api/whiteboard/{docID}/snapshot`, `/api/whiteboard/{docID}/stream`, `/api/whiteboard/{docID}/update`, `/api/whiteboards/fragment`, `/whiteboard`, `/whiteboard/new`, `/whiteboard/{docID}`
 - **Store calls:** `dbgen.BumpBoardVersion`, `dbgen.DeleteBoard`, `dbgen.GetBoardMeta`, `dbgen.ListBoards`, `dbgen.UpsertBoard`
 - **Scaffold:** `default`

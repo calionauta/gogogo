@@ -305,6 +305,13 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
 		obsArgs := append(observability.WithComponent("whiteboard", "feature"), "doc", docID, "error", ferr)
 		observability.Warn(r.Context(), "whiteboard: forget doc snapshot failed", obsArgs...)
 	}
+	// Drop the roster too: the board no longer exists, so its departed client
+	// ids must not linger in memory or be resurrected by a reconnect to the
+	// same id. Best-effort — the delete already happened.
+	if rerr := h.presence.ForgetDoc(r.Context(), docID); rerr != nil {
+		obsArgs := append(observability.WithComponent("whiteboard", "feature"), "doc", docID, "error", rerr)
+		observability.Warn(r.Context(), "whiteboard: forget doc roster failed", obsArgs...)
+	}
 	boards, lerr := h.listBoards(r.Context(), sess.User.ID, sess.Role)
 	if lerr != nil {
 		obsArgs := append(observability.WithComponent("whiteboard", "feature"), "doc", docID, "error", lerr)
@@ -317,71 +324,6 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("datastar-mode", "outer")
 	w.WriteHeader(http.StatusOK)
 	_ = components.WhiteboardListFragment(boards).Render(r.Context(), w)
-}
-
-func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
-	sess := h.session(r)
-	if sess == nil {
-		// The stream carries the board body (shapes + peers). Shared means
-		// every signed-in user reads it, never an anonymous tab; 401 stops
-		// EventSource from reconnecting in a loop.
-		writeText(w, http.StatusUnauthorized, "sign in to read")
-		return
-	}
-	docID := chi.URLParam(r, "docID")
-	clientID := r.URL.Query().Get("clientID")
-	if clientID == "" {
-		clientID = uuid.NewString()
-	}
-	authed := sess != nil
-
-	if serr := h.hub.ServeStream(w, r, clientID, docID,
-		//nolint:contextcheck // Hub fan-out calls take no context; disconnects
-		// surface when the next write fails, which ServeStream handles.
-		func(send func([]byte) error) {
-			if session := collab.SessionEvent(docID, authed); session != nil {
-				_ = send(session)
-			}
-			others, joinErr := h.peerJoin(r.Context(), docID, clientID)
-			if joinErr != nil {
-				obsArgs := append(observability.WithComponent("whiteboard", "feature"), "error", joinErr)
-				observability.Warn(r.Context(), "whiteboard: peer join failed", obsArgs...)
-				return
-			}
-			joinMsg, mErr := json.Marshal(collab.PresenceMsg{Doc: docID, User: clientID, Type: "join"})
-			if mErr != nil {
-				obsArgs := append(observability.WithComponent("whiteboard", "feature"), "error", mErr)
-				observability.Warn(r.Context(), "whiteboard: marshal join", obsArgs...)
-				return
-			}
-			h.hub.BroadcastExceptToDoc(joinMsg, docID, clientID)
-			if len(others) > 0 {
-				snap, sErr := json.Marshal(collab.PresenceMsg{Doc: docID, User: clientID, Type: "snapshot", Peers: others})
-				if sErr != nil {
-					obsArgs := append(observability.WithComponent("whiteboard", "feature"), "error", sErr)
-					observability.Warn(r.Context(), "whiteboard: marshal snapshot", obsArgs...)
-				} else if err := send(snap); err != nil {
-					return
-				}
-			}
-			h.broadcastPeerCount(r.Context(), docID)
-			if shapes := h.worker.Shapes(docID); len(shapes) > 0 {
-				payload, err := json.Marshal(collab.WebShapesEvent{Type: wireShapes, Doc: docID, From: "", Shapes: shapes})
-				if err != nil {
-					obsArgs := append(observability.WithComponent("whiteboard", "feature"), "error", err)
-					observability.Warn(r.Context(), "whiteboard: marshal initial shapes", obsArgs...)
-				} else {
-					_ = send(payload)
-				}
-			}
-		},
-		//nolint:contextcheck // leave chain ends in Hub.Broadcast, which
-		// takes no context; disconnects surface on the next failed write.
-		func() { h.peerLeave(r.Context(), docID, clientID) }); serr != nil {
-		obsArgs := append(observability.WithComponent("whiteboard", "feature"), "doc", docID, "error", serr)
-		observability.Warn(r.Context(), "whiteboard: stream failed", obsArgs...)
-		return
-	}
 }
 
 func (h *Handler) handleUpdate(w http.ResponseWriter, r *http.Request) {

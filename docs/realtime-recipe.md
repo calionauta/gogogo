@@ -162,7 +162,9 @@ style preference; it starves the work.
    visibility/focus/online/pageshow — never a timer — and broadcast any change
    you do hear over the existing BroadcastChannel.
 4. **Multiple instances:** the notifications bus is in-process; the session
-   stream's 60s recheck is the fallback until a NATS wire exists.
+   stream's 60s recheck is the fallback. Collaborative presence DOES cross
+   instances (`app.docbridge.<doc>` frames + `app.roster.<doc>` federation),
+   but that covers a feature's own roster, not global shell state.
 
 **Never:** `data-on-interval` (or `setInterval`) that fetches server state; a
 second EventSource per page; a per-tab copy of a global stream.
@@ -237,6 +239,15 @@ in `skills/gogogo-coding-standards/references/datastar.md`.
   Collaborative docs scope fan-out per doc (`BroadcastExceptToDoc` /
   `BroadcastToDoc` + a client-side `msg.doc` guard): a global broadcast
   let any board/note overwrite every other board/note's view.
+- **Presence across instances** → two layers, both required, both attached in
+  `cmd/web/main.go` after `startNATS`. `AttachDocBridge` puts the doc-scoped
+  frames on `app.docbridge.<doc>`; `AttachPresenceFederation` puts each
+  instance's roster on `app.roster.<doc>` and merges the peers', so `List` is
+  the union and the "X online" count is not a per-instance number. The frames
+  alone left every count reading "1 online" with two tabs on different pods.
+  Whiteboard and notes share ONE seam (`collab.PresenceSeam`) for the same
+  reason: two rosters disagreeing about one tab is the failure mode. See
+  [async-layers.md](async-layers.md#transport-matrix-queryable).
 - **Worker return contract** → return `err` (pool retries) ONLY when the
   failure is transient for the whole job. Otherwise deliver the error result
   to the originator and return nil: `llm.Chat` already retries transient

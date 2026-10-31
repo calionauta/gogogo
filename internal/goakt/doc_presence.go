@@ -166,6 +166,30 @@ func (p *DocPresence) Crash(ctx context.Context, docID string) error {
 	return goakt.Tell(ctx, pid, docCrash{})
 }
 
+// ForgetDoc drops the document's roster. A document that no longer exists
+// must not keep client ids in memory, and a reconnect to the same id must not
+// resurrect them (the roster is a set of connections, not of people).
+func (p *DocPresence) ForgetDoc(ctx context.Context, docID string) error {
+	key := "doc-" + sanitizeRoomID(docID)
+	h := p.host
+	h.mu.Lock()
+	_, ok := h.rooms[key]
+	if ok {
+		delete(h.rooms, key)
+	}
+	h.mu.Unlock()
+	if !ok {
+		return nil
+	}
+	// Shut the grain down so the roster cannot be revived by a passivation
+	// timer or a supervised restart, and so the next Join for this id spawns a
+	// fresh actor (PreStart rebuilds an empty set).
+	if h.system == nil {
+		return nil
+	}
+	return h.system.Kill(ctx, key)
+}
+
 // Snapshot exposes the generation for tests and a future actor-inspector UI.
 func (p *DocPresence) Snapshot(ctx context.Context, docID string) (DocSnapshot, error) {
 	raw, err := p.ask(ctx, docID, docList{})

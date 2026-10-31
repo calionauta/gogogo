@@ -99,6 +99,7 @@ manifest, then `make docs-index`; `make check-docs` fails when this block drifts
 - [browser-automation](docs/research/browser-automation-2026-10.md) — chrome-headless-shell vs Lightpanda vs happy-dom vs remote CDP on a shared 8 GB box, and why a Playwright suite's lifecycle, not its engine, is what took the host down.
 - [notify](docs/research/notify-2026-10.md) — The 2026-10-27 notify evaluation: what to copy from a delivery engine, why the inbox stays local, and where an external provider fits.
 - [ci-wall-clock](docs/research/ci-wall-clock-2026-10.md) — Where CI's minutes go, measured per job and per package: sharding by cost, PR-only test selection, narrow caches, and the options that were rejected with evidence.
+- [ci-playbook-boardy](docs/research/ci-playbook-boardy-2026-10.md) — Owen Gretzinger's nine CI levers cross-checked against this repo: eight already shipped, the paid runner rejected, and the live gap — an untested docs-only skip classifier that can report green while skipping every heavy gate.
 - [mobile-android](docs/research/mobile-android-2026-10.md) — The 2026-10-30 Android spike: tursogo has no Android library, ncruces keeps SQL and migrations shared, cmd/gui chose ncruces explicitly, and cmd/mobile is the separate entrypoint.
 - [android-spike](docs/research/android-spike-2026-10.md) — The Android spike build log: commands, driver matrix, libc shims, system-bar insets, screenshots, disk usage and cleanup.
 - [scaffold-choice](docs/research/scaffold-choice-2026-10.md) — Why the scaffold prompt offers only the installer units, the three lists that disagree, and the Scaffold class that makes every capability an explicit keep-or-drop.
@@ -181,7 +182,7 @@ dependencies and are left alone.
 | **Workflows that survive a restart** | [DagNats](https://github.com/danmestas/dagnats) | Multi-step workflows as declarative JSON; resume after a mid-run kill |
 | **Room ownership without races** | [GoAkt](https://github.com/Tochemey/goakt) | One grain per room: heartbeat roster plus exactly-one presenter lock, supervised |
 | **Shared state that merges offline edits** | [Loro CRDT](https://github.com/aholstenson/loro-go) + [Rough.js](https://roughjs.com) | Conflict-free state with no last-write-wins data loss |
-| **Realtime for one instance or many** | SSE Hub + NATS JetStream | Per-user record push, plus cross-instance broadcast |
+| **Realtime for one instance or many** | SSE Hub + NATS JetStream | Per-user record push, plus cross-instance broadcast — including a collaborative presence roster that is the *union* of instances, not a per-pod count |
 | **AI features on any provider** | [GoAI](https://github.com/zendev-sh/goai) + optional [ai-credits](https://github.com/calionauta/ai-credits) | Any OpenAI-compatible provider; optional billing ledger + BYOK |
 | **Secrets encrypted at rest** | [age](https://age-encryption.org) + `~/.secrets/` | Project-scoped local encryption. No vault, no cloud; name scoping is not a sandbox ([security](docs/security.md)) |
 | **Desktop apps on the same backend** | [Wails v3](https://wails.io) + [gogpu/ui](https://github.com/gogpu/ui) | Native shells over the same backend, plus a no-HTTP frontend |
@@ -219,6 +220,7 @@ Collaboration without data loss      → Loro CRDT (remove internal/collab/)
 Live record updates, scoped per user → SSE Hub record-sync (always on)
 Ephemeral UI signals                 → SSE Hub via Datastar (always on)
 Broadcast across instances           → JetStream (NATS_ENABLED=false)
+Collaborative presence (who's here)  → doc frame bridge + federated roster
 Room ownership without races         → GoAkt grains (GOAKT_ENABLED=false)
 ```
 

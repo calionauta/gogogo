@@ -9,6 +9,7 @@ import (
 
 type fakePresence struct {
 	joined, left []string
+	forgot       []string
 	peers        []string
 	leaveCtxErr  error
 }
@@ -24,6 +25,10 @@ func (f *fakePresence) Leave(ctx context.Context, docID, clientID string) ([]str
 	return f.peers, nil
 }
 func (f *fakePresence) List(_ context.Context, _ string) ([]string, error) { return f.peers, nil }
+func (f *fakePresence) ForgetDoc(_ context.Context, docID string) error {
+	f.forgot = append(f.forgot, docID)
+	return nil
+}
 
 // TestWhiteboardPresenceSeam pins that SetPresence replaces the fallback and
 // that join/leave call it with the document and client id the SSE stream uses.
@@ -32,7 +37,7 @@ func TestWhiteboardPresenceSeam(t *testing.T) {
 	h := newWBHandler(t)
 	fake := &fakePresence{peers: []string{"c2"}}
 	h.SetPresence(fake)
-	peers, err := h.peerJoin(context.Background(), "doc-a", "c1")
+	peers, err := h.presence.Join(context.Background(), "doc-a", "c1")
 	if err != nil || !slices.Equal(peers, []string{"c2"}) {
 		t.Fatalf("join = %v, %v; want [c2]", peers, err)
 	}
@@ -59,12 +64,21 @@ func TestWhiteboardPresenceSeam(t *testing.T) {
 	// PeerSet keeps working when the actor is absent.
 	fallback := newWBHandler(t)
 	fallback.SetPresence(nil)
-	peers, err = fallback.peerJoin(context.Background(), "doc-b", "c9")
+	peers, err = fallback.presence.Join(context.Background(), "doc-b", "c9")
 	if err != nil || len(peers) != 0 {
 		t.Fatalf("fallback join = %v, %v; want empty", peers, err)
 	}
 	got, lerr := fallback.presence.List(context.Background(), "doc-b")
 	if lerr != nil || !slices.Equal(got, []string{"c9"}) {
 		t.Fatalf("fallback list = %v, %v; want [c9]", got, lerr)
+	}
+
+	// A deleted board drops its roster: a reconnect to the same id must not
+	// resurrect departed client ids.
+	if ferr := fallback.presence.ForgetDoc(context.Background(), "doc-b"); ferr != nil {
+		t.Fatalf("fallback forget: %v", ferr)
+	}
+	if left, _ := fallback.presence.List(context.Background(), "doc-b"); len(left) != 0 {
+		t.Fatalf("roster survived ForgetDoc: %v", left)
 	}
 }

@@ -24,6 +24,18 @@ import (
 
 func notesFixture(t *testing.T) http.Handler {
 	t.Helper()
+	h := newNotesHandler(t)
+	mux := http.NewServeMux()
+	mux.Handle("/api/auth/", h.auth.Routes())
+	mux.Handle("/", h.Routes())
+	return mux
+}
+
+// newNotesHandler builds a notes handler over a real Turso file, real auth and
+// a real Loro DocStore — the seam tests drive the handler directly (no HTTP),
+// so they share this constructor instead of growing a second fixture.
+func newNotesHandler(t *testing.T) *Handler {
+	t.Helper()
 	sqlDB, err := db.OpenAt(t.TempDir() + "/notes.db")
 	if err != nil {
 		t.Fatalf("db open: %v", err)
@@ -40,12 +52,8 @@ func notesFixture(t *testing.T) http.Handler {
 	if perr != nil {
 		t.Fatalf("persister: %v", perr)
 	}
-	h := NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister,
+	return NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister,
 		collab.NewDocStore(), config.Load())
-	mux := http.NewServeMux()
-	mux.Handle("/api/auth/", a.Routes())
-	mux.Handle("/", h.Routes())
-	return mux
 }
 
 func notesSignup(t *testing.T, mux http.Handler, email string) *http.Cookie {

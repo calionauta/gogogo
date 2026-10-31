@@ -66,3 +66,12 @@ func (p *PeerSet) List(docID string) []string {
 	}
 	return out
 }
+
+// ForgetDoc drops docID's roster entirely: the document is gone, so a tab
+// that reconnects to the same id must not resurrect the departed client ids
+// of the deleted document.
+func (p *PeerSet) ForgetDoc(docID string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	delete(p.docs, docID)
+}

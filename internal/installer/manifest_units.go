@@ -356,6 +356,15 @@ var baseTrimUnits = []trimUnit{
 						endIsClosingBrace: true,
 						endBrace:          "}",
 					},
+					{
+						// Presence keeps working, its actor upgrade does not: this
+						// branch is the only appgoakt use left once the engine is
+						// gone, and bootPresence's PeerSet is the fallback.
+						startMarker:        "// trim:presence-actor",
+						endIsClosingBrace:  true,
+						endBrace:           "\t}",
+						alsoDeleteContains: []string{"upgradePresenceToActor(federated, appgoakt.NewDocPresence(roomHost))"},
+					},
 				},
 			},
 			{

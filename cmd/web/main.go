@@ -138,6 +138,20 @@ func run() error {
 	if aerr := stack.AttachEphemeral(nc); aerr != nil {
 		slog.Warn("web: ephemeral bridge not attached", "error", aerr)
 	}
+	// Doc-scoped fan-out (presence, cursors, drafts, room roster) crosses
+	// instances on its own wire; without it presence was per-instance and a
+	// peer on another pod never showed up in the pill.
+	if derr := stack.AttachDocBridge(nc); derr != nil {
+		slog.Warn("web: doc bridge not attached", "error", derr)
+	}
+	// The FRAMES crossing instances (above) are not enough for the "X online"
+	// pill: each instance only counts its own connections, so two tabs on
+	// different pods both read "1 online". Federation publishes and merges the
+	// per-instance rosters so the count is the union. It also holds the lease
+	// goroutine, bound to lifecycleCtx.
+	if ferr := stack.AttachPresenceFederation(lifecycleCtx, nc); ferr != nil {
+		slog.Warn("web: presence federation not attached", "error", ferr)
+	}
 
 	// ChiAddr, when set, overrides Host:Port (same override cmd/desktop
 	// uses for its webview proxy target). Empty keeps the default, so a

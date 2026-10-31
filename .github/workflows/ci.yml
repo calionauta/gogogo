@@ -80,12 +80,20 @@ jobs:
           # shallow history, dispatch) or a failed `git diff` leaves it
           # false, because skipping the gates on an unreadable changeset
           # would hide a real break instead of wasting a runner.
+          #
+          # The path policy itself lives in scripts/ci-changes-classifier.sh,
+          # which has a contract test (scripts/ci-changes-classifier.test.sh).
+          # It used to be this inline regex, where no test could reach it — and
+          # docs_only=true skips lint, the race suite, the browser suites and
+          # the production-image boot, so a wrong verdict is a green build that
+          # proves nothing about the Go code. The base-resolution logic below
+          # stays here: it needs git and the event payload.
           DOCS_ONLY="false"
           if [ -n "$BASE" ] && [ "$BASE" != "0000000000000000000000000000000000000000" ] \
             && git cat-file -e "$BASE^{commit}" 2>/dev/null; then
             CHANGED="$(git diff --name-only "$BASE...HEAD" || true)"
-            if [ -n "$CHANGED" ] && ! printf '%s\n' "$CHANGED" | grep -qvE '^docs/|^site/|\.md$|^LICENSE$|^\.stelow/|^\.gitignore$'; then
-              DOCS_ONLY="true"
+            if [ -n "$CHANGED" ]; then
+              DOCS_ONLY="$(printf '%s\n' "$CHANGED" | bash scripts/ci-changes-classifier.sh)"
             fi
           fi
           echo "docs_only=$DOCS_ONLY" >> "$GITHUB_OUTPUT"
@@ -284,6 +292,13 @@ jobs:
         # Cheap (grep + sh -n), so it stays at the top of the cheap fail-fast
         # block.
         run: bin/check-install-sh.sh
+      - name: Changeset classifier contract
+        # The classifier decides whether checks/race/browser/prod-image run at
+        # all. Its own test pins both directions: an inert file must not force a
+        # run, and a Go/CSS/SQL/workflow change must never be classified as
+        # docs-only (a false "true" is a green build that skipped every heavy
+        # gate). Synthetic path lists: no repo, no git, instant.
+        run: bash scripts/ci-changes-classifier.test.sh
       - name: Shard split contract
         # The selector decides WHICH tests run, so its own test pins that the
         # union of every shard is exactly web-packages.sh (no gap, no duplicate),

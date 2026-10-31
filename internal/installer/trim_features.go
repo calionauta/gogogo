@@ -30,10 +30,27 @@ var featureTrimUnits = []trimUnit{
 					// replaces below, so both sides agree.
 					"wbH := wbhandlers.NewHandler(queries, a, hub, persister, docs, cfg)",
 					"wbH,",
-					"// trim:whiteboard-presence",
-					"wbH.SetPresence(appgoakt.NewDocPresence(roomHost))",
-					`slog.Info("server: whiteboard presence actor", "backend", "goakt")`,
-					"noteshandlers.NewHandler(queries, a, hub, persister, docs, cfg),",
+					// The shared presence seam: the comment block that explains it,
+					// the construction, and BOTH SetPresence calls. Notes is part of
+					// this same unit, so dropping the pair is consistent — the seam
+					// exists only while at least one collaborative feature does.
+					"// Collaborator presence: ONE local seam for both features (the actor when",
+					"// GoAkt runs, the in-process PeerSet otherwise), so a deployment cannot end",
+					"// up with two rosters that disagree about the same tab. It is federated",
+					"// across instances in AttachPresenceFederation once NATS exists.",
+					"federated := bootPresence(hub)",
+					"upgradePresenceToActor(federated, appgoakt.NewDocPresence(roomHost))",
+					"wbH.SetPresence(federated)",
+					"notesH.SetPresence(federated)",
+					"presence:             federated,",
+					// bootPresence is the only collab consumer left in chi.go
+					// once whiteboard+notes are trimmed, so its import goes too.
+					`	"github.com/calionauta/gogogo/internal/collab"`,
+					// Two distinct lines: the construction assignment and the
+					// buildChiMux argument. The trailing comma is what tells them
+					// apart, so both must be listed.
+					"notesH := noteshandlers.NewHandler(queries, a, hub, persister, docs, cfg)",
+					"notesH,",
 					// One mount line for the feature's own router (see
 					// MountFeature), plus the feature's own static subtree: the
 					// core /static/ mount never serves whiteboard.js or notes.js,
@@ -77,6 +94,17 @@ var featureTrimUnits = []trimUnit{
 					"wbhandlers.NewHandler(",
 					"noteshandlers.NewHandler(",
 				},
+			},
+		},
+		mainStrips: []stripRule{
+			{
+				// The federation call and the comment block that explains it: with
+				// the collaborative features gone there is no roster to federate, and
+				// prose about an absent seam would contradict the tree. The end is the
+				// `if` body's own closing brace.
+				startMarker:       "// The FRAMES crossing instances (above) are not enough for the \"X online\"",
+				endIsClosingBrace: true,
+				endBrace:          "\t}",
 			},
 		},
 		// The nat handle stays: startTransport feeds the desktop's realtime
@@ -132,6 +160,21 @@ var featureTrimUnits = []trimUnit{
 						startMarker:       "// bootCollab builds",
 						endIsClosingBrace: true,
 						endBrace:          "}",
+					},
+				},
+			},
+			{
+				// The `presence` field the two callers filled, plus its doc
+				// comment (or the struct keeps prose about absent code).
+				// bootPresence / upgradePresenceToActor / AttachPresenceFederation
+				// and their imports live in internal/server/presence.go, which
+				// this unit DELETES (capability Files), so no strip is needed for
+				// them.
+				path: chiGoFile,
+				rules: []stripRule{
+					{
+						startMarker: "\t// presence is the roster seam both collaborative features share",
+						endMarker:   "\tpresence *collab.FederatedPresence",
 					},
 				},
 			},
