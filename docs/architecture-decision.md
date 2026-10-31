@@ -16,8 +16,9 @@ the sections below:
   (see `stack-tradeoffs.md#routers-chi-for-ergonomics-not-speed`).
 - 🗄️ **Data: sqlc functions called directly.** Handlers call `dbgen.*`
   — no repository layer — over one SQLite-compatible schema. The driver is
-  platform-selected: tursogo on desktop/server, `ncruces/go-sqlite3` on the
-  opt-in Android target.
+  platform-selected: tursogo on web/desktop, `ncruces/go-sqlite3` on the
+  opt-in Android target; `cmd/gui` uses ncruces explicitly for the same
+  schema.
 - 🔑 **Auth: owned argon2id.** `internal/auth`: password hashes, opaque
   sessions, `gogogo_auth` cookie, zero auth dependencies.
 - 🛡️ **Permissions: Casbin.** Model plus embedded policy, enforced by

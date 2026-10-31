@@ -118,16 +118,31 @@ Two hard rules once native code is in:
   scan — never just `go.mod`. No CI job compiles either target, so the recipe in
   [Desktop & Mobile](desktop-mobile.md) is the only place that stays true.
 
+### Database driver by target
+
+The schema, migrations and sqlc queries are one; only the driver changes.
+
+| Target | Driver | Why |
+|---|---|---|
+| `cmd/web` (server) | `tursogo` (`turso`, Turso Database) | the default engine; purego, no CGO |
+| `cmd/desktop` | `tursogo` | boots the same `internal/server.StartChi` stack |
+| `cmd/gui` (gogpu/ui) | `ncruces/go-sqlite3` (`sqlite3`) | tursogo's purego/fakecgo collides with goffi at `CGO_ENABLED=0`; ncruces is pure Go |
+| `cmd/mobile` (Android) | `ncruces` | tursogo embeds no Android library; same schema and migrations |
+
+`cmd/gui` bypasses `internal/db` and opens the file itself with ncruces. The
+Android target selects ncruces behind `android` build tags for `internal/db`,
+`internal/queue` and the credits ledger. Web and desktop keep tursogo; the
+credits ledger there also uses tursogo.
+
+ncruces is a driver, not a second database: same SQLite file format, same
+schema. Being cgo-free also keeps the production cross-compile
+(`GOOS=linux` from any runner) clean.
+
 ### Why `ncruces/go-sqlite3`?
 
-It is the pure-Go (no cgo) SQLite engine for the paths that open plain
-SQLite files directly (the native window, the credits ledger, and the opt-in
-Android target) — registered as the `sqlite3` `database/sql` driver. The
-desktop/server app database and queue run on `tursogo` (driver name `turso`);
-Android selects ncruces behind `android` build tags.
-
-Being cgo-free means clean cross-compilation of the production binary (the
-deploy workflow builds `GOOS=linux` from any runner).
+It is the pure-Go (no cgo) SQLite driver for the targets above — registered as
+the `sqlite3` `database/sql` driver. The extension surface is documented below;
+nothing loads an extension today.
 
 #### Extensions: available, none loaded
 

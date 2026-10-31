@@ -170,7 +170,8 @@ adb shell am start -n com.wails.app/.MainActivity
 `cmd/mobile` boots the same chi stack on `127.0.0.1:18080`; `MainActivity`
 loads that origin after the bridge boots (retries, cleartext, system-bar
 insets). The database driver is selected by build tag: tursogo on
-desktop/server, `ncruces/go-sqlite3` on Android (see the research page). The
+web/desktop, `ncruces/go-sqlite3` on Android (see the research page). `cmd/gui`
+uses ncruces explicitly; the desktop shell itself stays on tursogo. The
 APK is a spike-quality target: open auth, fixed port, no Keystore, no deep-link
 activation, no TLS. It is never built in CI; the SDK/NDK/emulator is ~10 GB.
 

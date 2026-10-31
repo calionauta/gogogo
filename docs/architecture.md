@@ -73,7 +73,7 @@ wiring — the feature's own `Routes()` does the rest.
 
 ## The three app entry points
 
-One backend, three frontends:
+One backend, four frontends:
 
 | Entry point | Transport | Purpose |
 |---|---|---|
@@ -81,6 +81,11 @@ One backend, three frontends:
 | `cmd/desktop` | Wails v3 webview over loopback HTTP | Native desktop/edge shell, 100% shared backend |
 | `cmd/gui` | gogpu/ui native window | Second frontend with **no** HTTP at all — proves the domain layer is transport-agnostic |
 | `cmd/mobile` | Wails Android webview over loopback HTTP | Opt-in Android target; driver matrix swaps tursogo for ncruces |
+
+`cmd/web` and `cmd/desktop` open the database through tursogo; `cmd/gui` and
+`cmd/mobile` use `ncruces/go-sqlite3` over the same schema (gui explicitly,
+mobile behind `android` tags). See
+[the driver table](stack-layers.md#database-driver-by-target).
 
 `cmd/desktop`, `cmd/gui` and `cmd/mobile` are separate build targets, excluded
 from web CI and built by no CI job: `make desktop` / `make gui` / `make mobile`

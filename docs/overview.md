@@ -3,7 +3,11 @@
 A full-stack Go web app template that ships as **one binary**. No external
 database, no Redis, no queue service, no CDN, no JS build step. Turso
 (embedded Turso Database) provides the database, owned argon2id code provides auth,
-and Datastar delivers reactive UI over server-rendered HTML and SSE.
+and Datastar delivers reactive UI over server-rendered HTML and SSE. Turso
+Database is the driver for the web and desktop builds; the gogpu/ui window and
+the opt-in Android target open the same schema with the pure-Go
+`ncruces/go-sqlite3` driver (see
+[the driver table](stack-layers.md#database-driver-by-target)).
 
 That list is the point: the template replaces the **infrastructure you would
 have to operate**. Providers you choose to call — an LLM, a payment API, an
