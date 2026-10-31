@@ -52,7 +52,7 @@ being one.
 - **Multi-instance realtime** — JetStream fan-out for todo + whiteboard sync across >1 instance behind a LB.
 - **Durable offline writes** — one page-side outbox (write-ahead + idempotency receipts) plus an app-shell cache; NATS CRUD proxy for desktop edges (default on).
 - **UI shell + themes** — every page renders inside one shell (`internal/ui`); the palettes (`light`, `dark`, `lofi`, `dim`) are DaisyUI themes chosen from the account panel in the sidebar and catalogued in `internal/themes`. On phones (≤720px) a bottom dock (Todo/Board/Chat/Menu, DaisyUI `dock`) gives one-tap navigation on every module, including Chat, where the composer sits above the bar. See [UI themes](ui-themes.md).
-- **Persistence** — One schema/data layer: `internal/db` migrations + generated queries; the driver is platform-selected (tursogo on desktop/server, `ncruces/go-sqlite3` on Android).
+- **Persistence** — One schema/data layer: `internal/db` migrations + generated queries; the driver is platform-selected: tursogo on web/desktop, `ncruces/go-sqlite3` on Android; `cmd/gui` uses ncruces explicitly over the same schema.
 - **Desktop-edge sync** — Leaf-Node live event sync (CRUD + Loro) for desktop/edge clients; offline CRUD replay on reconnect is a follow-up.
 - **Landing page** — The app's own public page on `GET /` (not the GitHub Pages promo site, which is never installed). No auth, no DB. Todo demo lives at `/todo`.
 - **Config + admin users** — Admin-only `GET /config` (always on, even with RBAC off): env-decrypted values, masked secrets, runtime constants, user role changes, session revocation, the audit panel and CSV. Role/session mutations require the admin's password (or a current code on a passwordless admin).

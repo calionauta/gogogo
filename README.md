@@ -187,6 +187,22 @@ dependencies and are left alone.
 | **Desktop apps on the same backend** | [Wails v3](https://wails.io) + [gogpu/ui](https://github.com/gogpu/ui) | Native shells over the same backend, plus a no-HTTP frontend |
 | **Linting tuned for AI-written code** | [golangci-lint](https://golangci-lint.run) + [datastar-lint](https://github.com/calionauta/datastar-lint) | Tuned for LLM-authored code: unchecked errors, context leaks, lost context propagation |
 
+### Database drivers by target
+
+The database is **Turso Database** (SQLite-compatible) on the web and desktop
+builds. Two targets use the pure-Go `ncruces/go-sqlite3` driver over the same
+schema and migrations:
+
+| Target | Driver | Why |
+|---|---|---|
+| `cmd/web`, `cmd/desktop` | `tursogo` (`turso`, Turso Database) | the default engine; desktop boots the same `StartChi` stack |
+| `cmd/gui` (gogpu/ui) | `ncruces` (`sqlite3`) | tursogo links purego/fakecgo, which collides with goffi at `CGO_ENABLED=0` |
+| `cmd/mobile` (Android) + its queue/ledger | `ncruces` | tursogo embeds no Android library |
+
+ncruces is a **driver**, not a second database: same file format, schema and
+migrations. The full table and reasons:
+[stack-layers](docs/stack-layers.md#database-driver-by-target).
+
 Full table with the reasoning behind each choice:
 [stack-layers](docs/stack-layers.md). Client weight per feature
 ([measured](docs/features.md#client-weight)): 0–48 KB of JS — the backend

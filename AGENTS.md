@@ -76,6 +76,8 @@ Go is the product language (~95-99%). Zero Zig code/toolchain in tree — do not
 
 Keep architecture explicit, thin, and easy for LLMs to evolve. Avoid creating a framework.
 
+**Database driver by target.** tursogo (`turso`, Turso Database) for `cmd/web` and `cmd/desktop`; `ncruces/go-sqlite3` (`sqlite3`) for `cmd/gui` (tursogo's purego/fakecgo collides with goffi at `CGO_ENABLED=0`) and `cmd/mobile` (tursogo embeds no Android library). One schema, migrations and sqlc queries; see `docs/stack-layers.md#database-driver-by-target`.
+
 **Principles (LLM-friendly, evolvable; 2026 practice):**
 - **Thin seams over clever abstractions.** Add interfaces only when you actually have 2+ implementations or a real need to swap. Prefer small, purpose-built interfaces (1-3 methods). Never reach for `GenericRepo[T]`. Go's implicit interfaces mean no ceremony.
 - **Direct calls over interfaces.** Call the concrete dependency (a sqlc function, a chi handler) directly. Reserve an interface for a genuinely swappable edge (e.g. an LLM provider) and keep it to 1-3 methods. A one-implementation interface is a shallow module — delete it.
