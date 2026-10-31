@@ -115,6 +115,8 @@ export default {
     desc: "Where CI's minutes go, measured per job and per package: sharding by cost, PR-only test selection, narrow caches, and the options that were rejected with evidence." },
   { group: "Research", slug: "ci-playbook-boardy", file: "research/ci-playbook-boardy-2026-10.md",
     desc: "Owen Gretzinger's nine CI levers cross-checked against this repo: eight already shipped, the paid runner rejected, and the live gap — an untested docs-only skip classifier that can report green while skipping every heavy gate." },
+  { group: "Research", slug: "ci-provider-move", file: "research/ci-provider-move-2026-10.md",
+    desc: "CircleCI, Dagger, Woodpecker and self-hosted evaluated against measured numbers: minutes are free on a public repo, the runner queue is 12s, and more cores cannot beat a 42s package tail — a provider move is cost without wall-clock." },
   { group: "Research", slug: "mobile-android", file: "research/mobile-android-2026-10.md",
     desc: "The 2026-10-30 Android spike: tursogo has no Android library, ncruces keeps SQL and migrations shared, cmd/gui chose ncruces explicitly, and cmd/mobile is the separate entrypoint." },
   { group: "Research", slug: "android-spike", file: "research/android-spike-2026-10.md",
