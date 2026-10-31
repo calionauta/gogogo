@@ -15,6 +15,16 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.61.1 (2026-10-31)
+
+## What's Changed
+* docs(mobile): align the site and docs with the opt-in target by @calionauta in https://github.com/calionauta/gogogo/pull/350
+* docs(mcp): list build_prerequisites and sync_prerequisites by @calionauta in https://github.com/calionauta/gogogo/pull/352
+* fix(ui): demo operator menus, shared search, one clear control by @calionauta in https://github.com/calionauta/gogogo/pull/353
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.61.0...v0.61.1
+
 ## 0.61.0 (2026-10-30)
 
 ## What's Changed
