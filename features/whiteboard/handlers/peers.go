@@ -28,6 +28,9 @@ func (h *Handler) peerJoin(ctx context.Context, docID, clientID string) ([]strin
 // if the hub re-registered the same clientID already, the new handler owns
 // it and no leave is broadcast (otherwise tabs oscillate 1→0→1→0).
 func (h *Handler) peerLeave(ctx context.Context, docID, clientID string) {
+	// The stream's request context is already cancelled when this runs; an
+	// actor Ask on it would fail and leave the closed tab on the roster.
+	ctx = context.WithoutCancel(ctx)
 	if h.hub.IsRegistered(clientID) {
 		return
 	}

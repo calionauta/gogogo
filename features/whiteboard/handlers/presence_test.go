@@ -10,6 +10,7 @@ import (
 type fakePresence struct {
 	joined, left []string
 	peers        []string
+	leaveCtxErr  error
 }
 
 func (f *fakePresence) Join(_ context.Context, docID, clientID string) ([]string, error) {
@@ -17,8 +18,9 @@ func (f *fakePresence) Join(_ context.Context, docID, clientID string) ([]string
 	return f.peers, nil
 }
 
-func (f *fakePresence) Leave(_ context.Context, docID, clientID string) ([]string, error) {
+func (f *fakePresence) Leave(ctx context.Context, docID, clientID string) ([]string, error) {
 	f.left = append(f.left, docID+"/"+clientID)
+	f.leaveCtxErr = ctx.Err()
 	return f.peers, nil
 }
 func (f *fakePresence) List(_ context.Context, _ string) ([]string, error) { return f.peers, nil }
@@ -42,6 +44,15 @@ func TestWhiteboardPresenceSeam(t *testing.T) {
 	}
 	if !slices.Equal(fake.left, []string{"doc-a/c1"}) {
 		t.Fatalf("presence leaves = %v", fake.left)
+	}
+	// A stream's request context is cancelled by the time leave runs; the
+	// handler must strip cancellation or an actor Ask never reaches the grain.
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	fake.peers = []string{"c2"}
+	h.peerLeave(cancelled, "doc-a", "c2")
+	if fake.leaveCtxErr != nil {
+		t.Fatalf("leave saw a cancelled context: %v", fake.leaveCtxErr)
 	}
 
 	// Nil is the documented fallback: a handler built with the default
