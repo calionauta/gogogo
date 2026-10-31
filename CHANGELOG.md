@@ -15,6 +15,16 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.62.0 (2026-10-31)
+
+## What's Changed
+* docs: name the database driver for each target by @calionauta in https://github.com/calionauta/gogogo/pull/354
+* feat(whiteboard): actor-backed presence with a PeerSet fallback by @calionauta in https://github.com/calionauta/gogogo/pull/356
+* feat(realtime): cross-instance presence for notes and whiteboard by @calionauta in https://github.com/calionauta/gogogo/pull/357
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.61.1...v0.62.0
+
 ## 0.61.1 (2026-10-31)
 
 ## What's Changed
