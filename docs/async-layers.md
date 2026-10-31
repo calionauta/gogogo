@@ -22,7 +22,7 @@ SSE record   → record-change push, visibility-scoped (always on)
 SSE ephemeral→ UI signals via Datastar protocol (always on; core-NATS bridge
                for cross-instance when enabled)
 JetStream    → multi-instance broadcast + cross-instance state (opt-out: NATS_ENABLED=false)
-GoAkt grains → one addressable owner per room: roster, locks, supervision (opt-out: GOAKT_ENABLED=false)
+GoAkt grains → one addressable owner per room/doc: roster, locks, supervision (opt-out: GOAKT_ENABLED=false; whiteboard presence falls back to PeerSet)
 ```
 
 Jobs run once: the queue visibility window (10min) exceeds the slowest
@@ -67,8 +67,9 @@ them via Datastar's SSE protocol (`internal/datastar.RenderAndPatch` /
 `MergeSignals`).
 
 The todo feature uses both: the record event for CRUD propagation, ephemeral
-signals for toasts and live hints. The whiteboard uses the SSE Hub directly
-for shape and presence broadcast.
+signals for toasts and live hints. The whiteboard uses the SSE Hub directly for shape and cursor broadcast; its
+roster is actor-backed when GoAkt runs (one grain per doc), with `PeerSet` as
+the fallback.
 
 **Ephemeral draft channel (a reusable pattern).** The whiteboard's live
 drawing is the reference for "show work in progress without committing it".

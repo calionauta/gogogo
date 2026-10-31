@@ -389,7 +389,7 @@ var All = append([]Capability{
 	{
 		ID:         "goakt",
 		Kind:       KindPlugin,
-		Summary:    "entity actors (GoAkt rooms: roster + presenter lock)",
+		Summary:    "entity actors (GoAkt: room lease + whiteboard presence)",
 		RuntimeOff: "GOAKT_ENABLED=false",
 		Scaffold:   ScaffoldDefault,
 		Dirs:       []string{"internal/goakt", "features/room"},
@@ -402,9 +402,9 @@ var All = append([]Capability{
 		Warns: []string{
 			"Runtime alternative (no deletion): GOAKT_ENABLED=false.",
 		},
-		Note: "Deletion removes the engine + room demo. The Room sidebar " +
-			"entry is stripped automatically; main.go boot lines go with " +
-			"the unit's mainStrips.",
+		Note: "Deletion removes the engine + room demo; whiteboard presence " +
+			"falls back to the in-process PeerSet. The Room sidebar entry is " +
+			"stripped automatically; main.go boot lines go with the unit's mainStrips.",
 	},
 	{
 		ID:       "room",

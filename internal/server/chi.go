@@ -231,6 +231,15 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	if perr != nil {
 		return bootFail(cancelConsumer, sqlDB, "collab snapshots", perr)
 	}
+	// The whiteboard's presence is actor-backed when GoAkt is running; the
+	// handler keeps its in-process PeerSet fallback for a disabled/trimmed
+	// engine (cmd/mobile, GOAKT_ENABLED=false).
+	wbH := wbhandlers.NewHandler(queries, a, hub, persister, docs, cfg)
+	// trim:whiteboard-presence
+	if roomHost != nil {
+		wbH.SetPresence(appgoakt.NewDocPresence(roomHost))
+		slog.Info("server: whiteboard presence actor", "backend", "goakt")
+	}
 	// One argument per line, deliberately: every line belongs to exactly one
 	// feature, so trimming a feature drops its lines without touching its
 	// neighbours. A shared line would make a line drop take two features at
@@ -238,7 +247,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	mux := buildChiMux(a, todoH,
 		landinghandlers.NewHandler(cfg, a),
 		confighandlers.NewHandler(cfg, a, queries),
-		wbhandlers.NewHandler(queries, a, hub, persister, docs, cfg),
+		wbH,
 		noteshandlers.NewHandler(queries, a, hub, persister, docs, cfg),
 		roomH,
 		chatH,

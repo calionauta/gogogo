@@ -174,6 +174,8 @@ web/desktop, `ncruces/go-sqlite3` on Android (see the research page). `cmd/gui`
 uses ncruces explicitly; the desktop shell itself stays on tursogo. The
 APK is a spike-quality target: open auth, fixed port, no Keystore, no deep-link
 activation, no TLS. It is never built in CI; the SDK/NDK/emulator is ~10 GB.
+`cmd/mobile` disables GoAkt, so whiteboard/notes presence uses the in-process
+`PeerSet` fallback; the desktop and web builds get the actor-backed roster.
 
 iOS is analogous but needs Xcode and a Keychain-backed token.
 

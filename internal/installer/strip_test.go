@@ -328,7 +328,11 @@ func TestStripWhiteboardRemovesWiringAndDesktopPhaseC(t *testing.T) {
 	}
 	give := "\t// Optional capabilities: one wiring line each.\n" +
 		"\tonboardingH, onbShutdown := bootOnboarding(cfg, a, todoH, hub)\n" +
-		"\twbhandlers.NewHandler(queries, a, hub, persister, docs, cfg),\n" +
+		"\twbH := wbhandlers.NewHandler(queries, a, hub, persister, docs, cfg)\n" +
+		"\t// trim:whiteboard-presence\n" +
+		"\tif roomHost != nil {\n" +
+		"\t\twbH.SetPresence(appgoakt.NewDocPresence(roomHost))\n" +
+		"\t}\n" +
 		"\n" +
 		"\tif cfg.OfflineSync.Enabled {\n"
 	if err := os.WriteFile(filepath.Join(routerDir, "chi.go"), []byte(give), 0o600); err != nil {
@@ -364,7 +368,9 @@ func TestStripWhiteboardRemovesWiringAndDesktopPhaseC(t *testing.T) {
 		t.Fatal(err)
 	}
 	out, _ := os.ReadFile(filepath.Join(routerDir, "chi.go"))
-	if strings.Contains(string(out), "wbhandlers.NewHandler") || strings.Contains(string(out), "internal/collab") {
+	if strings.Contains(string(out), "wbhandlers.NewHandler") ||
+		strings.Contains(string(out), "wbH") ||
+		strings.Contains(string(out), "internal/collab") {
 		t.Errorf("whiteboard wiring survived trim:\n%s", out)
 	}
 	if !strings.Contains(string(out), "bootOnboarding(cfg, a, todoH, hub)") {
