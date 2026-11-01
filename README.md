@@ -104,6 +104,7 @@ manifest, then `make docs-index`; `make check-docs` fails when this block drifts
 - [mobile-android](docs/research/mobile-android-2026-10.md) — The 2026-10-30 Android spike: tursogo has no Android library, ncruces keeps SQL and migrations shared, cmd/gui chose ncruces explicitly, and cmd/mobile is the separate entrypoint.
 - [android-spike](docs/research/android-spike-2026-10.md) — The Android spike build log: commands, driver matrix, libc shims, system-bar insets, screenshots, disk usage and cleanup.
 - [scaffold-choice](docs/research/scaffold-choice-2026-10.md) — Why the scaffold prompt offers only the installer units, the three lists that disagree, and the Scaffold class that makes every capability an explicit keep-or-drop.
+- [extensibility](docs/research/extensibility-2026-11.md) — Core plus installable extensions evaluated for 2026: why buildmode=plugin is out, why anchor-patching cannot carry N authors, what compile-time registration costs, and the ordered spikes that can kill the idea.
 
 **Ship**
 - [deploy](docs/deploy.md) — Server layout, first-time setup, deploy workflow, build pipeline and version badge.
