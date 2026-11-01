@@ -18,14 +18,19 @@ import (
 
 // Shared file paths for add/trim mechanics (goconst-quiet, single spelling).
 const (
-	todoGoFile   = "features/todo/handlers/pages.go"
-	todoRepoFile = "features/todo/handlers/chi.go"
-	dirMode      = 0o755
+	dirMode = 0o755
 )
 
 // Insertion anchors for add: where extracted spans and call lines land in
 // the target checkout. Keyed by file path (convention over configuration):
-// scaffolded trees keep these shapes, anything else fails fast.
+// scaffolded trees keep these shapes, anything else is manual — add refuses
+// such a unit up front with the exact lines to restore by hand.
+//
+// The table used to carry todo .templ/handler entries as well. They drifted
+// twice (the file split and the strip moved) and no gate could see it, which
+// is why `add` now reports a unit with an unanchored strip instead of
+// promising a position it cannot find. TestEveryDeclaredAddAnchorIsLive holds
+// every entry below to a whole line that exists in the template tree.
 const (
 	// mainCallsAnchor is the lifecycle defer; dagnats/goakt boot spans
 	// land below it (above startNATS, which both must precede).
@@ -33,17 +38,6 @@ const (
 	// desktopBlockAnchor opens the Wails boot section; the Phase C demo
 	// block lands above it.
 	desktopBlockAnchor = "\tviewURL := webviewURL(cfg.Host, port)"
-	// todoListTempl carries the dagnats entry-button strip; the button is
-	// re-inserted above the last onboarding step item, which stays in the tree.
-	todoListTempl = "features/todo/components/todo_list.templ"
-	// todoEntryButtonAnchor survives the trim: the strip removes the button and
-	// its own marker, so the anchor must sit OUTSIDE that span (end of the
-	// stepper list); a marker inside it is deleted and leaves `add` nowhere.
-	todoEntryButtonAnchor = "\t\t\t\t\t\t\t\t\t\t>6. Finalize</li>"
-	// todoLayoutAnchor is the DaisyUI fallback; skin dispatches land above.
-	todoLayoutAnchor = "\t_ = components.Layout("
-	// todoRegionAnchor is the region fallback; skin cases land above.
-	todoRegionAnchor = "\treturn components.TodoListRegion(signals)"
 )
 
 // AddReceipt records what one add run actually changed. Touched lists

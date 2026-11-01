@@ -120,7 +120,11 @@ var featureTrimUnits = []trimUnit{
 				startMarker:       "// publishDemoCollab exercises the edge-sync publish paths end to end",
 				endIsClosingBrace: true,
 				endBrace:          "}",
-				addBefore:         "// desktopConfig loads config",
+				// findAnchor matches WHOLE lines, so the pin is the full
+				// comment: pinning the shorter prefix silently never
+				// matched and `add` refused with "cannot locate insertion
+				// anchor" (caught by TestEveryDeclaredAddAnchorIsLive).
+				addBefore: "// desktopConfig loads config and applies the shell's overrides. Split out of",
 			},
 		},
 		desktopDropLines: []string{`internal/collab"`, `"time"`},

@@ -31,11 +31,15 @@ type spanAnchor struct {
 func anchorBefore(line string) spanAnchor { return spanAnchor{before: line} }
 func anchorAfter(line string) spanAnchor  { return spanAnchor{after: line} }
 
-// addSpanAnchor resolves where a strip span is re-inserted: main.go after
-// the shutdown defer, desktop before the Wails boot section, .templ/handler
-// files from templSpanAnchor. A rule's own addBefore/addAfter wins over the
-// path default (checked by the caller). Empty means the path is outside the
-// add convention — trim may strip it, add cannot restore it.
+// addSpanAnchor resolves where a strip span is re-inserted: main.go after the
+// shutdown defer, desktop before the Wails boot section. A rule's own
+// addBefore/addAfter wins over the path default (checked by the caller).
+//
+// Empty means the path is outside the add convention: trim may strip it, add
+// cannot restore it, and addManualWiring reports the exact lines instead of
+// promising a position it cannot find. There is deliberately no .templ/handler
+// default — the file-keyed table that carried one drifted silently until
+// TestEveryDeclaredAddAnchorIsLive was written.
 func addSpanAnchor(path string) spanAnchor {
 	switch path {
 	case filepath.Join("cmd", "web", "main.go"):
@@ -43,9 +47,6 @@ func addSpanAnchor(path string) spanAnchor {
 	case filepath.Join("cmd", "desktop", "main.go"):
 		return anchorBefore(desktopBlockAnchor)
 	default:
-		if anchor, ok := templSpanAnchor(path); ok {
-			return anchor
-		}
 		return spanAnchor{}
 	}
 }
@@ -125,26 +126,15 @@ func addManualWiring(u trimUnit) []string {
 	return out
 }
 
-// templSpanAnchor maps edited .templ/navbar/handler files to anchors.
-// Files without an entry (sounds call sites, brand) stay manual by design.
+// templSpanAnchor is gone with its table. It mapped edited .templ/handler
+// files to anchors, and every entry outlived the file it named: the todo list
+// template was split, the dagnats strip moved to state_panel.templ, and the
+// todo handler lost the line the fallback named. `add` refuses those units as
+// manual today, so no call site needed the values — the table was unreachable
+// state that only the (removed) Spike 0 probe ever read.
 //
-// The path is the file the STRIP edits, not the file an anchor constant was
-// named after: the dagnats entry-button strip lives in todo_list.templ, so
-// that path needs its own entry. Without one it fell through to the zero
-// anchor and `gogogo add dagnats` refused with "no insertion anchor" — the
-// strip was correct, only the re-insertion site was missing.
-func templSpanAnchor(path string) (spanAnchor, bool) {
-	switch path {
-	case todoListTempl:
-		return anchorBefore(todoEntryButtonAnchor), true
-	case todoGoFile:
-		return anchorBefore(todoLayoutAnchor), true
-	case todoRepoFile:
-		return anchorBefore(todoRegionAnchor), true
-	default:
-		return spanAnchor{}, false
-	}
-}
+// Reintroduce a per-path default only together with a rule that needs it, and
+// TestEveryDeclaredAddAnchorIsLive will hold it to a live whole line.
 
 // insertSpan copies the lines covered by rules from the source file into
 // the target file at anchor. Fully present spans are skipped (idempotent).
