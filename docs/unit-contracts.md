@@ -12,9 +12,9 @@ of the file you are about to touch.
 
 ## Registry at a glance
 
-- **Units:** 43 — 15 core · 17 plugin · 11 feature
+- **Units:** 44 — 15 core · 18 plugin · 11 feature
 - **Offered capabilities:** 12 — 11 default · 1 opt-in (bundled capabilities share one installer unit)
-- **Manual removal:** 16 (core units are never offered)
+- **Manual removal:** 17 (core units are never offered)
 - **Source of truth:** `internal/capabilities/registry.go`; this doc is
   regenerated from it, so the counts above cannot drift.
 
@@ -315,6 +315,15 @@ opt-in operator diagnostics: statsviz dashboard + stdlib pprof
 - **Trim:** offered to the installer (a scaffold's keep lists/presets drop it)
 - **Note:** Fenced like /console: session + admin + an ADMIN_EMAILS match. statsviz is net/http only (no second HTTP stack); pprof is stdlib. The installer drops the dependency with the unit.
 - **Warning:** One-way trim: `gogogo add perf` prints the exact wiring lines; re-adding is manual.
+
+## `recipe` — plugin
+
+recipe engine: declaration seam, receipt and drift check for installable extensions
+
+- **Owned:** `internal/recipe`
+- **Scaffold:** `manual`
+- **Trim:** manual (no installer unit)
+- **Note:** Manual removal, and deleting it changes no running behavior: the composition root has zero callers until the phases in docs/research/extensibility-2026-11.md wire it, and cmd/gogogo never links it. Keep the package while those phases are open; drop it if the direction is abandoned.
 
 ## `search` — plugin
 

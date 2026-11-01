@@ -16,6 +16,17 @@ var All = append([]Capability{
 		Note:    "Meta-capability: deleting it breaks cmd/gogogo, not the web binary.",
 	},
 	{
+		ID:      "recipe",
+		Kind:    KindPlugin,
+		Summary: "recipe engine: declaration seam, receipt and drift check for installable extensions",
+		Dirs:    []string{"internal/recipe"},
+		Note: "Manual removal, and deleting it changes no running behavior: the " +
+			"composition root has zero callers until the phases in " +
+			"docs/research/extensibility-2026-11.md wire it, and cmd/gogogo never " +
+			"links it. Keep the package while those phases are open; drop it if " +
+			"the direction is abandoned.",
+	},
+	{
 		ID:      "queue",
 		Kind:    KindCore,
 		Summary: "SSE Hub (realtime fan-out) + goqite jobs + workers + retry",

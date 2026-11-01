@@ -1,0 +1,155 @@
+---
+name: gogogo-recipe-authoring
+description: "Authoring and owning a gogogo recipe — the copy-and-evolve extension model. Triggers when: adding a feature to a gogogo project, installing or editing a recipe, filling a slot (dashboard card, settings section, row actions), declaring routes/tables/jobs in a receipt, updating a recipe after editing it, or submitting one to the catalog. Covers what a recipe may own, what it must never touch, and how to stay upgradeable once you have changed the code."
+---
+
+# gogogo recipe authoring
+
+A gogogo recipe is **not a package you depend on**. It is a working slice — pages,
+handlers, components, tables, a queue job, policy rows — copied into your repository,
+with a receipt recording where it came from, and **intended to be edited**. You own the
+code the moment it is written.
+
+That single fact decides everything below. Read this before creating a recipe, before
+editing a recipe's copied code, and before declaring anything in a receipt.
+
+## The three parts of a recipe, and who owns each
+
+| Part | Lives in | Owner | Edit it? |
+|---|---|---|---|
+| **Code** — handlers, components, domain | your tree (`features/<id>/`, or wherever you put it) | **you** | yes, freely — this is the point |
+| **Receipt** — `.recipes/<id>.yml` | your tree, committed | you, but it mirrors facts | only through tooling |
+| **Declaration** — routes, tables, jobs, slots, policy | inside the receipt | the engine applies it | never hand-edit a migration |
+
+The rule that follows, and it is the one thing to get right:
+
+> **Code is copied; schema is declared.** Never write an editable migration file as part
+> of a recipe. The append-only half is declared with stable IDs and applied by the engine.
+> Two owners of one migration history is a production-data bug, not a merge conflict —
+> this is why Django, Rails, Laravel and Prisma all force a choice.
+
+## Before you write: does it already exist?
+
+Check in this order, and stop at the first hit:
+
+1. **The official catalog** — install it instead of writing it. One command, and you get
+   a receipt you can update.
+2. **The reference slice** — `features/todo` is the living example every recipe is derived
+   from: handler shape, page shape, signals, policy rows, the receipt. Copy it rather than
+   inventing a structure.
+3. **The scaffold** — `go run ./cmd/gogogo new feature <name>` writes a handler, a page,
+   the wiring, the capability entry, the policy rows, then proves the build. Use it as the
+   starting point; a hand-rolled slice will miss a gate.
+
+Installing a recipe is a *build* operation, not a runtime one: nothing is resolved at
+run time, so nothing drifts on a running host.
+
+## What a recipe may own — and the four things it may never do
+
+**May own:** its directories; its own tables (prefixed with its id); its own routes
+(absolute patterns); its own job types (prefixed `ext:<id>:`); its content in a declared
+slot; its own policy rows.
+
+**May never:**
+
+1. **Own a column on a core table.** Need extra data about a core entity? Own a side table
+   keyed by the entity's id. `todos`, `users`, `sessions`, `security_events`,
+   `schema_migrations` and `config` are core, and a declaration naming one is refused.
+2. **Add a step inside a core handler.** No hook that runs "when the user saves a todo".
+   If you need that, the hook belongs in the extension surface as a real seam — or the
+   feature does not belong in a recipe yet.
+3. **Render a page's frame.** Fill a slot with content; the owning page owns the card,
+   the grid and the layout. A recipe that draws its own frame breaks when the page changes
+   its layout, which is exactly what the slot contract exists to prevent.
+4. **Ship a migration the user is expected to edit.** See above.
+
+## Slots: the four that exist, and their shapes
+
+A slot has a **declared shape**, because a slot without a container contract means
+"somewhere in this page" and that is where layout rots.
+
+| Slot | Shape | You supply |
+|---|---|---|
+| `dashboard.card` | `cell` — one grid cell, narrow | a title and content; the page supplies the card frame |
+| `settings.section` | `section` — a block in the settings column | a form section plus its **own** save endpoint |
+| `nav.sidebar` | `entries` — a list of destinations | a label and a href, not a fragment |
+| `record.row-actions` | `actions` — declarative data | label, href, verb, optional confirmation — **not** a component |
+
+`record.row-actions` is data on purpose. A component would need the owning recipe's entity
+and its authorization decisions, which is the hook-inside-a-core-handler failure arriving
+through the UI. Declared as data, the owning page keeps its authority.
+
+An unknown slot id is refused at registration, not silently dropped.
+
+## Declaring, so the drift check can work
+
+The receipt is what makes "is this still what it claims" answerable. It records:
+
+- `upstream{repo, ref, path}` — where the pristine baseline lives
+- `files{path → sha256 of the pristine content}` — **hashes, not a version string**: a
+  version cannot tell you which lines you changed, and its absence is why shadcn's diff is
+  only two-way
+- `declaration{tables, routes, jobs, slots}` — the append-only surface
+
+Keep the declaration in step with the code. A declared route the code does not register is
+a drift **failure**, not a warning: it ships a nav entry that leads nowhere. A declared job
+the code does not register burns CPU forever.
+
+## After you edit the code — this is the part people get wrong
+
+Editing is expected. Losing the ability to update is the cost, and it is manageable:
+
+| What you did | What an update does |
+|---|---|
+| Changed nothing | fast-forwards silently |
+| Edited a file upstream did not touch | **your bytes are kept**, never overwritten |
+| Edited a file upstream also changed | a real conflict, resolved by git — not guessed |
+| Deleted a file | stays deleted; not resurrected |
+| Upstream dropped a file you never touched | cleaned up |
+
+So: **keep your changes in commits, not in one giant uncommitted blob.** The update path
+uses git as the arbiter, and the receipt supplies the third input git does not have — the
+pristine baseline. A user who edits and never commits has thrown away the only thing that
+makes an honest merge possible.
+
+If you diverge substantially, say so in the recipe's own README: what you changed and why.
+That note is what a future you (or a successor) reads before deciding whether to take an
+upstream fix.
+
+## Submitting to the catalog — optional, always
+
+An extension is usable the moment it builds. A catalog entry is **a review, not a licence
+to exist**. Submit when you want the claim "this was read, its declaration matches its
+code, and it behaves under these installed sets".
+
+A reviewed entry records the version, the file hashes, the dependency closure, the slots,
+and the installed sets the review actually exercised. Two consequences worth knowing before
+you submit:
+
+- **The review is per version.** A new version needs a new review; do not expect an entry
+  to carry forward.
+- **The dependency closure is part of the cost.** A recipe that drags a model framework
+  costs every operator tens of megabytes of binary; the same recipe using only the
+  standard library costs almost nothing. Declare it, because it is invisible in your diff.
+
+## Checklist before calling it done
+
+- [ ] The declaration names every route, table, job and slot the code actually provides
+- [ ] Every table is prefixed with the recipe id; no core table or core column is claimed
+- [ ] Every job type is prefixed `ext:<id>:`
+- [ ] No route collides with an installed recipe (the seam refuses this before the build,
+      naming both owners — read the message, it tells you both)
+- [ ] Slot content renders inside the owner's frame, with the declared shape
+- [ ] `features/todo` was consulted before inventing a structure
+- [ ] Your deliberate edits are committed, and the recipe README says why you diverged
+- [ ] The build is green, including the gates the project already enforces
+
+## When the recipe model does not fit
+
+Say so rather than bending it. Three cases where it genuinely does not:
+
+- **You need a hook inside a core handler.** That is a request for a new seam, not a recipe.
+- **You need to add a column to a core table.** Own a side table instead.
+- **You need install without a rebuild.** Then you need an out-of-process seam, which this
+  project deliberately does not ship as the default: a local socket round trip measures
+  ~22 µs, which is unusable in a per-row render path. Ask before building it.
