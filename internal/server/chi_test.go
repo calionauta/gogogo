@@ -358,6 +358,7 @@ func TestBuildChiMux(t *testing.T) {
 		}
 	}
 	assertMuxTail(t, mux)
+	assertPolicyCoverage(t, mux)
 }
 
 // assertMuxTail pins the responses that do not depend on the feature wiring

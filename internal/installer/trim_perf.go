@@ -10,7 +10,7 @@ const (
 	serverOperatorFile = "internal/server/operator.go"
 	serverConfigFile   = "config/config.go"
 	rbacPolicyFile     = "internal/rbac/casbin/policy.csv"
-	rbacCoverageFile   = "internal/rbac/coverage_test.go"
+	rbacIntentFile     = "internal/rbac/policy_intent.go"
 	shellTemplFile     = "internal/ui/shell.templ"
 	controlsTemplFile  = "features/authviews/controls.templ"
 	controlsTestFile   = "features/authviews/controls_test.go"
@@ -41,7 +41,7 @@ var perfTrimUnit = []trimUnit{
 				substrs: []string{"/debug/statsviz", "/debug/pprof"},
 			},
 			{
-				path:    rbacCoverageFile,
+				path:    rbacIntentFile,
 				substrs: []string{"/debug/statsviz", "/debug/pprof"},
 			},
 		},

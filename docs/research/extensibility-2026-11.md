@@ -1830,6 +1830,10 @@ rule, a dead anchor, an anchor inside its own span, or an anchor a sibling strip
 The stale `.templ`/handler half of the anchor table is deleted with it, and the package is
 registered in the capability registry so a new package cannot ship ownerless.
 
+Phase 1 has landed its two gates: `rbac.RoutePolicyProblems` walks a COMPOSED router (so a
+recipe's runtime route is checked, not invisible), and `dbschema.MigrateWith` gives a recipe's
+SQL a namespaced path into the same ledger the core schema uses.
+
 ### What is not done, measured
 
 | Gap | Evidence |
@@ -1902,15 +1906,48 @@ mutation is applied by hand, watched to fail, and **reverted** — never committ
 **1.1 Re-point the RBAC gate.** Today `TestRBACCoverageMatchesRoutes` builds its route list by
 walking `features/**/chi.go` and regex-matching patterns. That is the gate that goes blind.
 
+**Status: DONE (2026-11-01), with the mechanism changed — see the note after the table.**
+
 | Step | Action | Expected |
 |---|---|---|
-| **RED** | Add `TestRecipeRoutesNeedPolicyRows`: register a fake recipe declaring `GET /recipe-probe`, then assert the coverage test's route list contains it | **fails** — the list is built from source, so a runtime-registered route cannot appear |
-| **GREEN** | Teach the collector to union the declaration surface with the source scan, and make a recipe route with no `user` row a hard failure | passes |
-| **PROVE** | Delete the declaration contribution from the collector | `TestRecipeRoutesNeedPolicyRows` goes **red** |
+| **RED** | `TestRuntimeMountedRouteNeedsAPolicyRow`: mount a fake recipe route (`GET /recipe-probe`) through the real `Router.MountFeature` seam and assert the gate names it | **fails** to compile — no runtime inventory exists, and the source scan cannot see a runtime mount |
+| **GREEN** | `rbac.RoutesWalked` + `rbac.RoutePolicyProblems` (production, `internal/rbac/coverage.go`); the composed tree is checked at the end of `TestBuildChiMux`; both intent tables move to `internal/rbac/policy_intent.go` so one copy exists | passes — the probe route is reported, the real tree is clean |
+| **PROVE** | Delete `p, user, /api/todos, .*` from `policy.csv` | BOTH gates go **red**, naming `GET`/`POST /api/todos` |
 | **Regression** | `TestRBACCoverageMatchesRoutes`, `TestCoreRoutesAreScanned`, `TestRBACPublicRoutesArePublic`, `TestRBACPrivateRoutesDenyAnonymous` | all stay green |
+
+What the implementation taught, and where it departs from the plan above:
+
+- **The inventory is the composed router, not a declaration union.** `internal/rbac` cannot
+  import `internal/recipe`: the source gate exists precisely so a trimmed tree stays checkable,
+  and a plugin import would drag a package the trim may have deleted into a core test. So the
+  runtime gate walks a tree the boot path built. The source scan stays as the pre-boot half;
+  both now read the same intent tables, and only the runtime half can see a recipe.
+- **Pattern-level, not method-level, for walked routes.** The policy is written as "object =
+  path, action = method; method checks inside feature routers stay theirs", and `MountSubtree`
+  / `Handle` register a path for every verb. Demanding one row per verb would demand decisions
+  the edge does not make. The source gate keeps its method precision.
+- **The runtime gate lives in an existing fixture on purpose.** A new `internal/server` test
+  file that wires feature handlers becomes a new file every trim unit must edit, or the trim
+  proof build fails on a dangling import. Reusing `TestBuildChiMux`'s tree costs three lines
+  and no trim surface.
+- **It found two real gaps on the first run**, both invisible to a source scan:
+  `/api/security/csp-report` is mounted from a CONSTANT (`r.Post(cspReportPath, …)`), so the
+  regex never matched it; the policy grants it to `anonymous` while the intent table never
+  declared it public, and the two lists had disagreed since the route shipped. `/static` is the
+  `MountSubtree` PREFIX, which registers the bare path with no policy row, so `GET /static` was
+  admin-only while `GET /static/*` was public. Both are fixed here.
+- **The intent tables were duplicated state, not test-only metadata.** They decide what the
+  gate expects, so they moved to production (`policy_intent.go`) where the runtime gate can
+  read the same copy. A second copy would drift the way the anchor table did.
 
 **1.2 Give a recipe's schema a path to the ledger.** `Migrate(sqlDB *sql.DB)` reads one embedded
 FS and sorts filenames.
+
+**Status: DONE (2026-11-01).** `dbschema.MigrationSet{ID, FS, Dir}` + `MigrateWith`; `Migrate`
+delegates. Versions land as `<id>/0001_init`; core keeps its unprefixed names. `TestRecipeMigrationReachesLedger`
+covers two sets that both number from 0001, the core namespace, and per-set idempotence. PROVE:
+dropping the prefix makes the ledger rows disappear (the core row already owns `0001_init`, so the
+recipe is skipped entirely — a silent no-op, not a loud clash).
 
 | Step | Action | Expected |
 |---|---|---|
@@ -1920,6 +1957,15 @@ FS and sorts filenames.
 | **Regression** | `TestMigrateIsIdempotent` and the schema tests | green, and idempotence must hold **per filesystem** |
 
 **1.3 Make `presence.go` an owned seam.** It is the only core file a unit claims.
+
+**Status: NOT STARTED, and the rule is narrower than this phase assumed (2026-11-01).**
+`presence.go` is not a leftover: it is the file a trim deletes, and its symbols are coupled to strip
+lines in `chi.go` (`bootPresence`, `upgradePresenceToActor`) and to `AttachPresenceFederation`'s call
+site in `cmd/web/main.go`. Moving it is three symbols and their call sites, not one file, and it
+touches the area the presence-gotchas section calls out. For the recipe model the harmful case is a
+unit owning a file inside ANOTHER INSTALLABLE unit's package (that copy would overwrite someone's
+code); `internal/server` is core, where "alter the core" is a fork by design. The RED below therefore
+belongs to a **dedicated change**, after phase 2 proves the copy path against a clean unit.
 
 | Step | Action | Expected |
 |---|---|---|
@@ -1932,6 +1978,12 @@ Gate for leaving phase 1: **the full suite green with zero behavior change**, an
 three PROVE mutations has been observed to fail and been reverted. Phase 1 is the only phase
 where "nothing broke" is the whole deliverable, so it is also the one where an unobserved red is
 most likely to hide.
+
+**Where phase 1 stands (2026-11-01): 1.1 and 1.2 are DONE, proved by mutation; 1.3 is parked with
+its rule narrowed.** The two gates that landed are the ones the later phases depend on — a recipe
+route cannot mount without a policy decision, and a recipe's SQL reaches the ledger under its own
+namespace. 1.3 is the only item left, and it is a presence refactor rather than a wiring edit, so
+it belongs to a change that can run the presence suite in full.
 
 #### Phase 2 — convert one clean unit (`review` or `credits`), hardcoded mount kept
 

@@ -40,6 +40,7 @@ p, admin, /*, .*
 # This is a STARTING POINT: tune it for your app before enabling RBAC in
 # production (RBAC_ENABLED=true). The admin-only surface is /config (env
 # secrets view); everything else a login can reach, a user can reach.
+p, anonymous, /static, (GET|HEAD)
 p, anonymous, /static/*, (GET|HEAD)
 p, anonymous, /sw.js, (GET|HEAD)
 p, anonymous, /health, (GET|HEAD)
@@ -115,6 +116,7 @@ p, user, /api/byok/*, .*
 p, user, /api/onboarding, .*
 p, user, /api/onboarding/*, .*
 p, user, /api/session/stream, GET
+p, user, /static, (GET|HEAD)
 p, user, /static/*, (GET|HEAD)
 p, user, /sw.js, (GET|HEAD)
 p, user, /health, (GET|HEAD)
@@ -141,6 +143,7 @@ p, viewer, /notes, .*
 p, viewer, /notes/*, .*
 p, viewer, /api/notes/*, .*
 p, viewer, /api/session/stream, GET
+p, viewer, /static, (GET|HEAD)
 p, viewer, /static/*, (GET|HEAD)
 p, viewer, /sw.js, (GET|HEAD)
 p, viewer, /health, (GET|HEAD)
