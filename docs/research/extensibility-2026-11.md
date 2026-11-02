@@ -1938,7 +1938,11 @@ What the implementation taught, and where it departs from the plan above:
   admin-only while `GET /static/*` was public. Both are fixed here.
 - **The intent tables were duplicated state, not test-only metadata.** They decide what the
   gate expects, so they moved to production (`policy_intent.go`) where the runtime gate can
-  read the same copy. A second copy would drift the way the anchor table did.
+  read the same copy. A second copy would drift the way the anchor table did. That move also
+  moved a TRIM target: the perf unit drops the `/debug/*` entries from that file, and the
+  manifest drift check (`TestCheckTreeAgainstRepoRoot`) caught the stale path immediately.
+  Every later conversion that moves code between files must move its strip markers with it —
+  the gate for that already exists, which is the point of phase 1.
 
 **1.2 Give a recipe's schema a path to the ledger.** `Migrate(sqlDB *sql.DB)` reads one embedded
 FS and sorts filenames.
