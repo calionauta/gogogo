@@ -250,6 +250,7 @@ func TestBuildChiMuxRoomDisabledPinsRouteAbsence(t *testing.T) {
 	}
 	docs := collab.NewDocStore()
 	hub := queue.NewSSEHub()
+	reviewH := newReviewHandlerForTest(cfg, a)
 	mux := buildChiMux(a, todohandlers.NewHandler(q, a, hub),
 		landinghandlers.NewHandler(cfg, a),
 		confighandlers.NewHandler(cfg, a, dbgen.New(sqlDB)),
@@ -258,7 +259,7 @@ func TestBuildChiMuxRoomDisabledPinsRouteAbsence(t *testing.T) {
 		nil, // roomHandler: engine disabled
 		chathandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(),
 			stubResponder{raw: "{}"}),
-		newReviewHandlerForTest(cfg, a),
+		reviewH,
 		creditshandlers.NewHandler(a, nil))
 
 	rec := httptest.NewRecorder()
@@ -292,6 +293,7 @@ func TestBuildChiMux(t *testing.T) {
 		t.Fatalf("persister: %v", perr)
 	}
 	docs := collab.NewDocStore()
+	reviewH := newReviewHandlerForTest(cfg, a)
 
 	mux := buildChiMux(a, todoH,
 		landinghandlers.NewHandler(cfg, a),
@@ -301,7 +303,7 @@ func TestBuildChiMux(t *testing.T) {
 		roomhandlers.NewHandler(cfg, a, fakeRooms{}, queue.NewSSEHub()),
 		chathandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(),
 			stubResponder{raw: "{}"}),
-		newReviewHandlerForTest(cfg, a),
+		reviewH,
 		creditshandlers.NewHandler(a, nil))
 	body := `{"email":"mux@example.com","password":"Correct-horse-99!"}`
 	req := httptest.NewRequestWithContext(context.Background(),
@@ -359,6 +361,7 @@ func TestBuildChiMux(t *testing.T) {
 	}
 	assertMuxTail(t, mux)
 	assertPolicyCoverage(t, mux)
+	assertRecipeWiring(t, mux, sqlDB)
 }
 
 // assertMuxTail pins the responses that do not depend on the feature wiring

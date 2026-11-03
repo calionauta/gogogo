@@ -411,7 +411,9 @@ var featureTrimUnits = []trimUnit{
 					// One argument per line: each drop removes exactly
 					// its feature's line, and add restores them.
 					"reviewH,",
-					`r.MountFeature("review", reviewH.Routes())`,
+					// The route mount moved to the recipe seam: the Add
+					// line goes, and the import with it.
+					"r.recipes.Add(reviewH.Recipe())",
 					reviewImportSuffix,
 					"reviewH *reviewhandlers.Handler,",
 				},
@@ -424,7 +426,8 @@ var featureTrimUnits = []trimUnit{
 				substrs: []string{
 					reviewImportSuffix,
 					`	"github.com/calionauta/gogogo/internal/llm"`,
-					"newReviewHandlerForTest(cfg, a),",
+					"reviewH := newReviewHandlerForTest(cfg, a)",
+					"reviewH,",
 					"\t\t\"/review\",",
 				},
 			},

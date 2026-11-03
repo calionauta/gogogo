@@ -2007,6 +2007,28 @@ needed. `review` and `credits` own no core file, so they are convertible without
 The double-mount panic is not a hazard to engineer around — it is a free assertion. If the seam
 and the hardcoded line ever disagree, boot says so and names both owners.
 
+**Status, 2026-11-01: the conversion half is DONE for `review`; the table half is proved by
+fixture, because `review` owns no table.**
+
+- The provider lives beside the routes (`features/review/handlers/recipe.go`), so a route and its
+  declaration cannot drift without one edit.
+- The registry hangs off the composed `Router` (`mux.recipes`). A separate builder function would
+  have forced the gate to reconstruct handlers, which is new trim surface for every unit; reading
+  the tree's own record costs nothing and cannot disagree with what mounted.
+- Keeping both the hardcoded mount and the seam panicked exactly as predicted:
+  `POST /api/review/run registered twice (by review and review)`. Deleting the hardcoded line was
+  the last step, and `TestBuildChiMux` now asserts declaration ≡ mounted routes in both directions.
+- PROVE: dropping one declared route makes the gate red (`mounts POST /api/review/run without
+  declaring it`); the table gate's negative is a fixture declaring `todos` plus a table that does
+  not exist. A unit WITH a table is the missing probe — phase 3 supplies it (`todo`), and the
+  place to strengthen is there, not by inventing a table for review.
+- Trim coupling, again: the unit's line drops moved from `chi.go`'s mount to `chi.go`'s
+  `r.recipes.Add(...)`, and the manifest drift check named the stale markers immediately. The
+  registry import stays because `internal/recipe` is not a trimmed unit.
+
+The rest of the phase — nav entry, panel/slot surface, receipt for a real install — is NOT done:
+the seam mounts routes and nothing else, and a receipt has not been written for a real unit yet.
+
 #### Phase 3 — convert the rest, one unit per PR
 
 No new tests. The two checks from phase 2 go table-driven over every registered recipe, so each
@@ -2091,6 +2113,53 @@ as the risk probe is cheaper and more honest than a separate spike that only sim
 What would justify one more spike: if phase 1 reveals that the route list cannot be produced
 from declarations without duplicating the router (that is the gate-re-point risk), stop and
 probe that specific question before phase 2. Until then it is speculation.
+
+## Transitional machinery: SCOPE annotations and trim (what retires, what survives)
+
+The endpoint does **not** depend on per-file `// SCOPE:` annotations, and it does not depend on
+trim. Both answer "what can be removed"; the recipe model replaces that question with ownership —
+**core is whatever no receipt claims**, and a declaration says which routes, tables, jobs and
+slots a recipe owns.
+
+- **`SCOPE:` retires.** The three-way class (core / plugin / feature) is a removal taxonomy. With
+  recipes it collapses: a file is either core (nobody's receipt) or owned by exactly one recipe.
+  A per-file annotation beside a receipt would be two sources of truth for the same fact — the
+  drift class this page is about. What survives is a table/route ownership check that refuses a
+  recipe claiming a core object, plus the operator-facing "what breaks if I delete this", which
+  the receipt and the catalog entry already answer.
+
+  **Why it still earns its place today, and why that ends:** for a file with no receipt — which is
+  every file — the annotation is the only cheap answer to "may I delete this?", and it is a
+  design forcing function: an author must state a removal story when the file is created, not
+  when someone tries to remove it. It also survives where a gate needs a *class*, not an owner:
+  `docs/scope-taxonomy.md`, the installer's unit map, and the review guidance for "never delete
+  core without asking". What makes it obsolete is ownership becoming data: once a receipt names
+  the files it installed and a core manifest names the rest, `make check-scope` can assert the
+  same property from those two sources. The annotation is a stand-in for a missing receipt, not a
+  category the recipe model needs.
+- **Trim retires with it.** Trim removes a capability by editing core files through string
+  anchors; Spike 0 measured why that cannot carry N authors. The catalog plus a stable core
+  answers the same need at install time, so anchors, span insertion and the scaffold lists go in
+  phase 4. Until phase 3 finishes, trim is still the only working removal path, and every
+  conversion must keep its strip markers in step.
+- **Not optional:** the composition root stays the one place that flattens capability routers
+  (today `Router.MountFeature`), and the RBAC gate keeps walking that composition. Neither is a
+  removal taxonomy; both are what a recipe leans on.
+
+## Gap analysis, 2026-11-01
+
+| Area | State |
+|---|---|
+| Engine (`internal/recipe`) | Seam, receipt, drift, planner, slots, all tested. **Zero production callers** — deliberate |
+| Phase 1.1 RBAC runtime gate | Done, proved; found two live policy gaps |
+| Phase 1.2 schema → ledger | Done, proved; namespaced versions |
+| Phase 1.3 `presence.go` | Parked; rule narrowed to another *installable* unit's package |
+| Anchor gate (phase 4 partial) | Done; stale `.templ`/handler table deleted |
+| **Phase 2 wiring** | **Done for `review`** — declaration beside its routes, mounted only through the seam, gates red-proofed. Nav/panel surface, receipt and slots still open |
+| Catalog / install command | Not started (Spike 3 stopped at the engine; nothing runs an install yet) |
+| Slots in a real page | Registry only; no page offers a slot yet |
+| Schema split enforcement | `Validate` refuses core tables; nothing yet forces a recipe's SQL to match its declared tables |
+| SCOPE + trim retirement | Ahead (phase 4); both stay until phase 3 lands |
 
 ## Open questions for the human
 

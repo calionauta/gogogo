@@ -36,6 +36,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/calionauta/gogogo/internal/recipe"
+
 	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 )
 
@@ -72,11 +74,14 @@ func claimRoute(t *routeTable, owner, method, pattern string) {
 type Router struct {
 	chi.Router
 	routes *routeTable
+	// recipes is the installed recipe set the root mounted, kept so a gate can
+	// compare each declaration against what actually reached the tree.
+	recipes *recipe.Registry
 }
 
 // NewRouter builds an empty app tree with its own duplicate-guard record.
 func NewRouter() *Router {
-	return &Router{Router: chi.NewRouter(), routes: &routeTable{owner: map[routeKey]string{}}}
+	return &Router{Router: chi.NewRouter(), routes: &routeTable{owner: map[routeKey]string{}}, recipes: &recipe.Registry{}}
 }
 
 // Claim records method+pattern as owned by owner (used for the handful of

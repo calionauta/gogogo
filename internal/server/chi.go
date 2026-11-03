@@ -54,6 +54,7 @@ import (
 	"github.com/calionauta/gogogo/internal/nats"
 	"github.com/calionauta/gogogo/internal/natswire"
 	"github.com/calionauta/gogogo/internal/queue"
+	"github.com/calionauta/gogogo/internal/recipe"
 )
 
 // shutdownTimeout bounds chi-stack shutdown: in-flight SSE streams get a
@@ -457,8 +458,16 @@ func buildChiMux(
 	// handler answers nil from Routes() then, and MountFeature mounts nothing.
 	r.MountFeature("room", roomH.Routes())
 	r.MountFeature("chat", chatH.Routes())
-	r.MountFeature("review", reviewH.Routes())
 	r.MountFeature("credits", creditsH.Routes())
+	// Installed recipes mount through the seam: one Add line per recipe, and a
+	// trim drops that line with its import. Review is the phase-2 probe, and its
+	// hardcoded mount is gone (the two agreeing, then disagreeing, was the
+	// proof). See docs/research/extensibility-2026-11.md.
+	r.recipes = &recipe.Registry{}
+	r.recipes.Add(reviewH.Recipe())
+	if merr := r.recipes.Mount(r); merr != nil {
+		panic("server: " + merr.Error())
+	}
 
 	// Static: the core bundle, then the Service Worker at the ROOT URL so its
 	// scope is "/" (see static.go). HEAD rides GET per HTTP semantics.
