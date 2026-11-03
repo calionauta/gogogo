@@ -458,13 +458,14 @@ func buildChiMux(
 	// handler answers nil from Routes() then, and MountFeature mounts nothing.
 	r.MountFeature("room", roomH.Routes())
 	r.MountFeature("chat", chatH.Routes())
-	r.MountFeature("credits", creditsH.Routes())
 	// Installed recipes mount through the seam: one Add line per recipe, and a
-	// trim drops that line with its import. Review is the phase-2 probe, and its
-	// hardcoded mount is gone (the two agreeing, then disagreeing, was the
-	// proof). See docs/research/extensibility-2026-11.md.
+	// trim drops that line with its import. Review was the phase-2 probe and
+	// credits the phase-3 conversion; both hardcoded mounts are gone (the two
+	// agreeing, then disagreeing, was the proof). See
+	// docs/research/extensibility-2026-11.md.
 	r.recipes = &recipe.Registry{}
 	r.recipes.Add(reviewH.Recipe())
+	r.recipes.Add(creditsH.Recipe())
 	if merr := r.recipes.Mount(r); merr != nil {
 		panic("server: " + merr.Error())
 	}

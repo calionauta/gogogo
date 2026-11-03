@@ -2031,6 +2031,13 @@ the seam mounts routes and nothing else, and a receipt has not been written for 
 
 #### Phase 3 — convert the rest, one unit per PR
 
+**Status, 2026-11-03: `credits` converted, and the recipe id is not the package name in one
+respect worth recording — the SCOPE class must follow the registry's `Kind`, not the directory.**
+`features/credits` is a *plugin* (it serves todo metering, not users), so its provider file carries
+`// SCOPE:plugin`; `TestScopeAnnotationsMatchRegistryKind` fails otherwise. The gates needed no new
+test: the two phase-2 checks are table-driven and named the credits route the moment it was
+dropped from the declaration.
+
 No new tests. The two checks from phase 2 go table-driven over every registered recipe, so each
 conversion is automatically covered and **each PR is independently revertable**. A PR that
 converts a unit must not touch a second unit's declaration; that rule is what keeps the PRs

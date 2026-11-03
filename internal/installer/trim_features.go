@@ -312,7 +312,9 @@ var featureTrimUnits = []trimUnit{
 			{
 				path: chiGoFile,
 				substrs: []string{
-					`r.MountFeature("credits", creditsH.Routes())`,
+					// The route mount moved to the recipe seam: the Add
+					// line goes, and the import with it.
+					"r.recipes.Add(creditsH.Recipe())",
 					`creditshandlers "github.com/calionauta/gogogo/features/credits/handlers"`,
 					"creditsH *creditshandlers.Handler,",
 					// Two tabs: the buildChiMux ARGUMENT line only. The
