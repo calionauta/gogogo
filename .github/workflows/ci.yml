@@ -113,7 +113,7 @@ jobs:
         # This job is the serial prefix on EVERY other job (`needs: [changes]`),
         # so its cost is the wall's cost. It was 60s, 50s of it a cold
         # `go mod download`; with the zip cache restored it is ~10s.
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         continue-on-error: true
         with:
           path: ~/go/pkg/mod/cache/download
@@ -234,7 +234,7 @@ jobs:
         # restore, not /usr/bin/tar — see commit d50d0fb for the flake this repo
         # turned caching off over) and continue-on-error, so an infra failure
         # costs a cold build instead of a red gate.
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         continue-on-error: true
         with:
           path: ~/.cache/go-build
@@ -247,7 +247,7 @@ jobs:
         # (23-33s restore vs 16-29s download). This is roughly a third of that
         # size, and with the zips present `go mod download` extracts locally
         # instead of going to the proxy.
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         continue-on-error: true
         with:
           path: ~/go/pkg/mod/cache/download
@@ -505,7 +505,7 @@ jobs:
         # as the installer shard swinging between 207s and 404s of test time on
         # identical code (runs 40875871811 and 40879126850). One key per leg, and
         # each leg's cache stays useful.
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         continue-on-error: true
         with:
           path: ~/.cache/go-build
@@ -518,7 +518,7 @@ jobs:
         # (23-33s restore vs 16-29s download). This is roughly a third of that
         # size, and with the zips present `go mod download` extracts locally
         # instead of going to the proxy.
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         continue-on-error: true
         with:
           path: ~/go/pkg/mod/cache/download
@@ -611,7 +611,7 @@ jobs:
         # This job's cold `go build -o /tmp/gogo...` is 76s of CGO (loro-go) with
         # an empty cache; the same guardrail as the other Go jobs keeps a failed
         # restore from turning a gate red.
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         continue-on-error: true
         with:
           path: ~/.cache/go-build
@@ -624,7 +624,7 @@ jobs:
         # (23-33s restore vs 16-29s download). This is roughly a third of that
         # size, and with the zips present `go mod download` extracts locally
         # instead of going to the proxy.
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         continue-on-error: true
         with:
           path: ~/go/pkg/mod/cache/download
@@ -660,7 +660,7 @@ jobs:
         # of running the new driver against a stale binary. `--with-deps` in the
         # smoke step still apt-installs the system libraries; only the browser
         # download is cached, and a failed restore falls through to a fetch.
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         continue-on-error: true
         with:
           path: ~/.cache/ms-playwright
@@ -774,7 +774,7 @@ jobs:
       - name: Restore Playwright browsers
         # Same key as the browser job: this job loads every published page at 7
         # widths, and a cold Chromium fetch is most of its 60-70s.
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         continue-on-error: true
         with:
           path: ~/.cache/ms-playwright
