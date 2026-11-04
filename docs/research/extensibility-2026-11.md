@@ -1452,12 +1452,25 @@ withheld from the spike because a name is a product decision; once named, the wo
 - `recipe status [id]` is read-only: pristine, modified (the user's), deleted, plus the
   declaration problems.
 
-What the command does **not** do, and this is the next step rather than an omission: it
-does not generate the seam registration. The seam's `Provider` is a handler method, so
-mounting installed code needs the constructor and its dependencies — the declaration-only
-provider described in "Registration for an installed recipe". Until that exists, an
-installed recipe is copied, receipted, drift-checked and **not mounted**, and the command
-says so in its closing lines.
+**Registration is generated, as of the same day.** The seam's `Provider` is a handler
+method, so mounting installed code needs its constructor and dependencies; the contract is
+one exported function per recipe package:
+
+```go
+func Register(reg *recipe.Registry, d register.Deps) { reg.Add(NewHandler(d.Cfg, d.Auth, d.Queries).Recipe()) }
+```
+
+`internal/recipe/register` carries `Deps` (config, auth, store, SSE hub) and `Func`. The
+installer renders `internal/server/recipes.gen.go` from the receipts — sorted, gofmt'd,
+module path read from the tree's own `go.mod` — and a receipt marked removed is skipped, so
+an uninstall never leaves an import of a package that is gone. The repository commits the
+empty generated file, and a freshness test fails if it drifts from the receipts, exactly as
+the CSS and templ gates do.
+
+One deliberate omission: install does not run `go build`. It validates that the `register`
+package exists in the copied set and that the generated file parses; proving an arbitrary
+tree needs that tree's toolchain and module cache, and the command ends by naming the build
+to run.
 
 ### Spike 4 — update after the user edited — **DONE, and it needs no merge engine**
 
@@ -1757,31 +1770,26 @@ written down first".
 this is the summary to update on every landing.
 
 Done: the engine (seam, receipt, drift, planner — Spikes 1–4); the seam wired into
-`BootChi`, with `review`, `credits`, `config-view`, `room` and `todo` converted;
-the nil-provider rule for optional units; the anchor drift gate; and the CLI the spikes
-left out (`gogogo recipe install`, `gogogo recipe status`).
+`BootChi`, with `review`, `credits`, `config-view`, `room` and `todo` converted; the
+nil-provider rule for optional units; the anchor drift gate; the CLI (`recipe install`,
+`update`, `uninstall`, `status`); and the **generated registration** that mounts an
+installed recipe — `.recipe.yml` → `.recipes/<id>.yml` → `internal/server/recipes.gen.go`,
+with one `Register(reg, deps)` function per recipe.
 
 Next, in order:
 
-1. **Registration for an installed recipe.** `recipe install` writes the tree and the
-   receipt, but nothing mounts the installed code: the seam's `Provider` is a handler
-   method, so registering it needs the constructor and its dependencies. The fix is the
-   declaration-only provider the receipt model already implies (a package-level
-   `Declaration`, and a `Routes(deps)` constructor), and it is the last blocker between
-   "installed" and "running".
-2. **`recipe update` and `recipe uninstall`.** The engine has `Plan`, `Remove` and
-   `ReceiptAfter`; only the subcommands are missing.
-3. **Phase 4 retirement** — the two path defaults, `spike_anchor_test.go`'s remaining
-   probes, then SCOPE and trim once ownership is data.
-4. **The catalog** (Spike 7's required dependency delta) and the two shell slots in a
-   real page.
+1. **Phase 1.3** — `presence.go` as an owned seam; then `notes` and `whiteboard` convert.
+2. **Phase 4** — the two path defaults and `spike_anchor_test.go`'s remaining probes;
+   SCOPE and trim retirement waits until ownership is data (receipts for in-tree units).
+3. **Slots in a real page** — `dashboard.card` and `settings.section`.
+4. **The catalog** with Spike 7's required dependency delta.
 
 ### Build, in this order
 
 1. **~~Wire the recipe engine into the composition root.~~ DONE (2026-11-03).** The converted
    set mounts only through the seam, and the route gate compares declaration against what
-   mounted. What it did not settle: an installed recipe still needs the registration
-   step named above.
+   mounted. The installed path is closed too: `recipe install` writes the receipt and the
+   generated registration that mounts it.
 2. **Give the shell two slots.** `dashboard.card` and `settings.section` are cheap and they
    are what make the catalog feel native. Wire `RenderSlot` into the real dashboard and
    settings page. `record.row-actions` waits — it is the most valuable and the most
@@ -2245,7 +2253,7 @@ slots a recipe owns.
 | Anchor gate (phase 4 partial) | Done; stale `.templ`/handler table deleted |
 | **Phase 2 wiring** | **Done for `review`** — declaration beside its routes, mounted only through the seam, gates red-proofed. Nav/panel surface, receipt and slots still open |
 | **Phase 3 conversions** | **Converted:** `review`, `credits`, `config-view`, `room`, `todo` (routes only; its table waits for the schema split). Outside this phase: `notes`/`whiteboard` (1.3), `account`, `landing`, `notifications` |
-| Catalog / install command | **Install/status CLI wired** (`gogogo recipe install|status`, 2026-11-03): tree + receipt + drift, no anchors. The catalog itself is not started, and registration of an installed recipe is still manual |
+| Catalog / install command | **Install/update/uninstall/status wired** (`gogogo recipe …`, 2026-11-03): tree + receipt + generated registration + drift, no anchors. The catalog itself is not started |
 | Slots in a real page | Registry only; no page offers a slot yet |
 | Schema split enforcement | `Validate` refuses core tables; nothing yet forces a recipe's SQL to match its declared tables |
 | SCOPE + trim retirement | Ahead (phase 4); both stay until phase 3 lands |

@@ -132,6 +132,43 @@ you submit:
   costs every operator tens of megabytes of binary; the same recipe using only the
   standard library costs almost nothing. Declare it, because it is invisible in your diff.
 
+## The install contract
+
+An installable recipe directory carries a manifest beside the tree it copies:
+
+```yaml
+# .recipe.yml — the installable half. The receipt (.recipes/<id>.yml) is
+# written by the installer; this file is what you author.
+id: pomodoro
+upstream:
+  repo: github.com/calionauta/gogogo
+  ref: v0.56.0
+register: features/pomodoro/handlers
+declaration:
+  routes:
+    - {method: GET, pattern: /pomodoro}
+  tables: [ext_pomodoro_session]
+```
+
+`register` names the copied package that exports the one function the composition
+root knows:
+
+```go
+func Register(reg *recipe.Registry, d register.Deps) {
+	reg.Add(NewHandler(d.Cfg, d.Auth, d.Queries).Recipe())
+}
+```
+
+`register.Deps` is the seam's promise (config, auth, store, SSE hub). A field
+appears there by a core decision, not by request: needing something else is a
+conversation about the contract, never a local workaround.
+
+The installer turns receipts into `internal/server/recipes.gen.go` — the one
+generated file `buildChiMux` calls. Never edit it by hand: `gogogo recipe
+install|update|uninstall` regenerates it, and a removed recipe is skipped so the
+file never imports a package that is gone. The receipt keeps the record after an
+uninstall, because the data still needs an owner.
+
 ## Checklist before calling it done
 
 - [ ] The declaration names every route, table, job and slot the code actually provides
