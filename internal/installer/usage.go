@@ -55,6 +55,18 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
 
     go run ./cmd/gogogo new feature reports --dir ./my-app --yes
 
+  Install a recipe (a file set plus .recipe.yml) into a checkout. Without
+  --yes it prints the plan and changes nothing; --yes copies the tree and
+  writes .recipes/<id>.yml:
+
+    go run ./cmd/gogogo recipe install ./extensions/pomodoro --dir ./my-app
+    go run ./cmd/gogogo recipe install ./extensions/pomodoro --dir ./my-app --yes
+
+  What did I change inside a recipe? Pristine vs yours, plus whether the
+  receipt still matches the copied code (read-only):
+
+    go run ./cmd/gogogo recipe status --dir ./my-app
+
   Opinions, not changes (for LLMs deciding what to use — reads nothing, changes nothing):
 
     go run ./cmd/gogogo advise --need "offline-first todo with AI" --format json
@@ -100,6 +112,13 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
   todo (reference implementation), auth (middleware is core), queue (core),
   nats (runtime: NATS_ENABLED=false), llm (runtime: unset GOAI_API_KEY),
   offline-sync (runtime: OFFLINE_SYNC_ENABLED=false).`)
+	printUsageTail(w, fs)
+}
+
+// printUsageTail renders the reference half — build guidance, the unit table, the
+// flags and the agent contract. Split from PrintUsage for the funlen gate: it is
+// what a reader consults after deciding on a command.
+func printUsageTail(w io.Writer, fs *flag.FlagSet) {
 	printBuildGuidance(w)
 	fmt.Fprintln(w, "\n  Trim units:")
 	for _, u := range Units() {

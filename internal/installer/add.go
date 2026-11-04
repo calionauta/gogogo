@@ -19,6 +19,9 @@ import (
 // Shared file paths for add/trim mechanics (goconst-quiet, single spelling).
 const (
 	dirMode = 0o755
+	// gitDirName is the checkout bookkeeping directory: never part of a copied
+	// recipe, and never a rename target.
+	gitDirName = ".git"
 )
 
 // Insertion anchors for add: where extracted spans and call lines land in
