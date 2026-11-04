@@ -10,6 +10,7 @@ package recipe
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"sort"
@@ -143,6 +144,34 @@ func NewReceipt(id string, up Upstream, decl Declaration, written map[string]str
 		r.Files[p] = Hash([]byte(body))
 	}
 	return r
+}
+
+// ReceiptAfter returns the receipt an applied plan leaves behind: the pristine
+// baseline moves for every file the plan wrote, entries disappear for files
+// upstream dropped, and an entry the plan kept stays exactly as it was — the
+// user's bytes never become the baseline.
+//
+// This is the update half of NewReceipt. Calling NewReceipt on the plan's writes
+// would drop the baseline of every file the update did not touch, which turns the
+// next drift check into "everything is new" and the next update into a conflict.
+func ReceiptAfter(prev Receipt, plan PlanResult) Receipt {
+	out := Receipt{ID: prev.ID, Upstream: prev.Upstream, Declaration: prev.Declaration, Files: map[string]string{}}
+	maps.Copy(out.Files, prev.Files)
+	for _, op := range plan.Ops {
+		switch op.Kind {
+		case OpWrite, OpFastForward:
+			out.Files[op.Path] = Hash([]byte(op.Content))
+		case OpObsolete:
+			delete(out.Files, op.Path)
+		case OpKeep, OpGone:
+			// Keep: the baseline is still what install wrote. Gone: the user
+			// deleted the file, and the entry stays so drift keeps saying so.
+		case OpConflict:
+			// Unreachable on an applied plan (Apply refuses a blocked one);
+			// leaving the entry untouched is the safe default if it ever is.
+		}
+	}
+	return out
 }
 
 // Remove is uninstall: it deletes only the files the receipt claims AND that are

@@ -224,3 +224,36 @@ func TestRemoveDoesNotDeleteTheReceipt(t *testing.T) {
 		t.Fatal("uninstall must leave the receipt so the data still has an owner")
 	}
 }
+
+// TestReceiptAfterKeepsUntouchedBaselines is the update half of NewReceipt: a
+// fast-forward moves the baseline, an untouched file keeps the one install wrote,
+// and a file upstream dropped loses its entry. Rebuilding the receipt from the
+// plan's writes alone would forget every file the update did not touch.
+func TestReceiptAfterKeepsUntouchedBaselines(t *testing.T) {
+	prev := Receipt{
+		ID: "pomodoro",
+		Files: map[string]string{
+			"a.go": Hash([]byte("a1")),
+			"b.go": Hash([]byte("b1")),
+			"c.go": Hash([]byte("c1")),
+		},
+	}
+	plan := PlanResult{Ops: []Op{
+		{Kind: OpFastForward, Path: "a.go", Content: "a2"},
+		{Kind: OpKeep, Path: "b.go", userEdit: true},
+		{Kind: OpObsolete, Path: "c.go"},
+	}}
+	got := ReceiptAfter(prev, plan)
+	if got.Files["a.go"] != Hash([]byte("a2")) {
+		t.Fatalf("fast-forward did not move the baseline: %v", got.Files)
+	}
+	if got.Files["b.go"] != Hash([]byte("b1")) {
+		t.Fatalf("untouched file lost its baseline: %v", got.Files)
+	}
+	if _, ok := got.Files["c.go"]; ok {
+		t.Fatalf("obsolete file still recorded: %v", got.Files)
+	}
+	if got.ID != "pomodoro" {
+		t.Fatalf("receipt identity lost: %q", got.ID)
+	}
+}
