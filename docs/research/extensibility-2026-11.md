@@ -2376,7 +2376,10 @@ reading this needs an answer, not a menu.
    `record.row-actions` shipped in the same pass (2026-11-04) with a stricter contract than the
    nav entry: a label, a closed verb, a root-relative template naming the row exactly once with
    `{id}`, and rendering on the todo row — the core page substitutes the id, the recipe never
-   hands it a component. `dashboard.card` stays registry-only: this app has no dashboard, and
+   hands it a component. Known limit, recorded rather than hidden: the row renders every
+   contributed action on every row the page shows, because the page has no per-action permission
+   data; authorization stays where it already is for deletes — the recipe's own endpoint scoped
+   by the session (`canDeleteRow` is the precedent). `dashboard.card` stays registry-only: this app has no dashboard, and
    inventing one to host a card is the page-first mistake.
 2. **Does the reference slice ship installed or as a recipe?** `todo` is both the
    catalog's best example of a modifiable recipe and the thing every proof, smoke and

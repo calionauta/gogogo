@@ -264,7 +264,7 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 				}
 			}
 		}
-		if entries := Nav(ctx); len(entries) > 0 {
+		if entries := visibleNav(ctx, d.Role); len(entries) > 0 {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<p class=\"app-rail-group\">Extensions</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

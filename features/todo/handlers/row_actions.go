@@ -12,11 +12,15 @@ import (
 	"github.com/calionauta/gogogo/internal/recipe"
 )
 
-// rowActionsFrom converts the slot's contributions into the row's shape.
+// RowActionsFrom converts the slot's contributions into the row's shape.
+//
+// Exported because the composition root copies the same list into the page's
+// data: a second converter there would be two spellings of one contract, and the
+// page and the panel would drift the first time either changed.
 //
 // Nil registry and empty slot both answer nil: a build with no installed recipe
 // renders the row exactly as it did before the slot existed.
-func rowActionsFrom(slots *recipe.SlotRegistry) []todo.RowAction {
+func RowActionsFrom(slots *recipe.SlotRegistry) []todo.RowAction {
 	if slots == nil {
 		return nil
 	}

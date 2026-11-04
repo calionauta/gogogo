@@ -249,7 +249,7 @@ func (p *TodoPanel) Render(props map[string]any) (templ.Component, error) {
 	// The id comes from the renderer (comp.InstanceIDProp), so two todo panels
 	// on one page — a chat thread keeps its history — do not collide.
 	id, _ := normalized[comp.InstanceIDProp].(string)
-	return todoscomp.Panel(id, filter, panelRowsFromProps(props), rowActionsFrom(p.Slots)), nil
+	return todoscomp.Panel(id, filter, panelRowsFromProps(props), RowActionsFrom(p.Slots)), nil
 }
 
 // panelRowsFromProps decodes the `rows` prop in the shapes it actually reaches

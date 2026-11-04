@@ -113,7 +113,7 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 								@railItem(m, m.ID == d.Module, InboxUnread(ctx))
 							}
 						}
-						if entries := Nav(ctx); len(entries) > 0 {
+						if entries := visibleNav(ctx, d.Role); len(entries) > 0 {
 							<p class="app-rail-group">Extensions</p>
 							for _, e := range entries {
 								@railEntry(e)

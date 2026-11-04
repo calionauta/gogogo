@@ -468,7 +468,7 @@ func buildChiMux(
 	// settings.section: recipes contribute content, this page renders it.
 	configH.SetSlots(deps.Slots)
 	// record.row-actions: copied once, when the registry is complete.
-	todoH.RowActions = rowActionsFor(deps.Slots)
+	todoH.RowActions = todohandlers.RowActionsFrom(deps.Slots)
 
 	// Static: the core bundle, then the Service Worker at the ROOT URL so its
 	// scope is "/" (see static.go). HEAD rides GET per HTTP semantics.

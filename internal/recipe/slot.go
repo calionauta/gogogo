@@ -82,9 +82,16 @@ type Fragment struct {
 }
 
 // Entry is a navigation destination contributed by a recipe.
+//
+// Admin is the one visibility fact a recipe must state: the rail filters
+// role-visible destinations for the built-in modules (ui.Modules.Admin) and an
+// extension has no policy row the shell could read, so the declaration carries
+// it. Fail-closed is not an option here — a destination hidden from everyone is
+// indistinguishable from a missing feature.
 type Entry struct {
 	Label string
 	Href  string
+	Admin bool
 }
 
 // Action is a declarative row action. Data, not a component, because it operates
