@@ -281,7 +281,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// Runtime dashboard: opt-in, operator-only, mounted before applyRBAC (internal/server/perf.go).
 	perfH := bootPerf(mux, a, cfg, &shutdown)
 	// Inbox is an optional surface next to the console.
-	notificationsH := mountInbox(mux, a, cfg, queries)
+	notificationsH := mountInbox(mux, a, queries)
 
 	// RBAC is wired, not optional plumbing: one enforcer built here and the
 	// middleware wraps the whole mux (pass-through when disabled, enforced
@@ -462,6 +462,7 @@ func buildChiMux(
 	r.recipes.Add(wbH.Recipe())
 	r.recipes.Add(landingH.Recipe())
 	r.recipes.Add(accounthandlers.NewHandler(deps.Cfg, deps.Auth, deps.Queries).Recipe())
+	bootInbox(r, deps)
 	// Installed recipes register through the generated file, then their own
 	// migrations run, then they mount: one step, in that order (recipe_surface.go).
 	r.recipeErr = bootRecipes(r, deps)

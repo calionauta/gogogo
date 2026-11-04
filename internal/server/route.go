@@ -38,6 +38,8 @@ import (
 
 	"github.com/calionauta/gogogo/internal/recipe"
 
+	"github.com/calionauta/gogogo/features/notifications"
+	notificationshandlers "github.com/calionauta/gogogo/features/notifications/handlers"
 	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 )
 
@@ -77,6 +79,10 @@ type Router struct {
 	// recipes is the installed recipe set the root mounted, kept so a gate can
 	// compare each declaration against what actually reached the tree.
 	recipes *recipe.Registry
+	// inbox is the notifications slice the root built inside the composition,
+	// kept because the shell middleware and the session stream share its bus.
+	inbox    *notificationshandlers.Handler
+	inboxBus *notifications.Bus
 	// recipeErr is a failure from the recipe step (registration, schema, mount).
 	// It rides the tree instead of the return list because buildChiMux takes one
 	// parameter per feature, and an error return would make every trimmed test
