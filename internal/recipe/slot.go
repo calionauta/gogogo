@@ -157,6 +157,11 @@ func (s *SlotRegistry) Add(c Contribution) error {
 		s.ent[slot] = append(s.ent[slot], es...)
 	}
 	for slot, as := range c.Actions {
+		for _, a := range as {
+			if err := validateAction(slot, a); err != nil {
+				return err
+			}
+		}
 		s.act[slot] = append(s.act[slot], as...)
 	}
 	return nil
@@ -168,6 +173,35 @@ func (s *SlotRegistry) Add(c Contribution) error {
 // origin without looking like it.
 func isSameOriginPath(href string) bool {
 	return strings.HasPrefix(href, "/") && !strings.HasPrefix(href, "//")
+}
+
+// RowIDPlaceholder is the one token a row action may substitute: the core page
+// replaces it with the row's own id. It is spelled here so the page and the
+// validator cannot disagree about the contract.
+const RowIDPlaceholder = "{id}"
+
+// validateAction holds a row action to the same origin rule as a nav entry, plus
+// one more: the destination is a template with exactly one row placeholder,
+// because an action that cannot name its row would act on "some row".
+//
+// Verbs are a closed set. `get` is for an action that navigates (open the row in
+// the recipe's own page); anything that changes state is `post`, so a prefetch
+// or a crawler cannot fire it.
+func validateAction(slot SlotID, a Action) error {
+	if a.Label == "" {
+		return fmt.Errorf("slot %q action has no label", slot)
+	}
+	if a.Verb != "get" && a.Verb != "post" {
+		return fmt.Errorf("slot %q action %q has verb %q, want get or post", slot, a.Label, a.Verb)
+	}
+	if !isSameOriginPath(a.Href) {
+		return fmt.Errorf("slot %q action %q must be a root-relative path, got %q", slot, a.Label, a.Href)
+	}
+	if n := strings.Count(a.Href, RowIDPlaceholder); n != 1 {
+		return fmt.Errorf("slot %q action %q must name the row exactly once with %s, got %q",
+			slot, a.Label, RowIDPlaceholder, a.Href)
+	}
+	return nil
 }
 
 // Fragments returns the content for a content slot, in stable order. A page calls

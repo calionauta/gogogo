@@ -87,7 +87,7 @@ func TestRowActionsAreDataNotComponents(t *testing.T) {
 	reg := NewSlotRegistry()
 	if err := reg.Add(Contribution{
 		Actions: map[SlotID][]Action{SlotRecordRowActions: {
-			{Label: "Start timer", Href: "/pomodoro/start", Verb: "post", Confirm: "Start a timer for this task?"},
+			{Label: "Start timer", Href: "/pomodoro/start/{id}", Verb: "post", Confirm: "Start a timer for this task?"},
 		}},
 	}); err != nil {
 		t.Fatal(err)
@@ -153,5 +153,35 @@ func TestEntryMustBeARootRelativePath(t *testing.T) {
 	}
 	if got := reg.Entries(SlotNavSidebar); len(got) != 1 || got[0].Href != "/pomodoro" {
 		t.Fatalf("entry did not reach the registry: %+v", got)
+	}
+}
+
+// TestRowActionContract pins what a row action may be: a label, a closed verb,
+// a root-relative template naming the row exactly once. Together those are the
+// difference between "a recipe offered an action on my row" and "a recipe
+// redirected my browser", and none of them is a rendering concern.
+func TestRowActionContract(t *testing.T) {
+	bad := []Action{
+		{Label: "", Verb: "post", Href: "/api/x/{id}"},
+		{Label: "Go", Verb: "delete", Href: "/api/x/{id}"},
+		{Label: "Go", Verb: "post", Href: "https://evil.example/x/{id}"},
+		{Label: "Go", Verb: "post", Href: "/api/x"},           // no row named
+		{Label: "Go", Verb: "post", Href: "/api/x/{id}/{id}"}, // ambiguous row
+	}
+	for _, a := range bad {
+		reg := NewSlotRegistry()
+		err := reg.Add(Contribution{Actions: map[SlotID][]Action{SlotRecordRowActions: {a}}})
+		if err == nil {
+			t.Errorf("action %+v was accepted", a)
+		}
+	}
+
+	reg := NewSlotRegistry()
+	ok := Action{Label: "Send to pomodoro", Verb: "post", Href: "/api/pomodoro/from-todo/{id}", Confirm: "Send this row?"}
+	if err := reg.Add(Contribution{Actions: map[SlotID][]Action{SlotRecordRowActions: {ok}}}); err != nil {
+		t.Fatalf("a well-formed action must be accepted, got %v", err)
+	}
+	if got := reg.Actions(SlotRecordRowActions); len(got) != 1 || got[0].Href != ok.Href {
+		t.Fatalf("action did not reach the registry: %+v", got)
 	}
 }
