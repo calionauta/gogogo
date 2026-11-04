@@ -1547,6 +1547,15 @@ for products, so it must not wait for the catalog.
 - **Question:** can a recipe render content inside a core page — a dashboard card and
   a settings section — without the core page knowing which recipe it is, and without
   the recipe touching the core page's logic?
+**Status, 2026-11-03: the first real page is wired.** `settings.section` renders in
+`/config`: the composition root owns one `recipe.SlotRegistry`, the page receives
+`Fragments(SlotSettingsSection)` and iterates them inside its own card frame, and the
+handler never sees a recipe id. A fixture fragment proves the page renders it; removing the
+handler's read of the registry turns the test red. `dashboard.card` stays unrendered because
+this app has no dashboard page — inventing one to host a slot would be the page-first
+mistake the slot shapes exist to prevent. `nav.sidebar` and `record.row-actions` stay
+registry-only for the same reason: no page offers them yet.
+
 - **Method:** `internal/recipe/slot.go` — a closed slot set, a declared shape per slot,
   a registry that takes contributions, and **one** call an owning page makes.
 - **Kill criterion:** if filling a slot requires the owning page to know the recipe's
@@ -1794,8 +1803,10 @@ Next, in order:
 
 1. **Phase 4** — the two path defaults and `spike_anchor_test.go`'s remaining probes;
    SCOPE and trim retirement waits until ownership is data (receipts for in-tree units).
-2. **Slots in a real page** — `dashboard.card` and `settings.section`, which is also what
-   moves `genui`'s integration files out of `features/todo`.
+2. **The remaining slots** — `settings.section` is wired into the real `/config` page
+   (2026-11-03); `dashboard.card` has no dashboard page to land in, and
+   `record.row-actions` waits on the entity-ownership question. Slots are also what move
+   `genui`'s integration files out of `features/todo`.
 3. **Catalog resolution and the install-from-entry path** (the format itself is published and
    validated; hosting, download and hash comparison are the remaining steps).
 
@@ -2278,7 +2289,7 @@ slots a recipe owns.
 | **Phase 2 wiring** | **Done for `review`** — declaration beside its routes, mounted only through the seam, gates red-proofed. Nav/panel surface, receipt and slots still open |
 | **Phase 3 conversions** | **Converted:** `review`, `credits`, `config-view`, `room`, `todo`, `notes`, `whiteboard` — routes only; every table waits for the schema split. Outside this phase: `account`, `landing`, `notifications` |
 | Catalog / install command | **Install/update/uninstall/status wired** (`gogogo recipe …`, 2026-11-03): tree + receipt + generated registration + drift, no anchors. The **catalog entry format is published and validated** (`internal/recipe/catalog.go`); resolution and download are not built |
-| Slots in a real page | Registry only; no page offers a slot yet |
+| Slots in a real page | **`settings.section` renders in `/config`** (2026-11-03), with a fixture proof and the page never learning a recipe id. `dashboard.card`, `nav.sidebar` and `record.row-actions` remain registry-only (no hosting page yet) |
 | Schema split enforcement | `Validate` refuses core tables; nothing yet forces a recipe's SQL to match its declared tables |
 | SCOPE + trim retirement | Ahead (phase 4); both stay until phase 3 lands |
 
@@ -2321,10 +2332,12 @@ reading this needs an answer, not a menu.
 
 **Still open, and now unblocked by evidence rather than by argument:**
 
-1. **Which slots ship in v1?** Spike 5 proved the mechanism for all four; the product
-   question is scope. `dashboard.card` and `settings.section` are cheap and make the
-   catalog feel native. `record.row-actions` is the most valuable for a product-shaped
-   system and the most expensive to make safe, because it touches another unit's entity.
+1. **Which slots ship in v1?** Settled for the first one: `settings.section`, because
+   `/config` is a real page with room for it and the page already owns the frame. The other
+   three stay registry-only until a page offers them: `dashboard.card` has no dashboard in
+   this app, `nav.sidebar` would collide with the shell's own module list, and
+   `record.row-actions` is the most valuable and the most expensive to make safe because it
+   touches another unit's entity.
 2. **Does the reference slice ship installed or as a recipe?** `todo` is both the
    catalog's best example of a modifiable recipe and the thing every proof, smoke and
    fixture copies. It can be both, but that combination deserves one deliberate decision.

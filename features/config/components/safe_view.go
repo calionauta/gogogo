@@ -19,6 +19,7 @@ import (
 
 	"github.com/calionauta/gogogo/config"
 	comp "github.com/calionauta/gogogo/features/genui/components"
+	"github.com/calionauta/gogogo/internal/recipe"
 )
 
 // ageSecretKey is the constant field name shown on the /config
@@ -59,6 +60,10 @@ type PageData struct {
 	// StatusGroups is Status arranged under its column captions, so the
 	// template stays presentation-only.
 	StatusGroups []StatusGroup
+	// SlotSections is the `settings.section` slot: content declared by recipes,
+	// rendered inside this page's own frame. The page never learns a recipe id,
+	// which is the slot contract's whole point.
+	SlotSections []recipe.Fragment
 	// AnswerCatalog/AnswerPanels: answer-components data (genui-owned, trimmed with the unit).
 	AnswerCatalog []comp.ComponentInfo
 	AnswerPanels  []comp.ComponentInfo

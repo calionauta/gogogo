@@ -22,6 +22,7 @@ import (
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/rbac"
+	"github.com/calionauta/gogogo/internal/recipe"
 )
 
 // Handler serves the config view on chi.
@@ -29,7 +30,15 @@ type Handler struct {
 	cfg     *config.Config
 	auth    *auth.Auth
 	queries *dbgen.Queries
+	// slots is the settings.section surface. Set by the composition root; nil
+	// means no recipe may contribute here, and the page renders no extra card.
+	slots *recipe.SlotRegistry
 }
+
+// SetSlots attaches the slot registry the composition root owns. A setter rather
+// than a constructor argument keeps the trim's line drop and the existing
+// callers unchanged.
+func (h *Handler) SetSlots(s *recipe.SlotRegistry) { h.slots = s }
 
 // NewHandler builds the chi config handler. Nil deps panic: wire errors
 // surface at boot, not per request. queries serves the role lookup for
@@ -109,6 +118,9 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	if aerr := h.loadAudit(r, &data); aerr != nil {
 		http.Error(w, "audit unavailable", http.StatusInternalServerError)
 		return
+	}
+	if h.slots != nil {
+		data.SlotSections = h.slots.Fragments(recipe.SlotSettingsSection)
 	}
 	data.Notice = r.URL.Query().Get("notice")
 	data.Error = r.URL.Query().Get("error")

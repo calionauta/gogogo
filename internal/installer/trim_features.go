@@ -257,6 +257,7 @@ var featureTrimUnits = []trimUnit{
 				path: chiGoFile,
 				substrs: []string{
 					"confighandlers.NewHandler(cfg, a, queries),",
+					"configH.SetSlots(deps.Slots)",
 					"configH *confighandlers.Handler,",
 					`confighandlers "github.com/calionauta/gogogo/features/config/handlers"`,
 					// The route mount moved to the recipe seam: the Add

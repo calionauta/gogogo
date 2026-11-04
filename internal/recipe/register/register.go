@@ -27,6 +27,10 @@ type Deps struct {
 	Auth    *auth.Auth
 	Queries *dbgen.Queries
 	Hub     *queue.SSEHub
+	// Slots is where a recipe declares its content for a page slot. It is
+	// nil in a caller that offers no slots, and Add is nil-safe on the
+	// registry, so a recipe registers unconditionally.
+	Slots *recipe.SlotRegistry
 }
 
 // Func is what a recipe package exports as `Register`. The generated

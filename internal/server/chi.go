@@ -254,7 +254,8 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// feature, so trimming a feature drops its lines without touching its
 	// neighbours. A shared line would make a line drop take two features at
 	// once (and the add path restores these same lines — see routerCallLines).
-	mux := buildChiMux(a, register.Deps{Cfg: cfg, Auth: a, Queries: queries, Hub: hub}, todoH,
+	slots := recipe.NewSlotRegistry()
+	mux := buildChiMux(a, register.Deps{Cfg: cfg, Auth: a, Queries: queries, Hub: hub, Slots: slots}, todoH,
 		landinghandlers.NewHandler(cfg, a),
 		confighandlers.NewHandler(cfg, a, queries),
 		wbH,
@@ -452,9 +453,7 @@ func buildChiMux(
 	MountPath(r, "/api/session/stream", a.SessionStreamHandler())
 
 	r.MountFeature("chat", chatH.Routes())
-	// Installed recipes mount through the seam; a trim drops the line with its
-	// import. roomH's Recipe answers nil when the engine is off, so no
-	// declaration outlives the code. See the research page.
+	// Installed recipes mount through the seam; a trim drops the line with its import.
 	r.recipes = &recipe.Registry{}
 	r.recipes.Add(reviewH.Recipe())
 	r.recipes.Add(creditsH.Recipe())
@@ -463,9 +462,10 @@ func buildChiMux(
 	r.recipes.Add(todoH.Recipe())
 	r.recipes.Add(notesH.Recipe())
 	r.recipes.Add(wbH.Recipe())
-	// Installed recipes register themselves through the generated file: the code
-	// is already in the tree, this only tells the seam what it claims.
+	// Installed recipes register through the generated file; the code is already here.
 	registerInstalledRecipes(r.recipes, deps)
+	// The settings.section slot: recipes contribute content, this page renders it.
+	configH.SetSlots(deps.Slots)
 	if merr := r.recipes.Mount(r); merr != nil {
 		panic("server: " + merr.Error())
 	}

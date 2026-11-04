@@ -438,6 +438,22 @@ templ configBody(data PageData) {
 
 		</div>
 	<!-- trim-genui:components-section:end -->
+	// The settings.section slot: content a recipe declares, rendered inside
+	// this page's own frame. The page iterates fragments and never learns which
+	// recipe sent one — that is the slot contract.
+	if len(data.SlotSections) > 0 {
+		<section class="ui-card" aria-label="Recipe settings">
+			<div class="ui-card-body">
+				<h2 class="ui-title">Recipe settings</h2>
+				for _, f := range data.SlotSections {
+					<div class="config-group" data-slot="settings.section">
+						<h3 class="text-sm font-semibold mb-2">{ f.Title }</h3>
+						@templ.Raw(f.Render())
+					</div>
+				}
+			</div>
+		</section>
+	}
 	</div>
 	<footer class="text-xs text-base-content/60 mt-6">
 		<p>Need to rotate a secret? Edit <code>~/.secrets/{ data.AppName }.env.age</code> (L2 in <code>cali-ops-server-security</code>) and restart the binary.</p>
