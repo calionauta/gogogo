@@ -1801,8 +1801,10 @@ nil-provider rule for optional units; the anchor drift gate; the CLI (`recipe in
 installed recipe — `.recipe.yml` → `.recipes/<id>.yml` → `internal/server/recipes.gen.go`,
 with one `Register(reg, deps)` function per recipe; the **catalog entry format** published,
 validated and **consumed** (`recipe install --entry`, hash-verified against the reviewed bytes);
-and the **first real slot** — `settings.section` renders in `/config`, with the page never
-learning a recipe id.
+the **first real slot** — `settings.section` renders in `/config`, with the page never
+learning a recipe id; and the **schema half of the seam** — a recipe that owns tables ships its
+own DDL (`recipe.Migrator`), the root applies it through the core ledger under the recipe's id
+at boot, and the declaration is checked against the SQL in both directions.
 
 Next, in order:
 
@@ -2216,13 +2218,14 @@ Two rules for this phase, both learned from Spike 0:
 
 #### What is NOT red-proofable, and how it is verified instead
 
-Two things in this refactor cannot be guarded by a test that fails first, and pretending
+Three things in this refactor cannot be guarded by a test that fails first, and pretending
 otherwise would be worse than saying so:
 
 | Item | Why | What is done instead |
 |---|---|---|
 | "The catalog is worth using" | No test expresses product value | A real recipe is built end to end in phase 2 and a human reviews the diff |
 | "The surface is the right shape" | It becomes obvious only against a second and third unit | Phase 3's per-unit PRs are the review points, each revertible |
+| The recipe-migration call site | No in-tree unit owns a table, so removing `r.recipeErr = bootRecipes(...)` from the root would leave every test green: the gate has no positive case to lose | The function the root calls (`applyRecipeMigrations`) is tested against a real sqlite ledger, twice (apply lands the table, second call is a no-op) and once for the no-store error; the call site itself becomes provable the day a unit moves a table into a prefixed recipe migration |
 
 ### Do the remaining gaps need more spikes? — **no, and here is the test**
 
@@ -2295,7 +2298,7 @@ slots a recipe owns.
 | **Phase 3 conversions** | **Converted:** `review`, `credits`, `config-view`, `room`, `todo`, `notes`, `whiteboard` — routes only; every table waits for the schema split. Outside this phase: `account`, `landing`, `notifications` |
 | Catalog / install command | **Install/update/uninstall/status wired** (`gogogo recipe …`, 2026-11-03): tree + receipt + generated registration + drift, no anchors. The **catalog entry format is published, validated and consumed** (`recipe install --entry`, hash-verified); hosting and download are not built |
 | Slots in a real page | **`settings.section` renders in `/config`** (2026-11-03), with a fixture proof and the page never learning a recipe id. `dashboard.card`, `nav.sidebar` and `record.row-actions` remain registry-only (no hosting page yet) |
-| Schema split enforcement | `Validate` refuses core tables; nothing yet forces a recipe's SQL to match its declared tables |
+| Schema split enforcement | **Enforced (2026-11-04):** `recipe.Migrator` + `Registry.MigrationSets()` feed `dbschema.MigrateWith` from the composition root, and `recipe.ValidateSchema` refuses both a declared table with no `CREATE` and a `CREATE` the declaration omits — comments stripped, `ext_<id>` prefix and the core-table refusal reused. No in-tree unit declares a table yet, so the wiring's positive case is a root-level fixture (see "What is NOT red-proofable") |
 | SCOPE + trim retirement | Ahead (phase 4); both stay until phase 3 lands |
 
 ## Open questions for the human
@@ -2349,9 +2352,12 @@ reading this needs an answer, not a menu.
 3. **Is a pinned-module tier shipped at all?** The recommendation is no for v1: a dual
    mode doubles what has to be proven, and the in-module tier already satisfies the
    template's purpose.
-4. **How much of the schema split lands in v1?** Spike 2 and 3 made declaring tables in
-   the receipt cheap; the remaining work is the engine owning the ledger prefix and
-   refusing a recipe-declared table that the recipe's own SQL then alters.
+4. **How much of the schema split lands in v1?** Settled for the declaration level
+   (2026-11-04): the ledger prefix is the recipe id, the root applies each recipe's own
+   filesystem, and DDL must match the declaration in both directions. What does NOT land:
+   nothing yet compiles or validates the SQL itself (a migration that alters a core table is
+   invisible to the gate), and the first unit to move a table from `isCoreTable` to a prefixed
+   recipe migration is still ahead — `todo` remains the intended probe.
 
 ## Related
 

@@ -77,6 +77,11 @@ type Router struct {
 	// recipes is the installed recipe set the root mounted, kept so a gate can
 	// compare each declaration against what actually reached the tree.
 	recipes *recipe.Registry
+	// recipeErr is a failure from the recipe step (registration, schema, mount).
+	// It rides the tree instead of the return list because buildChiMux takes one
+	// parameter per feature, and an error return would make every trimmed test
+	// fixture unwrap it. The root checks it immediately after composing.
+	recipeErr error
 }
 
 // NewRouter builds an empty app tree with its own duplicate-guard record.

@@ -143,7 +143,7 @@ func bootOnboarding(
 // AttachJetStream runs. js-free by design — the engine owns the NATS, so
 // JetStream is attached after boot, never passed into it.
 //
-//nolint:funlen // composition root: one line per feature, and the installer
+//nolint:funlen,gocyclo // composition root: one line per feature, and the installer
 func BootChi(cfg *config.Config) (*ChiStack, error) {
 	if verr := cfg.ValidateModes(); verr != nil {
 		return nil, verr
@@ -250,12 +250,10 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	}
 	wbH.SetPresence(federated)
 	notesH.SetPresence(federated)
-	// One argument per line, deliberately: every line belongs to exactly one
-	// feature, so trimming a feature drops its lines without touching its
-	// neighbours. A shared line would make a line drop take two features at
-	// once (and the add path restores these same lines — see routerCallLines).
+	// One argument per line: every line belongs to exactly one feature, so a
+	// trim drops its lines without touching its neighbours (see routerCallLines).
 	slots := recipe.NewSlotRegistry()
-	mux := buildChiMux(a, register.Deps{Cfg: cfg, Auth: a, Queries: queries, Hub: hub, Slots: slots}, todoH,
+	mux := buildChiMux(a, register.Deps{Cfg: cfg, Auth: a, Queries: queries, Hub: hub, Slots: slots, SQLDB: sqlDB}, todoH,
 		landinghandlers.NewHandler(cfg, a),
 		confighandlers.NewHandler(cfg, a, queries),
 		wbH,
@@ -265,6 +263,9 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		reviewH,
 		creditsH,
 	)
+	if mux.recipeErr != nil {
+		return bootFail(cancelConsumer, sqlDB, "recipes", mux.recipeErr)
+	}
 	mountOnboarding(mux, onboardingH)
 	// Distribution axes (open auth + activation gate). Mounted here because
 	// the activation feature is a normal router mount; the open-auth owner is
@@ -402,11 +403,10 @@ func StartChi(cfg *config.Config, nc *natsio.Conn, js nats.JetStreamLike) (stop 
 	return stack.Serve(cfg.ChiAddr)
 }
 
-// mountOnboarding registers the onboarding routes after the composition,
-// not inside it: buildChiMux takes one concrete pointer per feature, and
-// every extra parameter is a line every trim must edit. The optional mount
-// keeps the signature stable while the engine is present or not. Nil is a
-// no-op, so a stock boot never registers the route.
+// mountOnboarding registers the onboarding routes after the composition, not
+// inside it: buildChiMux takes one concrete pointer per feature, and every extra
+// parameter is a line every trim must edit. Nil is a no-op, so a stock boot
+// never registers the route.
 func mountOnboarding(r *Router, onboardingH *onboarding.Handler) {
 	if onboardingH != nil {
 		r.MountFeature("onboarding", onboardingH.Routes())
@@ -462,13 +462,11 @@ func buildChiMux(
 	r.recipes.Add(todoH.Recipe())
 	r.recipes.Add(notesH.Recipe())
 	r.recipes.Add(wbH.Recipe())
-	// Installed recipes register through the generated file; the code is already here.
-	registerInstalledRecipes(r.recipes, deps)
+	// Installed recipes register through the generated file, then their own
+	// migrations run, then they mount: one step, in that order (recipe_surface.go).
+	r.recipeErr = bootRecipes(r, deps)
 	// The settings.section slot: recipes contribute content, this page renders it.
 	configH.SetSlots(deps.Slots)
-	if merr := r.recipes.Mount(r); merr != nil {
-		panic("server: " + merr.Error())
-	}
 
 	// Static: the core bundle, then the Service Worker at the ROOT URL so its
 	// scope is "/" (see static.go). HEAD rides GET per HTTP semantics.

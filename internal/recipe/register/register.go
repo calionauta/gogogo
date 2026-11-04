@@ -12,6 +12,8 @@
 package register
 
 import (
+	"database/sql"
+
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/internal/auth"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
@@ -27,6 +29,10 @@ type Deps struct {
 	Auth    *auth.Auth
 	Queries *dbgen.Queries
 	Hub     *queue.SSEHub
+	// SQLDB is the store the composition root migrates. A recipe that owns
+	// tables reads it here; the recipe's migration set is applied by the root
+	// (recipe.Migrator), never by the recipe itself.
+	SQLDB *sql.DB
 	// Slots is where a recipe declares its content for a page slot. It is
 	// nil in a caller that offers no slots, and Add is nil-safe on the
 	// registry, so a recipe registers unconditionally.

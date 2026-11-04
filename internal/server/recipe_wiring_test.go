@@ -52,6 +52,7 @@ func assertDeclarationsMatchMounts(t *testing.T, mux *Router, reg *recipe.Regist
 func assertRecipeWiring(t *testing.T, mux *Router, sqlDB *sql.DB) {
 	t.Helper()
 	assertDeclarationsMatchMounts(t, mux, mux.recipes)
+	assertRecipeSchemas(t, mux.recipes)
 	assertDeclaredTablesExist(t, sqlDB, mux.recipes)
 }
 
