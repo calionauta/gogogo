@@ -2327,7 +2327,7 @@ slots a recipe owns.
 | **Phase 3 conversions** | **Converted:** `review`, `credits`, `config-view`, `room`, `todo`, `notes`, `whiteboard`, `landing`, `account`, `notifications` — routes only, since no in-tree unit owns a table yet; the first one that does declares it and ships DDL through `recipe.Migrator`. Nothing outside the seam is left except the composition root itself |
 | Catalog / install command | **Install/update/uninstall/status wired** (`gogogo recipe …`, 2026-11-03): tree + receipt + generated registration + drift, no anchors. The **catalog entry format is published, validated and consumed** (`recipe install --entry`, hash-verified); hosting and download are not built |
 | Slots in a real page | **`settings.section` renders in `/config` and `nav.sidebar` renders in the shell rail** (2026-11-04), both with a proof and neither page learning a recipe id; the rail also refuses a contribution whose href is not root-relative. `record.row-actions` renders on the shared todo row (2026-11-04) with a registration-time contract (label, closed verb, root-relative template naming the row once). `dashboard.card` remains registry-only: no dashboard in this app |
-| Schema split enforcement | **Enforced (2026-11-04):** `recipe.Migrator` + `Registry.MigrationSets()` feed `dbschema.MigrateWith` from the composition root, and `recipe.ValidateSchema` refuses both a declared table with no `CREATE` and a `CREATE` the declaration omits — comments stripped, `ext_<id>` prefix and the core-table refusal reused. No in-tree unit declares a table yet, so the wiring's positive case is a root-level fixture (see "What is NOT red-proofable") |
+| Schema split enforcement | **Enforced at the declaration level (2026-11-04):** `recipe.Migrator` + `Registry.MigrationSets()` feed `dbschema.MigrateWith` from the composition root, and `recipe.ValidateSchema` refuses both a declared table with no `CREATE` and a `CREATE` the declaration omits — comments stripped, `ext_<id>` prefix and the core-table refusal reused. No in-tree unit declares a table yet — `sqlc.yaml` reads the core migrations only, so a recipe-owned table has no generated query path until install-time codegen (see open question #4). The wiring's positive case is a root-level fixture (see "What is NOT red-proofable") |
 | SCOPE + trim retirement | Phase 3 has landed; both stay until ownership is data. Decision (2026-11-04): `add` is not retired while `trim` is the only removal path for an in-tree unit — deleting the way back first would make removal one-way. Trigger: the first in-tree unit that ships as a receipt |
 
 ## Open questions for the human
@@ -2390,6 +2390,18 @@ reading this needs an answer, not a menu.
    nothing yet compiles or validates the SQL itself (a migration that alters a core table is
    invisible to the gate), and the first unit to move a table from `isCoreTable` to a prefixed
    recipe migration is still ahead — `todo` remains the intended probe.
+
+   **The blocker that surfaced on inspection (2026-11-04), and the decision it implies:**
+   `internal/db/sqlc.yaml` takes its schema from `../dbschema/migrations`, the CORE set. A table
+   that arrives through `recipe.Migrator` is therefore invisible to `sqlc`, so the first
+   table-owning unit cannot have generated queries — and writing its SQL by hand would break the
+   one rule that keeps queries and schema from drifting. The decision is therefore **install-time
+   codegen**: the installer already generates `recipes.gen.go` from the receipts, so it also
+   owns the sqlc schema list (`schema: [../dbschema/migrations, ../.recipes/schema]`, with the
+   installed recipe migrations gathered there under their ledger namespace). Until that lands, a
+   recipe that declares a table is legal and gated, but has no query path — which is why no
+   in-tree unit has been converted yet, and why the migration call site's positive case is still
+   a fixture.
 
 ## Related
 
