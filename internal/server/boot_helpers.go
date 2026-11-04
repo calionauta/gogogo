@@ -30,6 +30,7 @@ import (
 	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
 	"github.com/calionauta/gogogo/internal/rbac"
+	"github.com/calionauta/gogogo/internal/recipe"
 )
 
 // seedDemoAccounts signs the advertised demo pair up and stamps their
@@ -414,7 +415,7 @@ func bootCollab(cfg *config.Config, queries *dbgen.Queries) (collab.Persister, *
 // here rather than inline in BootChi for the statement budget.
 func bootAI(
 	cfg *config.Config, a *auth.Auth, chiQ *queue.Queue, hub *queue.SSEHub,
-	realLLM, simulatedLLM *llm.Client, queries *dbgen.Queries,
+	realLLM, simulatedLLM *llm.Client, queries *dbgen.Queries, slots *recipe.SlotRegistry,
 ) (chatH *chathandlers.Handler, err error) {
 	// Chat answer surfaces (GENUI_CHAT_SURFACES, absent = the documented
 	// default). An unknown name is a BOOT error, not a logged warning.
@@ -433,7 +434,7 @@ func bootAI(
 	// catalog — this is the ONE place that decides which of the app's own data
 	// is answerable, and it comes from the same providers Hydrate will use, so
 	// the advertised vocabulary and the renderable one cannot drift.
-	panels := []comp.PanelProvider{todohandlers.NewTodoPanel(queries)}
+	panels := []comp.PanelProvider{todohandlers.NewTodoPanel(queries, slots)}
 	if perr := comp.InstallPanelRegistry(panels); perr != nil {
 		return nil, perr
 	}

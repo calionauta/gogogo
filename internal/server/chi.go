@@ -216,11 +216,13 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		shutdown = append(shutdown, func() { stopRoomActor(roomHost) })
 	}
 
+	// One slot registry for the boot: the AI panel renders the SAME row.
+	slots := recipe.NewSlotRegistry()
 	realLLM, simulatedLLM := wireTodoLLM(todoH, chiQ, cfg)
 	// Retained for the trimmed tree: the genui trim drops the constructions
 	// below, and an unused local would not compile there.
 	_, _ = realLLM, simulatedLLM
-	chatH, err := bootAI(cfg, a, chiQ, hub, realLLM, simulatedLLM, queries)
+	chatH, err := bootAI(cfg, a, chiQ, hub, realLLM, simulatedLLM, queries, slots)
 	if err != nil {
 		cancelConsumer()
 		return nil, err
@@ -250,9 +252,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	}
 	wbH.SetPresence(federated)
 	notesH.SetPresence(federated)
-	// One argument per line: every line belongs to exactly one feature, so a
-	// trim drops its lines without touching its neighbours (see routerCallLines).
-	slots := recipe.NewSlotRegistry()
+	// One argument per line: a trim drops its features' lines, nothing else.
 	mux := buildChiMux(a, register.Deps{Cfg: cfg, Auth: a, Queries: queries, Hub: hub, Slots: slots, SQLDB: sqlDB}, todoH,
 		landinghandlers.NewHandler(cfg, a),
 		confighandlers.NewHandler(cfg, a, queries),
@@ -411,11 +411,10 @@ func mountOnboarding(r *Router, onboardingH *onboarding.Handler) {
 	}
 }
 
-// buildChiMux composes the flat-stack routes. Pure constructor (no ports,
-// no goroutines) so contract tests cover the exact composition production
-// serves. The onboarding routes are NOT parameters here: they mount after
-// the composition in BootChi, so adding or removing an optional surface
-// never changes this signature (see the mount block there).
+// buildChiMux composes the flat-stack routes. Pure constructor (no ports, no
+// goroutines) so contract tests cover the exact composition production serves.
+// Optional surfaces mount after it, so their absence never changes this
+// signature (see the mount block in BootChi).
 //
 // Convention: a feature router declares its own absolute paths, and
 // MountFeature flattens that table onto the root (internal/server/route.go) —
@@ -466,8 +465,10 @@ func buildChiMux(
 	// Installed recipes register through the generated file, then their own
 	// migrations run, then they mount: one step, in that order (recipe_surface.go).
 	r.recipeErr = bootRecipes(r, deps)
-	// The settings.section slot: recipes contribute content, this page renders it.
+	// settings.section: recipes contribute content, this page renders it.
 	configH.SetSlots(deps.Slots)
+	// record.row-actions: copied once, when the registry is complete.
+	todoH.RowActions = rowActionsFor(deps.Slots)
 
 	// Static: the core bundle, then the Service Worker at the ROOT URL so its
 	// scope is "/" (see static.go). HEAD rides GET per HTTP semantics.

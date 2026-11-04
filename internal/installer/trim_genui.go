@@ -121,7 +121,7 @@ var genuiTrimUnits = []trimUnit{
 					// helper's body (including the RegisterHandlers call it
 					// now owns) goes via the strip rule above, because a
 					// multi-line construction cannot be removed by substring.
-					"chatH, err := bootAI(cfg, a, chiQ, hub, realLLM, simulatedLLM, queries)",
+					"chatH, err := bootAI(cfg, a, chiQ, hub, realLLM, simulatedLLM, queries, slots)",
 					// One argument per line: each drop removes exactly its
 					// feature's line, and add restores them.
 					"chatH,",
@@ -145,6 +145,9 @@ var genuiTrimUnits = []trimUnit{
 					chathandlersImport,
 					chatstoreImport,
 					genuiComponentsImp,
+					// The panel registry is the only reader of the slot registry
+					// in this file: with the strip above, the import is dead.
+					`"github.com/calionauta/gogogo/internal/recipe"`,
 				},
 			},
 			{

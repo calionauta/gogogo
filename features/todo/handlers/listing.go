@@ -234,6 +234,9 @@ func (h *Handler) displaySignalsWithQuery(
 		UserID:         owner,
 		LLMEnabled:     h.LLM != nil && h.LLM.Configured(),
 		SimulatedLLM:   h.SimulatedLLM != nil && h.SimulatedLLM.Configured(),
+		// Recipes' row actions: configuration, so every render path carries the
+		// same list and the row decides how to place it.
+		RowActions: h.RowActions,
 	}
 }
 

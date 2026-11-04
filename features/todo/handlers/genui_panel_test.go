@@ -42,7 +42,7 @@ func TestTodoPanelFillListsTheOwnersRows(t *testing.T) {
 	add("todo-open", "open one", false)
 	add("todo-done", "done one", true)
 
-	p := NewTodoPanel(f.h.Q)
+	p := NewTodoPanel(f.h.Q, nil)
 
 	rows := func(props map[string]any) []todo.Todo {
 		t.Helper()
@@ -112,7 +112,7 @@ func TestTodoPanelRendersOfficialRows(t *testing.T) {
 		t.Fatalf("create todo: %v", cerr)
 	}
 
-	p := NewTodoPanel(f.h.Q)
+	p := NewTodoPanel(f.h.Q, nil)
 	filled, ferr := p.Fill(ctx, user.ID, map[string]any{"filter": "all"})
 	if ferr != nil {
 		t.Fatalf("Fill: %v", ferr)
@@ -165,7 +165,7 @@ func TestTodoPanelRenderDecodesWireRows(t *testing.T) {
 		}
 	}
 
-	p := NewTodoPanel(f.h.Q)
+	p := NewTodoPanel(f.h.Q, nil)
 	filled, ferr := p.Fill(ctx, user.ID, map[string]any{"filter": "open"})
 	if ferr != nil {
 		t.Fatalf("Fill: %v", ferr)

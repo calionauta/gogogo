@@ -48,7 +48,7 @@ func TestTodoPanelSummaryReadsTheRealStore(t *testing.T) {
 	insertTodoFor(t, f, me, "deploy the kestrel parser")
 	insertTodoFor(t, f, me, "write the handoff note")
 
-	panel := NewTodoPanel(f.q)
+	panel := NewTodoPanel(f.q, nil)
 	got, err := panel.Summary(context.Background(), me)
 	if err != nil {
 		t.Fatalf("Summary: %v", err)
@@ -94,7 +94,7 @@ func TestTodoPanelSummarySeparatesOpenFromDone(t *testing.T) {
 		t.Fatalf("complete row: %v", uerr)
 	}
 
-	got, err := NewTodoPanel(f.q).Summary(context.Background(), me)
+	got, err := NewTodoPanel(f.q, nil).Summary(context.Background(), me)
 	if err != nil {
 		t.Fatalf("Summary: %v", err)
 	}
@@ -130,7 +130,7 @@ func TestTodoPanelSummaryIsScopedToTheOwner(t *testing.T) {
 	insertTodoFor(t, f, alice, "alice private task")
 	insertTodoFor(t, f, bob, "bob private task")
 
-	got, err := NewTodoPanel(f.q).Summary(context.Background(), alice)
+	got, err := NewTodoPanel(f.q, nil).Summary(context.Background(), alice)
 	if err != nil {
 		t.Fatalf("Summary: %v", err)
 	}
@@ -151,7 +151,7 @@ func TestTodoPanelSummaryEmptyStoreSaysNothing(t *testing.T) {
 	cookie := f.signup("empty-summary@example.com")
 	me := f.ownerOf(t, cookie)
 
-	got, err := NewTodoPanel(f.q).Summary(context.Background(), me)
+	got, err := NewTodoPanel(f.q, nil).Summary(context.Background(), me)
 	if err != nil {
 		t.Fatalf("Summary: %v", err)
 	}

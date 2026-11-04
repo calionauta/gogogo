@@ -2374,9 +2374,11 @@ reading this needs an answer, not a menu.
    that already owns the frame) and `nav.sidebar` (the rail is a real surface, and the collision
    the doc feared — extensions mixed into the built-in module list — is resolved by rendering
    them as their own group from a separate registry, so `ui.Modules` stays the shell's own list).
-   The other two stay registry-only until a page offers them: `dashboard.card` has no dashboard
-   in this app, and `record.row-actions` is the most valuable and the most expensive to make safe
-   because it touches another unit's entity.
+   `record.row-actions` shipped in the same pass (2026-11-04) with a stricter contract than the
+   nav entry: a label, a closed verb, a root-relative template naming the row exactly once with
+   `{id}`, and rendering on the todo row — the core page substitutes the id, the recipe never
+   hands it a component. `dashboard.card` stays registry-only: this app has no dashboard, and
+   inventing one to host a card is the page-first mistake.
 2. **Does the reference slice ship installed or as a recipe?** `todo` is both the
    catalog's best example of a modifiable recipe and the thing every proof, smoke and
    fixture copies. It can be both, but that combination deserves one deliberate decision.

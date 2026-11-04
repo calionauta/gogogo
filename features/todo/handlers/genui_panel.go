@@ -28,6 +28,7 @@ import (
 	"github.com/calionauta/gogogo/features/todo"
 	todoscomp "github.com/calionauta/gogogo/features/todo/components"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/recipe"
 
 	"github.com/a-h/templ"
 )
@@ -35,15 +36,20 @@ import (
 // TodoPanel is the app's own todo_list panel.
 type TodoPanel struct {
 	Q *dbgen.Queries
+	// Slots is the boot's one registry. The panel renders the SAME row the page
+	// does, so it reads the same source at render time instead of a copy taken
+	// at a different moment — a panel that dropped a recipe's action would be
+	// the drift the shared row exists to prevent.
+	Slots *recipe.SlotRegistry
 }
 
 // NewTodoPanel builds the provider. Nil queries is a wiring bug, not a
 // degradation: the todo handler that owns them panics on nil too.
-func NewTodoPanel(q *dbgen.Queries) *TodoPanel {
+func NewTodoPanel(q *dbgen.Queries, slots *recipe.SlotRegistry) *TodoPanel {
 	if q == nil {
 		panic("todo: NewTodoPanel with nil queries")
 	}
-	return &TodoPanel{Q: q}
+	return &TodoPanel{Q: q, Slots: slots}
 }
 
 // Component implements comp.PanelProvider: the model-facing name.
@@ -243,7 +249,7 @@ func (p *TodoPanel) Render(props map[string]any) (templ.Component, error) {
 	// The id comes from the renderer (comp.InstanceIDProp), so two todo panels
 	// on one page — a chat thread keeps its history — do not collide.
 	id, _ := normalized[comp.InstanceIDProp].(string)
-	return todoscomp.Panel(id, filter, panelRowsFromProps(props)), nil
+	return todoscomp.Panel(id, filter, panelRowsFromProps(props), rowActionsFrom(p.Slots)), nil
 }
 
 // panelRowsFromProps decodes the `rows` prop in the shapes it actually reaches

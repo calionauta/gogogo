@@ -12,6 +12,7 @@ import (
 
 	"github.com/calionauta/gogogo/features/notifications"
 	notificationshandlers "github.com/calionauta/gogogo/features/notifications/handlers"
+	"github.com/calionauta/gogogo/features/todo"
 	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/recipe"
 	"github.com/calionauta/gogogo/internal/recipe/register"
@@ -85,4 +86,23 @@ func applyRecipeMigrations(sqlDB *sql.DB, reg *recipe.Registry) error {
 		return fmt.Errorf("recipe migrations: %w", err)
 	}
 	return nil
+}
+
+// rowActionsFor copies the row-action slot into the todo handler's shape.
+//
+// It runs at the one moment the registry is known to be complete: after the
+// installed recipes and the in-tree units registered, before anything serves.
+func rowActionsFor(slots *recipe.SlotRegistry) []todo.RowAction {
+	if slots == nil {
+		return nil
+	}
+	actions := slots.Actions(recipe.SlotRecordRowActions)
+	if len(actions) == 0 {
+		return nil
+	}
+	out := make([]todo.RowAction, 0, len(actions))
+	for _, a := range actions {
+		out = append(out, todo.RowAction{Label: a.Label, Href: a.Href, Verb: a.Verb, Confirm: a.Confirm})
+	}
+	return out
 }

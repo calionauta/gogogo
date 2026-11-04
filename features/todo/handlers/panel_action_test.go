@@ -290,7 +290,7 @@ func TestPanelRendersInteractiveControls(t *testing.T) {
 		ID: "row-1", Title: "Buy milk", IsMine: true, CanDelete: true,
 		CreatedAt: time.Date(2026, 10, 21, 12, 0, 0, 0, time.UTC),
 	}}
-	if err := todoscomp.Panel(id, "all", rows).Render(context.Background(), &buf); err != nil {
+	if err := todoscomp.Panel(id, "all", rows, nil).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("render panel: %v", err)
 	}
 	got := html.UnescapeString(buf.String())

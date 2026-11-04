@@ -26,7 +26,7 @@ import (
 // Adding stays on the Todos page (the link above): a create answers with a
 // result card, not a re-rendered list, so a composer here would replace the
 // panel with its own receipt.
-templ Panel(id string, filter string, rows []todo.Todo) {
+templ Panel(id string, filter string, rows []todo.Todo, extras []todo.RowAction) {
 	<div id={ id } class="rounded-box border border-base-300 p-4">
 		<div class="flex items-baseline justify-between gap-2 mb-2">
 			<h3 class="font-semibold">{ todoListHeading(filter) }</h3>
@@ -42,7 +42,7 @@ templ Panel(id string, filter string, rows []todo.Todo) {
 		} else {
 			<div class="divide-y divide-base-200">
 				for _, row := range rows {
-					@TodoItem(row, panelRowActions(row, id, filter))
+					@TodoItem(row, panelRowActions(row, id, filter, extras))
 				}
 			</div>
 			@deleteConfirmModal(panelDeleteModalSpec(id, filter))
@@ -83,9 +83,10 @@ func panelFilterExpr(panelID, filter string) string {
 // the trash sets the confirming ids then opens THIS panel's dialog (the
 // page's #confirm-delete-modal is not on the Chat page). Everything the row
 // SHOWS stays TodoItem's.
-func panelRowActions(item todo.Todo, panelID, filter string) TodoRowActions {
+func panelRowActions(item todo.Todo, panelID, filter string, extras []todo.RowAction) TodoRowActions {
 	idSignal, titleSignal := panelPendingSignals(panelID)
 	return TodoRowActions{
+		Extras:   extras,
 		IDPrefix: panelID + "-todo-",
 		Toggle: todoMutateOn("'/api/todos/" + item.ID + "/toggle?filter=" + filter + "&_target=" + panelID + "&clientID=' + encodeURIComponent($clientID || '')"),
 		Delete: idSignal + " = " + safeJSString(item.ID) + "; " + titleSignal + " = " + safeJSString(item.Title) + "; document.getElementById(" + safeJSString(panelDeleteDialogID(panelID)) + ").showModal()",

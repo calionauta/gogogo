@@ -87,6 +87,12 @@ type Signals struct {
 	// changed — the hint next to the controls reads this instead.
 	ListOffline bool `json:"-"`
 
+	// RowActions are the actions recipes contributed through the
+	// `record.row-actions` slot. They are configuration, not state: `json:"-"`
+	// keeps them out of `data-signals`, because the client has no business
+	// knowing which recipes are installed. The handler fills them once at boot.
+	RowActions []RowAction `json:"-"`
+
 	NoMatches bool `json:"noMatches"`
 
 	// SessionAuthed is NOT a field here, and that is deliberate. The todo page
@@ -301,3 +307,21 @@ type Signals struct {
 	// stepper reaching 5/5).
 	WorkflowCompleted bool `json:"-"`
 }
+
+// RowAction is one action a recipe contributed for a todo row.
+//
+// The todo package defines its own shape instead of importing the recipe
+// registry: the row renderer is part of the reference slice, and a slice that
+// imported the plugin would drag the whole engine into a build that trimmed it.
+// The handler converts, and it is the only place that knows both sides.
+type RowAction struct {
+	Label   string
+	Href    string // root-relative template with exactly one "{id}"
+	Verb    string // "get" (navigate) or "post" (mutate)
+	Confirm string // optional question asked before a post fires
+}
+
+// RowIDPlaceholder is the one token a row-action template may carry; the row
+// renderer replaces it with the row's own id. Spelled in the todo package
+// because the renderer must not import the recipe engine just for a string.
+const RowIDPlaceholder = "{id}"

@@ -103,7 +103,7 @@ func (h *Handler) answerPanelSelf(w http.ResponseWriter, r *http.Request, owner,
 		return nil
 	}
 	sse := sdk.NewSSE(w, r)
-	return patchSSE(sse, todoscomp.Panel(target, filter, rows), sdk.WithSelector("#"+target))
+	return patchSSE(sse, todoscomp.Panel(target, filter, rows, h.RowActions), sdk.WithSelector("#"+target))
 }
 
 // answerPanelList renders one panel's slice refresh at its slot: the GET list
@@ -121,7 +121,8 @@ func (h *Handler) answerPanelList(w http.ResponseWriter, r *http.Request, owner,
 		return
 	}
 	sse := sdk.NewSSE(w, r)
-	if perr := patchSSE(sse, todoscomp.Panel(target, filter, rows), sdk.WithSelector("#"+target)); perr != nil {
+	panel := todoscomp.Panel(target, filter, rows, h.RowActions)
+	if perr := patchSSE(sse, panel, sdk.WithSelector("#"+target)); perr != nil {
 		h.fail(r.Context(), w, "todo: panel tab patch failed", perr, "error listing todos")
 	}
 }
