@@ -291,7 +291,9 @@ var baseTrimUnits = []trimUnit{
 					// feature's line, and add restores them.
 					"roomH *roomhandlers.Handler,",
 					"roomH,",
-					`r.MountFeature("room", roomH.Routes())`,
+					// The route mount moved to the recipe seam: the Add
+					// line goes, and the import with it.
+					"r.recipes.Add(roomH.Recipe())",
 					`appgoakt "github.com/calionauta/gogogo/internal/goakt"`,
 					`roomhandlers "github.com/calionauta/gogogo/features/room/handlers"`,
 				},

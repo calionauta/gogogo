@@ -115,3 +115,25 @@ func TestDeclaredTableGateReportsAMissingTable(t *testing.T) {
 		t.Fatalf("expected exactly the missing table reported, got %v", problems)
 	}
 }
+
+// TestDeclaredTableGateAcceptsARealTable closes the gate's vacuous half. Until
+// a unit declared a table, "no problems" could have meant "nothing checked":
+// the negative proved the miss, and this proves the hit. `notes` is used
+// because it exists in the ledger and no conversion has claimed it.
+func TestDeclaredTableGateAcceptsARealTable(t *testing.T) {
+	sqlDB, err := db.OpenAt(t.TempDir() + "/tables-ok.db")
+	if err != nil {
+		t.Fatalf("db open: %v", err)
+	}
+	t.Cleanup(func() { sqlDB.Close() })
+	if merr := dbschema.Migrate(sqlDB); merr != nil {
+		t.Fatalf("migrate: %v", merr)
+	}
+
+	reg := &recipe.Registry{}
+	reg.Add(fakeProvider{id: "probe", tables: []string{"notes"}})
+
+	if problems := declaredTableProblems(sqlDB, reg); len(problems) != 0 {
+		t.Fatalf("a declared table that exists must pass, got %v", problems)
+	}
+}

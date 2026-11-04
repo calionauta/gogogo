@@ -450,22 +450,22 @@ func buildChiMux(
 	// long-lived SSE the banner holds open and it only hears about changes.
 	MountPath(r, "/api/session/stream", a.SessionStreamHandler())
 
-	r.MountFeature("todo", todoH.Routes())
 	r.MountFeature("whiteboard", wbH.Routes())
 	r.MountFeature("notes", notesH.Routes())
-	// roomH is nil when the engine is disabled or failed to start; the
-	// handler answers nil from Routes() then, and MountFeature mounts nothing.
-	r.MountFeature("room", roomH.Routes())
 	r.MountFeature("chat", chatH.Routes())
 	// Installed recipes mount through the seam: one Add line per recipe, and a
 	// trim drops that line with its import. Review was the phase-2 probe;
-	// credits and config-view are the phase-3 conversions. Every hardcoded
-	// mount is gone (the two agreeing, then disagreeing, was the proof). See
-	// docs/research/extensibility-2026-11.md.
+	// credits, config-view, room and todo are the phase-3 conversions. Every
+	// hardcoded mount is gone (the two agreeing, then disagreeing, was the
+	// proof). roomH is nil when the engine is disabled or failed to start and
+	// its Recipe answers nil then, so no declaration outlives the code it
+	// describes. See docs/research/extensibility-2026-11.md.
 	r.recipes = &recipe.Registry{}
 	r.recipes.Add(reviewH.Recipe())
 	r.recipes.Add(creditsH.Recipe())
 	r.recipes.Add(configH.Recipe())
+	r.recipes.Add(roomH.Recipe())
+	r.recipes.Add(todoH.Recipe())
 	if merr := r.recipes.Mount(r); merr != nil {
 		panic("server: " + merr.Error())
 	}
