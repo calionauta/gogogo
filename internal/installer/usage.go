@@ -61,6 +61,8 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
 
     go run ./cmd/gogogo recipe install ./extensions/pomodoro --dir ./my-app
     go run ./cmd/gogogo recipe install ./extensions/pomodoro --dir ./my-app --yes
+    go run ./cmd/gogogo recipe install --entry catalog/pomodoro/v1.2.0.yml \
+      ./downloaded/pomodoro --dir ./my-app --yes
     go run ./cmd/gogogo recipe update ./extensions/pomodoro --dir ./my-app --yes
     go run ./cmd/gogogo recipe uninstall pomodoro --dir ./my-app --yes
 

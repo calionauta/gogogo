@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/calionauta/gogogo/internal/recipe"
@@ -16,9 +17,18 @@ import (
 // recipeInstallArgs is the parsed CLI surface.
 type recipeInstallArgs struct {
 	src    string
+	entry  string
 	dir    string
 	yes    bool
 	format string
+}
+
+// recipeSource is the install input both loaders produce: the manifest the
+// receipt needs plus the bytes to copy. A recipe directory and a reviewed catalog
+// entry differ only in where the two come from.
+type recipeSource struct {
+	manifest recipeManifest
+	files    map[string]string
 }
 
 // runRecipeInstall plans, and with --yes applies, one recipe directory into a
@@ -30,10 +40,11 @@ func runRecipeInstall(args []string, stdout io.Writer, requireExisting bool) err
 	if err != nil {
 		return err
 	}
-	manifest, upstream, err := loadRecipeSource(opt.src)
+	source, err := loadInstallSource(opt)
 	if err != nil {
 		return err
 	}
+	manifest, upstream := source.manifest, source.files
 	root, prev, err := recipeInstallTarget(opt.dir, manifest.ID, requireExisting)
 	if err != nil {
 		return err
@@ -166,15 +177,18 @@ func parseRecipeInstallArgs(args []string) (recipeInstallArgs, error) {
 	opt := recipeInstallArgs{}
 	fs := flag.NewFlagSet("recipe install", flag.ContinueOnError)
 	fs.StringVar(&opt.dir, "dir", ".", "target checkout to install into")
+	fs.StringVar(&opt.entry, "entry", "",
+		"catalog entry (.yml) to install from; the positional argument is then the contents directory")
 	fs.BoolVar(&opt.yes, "yes", false, "apply the plan (without it the command prints and changes nothing)")
 	fs.StringVar(&opt.format, "format", planFormatText, "output format: text|json")
 	fs.SetOutput(io.Discard)
 
-	rest := args
-	if len(rest) > 0 && !strings.HasPrefix(rest[0], "-") {
-		opt.src = rest[0]
-		rest = rest[1:]
-	}
+	// The positional may sit anywhere among the flags (`--entry e.yml ./dir
+	// --dir x`), and the stdlib parser stops at the first non-flag token. Pull it
+	// out first, knowing which flags take a value so a value is not mistaken for
+	// the positional.
+	src, rest := splitInstallPositional(args)
+	opt.src = src
 	if err := fs.Parse(rest); err != nil {
 		return opt, &ExitError{code: 1, msg: "recipe install: " + err.Error()}
 	}
@@ -182,6 +196,11 @@ func parseRecipeInstallArgs(args []string) (recipeInstallArgs, error) {
 		opt.src = fs.Arg(0)
 	}
 	if opt.src == "" {
+		if opt.entry != "" {
+			return opt, &ExitError{code: 1, msg: "recipe install --entry needs the pristine " +
+				"contents directory (`recipe install --entry catalog/pomodoro/v1.2.0.yml " +
+				"./downloaded/pomodoro`)"}
+		}
 		return opt, &ExitError{code: 1, msg: "recipe install needs a recipe directory " +
 			"(`recipe install ./extensions/pomodoro`) or " +
 			"(`recipe install pomodoro`); `gogogo --help` lists the offered units"}
@@ -291,4 +310,109 @@ func assertNoReceiptCollision(root, id string, upstream map[string]string) error
 		}
 	}
 	return nil
+}
+
+// loadInstallSource reads either a recipe directory (the author's shape) or a
+// reviewed catalog entry plus the directory holding its bytes. Both become the
+// same manifest + file set, so the install path below has one shape.
+func loadInstallSource(opt recipeInstallArgs) (recipeSource, error) {
+	if opt.entry != "" {
+		return loadCatalogSource(opt.entry, opt.src)
+	}
+	manifest, files, err := loadRecipeSource(opt.src)
+	if err != nil {
+		return recipeSource{}, err
+	}
+	return recipeSource{manifest: manifest, files: files}, nil
+}
+
+// loadCatalogSource verifies the bytes against the entry before anything is
+// planned: every reviewed file must be there and hash the same, and no
+// unreviewed file may be installed. That is the whole point of a catalog entry —
+// the review is about bytes, not about a name.
+func loadCatalogSource(entryPath, contentsDir string) (recipeSource, error) {
+	var out recipeSource
+	entry, err := recipe.LoadCatalogEntry(entryPath)
+	if err != nil {
+		return out, &ExitError{code: 1, msg: "recipe install: " + err.Error()}
+	}
+	dir, aerr := filepath.Abs(contentsDir)
+	if aerr != nil {
+		return out, &ExitError{code: 1, msg: "recipe install: " + aerr.Error()}
+	}
+	files, ferr := collectRecipeFiles(dir)
+	if ferr != nil {
+		return out, ferr
+	}
+	for p, want := range entry.Files {
+		got, ok := files[p]
+		if !ok {
+			return out, &ExitError{code: 1, msg: fmt.Sprintf(
+				"recipe install: %s is missing %s, which %s %s reviewed",
+				contentsDir, p, entry.ID, entry.Version)}
+		}
+		if h := recipe.Hash([]byte(got)); h != strings.TrimPrefix(want, "sha256:") {
+			return out, &ExitError{code: 1, msg: fmt.Sprintf(
+				"recipe install: %s does not hash to the reviewed bytes of %s %s; "+
+					"refusing to install code the review did not see", p, entry.ID, entry.Version)}
+		}
+	}
+	var extra []string
+	for p := range files {
+		if _, ok := entry.Files[p]; !ok {
+			extra = append(extra, p)
+		}
+	}
+	if len(extra) > 0 {
+		sort.Strings(extra)
+		return out, &ExitError{code: 1, msg: "recipe install: " + contentsDir +
+			" ships files the entry did not review: " + strings.Join(extra, ", ")}
+	}
+	module := entry.Module
+	if module == "" {
+		// Go modules are named by their repo path, so the source repo is the
+		// honest default when the entry does not name one.
+		module = entry.Source.Repo
+	}
+	out.manifest = recipeManifest{
+		ID:       entry.ID,
+		Upstream: entry.Source,
+		Declaration: recipe.Declaration{
+			Routes: entry.Routes,
+			Tables: entry.Tables,
+			Jobs:   entry.Jobs,
+			Slots:  entry.Slots,
+		},
+		Register: entry.Register,
+		Module:   module,
+	}
+	out.files = files
+	return out, nil
+}
+
+// splitInstallPositional extracts the single positional argument (the recipe
+// directory or the contents directory) without consuming a flag's value.
+func splitInstallPositional(args []string) (src string, rest []string) {
+	valueFlags := map[string]bool{
+		"--entry": true, "--dir": true, "--format": true,
+		"-entry": true, "-dir": true, "-format": true,
+	}
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if !strings.HasPrefix(arg, "-") {
+			if src == "" {
+				src = arg
+				continue
+			}
+			rest = append(rest, arg)
+			continue
+		}
+		name, _, hasValue := strings.Cut(arg, "=")
+		rest = append(rest, arg)
+		if !hasValue && valueFlags[name] && i+1 < len(args) {
+			i++
+			rest = append(rest, args[i])
+		}
+	}
+	return src, rest
 }

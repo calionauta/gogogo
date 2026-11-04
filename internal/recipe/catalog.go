@@ -37,17 +37,23 @@ var catalogHashRE = regexp.MustCompile(`^(sha256:)?[a-f0-9]{64}$`)
 // tens of megabytes), and MinCore names the compatibility claim (without it an
 // upgrade is advisory by accident).
 type CatalogEntry struct {
-	ID        string            `yaml:"id"`
-	Version   string            `yaml:"version"`
-	Source    Upstream          `yaml:"source"`
-	Files     map[string]string `yaml:"files"`
-	License   string            `yaml:"license"`
-	MinCore   string            `yaml:"minCore"`
-	WorksWith []string          `yaml:"worksWith,omitempty"`
-	Slots     []string          `yaml:"slots,omitempty"`
-	Routes    []Route           `yaml:"routes,omitempty"`
-	Tables    []string          `yaml:"tables,omitempty"`
-	Jobs      []string          `yaml:"jobs,omitempty"`
+	ID      string            `yaml:"id"`
+	Version string            `yaml:"version"`
+	Source  Upstream          `yaml:"source"`
+	Files   map[string]string `yaml:"files"`
+	License string            `yaml:"license"`
+	MinCore string            `yaml:"minCore"`
+	// Register is the repo-relative package exporting `Register`, when the
+	// entry's code mounts through the seam. Empty is a data-only recipe.
+	Register string `yaml:"register,omitempty"`
+	// Module is the Go module the code was written against; empty means the
+	// source repo path, which is how Go modules are usually named.
+	Module    string   `yaml:"module,omitempty"`
+	WorksWith []string `yaml:"worksWith,omitempty"`
+	Slots     []string `yaml:"slots,omitempty"`
+	Routes    []Route  `yaml:"routes,omitempty"`
+	Tables    []string `yaml:"tables,omitempty"`
+	Jobs      []string `yaml:"jobs,omitempty"`
 	// UpstreamDeps is a pointer so "absent" and "empty" are different claims:
 	// absent is a missing declaration, empty is "this recipe needs nothing".
 	UpstreamDeps    *[]string `yaml:"upstreamDeps"`
@@ -161,7 +167,28 @@ func (e CatalogEntry) surfaceProblems() []string {
 			out = append(out, "worksWith holds an empty set name")
 		}
 	}
+	if e.Register != "" {
+		if !safeRelPath(e.Register) {
+			out = append(out, fmt.Sprintf(
+				"register %q must be a clean repo-relative package path", e.Register))
+		} else if !catalogHasDir(e.Files, e.Register) {
+			out = append(out, fmt.Sprintf(
+				"register names %q, but files holds nothing under it: the generated "+
+					"registration would import a package the entry does not ship", e.Register))
+		}
+	}
 	return out
+}
+
+// catalogHasDir reports whether the entry ships code under dir.
+func catalogHasDir(files map[string]string, dir string) bool {
+	prefix := strings.TrimSuffix(dir, "/") + "/"
+	for p := range files {
+		if strings.HasPrefix(p, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 // reviewProblems covers the claims that make an entry a review rather than a

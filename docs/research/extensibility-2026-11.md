@@ -934,15 +934,17 @@ notes: |
   every adopter (the page header and the interval default) — the review says
   which, so the drift report is not noisy.
 
-**Status, 2026-11-03: the format is published and validated; the registry is not.**
+**Status, 2026-11-03: the format is published, validated, and consumed.**
 `internal/recipe/catalog.go` implements the entry above, and `Validate` enforces the review
 rules the evidence supports: id and v-semver, source repo+ref, one sha256 per file, license,
 `minCore`, the **dependency-closure declaration** (absent and empty are different claims — the
 pointer exists so "I need nothing" cannot be mistaken for "I did not say"), the three review
 fields, `ext_<id>` tables with core tables refused, `ext:<id>:` jobs, and known slot ids. Each
-rule has a mutation its subtest catches. What is deliberately not built: resolution, download,
-hash comparison on install, and hosting. The entry is the artifact those consume; publishing
-the format is what lets a review exist at all.
+rule has a mutation its subtest catches. The consumer landed the same day: `gogogo recipe install --entry <entry.yml> <contents-dir>`
+verifies that every reviewed file is present and hashes to the reviewed bytes, refuses files
+the entry did not review, and only then installs through the same receipt path — the review is
+about bytes, not about a name. What is deliberately not built: hosting and download. The entry
+is a local artifact; fetching it is a distribution decision, not a format one.
 
 **The personal tier is first class, not a degraded mode.** The same receipt shape
 describes a local recipe that was never submitted anywhere:
@@ -1797,20 +1799,18 @@ converted; the
 nil-provider rule for optional units; the anchor drift gate; the CLI (`recipe install`,
 `update`, `uninstall`, `status`); and the **generated registration** that mounts an
 installed recipe — `.recipe.yml` → `.recipes/<id>.yml` → `internal/server/recipes.gen.go`,
-with one `Register(reg, deps)` function per recipe; the **catalog entry format** published and
-validated; and the **first real slot** — `settings.section` renders in `/config`, with the
-page never learning a recipe id.
+with one `Register(reg, deps)` function per recipe; the **catalog entry format** published,
+validated and **consumed** (`recipe install --entry`, hash-verified against the reviewed bytes);
+and the **first real slot** — `settings.section` renders in `/config`, with the page never
+learning a recipe id.
 
 Next, in order:
 
-1. **Install from a catalog entry** — verify the pristine bytes against the entry's hashes, then
-   install through the same receipt path. The format exists; this is the consumer that makes a
-   review mean something.
-2. **Phase 4** — the two path defaults and `spike_anchor_test.go`'s remaining probes. Blocked by
+1. **Phase 4** — the two path defaults and `spike_anchor_test.go`'s remaining probes. Blocked by
    its own precondition: "nothing calls the installer's `add` path" is false while the CLI still
    offers `add`, and removing that command is a product decision. SCOPE and trim retirement
    additionally waits until ownership is data (receipts for in-tree units).
-3. **The remaining slots** — `dashboard.card` has no dashboard page to land in,
+2. **The remaining slots** — `dashboard.card` has no dashboard page to land in,
    `nav.sidebar` would collide with the shell's module list, and `record.row-actions` waits on
    the entity-ownership question. Slots are also what move `genui`'s integration files out of
    `features/todo`.
@@ -2293,7 +2293,7 @@ slots a recipe owns.
 | Anchor gate (phase 4 partial) | Done; stale `.templ`/handler table deleted |
 | **Phase 2 wiring** | **Done for `review`** — declaration beside its routes, mounted only through the seam, gates red-proofed. Nav/panel surface, receipt and slots still open |
 | **Phase 3 conversions** | **Converted:** `review`, `credits`, `config-view`, `room`, `todo`, `notes`, `whiteboard` — routes only; every table waits for the schema split. Outside this phase: `account`, `landing`, `notifications` |
-| Catalog / install command | **Install/update/uninstall/status wired** (`gogogo recipe …`, 2026-11-03): tree + receipt + generated registration + drift, no anchors. The **catalog entry format is published and validated** (`internal/recipe/catalog.go`); resolution and download are not built |
+| Catalog / install command | **Install/update/uninstall/status wired** (`gogogo recipe …`, 2026-11-03): tree + receipt + generated registration + drift, no anchors. The **catalog entry format is published, validated and consumed** (`recipe install --entry`, hash-verified); hosting and download are not built |
 | Slots in a real page | **`settings.section` renders in `/config`** (2026-11-03), with a fixture proof and the page never learning a recipe id. `dashboard.card`, `nav.sidebar` and `record.row-actions` remain registry-only (no hosting page yet) |
 | Schema split enforcement | `Validate` refuses core tables; nothing yet forces a recipe's SQL to match its declared tables |
 | SCOPE + trim retirement | Ahead (phase 4); both stay until phase 3 lands |
