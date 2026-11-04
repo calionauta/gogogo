@@ -2073,7 +2073,8 @@ independent rather than merely small.
   `todo` as the phase-3 table probe was wrong: the *unit* probe moved to the schema split (a
   prefixed, recipe-owned migration), while the *gate's* positive direction is now proved by a
   fixture that declares a real table (`notes`), so "no problems" can no longer mean "nothing
-  checked".
+  checked". The unit still ships installed and is removed manually; mounting through the seam does
+  not decide whether the reference slice ships as a recipe (Open questions, item 2).
 - **Notes, whiteboard, account, landing and notifications are not phase-3 work.** `notes` imports
   `collab` (1.3); `account` mounts after `buildChiMux` returns and is manual-removal identity UX;
   `landing`'s router is also `r.NotFound`; `notifications` mounts through `mountInbox` and has no
@@ -2197,7 +2198,7 @@ slots a recipe owns.
 
 | Area | State |
 |---|---|
-| Engine (`internal/recipe`) | Seam, receipt, drift, planner, slots, all tested. **Zero production callers** — deliberate |
+| Engine (`internal/recipe`) | Seam, receipt, drift, planner, slots, all tested. The seam has five production callers (`review`, `credits`, `config-view`, `room`, `todo`); the receipt, drift, planner and slots still have none — the install path is what wires them |
 | Phase 1.1 RBAC runtime gate | Done, proved; found two live policy gaps |
 | Phase 1.2 schema → ledger | Done, proved; namespaced versions |
 | Phase 1.3 `presence.go` | Parked; rule narrowed to another *installable* unit's package |
