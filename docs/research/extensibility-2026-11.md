@@ -1827,11 +1827,10 @@ Next, in order:
    that ships in-tree, and `add` is the only way back from it; deleting `add` first would leave
    removal one-way, which is strictly worse than the drift the anchors cost. The trigger to
    revisit is written in the phase section: the first in-tree unit that ships as a receipt.
-2. **The two remaining slots need a page, not plumbing.** `dashboard.card` has no dashboard to
-   land in, `record.row-actions` waits on entity ownership, and inventing a page to host a slot
-   is the page-first mistake the shapes exist to prevent. `nav.sidebar` shipped because the rail
-   is a real surface and the collision the doc feared was resolved by giving extensions their own
-   group.
+2. **One slot left, and it needs a page rather than plumbing.** `dashboard.card` has no dashboard
+   to land in, and inventing one to host a card is the page-first mistake the shapes exist to
+   prevent. `nav.sidebar` and `record.row-actions` shipped (2026-11-04) because both had a real
+   host — the rail and the todo row.
 
 ### Build, in this order
 
@@ -2327,7 +2326,7 @@ slots a recipe owns.
 | **Phase 2 wiring** | **Done for `review`** — declaration beside its routes, mounted only through the seam, gates red-proofed. Nav/panel surface, receipt and slots still open |
 | **Phase 3 conversions** | **Converted:** `review`, `credits`, `config-view`, `room`, `todo`, `notes`, `whiteboard`, `landing`, `account`, `notifications` — routes only, since no in-tree unit owns a table yet; the first one that does declares it and ships DDL through `recipe.Migrator`. Nothing outside the seam is left except the composition root itself |
 | Catalog / install command | **Install/update/uninstall/status wired** (`gogogo recipe …`, 2026-11-03): tree + receipt + generated registration + drift, no anchors. The **catalog entry format is published, validated and consumed** (`recipe install --entry`, hash-verified); hosting and download are not built |
-| Slots in a real page | **`settings.section` renders in `/config` and `nav.sidebar` renders in the shell rail** (2026-11-04), both with a proof and neither page learning a recipe id; the rail also refuses a contribution whose href is not root-relative. `dashboard.card` (no dashboard in this app) and `record.row-actions` (entity ownership) remain registry-only |
+| Slots in a real page | **`settings.section` renders in `/config` and `nav.sidebar` renders in the shell rail** (2026-11-04), both with a proof and neither page learning a recipe id; the rail also refuses a contribution whose href is not root-relative. `record.row-actions` renders on the shared todo row (2026-11-04) with a registration-time contract (label, closed verb, root-relative template naming the row once). `dashboard.card` remains registry-only: no dashboard in this app |
 | Schema split enforcement | **Enforced (2026-11-04):** `recipe.Migrator` + `Registry.MigrationSets()` feed `dbschema.MigrateWith` from the composition root, and `recipe.ValidateSchema` refuses both a declared table with no `CREATE` and a `CREATE` the declaration omits — comments stripped, `ext_<id>` prefix and the core-table refusal reused. No in-tree unit declares a table yet, so the wiring's positive case is a root-level fixture (see "What is NOT red-proofable") |
 | SCOPE + trim retirement | Phase 3 has landed; both stay until ownership is data. Decision (2026-11-04): `add` is not retired while `trim` is the only removal path for an in-tree unit — deleting the way back first would make removal one-way. Trigger: the first in-tree unit that ships as a receipt |
 
