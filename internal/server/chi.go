@@ -295,7 +295,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// The edge wrappers sit above RBAC on purpose: a 403 and a router 404
 	// carry the same headers, and the access log sees both. The rate limiter
 	// sits just inside them so a 429 gets the same headers.
-	handler = rateLimit(cfg.RateLimitRPM, shellMiddleware(cfg, a, queries, notificationsH, handler))
+	handler = rateLimit(cfg.RateLimitRPM, shellMiddleware(cfg, a, queries, notificationsH, shellNav(slots), handler))
 	// Inside the edge wrappers (headers/log still apply) and outside the
 	// router (every route is gated). Only the shell gates.
 	handler = applyLicenseGate(cfg, licStore, handler)

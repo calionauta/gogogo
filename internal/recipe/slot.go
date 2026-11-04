@@ -148,12 +148,26 @@ func (s *SlotRegistry) Add(c Contribution) error {
 		s.frag[slot] = append(s.frag[slot], f)
 	}
 	for slot, es := range c.Entries {
+		for _, e := range es {
+			if e.Label == "" || !isSameOriginPath(e.Href) {
+				return fmt.Errorf("slot %q entry %q must carry a label and a root-relative path, got %q",
+					slot, e.Label, e.Href)
+			}
+		}
 		s.ent[slot] = append(s.ent[slot], es...)
 	}
 	for slot, as := range c.Actions {
 		s.act[slot] = append(s.act[slot], as...)
 	}
 	return nil
+}
+
+// isSameOriginPath is the rail's security invariant: an extension destination is
+// a path this binary serves — never an absolute URL, never a scheme a browser
+// would execute, and never protocol-relative (`//host`), which would leave the
+// origin without looking like it.
+func isSameOriginPath(href string) bool {
+	return strings.HasPrefix(href, "/") && !strings.HasPrefix(href, "//")
 }
 
 // Fragments returns the content for a content slot, in stable order. A page calls
@@ -170,7 +184,11 @@ func (s *SlotRegistry) Fragments(slot SlotID) []Fragment {
 func (s *SlotRegistry) Entries(slot SlotID) []Entry {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return append([]Entry(nil), s.ent[slot]...)
+	out := append([]Entry(nil), s.ent[slot]...)
+	// Label order, like Fragments: the rail renders what it is given, so the
+	// registry is the only place that can make a boot's order deterministic.
+	sort.SliceStable(out, func(i, j int) bool { return out[i].Label < out[j].Label })
+	return out
 }
 
 // Actions returns declarative row actions for a slot.

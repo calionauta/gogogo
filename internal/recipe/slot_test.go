@@ -129,3 +129,29 @@ func TestEmptySlotRendersNothing(t *testing.T) {
 		t.Fatalf("an empty slot must render nothing, got %q", out)
 	}
 }
+
+// TestEntryMustBeARootRelativePath pins the rail's security invariant at
+// registration, not at render: an extension destination is a path this binary
+// serves. A scheme (`javascript:`), an absolute URL and a protocol-relative
+// `//host` are all refused, so a recipe cannot turn the sidebar into a redirect.
+func TestEntryMustBeARootRelativePath(t *testing.T) {
+	for _, href := range []string{"https://evil.example/x", "javascript:alert(1)", "//evil.example/x", "pomodoro"} {
+		reg := NewSlotRegistry()
+		err := reg.Add(Contribution{Entries: map[SlotID][]Entry{
+			SlotNavSidebar: {{Label: "Evil", Href: href}},
+		}})
+		if err == nil {
+			t.Errorf("href %q was accepted; the rail would leave the origin", href)
+		}
+	}
+
+	reg := NewSlotRegistry()
+	if err := reg.Add(Contribution{Entries: map[SlotID][]Entry{
+		SlotNavSidebar: {{Label: "Pomodoro", Href: "/pomodoro"}},
+	}}); err != nil {
+		t.Fatalf("a root-relative path must be accepted, got %v", err)
+	}
+	if got := reg.Entries(SlotNavSidebar); len(got) != 1 || got[0].Href != "/pomodoro" {
+		t.Fatalf("entry did not reach the registry: %+v", got)
+	}
+}

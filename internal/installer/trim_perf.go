@@ -37,6 +37,12 @@ var perfTrimUnit = []trimUnit{
 				substrs: []string{`envBool("PERF_ENABLED", dev),`},
 			},
 			{
+				// The chain is one statement per layer: the perf line goes with
+				// the helper the strip below deletes, so the tree still compiles.
+				path:    serverOperatorFile,
+				substrs: []string{"next = perfPageMiddleware(cfg)(next)"},
+			},
+			{
 				path:    rbacPolicyFile,
 				substrs: []string{"/debug/statsviz", "/debug/pprof"},
 			},

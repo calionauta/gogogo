@@ -15,6 +15,7 @@ import (
 	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/recipe"
 	"github.com/calionauta/gogogo/internal/recipe/register"
+	"github.com/calionauta/gogogo/internal/ui"
 )
 
 // bootRecipes is the one recipe step the composition root takes, in the order
@@ -45,6 +46,24 @@ func bootInbox(r *Router, deps register.Deps) {
 	h := notificationshandlers.NewHandler(deps.Auth, deps.Cfg, deps.Queries, bus, buildDelivery(deps.Cfg))
 	r.inbox, r.inboxBus = h, bus
 	r.recipes.Add(h.Recipe())
+}
+
+// shellNav turns the nav.sidebar slot into what the rail renders.
+//
+// The conversion lives here, not in internal/ui, so the shell keeps no knowledge
+// of the recipe package: the rail receives labels and paths, and the rule that
+// they are root-relative is enforced by the slot registry at registration time
+// rather than by a renderer that could forget it.
+func shellNav(slots *recipe.SlotRegistry) []ui.NavEntry {
+	if slots == nil {
+		return nil
+	}
+	entries := slots.Entries(recipe.SlotNavSidebar)
+	out := make([]ui.NavEntry, 0, len(entries))
+	for _, e := range entries {
+		out = append(out, ui.NavEntry{Label: e.Label, Href: e.Href})
+	}
+	return out
 }
 
 // applyRecipeMigrations applies every recipe's own DDL through the core ledger.

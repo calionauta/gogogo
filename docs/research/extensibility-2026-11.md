@@ -1555,8 +1555,15 @@ for products, so it must not wait for the catalog.
 handler never sees a recipe id. A fixture fragment proves the page renders it; removing the
 handler's read of the registry turns the test red. `dashboard.card` stays unrendered because
 this app has no dashboard page — inventing one to host a slot would be the page-first
-mistake the slot shapes exist to prevent. `nav.sidebar` and `record.row-actions` stay
-registry-only for the same reason: no page offers them yet.
+mistake the slot shapes exist to prevent.
+
+**Status, 2026-11-04: the second real page is wired.** `nav.sidebar` renders in the shell's
+rail as its own "Extensions" group, seeded through the request context so `internal/ui` keeps no
+knowledge of the recipe package. Registration refuses any href that is not root-relative
+(`//host`, `javascript:`, absolute URLs), so a contribution cannot turn the sidebar into a
+redirect; the rail renders labels and paths and never a recipe id. `record.row-actions` stays
+registry-only: it is about another unit's entity, and entity ownership is still a code decision
+rather than data.
 
 - **Method:** `internal/recipe/slot.go` — a closed slot set, a declared shape per slot,
   a registry that takes contributions, and **one** call an owning page makes.
@@ -1790,7 +1797,7 @@ This section exists because the spike results changed the order of work. It repl
 "what should we spike" with "what should we build, in what order, and what must be
 written down first".
 
-**Status, 2026-11-03 — the maintained block.** Detail stays in the phase sections below;
+**Status, 2026-11-04 — the maintained block.** Detail stays in the phase sections below;
 this is the summary to update on every landing.
 
 Done: the engine (seam, receipt, drift, planner — Spikes 1–4); the seam wired into
@@ -1801,21 +1808,30 @@ nil-provider rule for optional units; the anchor drift gate; the CLI (`recipe in
 installed recipe — `.recipe.yml` → `.recipes/<id>.yml` → `internal/server/recipes.gen.go`,
 with one `Register(reg, deps)` function per recipe; the **catalog entry format** published,
 validated and **consumed** (`recipe install --entry`, hash-verified against the reviewed bytes);
-the **first real slot** — `settings.section` renders in `/config`, with the page never
-learning a recipe id; and the **schema half of the seam** — a recipe that owns tables ships its
-own DDL (`recipe.Migrator`), the root applies it through the core ledger under the recipe's id
-at boot, and the declaration is checked against the SQL in both directions.
+the **first two real slots** — `settings.section` renders in `/config` and `nav.sidebar` puts a
+recipe's destination in the shell's rail, with neither page learning a recipe id (the rail
+refuses a non-root-relative href at registration, so a contribution cannot leave the origin); and
+the **schema half of the seam** — a recipe that owns tables ships its own DDL (`recipe.Migrator`),
+the root applies it through the core ledger under the recipe's id at boot, and the declaration is
+checked against the SQL in both directions.
+
+Every route-owning unit in this repo now mounts through the seam: `review`, `credits`,
+`config-view`, `room`, `todo`, `notes`, `whiteboard`, `landing`, `account`, `notifications`. The
+composition root is the only place left that registers a router directly, and that is by design.
 
 Next, in order:
 
-1. **Phase 4** — the two path defaults and `spike_anchor_test.go`'s remaining probes. Blocked by
-   its own precondition: "nothing calls the installer's `add` path" is false while the CLI still
-   offers `add`, and removing that command is a product decision. SCOPE and trim retirement
-   additionally waits until ownership is data (receipts for in-tree units).
-2. **The remaining slots** — `dashboard.card` has no dashboard page to land in,
-   `nav.sidebar` would collide with the shell's module list, and `record.row-actions` waits on
-   the entity-ownership question. Slots are also what move `genui`'s integration files out of
-   `features/todo`.
+1. **Phase 4 is decided, not pending: `add` stays, so the anchors stay.** Retiring them needs the
+   precondition the phase itself names — removal stops being anchored once ownership is data
+   (receipts for in-tree units). Until then, `trim` is the only working removal path for a unit
+   that ships in-tree, and `add` is the only way back from it; deleting `add` first would leave
+   removal one-way, which is strictly worse than the drift the anchors cost. The trigger to
+   revisit is written in the phase section: the first in-tree unit that ships as a receipt.
+2. **The two remaining slots need a page, not plumbing.** `dashboard.card` has no dashboard to
+   land in, `record.row-actions` waits on entity ownership, and inventing a page to host a slot
+   is the page-first mistake the shapes exist to prevent. `nav.sidebar` shipped because the rail
+   is a real surface and the collision the doc feared was resolved by giving extensions their own
+   group.
 
 ### Build, in this order
 
@@ -1823,15 +1839,17 @@ Next, in order:
    set mounts only through the seam, and the route gate compares declaration against what
    mounted. The installed path is closed too: `recipe install` writes the receipt and the
    generated registration that mounts it.
-2. **Give the shell two slots.** `dashboard.card` and `settings.section` are cheap and they
-   are what make the catalog feel native. Wire `RenderSlot` into the real dashboard and
-   settings page. `record.row-actions` waits — it is the most valuable and the most
-   expensive, and it touches another unit's entity.
+2. **~~Give the shell two slots.~~ `settings.section` DONE (2026-11-03), `nav.sidebar` DONE
+   (2026-11-04).** Both live in a real page: the settings section in `/config`, the extension
+   destinations in the shell rail. `dashboard.card` still has no dashboard to land in and
+   `record.row-actions` waits on entity ownership.
 3. **~~Choose the command name and wire the dispatch.~~ DONE (2026-11-03).** The name is
-   `gogogo recipe <verb>`: `install` and `status` today, `update`/`uninstall` next.
-4. **Publish the catalog format with dependency delta required.** Spike 7 makes this
-   mandatory: an entry that does not declare its dependency closure hands the operator a
-   surprise measured in tens of megabytes.
+   `gogogo recipe <verb>`, and all four verbs ship: `install` (from a directory or a reviewed
+   entry), `update`, `uninstall`, `status`.
+4. **~~Publish the catalog format with dependency delta required.~~ DONE (2026-11-03).** Spike 7
+   made the closure mandatory: `upstreamDeps` is a pointer, so "absent" cannot be mistaken for
+   "empty". The format is validated entry by entry and consumed by `recipe install --entry`,
+   which verifies the bytes against the reviewed hashes before anything is planned.
 5. **Only then** consider a second distribution tier (out-of-tree modules). The in-module
    tier satisfies the template's purpose, and promoting packages is the expensive refactor
    the plan defers until the surface has stopped moving.
@@ -1839,7 +1857,9 @@ Next, in order:
 ### Write down before the first adopting PR
 
 These are decisions the evidence now supports, and they should land as docs rather than as
-institutional memory:
+institutional memory. Status, 2026-11-04: the first four are stated in this page (the one an
+operator reads before installing anything), and the trim sequence gained a decision in the
+phase-4 section — `add` stays until ownership is data.
 
 - **The trust statement, in pi's register:** a recipe is compiled into the binary and runs
   with the binary's permissions. No sandbox exists. Silently implying otherwise is the one
@@ -2206,6 +2226,16 @@ What remains for phase 4 proper: retire the two path defaults and
 `spike_anchor_test.go`'s mechanism probes once the catalog is the entry point and
 nothing calls the installer's add path.
 
+**Decision, 2026-11-04: `add` stays, so this phase does not start yet.** The phase's own
+precondition is "nothing calls the installer's `add` path", and the honest reading of it is not
+"delete the command": `trim` is still the only working removal path for a unit that ships in-tree,
+and `add` is the only way back from it. Removing `add` today would make removal one-way —
+strictly worse than the anchor drift this phase exists to end — while the catalog only installs
+recipes that were never in the tree. The trigger is explicit and belongs to the next phase of
+work: **the first in-tree unit that ships as a receipt** (its files, its declaration and its
+ownership in data). At that point the anchor table has no remaining caller, the two path defaults
+have no remaining target, and this phase becomes a deletion rather than a decision.
+
 Two rules for this phase, both learned from Spike 0:
 
 - **`spike_anchor_test.go` is deleted with the machinery, not before.** Its asserts
@@ -2289,17 +2319,17 @@ slots a recipe owns.
 
 | Area | State |
 |---|---|
-| Engine (`internal/recipe`) | Seam, receipt, drift, planner, slots, all tested. Production callers: the seam (the converted units), and `Plan`/`Apply`/`ReceiptAfter`/`Check` through `gogogo recipe`. Slots still have none |
+| Engine (`internal/recipe`) | Seam, receipt, drift, planner, slots, all tested. Production callers: the seam (the converted units), and `Plan`/`Apply`/`ReceiptAfter`/`Check` through `gogogo recipe`. Slots have two production callers: `settings.section` in `/config` and `nav.sidebar` in the shell rail |
 | Phase 1.1 RBAC runtime gate | Done, proved; found two live policy gaps |
 | Phase 1.2 schema → ledger | Done, proved; namespaced versions |
-| Phase 1.3 `presence.go` | Parked; rule narrowed to another *installable* unit's package |
+| Phase 1.3 `presence.go` | Resolved by narrowing the invariant; the copy hazard is gated at the receipt layer (`assertNoReceiptCollision`) and the file stays whiteboard-claimed while trim exists |
 | Anchor gate (phase 4 partial) | Done; stale `.templ`/handler table deleted |
 | **Phase 2 wiring** | **Done for `review`** — declaration beside its routes, mounted only through the seam, gates red-proofed. Nav/panel surface, receipt and slots still open |
 | **Phase 3 conversions** | **Converted:** `review`, `credits`, `config-view`, `room`, `todo`, `notes`, `whiteboard`, `landing`, `account`, `notifications` — routes only, since no in-tree unit owns a table yet; the first one that does declares it and ships DDL through `recipe.Migrator`. Nothing outside the seam is left except the composition root itself |
 | Catalog / install command | **Install/update/uninstall/status wired** (`gogogo recipe …`, 2026-11-03): tree + receipt + generated registration + drift, no anchors. The **catalog entry format is published, validated and consumed** (`recipe install --entry`, hash-verified); hosting and download are not built |
-| Slots in a real page | **`settings.section` renders in `/config`** (2026-11-03), with a fixture proof and the page never learning a recipe id. `dashboard.card`, `nav.sidebar` and `record.row-actions` remain registry-only (no hosting page yet) |
+| Slots in a real page | **`settings.section` renders in `/config` and `nav.sidebar` renders in the shell rail** (2026-11-04), both with a proof and neither page learning a recipe id; the rail also refuses a contribution whose href is not root-relative. `dashboard.card` (no dashboard in this app) and `record.row-actions` (entity ownership) remain registry-only |
 | Schema split enforcement | **Enforced (2026-11-04):** `recipe.Migrator` + `Registry.MigrationSets()` feed `dbschema.MigrateWith` from the composition root, and `recipe.ValidateSchema` refuses both a declared table with no `CREATE` and a `CREATE` the declaration omits — comments stripped, `ext_<id>` prefix and the core-table refusal reused. No in-tree unit declares a table yet, so the wiring's positive case is a root-level fixture (see "What is NOT red-proofable") |
-| SCOPE + trim retirement | Ahead (phase 4); both stay until phase 3 lands |
+| SCOPE + trim retirement | Phase 3 has landed; both stay until ownership is data. Decision (2026-11-04): `add` is not retired while `trim` is the only removal path for an in-tree unit — deleting the way back first would make removal one-way. Trigger: the first in-tree unit that ships as a receipt |
 
 ## Open questions for the human
 
@@ -2340,12 +2370,13 @@ reading this needs an answer, not a menu.
 
 **Still open, and now unblocked by evidence rather than by argument:**
 
-1. **Which slots ship in v1?** Settled for the first one: `settings.section`, because
-   `/config` is a real page with room for it and the page already owns the frame. The other
-   three stay registry-only until a page offers them: `dashboard.card` has no dashboard in
-   this app, `nav.sidebar` would collide with the shell's own module list, and
-   `record.row-actions` is the most valuable and the most expensive to make safe because it
-   touches another unit's entity.
+1. **Which slots ship in v1?** Settled for two (2026-11-04): `settings.section` (a real page
+   that already owns the frame) and `nav.sidebar` (the rail is a real surface, and the collision
+   the doc feared — extensions mixed into the built-in module list — is resolved by rendering
+   them as their own group from a separate registry, so `ui.Modules` stays the shell's own list).
+   The other two stay registry-only until a page offers them: `dashboard.card` has no dashboard
+   in this app, and `record.row-actions` is the most valuable and the most expensive to make safe
+   because it touches another unit's entity.
 2. **Does the reference slice ship installed or as a recipe?** `todo` is both the
    catalog's best example of a modifiable recipe and the thing every proof, smoke and
    fixture copies. It can be both, but that combination deserves one deliberate decision.
