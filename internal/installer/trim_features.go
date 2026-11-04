@@ -259,7 +259,9 @@ var featureTrimUnits = []trimUnit{
 					"confighandlers.NewHandler(cfg, a, queries),",
 					"configH *confighandlers.Handler,",
 					`confighandlers "github.com/calionauta/gogogo/features/config/handlers"`,
-					`r.MountFeature("config", configH.Routes())`,
+					// The route mount moved to the recipe seam: the Add
+					// line goes, and the import with it.
+					"r.recipes.Add(configH.Recipe())",
 				},
 			},
 			{

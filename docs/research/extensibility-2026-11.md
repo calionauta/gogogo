@@ -2038,6 +2038,20 @@ respect worth recording — the SCOPE class must follow the registry's `Kind`, n
 test: the two phase-2 checks are table-driven and named the credits route the moment it was
 dropped from the declaration.
 
+**Status, 2026-11-03, second conversion: `config-view`.** Same shape, no new test: the gate named
+`POST /config/users/revoke` the moment it was dropped from the declaration. Two facts worth
+recording because they recur for every remaining unit:
+
+- **The unit's drop marker moves with the mount, not with the unit.** The strip entry replaced
+  `r.MountFeature("config", configH.Routes())` with `r.recipes.Add(configH.Recipe())`; leaving the
+  old substr would have made the drift check pass (the line is gone from `chi.go`) while trimming
+  silently stopped removing the mount. The check that catches this is the trim build, not the
+  manifest parse.
+- **The `config-view` id is the recipe id, not the package name.** The declaration lives in
+  `features/config/handlers` but registers as `config-view`, so the SCOPE class comes from
+  `internal/capabilities/registry_identity.go` (`KindFeature`) and the owner in the claim table is
+  the unit id. Reading the directory name instead would have produced a second ownerless surface.
+
 No new tests. The two checks from phase 2 go table-driven over every registered recipe, so each
 conversion is automatically covered and **each PR is independently revertable**. A PR that
 converts a unit must not touch a second unit's declaration; that rule is what keeps the PRs

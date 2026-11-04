@@ -451,7 +451,6 @@ func buildChiMux(
 	MountPath(r, "/api/session/stream", a.SessionStreamHandler())
 
 	r.MountFeature("todo", todoH.Routes())
-	r.MountFeature("config", configH.Routes())
 	r.MountFeature("whiteboard", wbH.Routes())
 	r.MountFeature("notes", notesH.Routes())
 	// roomH is nil when the engine is disabled or failed to start; the
@@ -459,13 +458,14 @@ func buildChiMux(
 	r.MountFeature("room", roomH.Routes())
 	r.MountFeature("chat", chatH.Routes())
 	// Installed recipes mount through the seam: one Add line per recipe, and a
-	// trim drops that line with its import. Review was the phase-2 probe and
-	// credits the phase-3 conversion; both hardcoded mounts are gone (the two
-	// agreeing, then disagreeing, was the proof). See
+	// trim drops that line with its import. Review was the phase-2 probe;
+	// credits and config-view are the phase-3 conversions. Every hardcoded
+	// mount is gone (the two agreeing, then disagreeing, was the proof). See
 	// docs/research/extensibility-2026-11.md.
 	r.recipes = &recipe.Registry{}
 	r.recipes.Add(reviewH.Recipe())
 	r.recipes.Add(creditsH.Recipe())
+	r.recipes.Add(configH.Recipe())
 	if merr := r.recipes.Mount(r); merr != nil {
 		panic("server: " + merr.Error())
 	}

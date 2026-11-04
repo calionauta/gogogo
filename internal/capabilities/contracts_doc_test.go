@@ -15,6 +15,8 @@ package capabilities
 
 import (
 	"fmt"
+	"go/parser"
+	"go/token"
 	"io"
 	"os"
 	"path/filepath"
@@ -214,7 +216,11 @@ func scanOwnedSurface(rootFS *os.Root, c Capability, queryNames map[string]bool)
 		if readErr != nil {
 			continue
 		}
-		for _, m := range contractRouteRE.FindAllStringSubmatch(string(raw), -1) {
+		// The card lists registrations, not prose: a route quoted in a doc
+		// comment (rbac/coverage.go explains the runtime gate with
+		// `r.Get("/path")`) is not served by the file it appears in.
+		text := stripComments(raw)
+		for _, m := range contractRouteRE.FindAllStringSubmatch(string(text), -1) {
 			// Template sources (the installer's scaffold strings) carry
 			// placeholders rather than served paths.
 			if strings.Contains(m[1], "{{") {
@@ -222,13 +228,42 @@ func scanOwnedSurface(rootFS *os.Root, c Capability, queryNames map[string]bool)
 			}
 			seenRoute[m[1]] = true
 		}
-		for _, m := range contractQueryRE.FindAllStringSubmatch(string(raw), -1) {
+		for _, m := range contractQueryRE.FindAllStringSubmatch(string(text), -1) {
 			if queryNames[m[1]] {
 				seenQuery["dbgen."+m[1]] = true
 			}
 		}
 	}
 	return sortedKeys(seenRoute), sortedKeys(seenQuery)
+}
+
+// stripComments blanks every Go comment, preserving byte offsets and newlines
+// so the route regex only ever sees code. It is byte-level blanking rather
+// than an AST walk on purpose: the scan keys on the registration idiom
+// (`r.With(...).Get("/x")`), and re-deriving the set from an AST would change
+// what the gate has always compared instead of just removing prose from it.
+func stripComments(src []byte) []byte {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "owned.go", src, parser.ParseComments)
+	if err != nil {
+		// A file the parser rejects cannot register a route the gate should
+		// trust; scanning it unchanged keeps that failure visible rather than
+		// hiding it behind an empty surface.
+		return src
+	}
+	out := append([]byte(nil), src...)
+	for _, group := range f.Comments {
+		for _, c := range group.List {
+			start := fset.Position(c.Slash).Offset
+			end := fset.Position(c.End()).Offset
+			for i := start; i < end && i < len(out); i++ {
+				if out[i] != '\n' {
+					out[i] = ' '
+				}
+			}
+		}
+	}
+	return out
 }
 
 // contractQueryNames collects the query names sqlc generates from
