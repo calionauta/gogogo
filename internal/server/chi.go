@@ -274,8 +274,6 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	if modeErr != nil {
 		return bootFail(cancelConsumer, sqlDB, "access modes", modeErr)
 	}
-	// Account is an authenticated user surface, not a trimmable demo plugin.
-	mux.MountFeature("account", accounthandlers.NewHandler(cfg, a, queries).Routes())
 	// Console rides the same mount-after-composition rule: the engine listener
 	// is loopback-only, so browsers reach it only through here. It stays a
 	// single core line because `gogogo new` anchors its mount below it.
@@ -462,6 +460,8 @@ func buildChiMux(
 	r.recipes.Add(todoH.Recipe())
 	r.recipes.Add(notesH.Recipe())
 	r.recipes.Add(wbH.Recipe())
+	r.recipes.Add(landingH.Recipe())
+	r.recipes.Add(accounthandlers.NewHandler(deps.Cfg, deps.Auth, deps.Queries).Recipe())
 	// Installed recipes register through the generated file, then their own
 	// migrations run, then they mount: one step, in that order (recipe_surface.go).
 	r.recipeErr = bootRecipes(r, deps)

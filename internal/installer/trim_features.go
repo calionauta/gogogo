@@ -206,6 +206,9 @@ var featureTrimUnits = []trimUnit{
 				// (see routerCallLines).
 				path: chiGoFile,
 				substrs: []string{
+					// The declaration's mount line goes with the unit: the param
+					// drop below is what makes leaving it behind a compile error.
+					"r.recipes.Add(landingH.Recipe())",
 					"landinghandlers.NewHandler(cfg, a),",
 					"landingH *landinghandlers.Handler,",
 					`landinghandlers "github.com/calionauta/gogogo/features/landing/handlers"`,

@@ -1794,8 +1794,8 @@ written down first".
 this is the summary to update on every landing.
 
 Done: the engine (seam, receipt, drift, planner — Spikes 1–4); the seam wired into
-`BootChi`, with `review`, `credits`, `config-view`, `room`, `todo`, `notes` and `whiteboard`
-converted; the
+`BootChi`, with `review`, `credits`, `config-view`, `room`, `todo`, `notes`, `whiteboard`,
+`landing` and `account` converted; the
 nil-provider rule for optional units; the anchor drift gate; the CLI (`recipe install`,
 `update`, `uninstall`, `status`); and the **generated registration** that mounts an
 installed recipe — `.recipe.yml` → `.recipes/<id>.yml` → `internal/server/recipes.gen.go`,
@@ -2164,9 +2164,9 @@ independent rather than merely small.
   |---|---|---|
   | `notes` | **done (2026-11-03)** | routes-only, no table: the `notes` rows are still core-created, so the declaration waits for the schema split |
   | `whiteboard` | **done (2026-11-03)** | routes-only, no table, for the same reason; the loose file (`presence.go`) stays whiteboard-claimed while trim exists |
-  | `account` | phase 4, or never | mounts after `buildChiMux` returns (an argument would touch every call site) and is manual-removal identity UX: first decide whether account is a recipe at all |
-  | `landing` | phase 4 | its router is also `r.NotFound`; the step is splitting "serves `/`" from "answers everything else" |
-  | `notifications` | phase 4 | mounts through `mountInbox`, not `MountFeature`, and has no installer unit; it needs a mounting seam for non-feature handlers |
+  | `account` | **done (2026-11-04)** | the "mounts after `buildChiMux`" objection was an artifact: built from the same `register.Deps` the root already holds, it declares its 12 routes beside them and mounts through the seam. Still manual-removal identity UX; it is now a recipe like the rest |
+  | `landing` | **done (2026-11-04)** | the split is exactly "serves `/`" (a declared route, mounted through the seam) versus "answers every unmatched path" (`r.NotFound`, core policy, one trim-able line). The landing component still renders the not-found page |
+  | `notifications` | phase 4 | mounts through `mountInbox`, not `MountFeature`, and the handler is built after the tree because the shell's session stream shares its bus; converting it needs the composition root to own that construction, not a line swap |
   | `todo`'s table | schema split | `todos` is core-created and in `isCoreTable`; the declaration moves in when a prefixed recipe migration owns the table |
 
 What stays open: the table gate proves only `declared ⊆ existing` — "this unit owns a table and
