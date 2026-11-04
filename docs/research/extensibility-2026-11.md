@@ -2057,26 +2057,31 @@ conversion is automatically covered and **each PR is independently revertable**.
 converts a unit must not touch a second unit's declaration; that rule is what keeps the PRs
 independent rather than merely small.
 
-**What phase 3 can convert next, and why the cheap conversions stop here (2026-11-03).** After
-`review`, `credits` and `config-view`, every remaining route-owning unit has a cost that a
-line swap does not pay:
+**Decisions taken, and what each unblocked (2026-11-03).** After `review`, `credits` and
+`config-view`, every remaining route-owning unit needed a decision rather than a line swap:
 
-| Unit | Why it is not the next PR | What it needs first |
-|---|---|---|
-| `todo` | `todos` is in `isCoreTable` (`internal/recipe/receipt.go`), so `Validate` refuses the declaration and `Mount` panics before boot; `seam_test.go` pins that refusal. The plan sentence "phase 3 supplies the table probe (`todo`)" is therefore **wrong as written** | A decision, not a patch: narrow `isCoreTable` once a receipt owns the table, or move the probe to phase 4 |
-| `notes` | imports `internal/collab`, the same package `whiteboard` uses; this phase already parks 1.3 for it | Phase 1.3, or accept a joined PR |
-| `room` | `roomH` is nil when the engine is off, so the declaration exists and nothing mounts: `assertDeclarationsMatchMounts` reports nine false "declares but does not mount" rows | The seam needs a nil/optional-provider rule (declare nothing when there is no code, or the gate must skip it) |
-| `account` | mounts in `BootChi` after `buildChiMux` returns, so `r.recipes.Add` would run after `Mount` and mount nothing | An argument on `buildChiMux` — a signature change every test call site pays |
-| `landing` | its router is also `r.NotFound`, so the recipe routes and the catch-all are one decision | Splitting "serves /" from "answers everything else" |
-| `notifications` | mounts through `mountInbox`, not `MountFeature`, and is manual-removal with no installer unit | A mounting seam for non-feature handlers, or leave it |
+- **An optional unit registers no provider.** `room` is nil when its engine did not start, so a
+  declaration would claim nine routes the composed tree does not serve — the route gate reported
+  exactly that, nine times. Decision: `Recipe()` answers nil when the handler is nil, and
+  `Registry.Add` treats nil as a no-op (`seam_test.go` pins both halves). Absence of code becomes
+  absence of declaration, which is the only shape that keeps the "mounted without declaring"
+  direction exact. Rejected alternative: teaching the gate to skip nil-mounted providers — that
+  weakens the direction for every unit to serve one. `room` is converted on top of the rule.
+- **`todo` converts routes-only; its table waits for the schema split.** `todos` is in
+  `isCoreTable` and created by the core migration, so `Validate` refuses the declaration — and it
+  would be a lie even if allowed, because core creates the table. The phase-2 sentence that named
+  `todo` as the phase-3 table probe was wrong: the *unit* probe moved to the schema split (a
+  prefixed, recipe-owned migration), while the *gate's* positive direction is now proved by a
+  fixture that declares a real table (`notes`), so "no problems" can no longer mean "nothing
+  checked".
+- **Notes, whiteboard, account, landing and notifications are not phase-3 work.** `notes` imports
+  `collab` (1.3); `account` mounts after `buildChiMux` returns and is manual-removal identity UX;
+  `landing`'s router is also `r.NotFound`; `notifications` mounts through `mountInbox` and has no
+  installer unit. Each needs a different mechanism, not a conversion.
 
-Two of those rows are the real finding: **the seam has no answer for optional units** (`room` is
-the first nil-able provider), and **the table probe contradicts the core-table guard**. Both are
-design decisions to make before those three lines are worth moving.
-
-The table gate also still proves only one direction — every declared table exists. "This unit
-owns a table and does not declare it" has no gate, which is precisely the hole the `todo` probe
-was meant to fill. It stays open until the core-table question is settled.
+What stays open: the table gate proves only `declared ⊆ existing` — "this unit owns a table and
+does not declare it" has no gate. That direction needs the per-recipe SQL and the schema split,
+and it is the one item the `todo` probe was reaching for.
 
 **Do not convert `whiteboard` (or anything touching `collab`) in phase 3.** It is the unit that
 proved the loose-file problem; converting it before 1.3 is exercised against a second unit is
@@ -2198,7 +2203,7 @@ slots a recipe owns.
 | Phase 1.3 `presence.go` | Parked; rule narrowed to another *installable* unit's package |
 | Anchor gate (phase 4 partial) | Done; stale `.templ`/handler table deleted |
 | **Phase 2 wiring** | **Done for `review`** — declaration beside its routes, mounted only through the seam, gates red-proofed. Nav/panel surface, receipt and slots still open |
-| **Phase 3 conversions** | **Converted so far:** `review`, `credits`, `config-view`. `todo` blocked on the `isCoreTable` guard, `room` on an optional-provider rule, `notes`/`whiteboard` on phase 1.3 |
+| **Phase 3 conversions** | **Converted:** `review`, `credits`, `config-view`, `room`, `todo` (routes only; its table waits for the schema split). Outside this phase: `notes`/`whiteboard` (1.3), `account`, `landing`, `notifications` |
 | Catalog / install command | Not started (Spike 3 stopped at the engine; nothing runs an install yet) |
 | Slots in a real page | Registry only; no page offers a slot yet |
 | Schema split enforcement | `Validate` refuses core tables; nothing yet forces a recipe's SQL to match its declared tables |
