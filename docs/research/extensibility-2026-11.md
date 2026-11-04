@@ -1797,18 +1797,23 @@ converted; the
 nil-provider rule for optional units; the anchor drift gate; the CLI (`recipe install`,
 `update`, `uninstall`, `status`); and the **generated registration** that mounts an
 installed recipe — `.recipe.yml` → `.recipes/<id>.yml` → `internal/server/recipes.gen.go`,
-with one `Register(reg, deps)` function per recipe.
+with one `Register(reg, deps)` function per recipe; the **catalog entry format** published and
+validated; and the **first real slot** — `settings.section` renders in `/config`, with the
+page never learning a recipe id.
 
 Next, in order:
 
-1. **Phase 4** — the two path defaults and `spike_anchor_test.go`'s remaining probes;
-   SCOPE and trim retirement waits until ownership is data (receipts for in-tree units).
-2. **The remaining slots** — `settings.section` is wired into the real `/config` page
-   (2026-11-03); `dashboard.card` has no dashboard page to land in, and
-   `record.row-actions` waits on the entity-ownership question. Slots are also what move
-   `genui`'s integration files out of `features/todo`.
-3. **Catalog resolution and the install-from-entry path** (the format itself is published and
-   validated; hosting, download and hash comparison are the remaining steps).
+1. **Install from a catalog entry** — verify the pristine bytes against the entry's hashes, then
+   install through the same receipt path. The format exists; this is the consumer that makes a
+   review mean something.
+2. **Phase 4** — the two path defaults and `spike_anchor_test.go`'s remaining probes. Blocked by
+   its own precondition: "nothing calls the installer's `add` path" is false while the CLI still
+   offers `add`, and removing that command is a product decision. SCOPE and trim retirement
+   additionally waits until ownership is data (receipts for in-tree units).
+3. **The remaining slots** — `dashboard.card` has no dashboard page to land in,
+   `nav.sidebar` would collide with the shell's module list, and `record.row-actions` waits on
+   the entity-ownership question. Slots are also what move `genui`'s integration files out of
+   `features/todo`.
 
 ### Build, in this order
 
