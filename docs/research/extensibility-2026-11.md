@@ -1401,7 +1401,7 @@ Deliberately **not** built: install, update, merge, YAML persistence, CLI wiring
 spike ends at "the mechanism answers the question". Spike 4 is where it becomes an
 update.
 
-### Spike 3 — the command — **DONE at the engine level; CLI wiring deliberately not done**
+### Spike 3 — the command — **DONE: engine and CLI**
 
 Install and remove, both mechanical, both on the recipe model.
 
@@ -1440,12 +1440,24 @@ enforceable rather than aspirational:
    non-conflicting subset is the difference between an updater and a machine that
    leaves a tree half-updated with no record of where it stopped.
 
-**What was deliberately not built: the CLI dispatch.** Wiring a subcommand here would
-change a product surface (the command name) inside a research spike, and it would also
-teach the docs guard to accept a name that no decision has been made about. The engine
-is the part that carries the risk; the dispatch is a `case` statement once the name is
-chosen. Note that this is also why the spike is cheap to resume: everything below the
-CLI is exercised by tests against a temp tree.
+**The CLI dispatch landed 2026-11-03, as `gogogo recipe install|status`.** The command was
+withheld from the spike because a name is a product decision; once named, the work was the
+`case` the note predicted:
+
+- `recipe install <dir> [--dir target] [--yes]` reads the recipe's `.recipe.yml` (id,
+  upstream, declaration) plus its file set, plans against the receipt that is already
+  there, and applies **nothing** without `--yes`. With it: copies the tree, writes
+  `.recipes/<id>.yml`, and then runs the drift check — a declared route the copied code
+  does not register fails the command, which is the one defect a receipt exists to expose.
+- `recipe status [id]` is read-only: pristine, modified (the user's), deleted, plus the
+  declaration problems.
+
+What the command does **not** do, and this is the next step rather than an omission: it
+does not generate the seam registration. The seam's `Provider` is a handler method, so
+mounting installed code needs the constructor and its dependencies — the declaration-only
+provider described in "Registration for an installed recipe". Until that exists, an
+installed recipe is copied, receipted, drift-checked and **not mounted**, and the command
+says so in its closing lines.
 
 ### Spike 4 — update after the user edited — **DONE, and it needs no merge engine**
 
@@ -1741,20 +1753,41 @@ This section exists because the spike results changed the order of work. It repl
 "what should we spike" with "what should we build, in what order, and what must be
 written down first".
 
+**Status, 2026-11-03 — the maintained block.** Detail stays in the phase sections below;
+this is the summary to update on every landing.
+
+Done: the engine (seam, receipt, drift, planner — Spikes 1–4); the seam wired into
+`BootChi`, with `review`, `credits`, `config-view`, `room` and `todo` converted;
+the nil-provider rule for optional units; the anchor drift gate; and the CLI the spikes
+left out (`gogogo recipe install`, `gogogo recipe status`).
+
+Next, in order:
+
+1. **Registration for an installed recipe.** `recipe install` writes the tree and the
+   receipt, but nothing mounts the installed code: the seam's `Provider` is a handler
+   method, so registering it needs the constructor and its dependencies. The fix is the
+   declaration-only provider the receipt model already implies (a package-level
+   `Declaration`, and a `Routes(deps)` constructor), and it is the last blocker between
+   "installed" and "running".
+2. **`recipe update` and `recipe uninstall`.** The engine has `Plan`, `Remove` and
+   `ReceiptAfter`; only the subcommands are missing.
+3. **Phase 4 retirement** — the two path defaults, `spike_anchor_test.go`'s remaining
+   probes, then SCOPE and trim once ownership is data.
+4. **The catalog** (Spike 7's required dependency delta) and the two shell slots in a
+   real page.
+
 ### Build, in this order
 
-1. **Wire the recipe engine into the composition root.** Spikes 1–4 produced an engine
-   (`internal/recipe`) that is exercised only by tests. The first real step is
-   `BootChi` consuming a generated registrations file, with one in-module unit converted
-   to declare itself. This is where `features/review` or `features/credits` proves the
-   model against real routes, a real table, real policy rows and a real job.
+1. **~~Wire the recipe engine into the composition root.~~ DONE (2026-11-03).** The converted
+   set mounts only through the seam, and the route gate compares declaration against what
+   mounted. What it did not settle: an installed recipe still needs the registration
+   step named above.
 2. **Give the shell two slots.** `dashboard.card` and `settings.section` are cheap and they
    are what make the catalog feel native. Wire `RenderSlot` into the real dashboard and
    settings page. `record.row-actions` waits — it is the most valuable and the most
    expensive, and it touches another unit's entity.
-3. **Choose the command name and wire the dispatch.** The engine is done; the CLI is a
-   `case`. This is a product decision and it belongs to the human, which is why no research
-   note names it.
+3. **~~Choose the command name and wire the dispatch.~~ DONE (2026-11-03).** The name is
+   `gogogo recipe <verb>`: `install` and `status` today, `update`/`uninstall` next.
 4. **Publish the catalog format with dependency delta required.** Spike 7 makes this
    mandatory: an entry that does not declare its dependency closure hands the operator a
    surprise measured in tens of megabytes.
@@ -2075,10 +2108,17 @@ independent rather than merely small.
   fixture that declares a real table (`notes`), so "no problems" can no longer mean "nothing
   checked". The unit still ships installed and is removed manually; mounting through the seam does
   not decide whether the reference slice ships as a recipe (Open questions, item 2).
-- **Notes, whiteboard, account, landing and notifications are not phase-3 work.** `notes` imports
-  `collab` (1.3); `account` mounts after `buildChiMux` returns and is manual-removal identity UX;
-  `landing`'s router is also `r.NotFound`; `notifications` mounts through `mountInbox` and has no
-  installer unit. Each needs a different mechanism, not a conversion.
+- **Notes, whiteboard, account, landing and notifications are not phase-3 work.** They are not
+  dropped; each has a phase and a named decision:
+
+  | Unit | Lands in | Decision it needs |
+  |---|---|---|
+  | `notes` | after phase 1.3 | converts routes-only exactly like the others once `presence.go` is an owned seam; it imports `collab`, so it moves with `whiteboard`, not before |
+  | `whiteboard` | after phase 1.3 | the loose-file problem (`presence.go`) is the gate; converting it before 1.3 is exercised by a second unit repeats the mistake the phase order prevents |
+  | `account` | phase 4, or never | mounts after `buildChiMux` returns (an argument would touch every call site) and is manual-removal identity UX: first decide whether account is a recipe at all |
+  | `landing` | phase 4 | its router is also `r.NotFound`; the step is splitting "serves `/`" from "answers everything else" |
+  | `notifications` | phase 4 | mounts through `mountInbox`, not `MountFeature`, and has no installer unit; it needs a mounting seam for non-feature handlers |
+  | `todo`'s table | schema split | `todos` is core-created and in `isCoreTable`; the declaration moves in when a prefixed recipe migration owns the table |
 
 What stays open: the table gate proves only `declared ⊆ existing` — "this unit owns a table and
 does not declare it" has no gate. That direction needs the per-recipe SQL and the schema split,
@@ -2198,14 +2238,14 @@ slots a recipe owns.
 
 | Area | State |
 |---|---|
-| Engine (`internal/recipe`) | Seam, receipt, drift, planner, slots, all tested. The seam has five production callers (`review`, `credits`, `config-view`, `room`, `todo`); the receipt, drift, planner and slots still have none — the install path is what wires them |
+| Engine (`internal/recipe`) | Seam, receipt, drift, planner, slots, all tested. Production callers: the seam (the converted units), and `Plan`/`Apply`/`ReceiptAfter`/`Check` through `gogogo recipe`. Slots still have none |
 | Phase 1.1 RBAC runtime gate | Done, proved; found two live policy gaps |
 | Phase 1.2 schema → ledger | Done, proved; namespaced versions |
 | Phase 1.3 `presence.go` | Parked; rule narrowed to another *installable* unit's package |
 | Anchor gate (phase 4 partial) | Done; stale `.templ`/handler table deleted |
 | **Phase 2 wiring** | **Done for `review`** — declaration beside its routes, mounted only through the seam, gates red-proofed. Nav/panel surface, receipt and slots still open |
 | **Phase 3 conversions** | **Converted:** `review`, `credits`, `config-view`, `room`, `todo` (routes only; its table waits for the schema split). Outside this phase: `notes`/`whiteboard` (1.3), `account`, `landing`, `notifications` |
-| Catalog / install command | Not started (Spike 3 stopped at the engine; nothing runs an install yet) |
+| Catalog / install command | **Install/status CLI wired** (`gogogo recipe install|status`, 2026-11-03): tree + receipt + drift, no anchors. The catalog itself is not started, and registration of an installed recipe is still manual |
 | Slots in a real page | Registry only; no page offers a slot yet |
 | Schema split enforcement | `Validate` refuses core tables; nothing yet forces a recipe's SQL to match its declared tables |
 | SCOPE + trim retirement | Ahead (phase 4); both stay until phase 3 lands |
