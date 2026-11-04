@@ -433,3 +433,30 @@ func TestRecipeInstallRebasesTheModulePath(t *testing.T) {
 		t.Fatalf("prose was rewritten (only imports should be):\n%s", readme)
 	}
 }
+
+func TestRecipeInstallRefusesAFileAnotherRecipeOwns(t *testing.T) {
+	root := newRecipeCheckout(t)
+	first := newRecipeDir(t, "v1", map[string]string{
+		"features/pomodoro/handlers/chi.go": recipeHandlerV1,
+	})
+	if _, err := runRecipeCLI(t, "install", first, "--dir", root, "--yes"); err != nil {
+		t.Fatal(err)
+	}
+	// A second recipe, different id, shipping the same path.
+	second := t.TempDir()
+	writeFile(t, filepath.Join(second, recipeManifestFile),
+		"id: timer\ndeclaration:\n  routes:\n    - {method: GET, pattern: /pomodoro}\n")
+	writeFile(t, filepath.Join(second, "features/pomodoro/handlers/chi.go"), recipeHandlerV2)
+
+	out, err := runRecipeCLI(t, "install", second, "--dir", root, "--yes")
+	if err == nil || !strings.Contains(err.Error(), "already installed") {
+		t.Fatalf("a colliding file set must be refused, got %v\n%s", err, out)
+	}
+	got, _ := os.ReadFile(filepath.Join(root, "features/pomodoro/handlers/chi.go"))
+	if string(got) != recipeHandlerV1 {
+		t.Fatalf("the refused install overwrote the first recipe's file: %q", got)
+	}
+	if _, serr := recipe.LoadReceipt(root, "timer"); serr == nil {
+		t.Fatal("the refused install wrote a receipt")
+	}
+}

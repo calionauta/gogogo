@@ -1781,10 +1781,11 @@ with one `Register(reg, deps)` function per recipe.
 
 Next, in order:
 
-1. **Phase 1.3** — `presence.go` as an owned seam; then `notes` and `whiteboard` convert.
+1. **Phase 3 close-out** — convert `notes` and `whiteboard` now that 1.3 is resolved.
 2. **Phase 4** — the two path defaults and `spike_anchor_test.go`'s remaining probes;
    SCOPE and trim retirement waits until ownership is data (receipts for in-tree units).
-3. **Slots in a real page** — `dashboard.card` and `settings.section`.
+3. **Slots in a real page** — `dashboard.card` and `settings.section`, which is also what
+   moves `genui`'s integration files out of `features/todo`.
 4. **The catalog** with Spike 7's required dependency delta.
 
 ### Build, in this order
@@ -2006,14 +2007,22 @@ recipe is skipped entirely — a silent no-op, not a loud clash).
 
 **1.3 Make `presence.go` an owned seam.** It is the only core file a unit claims.
 
-**Status: NOT STARTED, and the rule is narrower than this phase assumed (2026-11-01).**
-`presence.go` is not a leftover: it is the file a trim deletes, and its symbols are coupled to strip
-lines in `chi.go` (`bootPresence`, `upgradePresenceToActor`) and to `AttachPresenceFederation`'s call
-site in `cmd/web/main.go`. Moving it is three symbols and their call sites, not one file, and it
-touches the area the presence-gotchas section calls out. For the recipe model the harmful case is a
-unit owning a file inside ANOTHER INSTALLABLE unit's package (that copy would overwrite someone's
-code); `internal/server` is core, where "alter the core" is a fork by design. The RED below therefore
-belongs to a **dedicated change**, after phase 2 proves the copy path against a clean unit.
+**Status, 2026-11-03: resolved by narrowing the invariant, not by moving the file.**
+The broad rule ("no unit owns a file in another unit's package") does not describe the copy
+path, and the registry's `Dirs` are trim metadata, not an ownership map: `goakt` and `room`
+share `features/room`, `components` nests under `features/todo`, and `genui` claims
+integration files inside `todo`/`config-view` — all deliberate. A gate over that map is either
+vacuous or permanently red, and a capability-level gate was tried and produced exactly those
+false positives.
+
+The copy hazard has a precise shape and now a precise gate: **an installed recipe may not ship
+a path another installed recipe's receipt claims.** `assertNoReceiptCollision` refuses it before
+any write, so an uninstall cannot delete a neighbour's file and a second install cannot
+overwrite the first; the test installs a second recipe shipping the same path and finds the
+first untouched. `internal/server/presence.go` stays claimed by `whiteboard` while trim exists:
+it is the file the trim deletes, and moving a `ChiStack` method into a unit package is an import
+cycle. When ownership becomes data (phase 4), the file is core and the unit's `Files` entry
+drops.
 
 | Step | Action | Expected |
 |---|---|---|

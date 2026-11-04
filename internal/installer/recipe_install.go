@@ -42,6 +42,9 @@ func runRecipeInstall(args []string, stdout io.Writer, requireExisting bool) err
 	if err != nil {
 		return err
 	}
+	if cerr := assertNoReceiptCollision(root, manifest.ID, upstream); cerr != nil {
+		return cerr
+	}
 	plan := recipe.Plan(prev, upstream, treeReader(root))
 	if plan.Blocked() {
 		return blockedInstall(stdout, manifest, plan, opt)
@@ -255,4 +258,37 @@ func rebaseRecipeImports(root, from string, files map[string]string) (map[string
 		out[p] = body
 	}
 	return out, nil
+}
+
+// assertNoReceiptCollision refuses a recipe whose file set would land on a file
+// another installed recipe owns. That is the copy hazard the unit map cannot
+// express (trim bundles share directories on purpose): two receipts claiming one
+// path means an uninstall of either deletes code the other still needs, and the
+// second install silently overwrote the first.
+func assertNoReceiptCollision(root, id string, upstream map[string]string) error {
+	ids, err := recipe.ListReceipts(root)
+	if err != nil {
+		return &ExitError{code: 1, msg: "recipe install: list receipts: " + err.Error()}
+	}
+	for _, other := range ids {
+		if other == id {
+			continue
+		}
+		r, lerr := recipe.LoadReceipt(root, other)
+		if lerr != nil {
+			return &ExitError{code: 1, msg: "recipe install: read receipt " + other + ": " + lerr.Error()}
+		}
+		if r.Removed != "" {
+			continue
+		}
+		for p := range upstream {
+			if _, claimed := r.Files[p]; !claimed {
+				continue
+			}
+			return &ExitError{code: 1, msg: fmt.Sprintf(
+				"recipe install: %s ships %s, which %s already installed — two recipes owning "+
+					"one file is what uninstall cannot undo safely", id, p, other)}
+		}
+	}
+	return nil
 }
