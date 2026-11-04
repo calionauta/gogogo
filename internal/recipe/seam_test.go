@@ -60,6 +60,29 @@ func TestSeamMountsRecipeWithoutCoreEdit(t *testing.T) {
 	}
 }
 
+// TestSeamIgnoresADisabledProvider is the optional-unit rule: a unit whose
+// engine did not start returns a nil provider, and registration must be a
+// no-op rather than a declaration with nothing behind it. The route gate reads
+// the registry, so a phantom claim would be reported as "declares but does not
+// mount" — the failure this rule removes.
+func TestSeamIgnoresADisabledProvider(t *testing.T) {
+	reg := &Registry{}
+	reg.Add(nil)
+
+	if got := len(reg.Providers()); got != 0 {
+		t.Fatalf("a nil provider must not be registered, got %d providers", got)
+	}
+	root := chi.NewRouter()
+	if err := MountWith(reg, root); err != nil {
+		t.Fatalf("mount of an empty set must succeed: %v", err)
+	}
+	rec := httptest.NewRecorder()
+	root.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/room", nil))
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("a disabled unit must serve nothing, got %d", rec.Code)
+	}
+}
+
 // TestSeamRejectsDuplicateRouteBeforeBuild is the property that makes a community
 // safe: two recipes claiming one method+pattern is reported with BOTH owners
 // named, and Mount refuses. The existing router panic stays as the last line of

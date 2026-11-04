@@ -30,6 +30,11 @@ import (
 // Note what is NOT here: schema and policy rows are declared in the receipt, not
 // returned by the code, because they are the append-only half — the engine
 // applies them, and a recipe never writes an editable migration.
+//
+// A unit that is disabled at runtime returns a nil Provider from its Recipe
+// method (room does this when the actor engine is off). Add ignores nil, so
+// registration is a no-op and the route gate sees no claim: absence of code is
+// absence of declaration, not a declaration the composed tree cannot honour.
 type Provider interface {
 	// ID is the recipe identifier, matching the receipt.
 	ID() string
@@ -56,8 +61,13 @@ type Registry struct {
 }
 
 // Add registers a provider. It is called from the generated registration file,
-// once per installed recipe.
+// once per installed recipe. A nil provider is a disabled unit (see Provider),
+// not an error: the caller cannot know before boot whether the engine that
+// owns the routes started, and a no-op is what the hardcoded mount did.
 func (r *Registry) Add(p Provider) {
+	if p == nil {
+		return
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.providers = append(r.providers, p)
