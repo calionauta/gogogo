@@ -227,6 +227,10 @@ func checkDeclaration(root string, r Receipt) []string {
 	return problems
 }
 
+// IsCoreTable reports whether a name belongs to the core schema. Exported for
+// the catalog validator, which applies the same boundary to a reviewed entry.
+func IsCoreTable(table string) bool { return isCoreTable(table) }
+
 // isCoreTable reports whether a name belongs to the core schema. The rule the
 // recipe model depends on: a recipe never owns a core object, because two
 // owners of one table is what makes uninstall unsafe and migrations

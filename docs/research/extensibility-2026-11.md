@@ -934,6 +934,16 @@ notes: |
   every adopter (the page header and the interval default) — the review says
   which, so the drift report is not noisy.
 
+**Status, 2026-11-03: the format is published and validated; the registry is not.**
+`internal/recipe/catalog.go` implements the entry above, and `Validate` enforces the review
+rules the evidence supports: id and v-semver, source repo+ref, one sha256 per file, license,
+`minCore`, the **dependency-closure declaration** (absent and empty are different claims — the
+pointer exists so "I need nothing" cannot be mistaken for "I did not say"), the three review
+fields, `ext_<id>` tables with core tables refused, `ext:<id>:` jobs, and known slot ids. Each
+rule has a mutation its subtest catches. What is deliberately not built: resolution, download,
+hash comparison on install, and hosting. The entry is the artifact those consume; publishing
+the format is what lets a review exist at all.
+
 **The personal tier is first class, not a degraded mode.** The same receipt shape
 describes a local recipe that was never submitted anywhere:
 
@@ -1786,7 +1796,8 @@ Next, in order:
    SCOPE and trim retirement waits until ownership is data (receipts for in-tree units).
 2. **Slots in a real page** — `dashboard.card` and `settings.section`, which is also what
    moves `genui`'s integration files out of `features/todo`.
-3. **The catalog** with Spike 7's required dependency delta.
+3. **Catalog resolution and the install-from-entry path** (the format itself is published and
+   validated; hosting, download and hash comparison are the remaining steps).
 
 ### Build, in this order
 
@@ -2266,7 +2277,7 @@ slots a recipe owns.
 | Anchor gate (phase 4 partial) | Done; stale `.templ`/handler table deleted |
 | **Phase 2 wiring** | **Done for `review`** — declaration beside its routes, mounted only through the seam, gates red-proofed. Nav/panel surface, receipt and slots still open |
 | **Phase 3 conversions** | **Converted:** `review`, `credits`, `config-view`, `room`, `todo`, `notes`, `whiteboard` — routes only; every table waits for the schema split. Outside this phase: `account`, `landing`, `notifications` |
-| Catalog / install command | **Install/update/uninstall/status wired** (`gogogo recipe …`, 2026-11-03): tree + receipt + generated registration + drift, no anchors. The catalog itself is not started |
+| Catalog / install command | **Install/update/uninstall/status wired** (`gogogo recipe …`, 2026-11-03): tree + receipt + generated registration + drift, no anchors. The **catalog entry format is published and validated** (`internal/recipe/catalog.go`); resolution and download are not built |
 | Slots in a real page | Registry only; no page offers a slot yet |
 | Schema split enforcement | `Validate` refuses core tables; nothing yet forces a recipe's SQL to match its declared tables |
 | SCOPE + trim retirement | Ahead (phase 4); both stay until phase 3 lands |
