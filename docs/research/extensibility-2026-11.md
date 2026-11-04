@@ -1773,7 +1773,8 @@ written down first".
 this is the summary to update on every landing.
 
 Done: the engine (seam, receipt, drift, planner — Spikes 1–4); the seam wired into
-`BootChi`, with `review`, `credits`, `config-view`, `room` and `todo` converted; the
+`BootChi`, with `review`, `credits`, `config-view`, `room`, `todo`, `notes` and `whiteboard`
+converted; the
 nil-provider rule for optional units; the anchor drift gate; the CLI (`recipe install`,
 `update`, `uninstall`, `status`); and the **generated registration** that mounts an
 installed recipe — `.recipe.yml` → `.recipes/<id>.yml` → `internal/server/recipes.gen.go`,
@@ -1781,12 +1782,11 @@ with one `Register(reg, deps)` function per recipe.
 
 Next, in order:
 
-1. **Phase 3 close-out** — convert `notes` and `whiteboard` now that 1.3 is resolved.
-2. **Phase 4** — the two path defaults and `spike_anchor_test.go`'s remaining probes;
+1. **Phase 4** — the two path defaults and `spike_anchor_test.go`'s remaining probes;
    SCOPE and trim retirement waits until ownership is data (receipts for in-tree units).
-3. **Slots in a real page** — `dashboard.card` and `settings.section`, which is also what
+2. **Slots in a real page** — `dashboard.card` and `settings.section`, which is also what
    moves `genui`'s integration files out of `features/todo`.
-4. **The catalog** with Spike 7's required dependency delta.
+3. **The catalog** with Spike 7's required dependency delta.
 
 ### Build, in this order
 
@@ -2133,8 +2133,8 @@ independent rather than merely small.
 
   | Unit | Lands in | Decision it needs |
   |---|---|---|
-  | `notes` | after phase 1.3 | converts routes-only exactly like the others once `presence.go` is an owned seam; it imports `collab`, so it moves with `whiteboard`, not before |
-  | `whiteboard` | after phase 1.3 | the loose-file problem (`presence.go`) is the gate; converting it before 1.3 is exercised by a second unit repeats the mistake the phase order prevents |
+  | `notes` | **done (2026-11-03)** | routes-only, no table: the `notes` rows are still core-created, so the declaration waits for the schema split |
+  | `whiteboard` | **done (2026-11-03)** | routes-only, no table, for the same reason; the loose file (`presence.go`) stays whiteboard-claimed while trim exists |
   | `account` | phase 4, or never | mounts after `buildChiMux` returns (an argument would touch every call site) and is manual-removal identity UX: first decide whether account is a recipe at all |
   | `landing` | phase 4 | its router is also `r.NotFound`; the step is splitting "serves `/`" from "answers everything else" |
   | `notifications` | phase 4 | mounts through `mountInbox`, not `MountFeature`, and has no installer unit; it needs a mounting seam for non-feature handlers |
@@ -2144,9 +2144,10 @@ What stays open: the table gate proves only `declared ⊆ existing` — "this un
 does not declare it" has no gate. That direction needs the per-recipe SQL and the schema split,
 and it is the one item the `todo` probe was reaching for.
 
-**Do not convert `whiteboard` (or anything touching `collab`) in phase 3.** It is the unit that
-proved the loose-file problem; converting it before 1.3 is exercised against a second unit is
-repeating the mistake the phase order exists to prevent.
+**`whiteboard` and `notes` were the last conversions, and 1.3 is what unblocked them.** The rule
+that kept them out earlier ("do not convert anything touching `collab` before 1.3 is exercised")
+was a sequencing guard, not a property of the unit: with the copy hazard gated at the receipt
+layer, the conversion is the same routes-only change as the others.
 
 #### Phase 4 — retire the anchors and the scaffold prompt
 
@@ -2264,7 +2265,7 @@ slots a recipe owns.
 | Phase 1.3 `presence.go` | Parked; rule narrowed to another *installable* unit's package |
 | Anchor gate (phase 4 partial) | Done; stale `.templ`/handler table deleted |
 | **Phase 2 wiring** | **Done for `review`** — declaration beside its routes, mounted only through the seam, gates red-proofed. Nav/panel surface, receipt and slots still open |
-| **Phase 3 conversions** | **Converted:** `review`, `credits`, `config-view`, `room`, `todo` (routes only; its table waits for the schema split). Outside this phase: `notes`/`whiteboard` (1.3), `account`, `landing`, `notifications` |
+| **Phase 3 conversions** | **Converted:** `review`, `credits`, `config-view`, `room`, `todo`, `notes`, `whiteboard` — routes only; every table waits for the schema split. Outside this phase: `account`, `landing`, `notifications` |
 | Catalog / install command | **Install/update/uninstall/status wired** (`gogogo recipe …`, 2026-11-03): tree + receipt + generated registration + drift, no anchors. The catalog itself is not started |
 | Slots in a real page | Registry only; no page offers a slot yet |
 | Schema split enforcement | `Validate` refuses core tables; nothing yet forces a recipe's SQL to match its declared tables |

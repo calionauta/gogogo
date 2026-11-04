@@ -451,8 +451,6 @@ func buildChiMux(
 	// long-lived SSE the banner holds open and it only hears about changes.
 	MountPath(r, "/api/session/stream", a.SessionStreamHandler())
 
-	r.MountFeature("whiteboard", wbH.Routes())
-	r.MountFeature("notes", notesH.Routes())
 	r.MountFeature("chat", chatH.Routes())
 	// Installed recipes mount through the seam; a trim drops the line with its
 	// import. roomH's Recipe answers nil when the engine is off, so no
@@ -463,6 +461,8 @@ func buildChiMux(
 	r.recipes.Add(configH.Recipe())
 	r.recipes.Add(roomH.Recipe())
 	r.recipes.Add(todoH.Recipe())
+	r.recipes.Add(notesH.Recipe())
+	r.recipes.Add(wbH.Recipe())
 	// Installed recipes register themselves through the generated file: the code
 	// is already in the tree, this only tells the seam what it claims.
 	registerInstalledRecipes(r.recipes, deps)

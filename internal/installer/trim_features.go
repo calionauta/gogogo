@@ -57,8 +57,8 @@ var featureTrimUnits = []trimUnit{
 					// so each feature owns its line and its import. The comment
 					// above the two asset mounts goes with them, or the trim
 					// leaves prose about absent code.
-					`r.MountFeature("whiteboard", wbH.Routes())`,
-					`r.MountFeature("notes", notesH.Routes())`,
+					"r.recipes.Add(wbH.Recipe())",
+					"r.recipes.Add(notesH.Recipe())",
 					`MountSubtree(r, whiteboard.AssetPath, whiteboard.StaticHandler())`,
 					`MountSubtree(r, notes.AssetPath, notes.StaticHandler())`,
 					"// Features that embed their OWN assets (whiteboard.js + rough.min.js,",
