@@ -56,11 +56,13 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
     go run ./cmd/gogogo new feature reports --dir ./my-app --yes
 
   Install a recipe (a file set plus .recipe.yml) into a checkout. Without
-  --yes it prints the plan and changes nothing; --yes copies the tree and
-  writes .recipes/<id>.yml:
+  --yes it prints the plan and changes nothing; --yes copies the tree, writes
+  .recipes/<id>.yml and regenerates internal/server/recipes.gen.go:
 
     go run ./cmd/gogogo recipe install ./extensions/pomodoro --dir ./my-app
     go run ./cmd/gogogo recipe install ./extensions/pomodoro --dir ./my-app --yes
+    go run ./cmd/gogogo recipe update ./extensions/pomodoro --dir ./my-app --yes
+    go run ./cmd/gogogo recipe uninstall pomodoro --dir ./my-app --yes
 
   What did I change inside a recipe? Pristine vs yours, plus whether the
   receipt still matches the copied code (read-only):

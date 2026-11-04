@@ -4,6 +4,8 @@ package installer
 
 import (
 	"bytes"
+	"encoding/json"
+	"go/format"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,17 +24,21 @@ func newRecipeCheckout(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "cmd", "web", "main.go"), "package main\n")
+	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/app\n\ngo 1.26\n")
 	return root
 }
 
 // newRecipeDir writes a recipe directory: the manifest plus the file set.
-func newRecipeDir(t *testing.T, ref string, files map[string]string) string {
+func newRecipeDir(t *testing.T, ref string, files map[string]string, register ...string) string {
 	t.Helper()
 	dir := t.TempDir()
-	writeFile(t, filepath.Join(dir, recipeManifestFile),
-		"id: pomodoro\n"+
-			"upstream:\n  repo: example.com/recipes\n  ref: "+ref+"\n"+
-			"declaration:\n  routes:\n    - {method: GET, pattern: /pomodoro}\n")
+	manifest := "id: pomodoro\n" +
+		"upstream:\n  repo: example.com/recipes\n  ref: " + ref + "\n" +
+		"declaration:\n  routes:\n    - {method: GET, pattern: /pomodoro}\n"
+	if len(register) > 0 && register[0] != "" {
+		manifest += "register: " + register[0] + "\n"
+	}
+	writeFile(t, filepath.Join(dir, recipeManifestFile), manifest)
 	for rel, body := range files {
 		writeFile(t, filepath.Join(dir, filepath.FromSlash(rel)), body)
 	}
@@ -196,5 +202,205 @@ func TestRecipeInstallRefusesANonCheckout(t *testing.T) {
 	_, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes")
 	if err == nil || !strings.Contains(err.Error(), "not a gogogo checkout") {
 		t.Fatalf("expected the checkout refusal, got %v", err)
+	}
+}
+
+func readOrEmpty(t *testing.T, root, rel string) string {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
+	if err != nil {
+		return ""
+	}
+	return string(raw)
+}
+
+// recipeWithRegister is a recipe whose copied package exports the seam contract.
+func recipeWithRegister(t *testing.T) string {
+	t.Helper()
+	return newRecipeDir(t, "v1", map[string]string{
+		"features/pomodoro/handlers/chi.go":      recipeHandlerV1,
+		"features/pomodoro/handlers/register.go": "package handlers\n\nfunc Register(reg any, d any) {}\n",
+	}, "features/pomodoro/handlers")
+}
+
+func TestRecipeInstallWritesRegistration(t *testing.T) {
+	root := newRecipeCheckout(t)
+	src := recipeWithRegister(t)
+
+	if out, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes"); err != nil {
+		t.Fatalf("install: %v\n%s", err, out)
+	}
+	gen := readOrEmpty(t, root, recipeRegistrationFile)
+	if !strings.Contains(gen, `"example.com/app/features/pomodoro/handlers"`) {
+		t.Fatalf("generated registration does not import the recipe under the tree's module:\n%s", gen)
+	}
+	if !strings.Contains(gen, "pomodoro.Register,") {
+		t.Fatalf("generated registration does not call the recipe:\n%s", gen)
+	}
+	if formatted, ferr := format.Source([]byte(gen)); ferr != nil || string(formatted) != gen {
+		t.Fatalf("generated registration is not gofmt-clean: %v\n%s", ferr, gen)
+	}
+}
+
+func TestRecipeUninstallMarksRemovedAndUnregisters(t *testing.T) {
+	root := newRecipeCheckout(t)
+	src := recipeWithRegister(t)
+	if _, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes"); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runRecipeCLI(t, "uninstall", "pomodoro", "--dir", root, "--yes")
+	if err != nil {
+		t.Fatalf("uninstall: %v\n%s", err, out)
+	}
+	if _, serr := os.Stat(filepath.Join(root, "features/pomodoro/handlers/chi.go")); !os.IsNotExist(serr) {
+		t.Fatal("a pristine file survived uninstall")
+	}
+	rec, lerr := recipe.LoadReceipt(root, "pomodoro")
+	if lerr != nil {
+		t.Fatalf("receipt must stay after uninstall: %v", lerr)
+	}
+	if rec.Removed == "" {
+		t.Fatal("receipt was not marked removed")
+	}
+	gen := readOrEmpty(t, root, recipeRegistrationFile)
+	if strings.Contains(gen, "pomodoro.Register") {
+		t.Fatalf("registration still imports a removed recipe:\n%s", gen)
+	}
+	if !strings.Contains(gen, "[]register.Func{}") {
+		t.Fatalf("registration is not the empty set:\n%s", gen)
+	}
+}
+
+func TestRecipeUninstallKeepsEditedFiles(t *testing.T) {
+	root := newRecipeCheckout(t)
+	src := recipeWithRegister(t)
+	if _, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes"); err != nil {
+		t.Fatal(err)
+	}
+	mine := recipeHandlerV1 + "// mine\n"
+	writeFile(t, filepath.Join(root, "features/pomodoro/handlers/chi.go"), mine)
+
+	if out, err := runRecipeCLI(t, "uninstall", "pomodoro", "--dir", root, "--yes"); err != nil {
+		t.Fatalf("uninstall: %v\n%s", err, out)
+	}
+	got, rerr := os.ReadFile(filepath.Join(root, "features/pomodoro/handlers/chi.go"))
+	if rerr != nil || string(got) != mine {
+		t.Fatalf("uninstall destroyed the user's bytes: %q, %v", got, rerr)
+	}
+}
+
+func TestRecipeInstallRejectsAnUnsafeRegisterPath(t *testing.T) {
+	root := newRecipeCheckout(t)
+	src := newRecipeDir(t, "v1", map[string]string{
+		"evil/handler.go": "package evil\n",
+	}, "../evil")
+	_, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes")
+	if err == nil || !strings.Contains(err.Error(), "clean repo-relative") {
+		t.Fatalf("expected the unsafe-path refusal, got %v", err)
+	}
+	if _, serr := os.Stat(filepath.Join(root, "evil/handler.go")); !os.IsNotExist(serr) {
+		t.Fatal("a refused install wrote files")
+	}
+}
+
+func TestRecipeInstallRejectsAMissingRegisterPackage(t *testing.T) {
+	root := newRecipeCheckout(t)
+	src := newRecipeDir(t, "v1", map[string]string{
+		"features/pomodoro/handlers/chi.go": recipeHandlerV1,
+	}, "features/pomodoro/other")
+	_, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes")
+	if err == nil || !strings.Contains(err.Error(), "ships no files under it") {
+		t.Fatalf("expected the missing-package refusal, got %v", err)
+	}
+}
+
+func TestRecipeStatusShowsARemovedReceipt(t *testing.T) {
+	root := newRecipeCheckout(t)
+	src := recipeWithRegister(t)
+	if _, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runRecipeCLI(t, "uninstall", "pomodoro", "--dir", root, "--yes"); err != nil {
+		t.Fatal(err)
+	}
+	out, err := runRecipeCLI(t, "status", "--dir", root)
+	if err != nil {
+		t.Fatalf("status of a removed receipt: %v", err)
+	}
+	if !strings.Contains(out, "removed") || !strings.Contains(out, "data ownership") {
+		t.Fatalf("status must report the removal, got:\n%s", out)
+	}
+}
+
+func TestRecipeReinstallRestoresFiles(t *testing.T) {
+	root := newRecipeCheckout(t)
+	src := recipeWithRegister(t)
+	if _, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runRecipeCLI(t, "uninstall", "pomodoro", "--dir", root, "--yes"); err != nil {
+		t.Fatal(err)
+	}
+	out, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes")
+	if err != nil {
+		t.Fatalf("reinstall: %v\n%s", err, out)
+	}
+	if _, serr := os.Stat(filepath.Join(root, "features/pomodoro/handlers/chi.go")); serr != nil {
+		t.Fatalf("reinstall did not restore the deleted file: %v", serr)
+	}
+	rec, lerr := recipe.LoadReceipt(root, "pomodoro")
+	if lerr != nil || rec.Removed != "" {
+		t.Fatalf("reinstall left the receipt removed: %+v, %v", rec, lerr)
+	}
+	if gen := readOrEmpty(t, root, recipeRegistrationFile); !strings.Contains(gen, "pomodoro.Register") {
+		t.Fatalf("reinstall did not register the recipe again:\n%s", gen)
+	}
+}
+
+// TestRepoRegistrationIsFresh is the drift gate for the generated file the repo
+// commits: it must equal what the current receipts render, exactly as the CSS
+// and templ gates compare their artifacts against HEAD.
+func TestRepoRegistrationIsFresh(t *testing.T) {
+	root, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, cerr := registrationContent(root)
+	if cerr != nil {
+		t.Fatalf("render registration: %v", cerr)
+	}
+	got, rerr := os.ReadFile(filepath.Join(root, filepath.FromSlash(recipeRegistrationFile)))
+	if rerr != nil {
+		t.Fatalf("read %s: %v (run a recipe install once)", recipeRegistrationFile, rerr)
+	}
+	if string(got) != string(want) {
+		t.Fatalf("%s is stale — regenerate it from the receipts:\n--- have ---\n%s\n--- want ---\n%s",
+			recipeRegistrationFile, got, want)
+	}
+}
+
+func TestRecipeInstallJSON(t *testing.T) {
+	root := newRecipeCheckout(t)
+	src := recipeWithRegister(t)
+	out, err := runRecipeCLI(t, "install", src, "--dir", root, "--format", "json")
+	if err != nil {
+		t.Fatalf("plan-only json: %v\n%s", err, out)
+	}
+	var rep recipeInstallReport
+	if uerr := json.Unmarshal([]byte(out), &rep); uerr != nil {
+		t.Fatalf("install --format json is not JSON: %v\n%s", uerr, out)
+	}
+	if rep.Applied || rep.Write != 2 || rep.ID != "pomodoro" {
+		t.Fatalf("unexpected report: %+v", rep)
+	}
+}
+
+func TestRecipeUpdateRequiresAnInstalledReceipt(t *testing.T) {
+	root := newRecipeCheckout(t)
+	src := recipeWithRegister(t)
+	_, err := runRecipeCLI(t, "update", src, "--dir", root, "--yes")
+	if err == nil || !strings.Contains(err.Error(), "not installed") {
+		t.Fatalf("update without a receipt must refuse, got %v", err)
 	}
 }

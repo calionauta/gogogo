@@ -59,6 +59,15 @@ type Receipt struct {
 	// engine-applied, never merged, because two owners of one migration history
 	// is a data bug rather than a conflict.
 	Declaration Declaration `yaml:"declaration"`
+	// Register is the repo-relative package that exports `Register`, the seam's
+	// wiring contract. Empty means the recipe contributes no code to mount
+	// (data or policy only), so the generated registration skips it.
+	Register string `yaml:"register,omitempty"`
+	// Removed records an uninstall. The receipt is deliberately kept — a receipt
+	// without files is how an operator still knows what data came from where —
+	// and the generated registration skips a removed recipe, so uninstalling
+	// never leaves an import of a package that is gone.
+	Removed string `yaml:"removed,omitempty"`
 }
 
 // Declaration is what the code claims. The drift check compares it to the code.

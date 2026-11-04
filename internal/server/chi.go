@@ -55,6 +55,7 @@ import (
 	"github.com/calionauta/gogogo/internal/natswire"
 	"github.com/calionauta/gogogo/internal/queue"
 	"github.com/calionauta/gogogo/internal/recipe"
+	"github.com/calionauta/gogogo/internal/recipe/register"
 )
 
 // shutdownTimeout bounds chi-stack shutdown: in-flight SSE streams get a
@@ -253,7 +254,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// feature, so trimming a feature drops its lines without touching its
 	// neighbours. A shared line would make a line drop take two features at
 	// once (and the add path restores these same lines — see routerCallLines).
-	mux := buildChiMux(a, todoH,
+	mux := buildChiMux(a, register.Deps{Cfg: cfg, Auth: a, Queries: queries, Hub: hub}, todoH,
 		landinghandlers.NewHandler(cfg, a),
 		confighandlers.NewHandler(cfg, a, queries),
 		wbH,
@@ -423,7 +424,7 @@ func mountOnboarding(r *Router, onboardingH *onboarding.Handler) {
 // The landing router is also the not-found handler, so an unknown path lands
 // on the same page every unmatched URL already has.
 func buildChiMux(
-	a *auth.Auth, todoH *todohandlers.Handler,
+	a *auth.Auth, deps register.Deps, todoH *todohandlers.Handler,
 	landingH *landinghandlers.Handler,
 	configH *confighandlers.Handler,
 	wbH *wbhandlers.Handler,
@@ -453,19 +454,18 @@ func buildChiMux(
 	r.MountFeature("whiteboard", wbH.Routes())
 	r.MountFeature("notes", notesH.Routes())
 	r.MountFeature("chat", chatH.Routes())
-	// Installed recipes mount through the seam: one Add line per recipe, and a
-	// trim drops that line with its import. Review was the phase-2 probe;
-	// credits, config-view, room and todo are the phase-3 conversions. Every
-	// hardcoded mount is gone (the two agreeing, then disagreeing, was the
-	// proof). roomH is nil when the engine is disabled or failed to start and
-	// its Recipe answers nil then, so no declaration outlives the code it
-	// describes. See docs/research/extensibility-2026-11.md.
+	// Installed recipes mount through the seam; a trim drops the line with its
+	// import. roomH's Recipe answers nil when the engine is off, so no
+	// declaration outlives the code. See the research page.
 	r.recipes = &recipe.Registry{}
 	r.recipes.Add(reviewH.Recipe())
 	r.recipes.Add(creditsH.Recipe())
 	r.recipes.Add(configH.Recipe())
 	r.recipes.Add(roomH.Recipe())
 	r.recipes.Add(todoH.Recipe())
+	// Installed recipes register themselves through the generated file: the code
+	// is already in the tree, this only tells the seam what it claims.
+	registerInstalledRecipes(r.recipes, deps)
 	if merr := r.recipes.Mount(r); merr != nil {
 		panic("server: " + merr.Error())
 	}

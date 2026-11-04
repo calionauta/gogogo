@@ -32,6 +32,7 @@ import (
 	appgoakt "github.com/calionauta/gogogo/internal/goakt"
 	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/queue"
+	"github.com/calionauta/gogogo/internal/recipe/register"
 )
 
 func TestStartChiDisabled(t *testing.T) {
@@ -251,7 +252,7 @@ func TestBuildChiMuxRoomDisabledPinsRouteAbsence(t *testing.T) {
 	docs := collab.NewDocStore()
 	hub := queue.NewSSEHub()
 	reviewH := newReviewHandlerForTest(cfg, a)
-	mux := buildChiMux(a, todohandlers.NewHandler(q, a, hub),
+	mux := buildChiMux(a, register.Deps{Cfg: cfg, Auth: a, Queries: q, Hub: hub}, todohandlers.NewHandler(q, a, hub),
 		landinghandlers.NewHandler(cfg, a),
 		confighandlers.NewHandler(cfg, a, dbgen.New(sqlDB)),
 		wbhandlers.NewHandler(q, a, hub, persister, docs, cfg),
@@ -284,9 +285,8 @@ func TestBuildChiMux(t *testing.T) {
 	}
 	todoH := todohandlers.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub())
 	cfg := config.Load()
-	// Retained: combined trims (landing, config, room, chat, genui) drop
-	// every cfg consumer below, which would not compile. Same rule as the
-	// bootCtx retain in chi.go.
+	// Retained: combined trims drop every cfg consumer below, which would not
+	// compile. Same rule as the bootCtx retain in chi.go.
 	_ = cfg
 	persister, perr := collab.NewTursoPersister(dbgen.New(sqlDB))
 	if perr != nil {
@@ -295,7 +295,7 @@ func TestBuildChiMux(t *testing.T) {
 	docs := collab.NewDocStore()
 	reviewH := newReviewHandlerForTest(cfg, a)
 
-	mux := buildChiMux(a, todoH,
+	mux := buildChiMux(a, register.Deps{Cfg: cfg, Auth: a, Queries: dbgen.New(sqlDB), Hub: queue.NewSSEHub()}, todoH,
 		landinghandlers.NewHandler(cfg, a),
 		confighandlers.NewHandler(cfg, a, dbgen.New(sqlDB)),
 		wbhandlers.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister, docs, cfg),

@@ -1,0 +1,37 @@
+// SCOPE:plugin — the wiring contract between installed recipe code and the
+// composition root.
+//
+// Why a separate package: the engine (internal/recipe) must stay importable
+// without the app's config/auth/store types, and the recipe packages must not
+// import internal/server (that would be a cycle, since server imports them
+// through the generated registration). This package is the one place both sides
+// can name.
+//
+// The contract is deliberately small. A field here is a promise that every
+// recipe may rely on it, so it grows by a decision, not by convenience.
+package register
+
+import (
+	"github.com/calionauta/gogogo/config"
+	"github.com/calionauta/gogogo/internal/auth"
+	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/queue"
+	"github.com/calionauta/gogogo/internal/recipe"
+)
+
+// Deps is what an installed recipe may ask the composition root for. The
+// composition root builds it from the same values it hands its own handlers, so
+// a recipe is not a special case at boot.
+type Deps struct {
+	Cfg     *config.Config
+	Auth    *auth.Auth
+	Queries *dbgen.Queries
+	Hub     *queue.SSEHub
+}
+
+// Func is what a recipe package exports as `Register`. The generated
+// registration file calls it once per installed and not-removed receipt.
+//
+// A recipe builds its handler here and hands its provider to the seam; it never
+// mounts anything itself, so collisions stay the registry's to report.
+type Func func(reg *recipe.Registry, d Deps)
