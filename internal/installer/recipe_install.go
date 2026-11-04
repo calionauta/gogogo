@@ -38,6 +38,10 @@ func runRecipeInstall(args []string, stdout io.Writer, requireExisting bool) err
 	if err != nil {
 		return err
 	}
+	upstream, err = rebaseRecipeImports(root, manifest.Module, upstream)
+	if err != nil {
+		return err
+	}
 	plan := recipe.Plan(prev, upstream, treeReader(root))
 	if plan.Blocked() {
 		return blockedInstall(stdout, manifest, plan, opt)
@@ -224,4 +228,31 @@ func printRecipeInstallJSON(w io.Writer, m recipeManifest, plan recipe.PlanResul
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	return enc.Encode(rep)
+}
+
+// rebaseRecipeImports rewrites the module the recipe was written against to the
+// target tree's own. A recipe is authored once and installed into projects whose
+// module path differs, so a copied Go import of the author's module would not
+// resolve. Only Go and Templ sources are rewritten: a README URL is not an
+// import, and rewriting it would corrupt prose.
+func rebaseRecipeImports(root, from string, files map[string]string) (map[string]string, error) {
+	if from == "" {
+		return files, nil
+	}
+	to, err := modulePath(root)
+	if err != nil {
+		return nil, err
+	}
+	if from == to {
+		return files, nil
+	}
+	out := make(map[string]string, len(files))
+	for p, body := range files {
+		if strings.HasSuffix(p, ".go") || strings.HasSuffix(p, ".templ") {
+			out[p] = strings.ReplaceAll(body, from+"/", to+"/")
+			continue
+		}
+		out[p] = body
+	}
+	return out, nil
 }

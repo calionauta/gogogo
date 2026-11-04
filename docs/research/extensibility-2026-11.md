@@ -1461,8 +1461,11 @@ func Register(reg *recipe.Registry, d register.Deps) { reg.Add(NewHandler(d.Cfg,
 ```
 
 `internal/recipe/register` carries `Deps` (config, auth, store, SSE hub) and `Func`. The
-installer renders `internal/server/recipes.gen.go` from the receipts — sorted, gofmt'd,
-module path read from the tree's own `go.mod` — and a receipt marked removed is skipped, so
+manifest also names the `module` its imports were written against, and install rewrites it
+to the target tree's own module in `.go`/`.templ` files (never in prose) — a recipe written
+once must still resolve after the project's rename. The installer renders
+`internal/server/recipes.gen.go` from the receipts — sorted, gofmt'd, module path read from
+the tree's own `go.mod` — and a receipt marked removed is skipped, so
 an uninstall never leaves an import of a package that is gone. The repository commits the
 empty generated file, and a freshness test fails if it drifts from the receipts, exactly as
 the CSS and templ gates do.

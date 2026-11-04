@@ -44,6 +44,10 @@ type recipeManifest struct {
 	// Register is the repo-relative package exporting `Register`. Empty is a
 	// data-only recipe: installed and receipted, but it mounts nothing.
 	Register string `yaml:"register,omitempty"`
+	// Module is the Go module the copied imports were written against. Install
+	// rewrites it to the target tree's own module, because a recipe is written
+	// once and installed into projects whose module path differs.
+	Module string `yaml:"module,omitempty"`
 }
 
 // runRecipe is the `recipe` subcommand group. A subcommand (not a top-level

@@ -404,3 +404,32 @@ func TestRecipeUpdateRequiresAnInstalledReceipt(t *testing.T) {
 		t.Fatalf("update without a receipt must refuse, got %v", err)
 	}
 }
+
+func TestRecipeInstallRebasesTheModulePath(t *testing.T) {
+	root := newRecipeCheckout(t)
+	src := t.TempDir()
+	writeFile(t, filepath.Join(src, recipeManifestFile),
+		"id: pomodoro\n"+
+			"module: github.com/calionauta/gogogo\n"+
+			"register: features/pomodoro/handlers\n"+
+			"declaration:\n  routes:\n    - {method: GET, pattern: /pomodoro}\n")
+	writeFile(t, filepath.Join(src, "features/pomodoro/handlers/register.go"),
+		"package handlers\n\nimport \"github.com/calionauta/gogogo/internal/recipe/register\"\n\nvar _ register.Deps\n")
+	writeFile(t, filepath.Join(src, "features/pomodoro/handlers/chi.go"), recipeHandlerV1)
+	writeFile(t, filepath.Join(src, "features/pomodoro/README.md"), "upstream: github.com/calionauta/gogogo\n")
+
+	if out, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes"); err != nil {
+		t.Fatalf("install: %v\n%s", err, out)
+	}
+	code := readOrEmpty(t, root, "features/pomodoro/handlers/register.go")
+	if !strings.Contains(code, `"example.com/app/internal/recipe/register"`) {
+		t.Fatalf("import was not rebased to the tree's module:\n%s", code)
+	}
+	if strings.Contains(code, "github.com/calionauta/gogogo/") {
+		t.Fatalf("the author's module survived in code:\n%s", code)
+	}
+	readme := readOrEmpty(t, root, "features/pomodoro/README.md")
+	if !strings.Contains(readme, "github.com/calionauta/gogogo") {
+		t.Fatalf("prose was rewritten (only imports should be):\n%s", readme)
+	}
+}

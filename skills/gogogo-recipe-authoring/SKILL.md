@@ -143,6 +143,7 @@ id: pomodoro
 upstream:
   repo: github.com/calionauta/gogogo
   ref: v0.56.0
+module: github.com/calionauta/gogogo
 register: features/pomodoro/handlers
 declaration:
   routes:
@@ -159,9 +160,11 @@ func Register(reg *recipe.Registry, d register.Deps) {
 }
 ```
 
-`register.Deps` is the seam's promise (config, auth, store, SSE hub). A field
-appears there by a core decision, not by request: needing something else is a
-conversation about the contract, never a local workaround.
+`module` is the module your imports were written against; the installer rewrites
+it to the target tree's own module in copied `.go`/`.templ` files (never in
+prose). `register.Deps` is the seam's promise (config, auth, store, SSE hub). A
+field appears there by a core decision, not by request: needing something else is
+a conversation about the contract, never a local workaround.
 
 The installer turns receipts into `internal/server/recipes.gen.go` — the one
 generated file `buildChiMux` calls. Never edit it by hand: `gogogo recipe
