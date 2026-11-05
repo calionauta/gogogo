@@ -210,7 +210,7 @@ bundle and is not attributed per feature.
 | Feature | Files | Raw | Gzip |
 |---|---|---|---|
 | Room, Landing, Config | inline only (no extra JS) | 0 KB | 0 KB |
-| Chat diagrams | `pele.global.js` + `diagram.js` (progressive enhancement: source stays readable without them) | 716 KB | 278 KB |
+| Chat diagrams | `pele.global.js` + `diagram.js` (progressive enhancement: source stays readable without them) | 719 KB | 279 KB |
 | Todo date filter | `cally.js` (the `<calendar-date>` web component DaisyUI styles as `class="cally"`) | 38 KB | 13 KB |
 | Shared notes | `notes.js` | 44 KB | 16 KB |
 | Whiteboard | `whiteboard.js` + `rough.min.js` | 74 KB | 26 KB |
