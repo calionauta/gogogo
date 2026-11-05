@@ -1863,9 +1863,13 @@ Next, in order:
 ### Write down before the first adopting PR
 
 These are decisions the evidence now supports, and they should land as docs rather than as
-institutional memory. Status, 2026-11-04: the first four are stated in this page (the one an
-operator reads before installing anything), and the trim sequence gained a decision in the
-phase-4 section — `add` stays until ownership is data.
+institutional memory. Status, 2026-11-05: **all five are stated.** The first four are in this
+page (the one an operator reads before installing anything), the trim sequence gained a
+decision in the phase-4 section (`add` stays until ownership is data), and the schema split
+is written as the authoring contract in
+`skills/gogogo-recipe-authoring/SKILL.md#the-three-parts-of-a-recipe-and-who-owns-each` —
+where an author will read it before copying a migration — with the reason recorded here in
+open question #4.
 
 - **The trust statement, in pi's register:** a recipe is compiled into the binary and runs
   with the binary's permissions. No sandbox exists. Silently implying otherwise is the one
@@ -1878,9 +1882,11 @@ phase-4 section — `add` stays until ownership is data.
 - **The `trim` retirement sequence:** subsumed → deleted, never repaired. Spike 0 showed
   the anchor table is already drifting unreviewed, so repairing it is investment in a
   mechanism with a known structural blind spot.
-- **The schema split, stated as a hard rule** (code copied, schema declared) — with the
-  reason, because a reader will otherwise try to copy a migration and it will work, right
-  up until it does not.
+- **The schema split, stated as a hard rule** (code and schema both copied, ownership
+  declared) — with the reason, because a reader will otherwise try to own a core table or
+  hand-write a query, and both will work right up until they do not. Stated in the authoring
+  skill; enforced by `recipe.ValidateSchema` in both directions and by the ledger's id
+  prefix.
 
 ### Two issues worth filing independently of this work
 
