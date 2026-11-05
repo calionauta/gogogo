@@ -197,7 +197,7 @@ func printRecipePlan(w io.Writer, id string, plan recipe.PlanResult, applied boo
 
 // printRecipeInstalled is the receipt: what landed, where it came from, and the
 // two things the user must do that no installer can do for them.
-func printRecipeInstalled(w io.Writer, m recipeManifest, res recipe.ApplyResult, r recipe.Receipt) {
+func printRecipeInstalled(w io.Writer, m recipeManifest, res recipe.ApplyResult, r recipe.Receipt, schema []string) {
 	fmt.Fprintf(w, "recipe %s: %d file(s) installed", m.ID, len(res.Written))
 	if len(res.Removed) > 0 {
 		fmt.Fprintf(w, ", %d obsolete file(s) removed", len(res.Removed))
@@ -216,6 +216,10 @@ func printRecipeInstalled(w io.Writer, m recipeManifest, res recipe.ApplyResult,
 	fmt.Fprintf(w, "  receipt:  %s\n", recipe.ReceiptPath(r.ID))
 	if r.Register != "" {
 		fmt.Fprintf(w, "  register: %s (was added to %s)\n", r.Register, recipeRegistrationFile)
+	}
+	if len(schema) > 0 {
+		fmt.Fprintf(w, "  schema:   %d migration file(s) mirrored to %s\n", len(schema), recipeSchemaDir)
+		fmt.Fprintln(w, "            run `make sqlc` to generate queries for the tables it creates.")
 	}
 	fmt.Fprintln(w, "  next:     the code is yours now — rename it, delete what you do not need.")
 	fmt.Fprintln(w, "            register it through the seam (the handler's Recipe()) and keep")

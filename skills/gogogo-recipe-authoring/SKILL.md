@@ -19,14 +19,16 @@ editing a recipe's copied code, and before declaring anything in a receipt.
 |---|---|---|---|
 | **Code** — handlers, components, domain | your tree (`features/<id>/`, or wherever you put it) | **you** | yes, freely — this is the point |
 | **Receipt** — `.recipes/<id>.yml` | your tree, committed | you, but it mirrors facts | only through tooling |
-| **Declaration** — routes, tables, jobs, slots, policy | inside the receipt | the engine applies it | never hand-edit a migration |
+| **Declaration** — routes, tables, jobs, slots, policy | inside the receipt | the engine applies it | never hand-edit |
+| **DDL** — `migrations/**.sql` in your package | your tree, committed | you | yes, like any code you own |
 
 The rule that follows, and it is the one thing to get right:
 
-> **Code is copied; schema is declared.** Never write an editable migration file as part
-> of a recipe. The append-only half is declared with stable IDs and applied by the engine.
-> Two owners of one migration history is a production-data bug, not a merge conflict —
-> this is why Django, Rails, Laravel and Prisma all force a choice.
+> **Code and schema are both copied; ownership is declared.** A recipe ships its own DDL
+> under `migrations/` and the ledger applies it under the recipe id, so two recipes may
+> both number from `0001`. The declaration must match that SQL in both directions: a
+> declared table with no `CREATE` fails the gate, and a `CREATE` the declaration omits
+> fails it too. Never own a core table or a column on one — a side table is the answer.
 
 ## Before you write: does it already exist?
 
@@ -171,6 +173,14 @@ generated file `buildChiMux` calls. Never edit it by hand: `gogogo recipe
 install|update|uninstall` regenerates it, and a removed recipe is skipped so the
 file never imports a package that is gone. The receipt keeps the record after an
 uninstall, because the data still needs an owner.
+
+A recipe that declares tables also gets its DDL mirrored flat into
+`internal/db/recipe_schema/<id>__<migration>.sql`, which is where `sqlc` reads it;
+the operator runs `make sqlc` after install to get generated queries. Ship those
+migrations at `<your package>/migrations/**.sql` — the path segment is the only
+anchor the installer has, since it cannot see inside your `Migrations()` call —
+and leave the mirror alone: `recipe status` reports a migration edited after
+install, and `recipe install` is what refreshes the copy.
 
 ## Checklist before calling it done
 

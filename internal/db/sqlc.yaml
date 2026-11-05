@@ -11,7 +11,15 @@
 version: "2"
 sql:
   - engine: "sqlite"
-    schema: "../dbschema/migrations"
+    schema:
+      - "../dbschema/migrations"
+      # Installed recipes' DDL, mirrored flat as `<id>__<migration>.sql` by
+      # `gogogo recipe install` (internal/installer/recipe_schema.go). Kept here
+      # rather than under .recipes/ because sqlc reads only the top level of a
+      # schema entry and skips dot-directories, so a nested or hidden mirror is
+      # silently ignored and codegen would describe a schema the database does
+      # not have.
+      - "recipe_schema"
     queries: "queries"
     gen:
       go:

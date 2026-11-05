@@ -58,15 +58,19 @@ func runRecipeStatus(args []string, stdout io.Writer) error {
 		if derr != nil {
 			return &ExitError{code: 1, msg: "recipe status: " + derr.Error()}
 		}
-		problems += len(drift.Problems)
+		schema := checkRecipeSchema(root, id, r.Files)
+		problems += len(drift.Problems) + len(schema)
 		if opt.format == planFormatJSON {
-			if encErr := printDriftJSON(stdout, drift); encErr != nil {
+			if encErr := printDriftJSON(stdout, drift, schema); encErr != nil {
 				return encErr
 			}
 			continue
 		}
 		var sb strings.Builder
 		drift.Render(&sb)
+		for _, p := range schema {
+			fmt.Fprintf(&sb, "  SCHEMA  %s\n", p)
+		}
 		fmt.Fprint(stdout, sb.String())
 	}
 	if problems > 0 {
@@ -120,9 +124,18 @@ func parseRecipeStatusArgs(args []string) (recipeStatusArgs, error) {
 	return opt, nil
 }
 
+// driftReport is the machine shape of one recipe's drift. The schema mirror is
+// reported beside the declaration problems rather than inside them: the first
+// is a generated view lagging the code, the second is the code contradicting
+// what the receipt claims.
+type driftReport struct {
+	recipe.Drift
+	SchemaProblems []string `json:"schemaProblems,omitempty"`
+}
+
 // printDriftJSON is the machine shape of one recipe's drift.
-func printDriftJSON(w io.Writer, d recipe.Drift) error {
+func printDriftJSON(w io.Writer, d recipe.Drift, schema []string) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
-	return enc.Encode(d)
+	return enc.Encode(driftReport{Drift: d, SchemaProblems: schema})
 }

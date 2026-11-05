@@ -1813,7 +1813,10 @@ recipe's destination in the shell's rail, with neither page learning a recipe id
 refuses a non-root-relative href at registration, so a contribution cannot leave the origin); and
 the **schema half of the seam** — a recipe that owns tables ships its own DDL (`recipe.Migrator`),
 the root applies it through the core ledger under the recipe's id at boot, and the declaration is
-checked against the SQL in both directions.
+checked against the SQL in both directions; and **install-time codegen (2026-11-05)** — the DDL is
+mirrored flat into `internal/db/recipe_schema/` as `<id>__<migration>.sql`, which is a path `sqlc`
+actually reads, so a recipe-owned table gets generated queries instead of hand-written SQL.
+`recipe status` compares the mirror against the tree, and `recipe install` is the repair.
 
 Every route-owning unit in this repo now mounts through the seam: `review`, `credits`,
 `config-view`, `room`, `todo`, `notes`, `whiteboard`, `landing`, `account`, `notifications`. The
@@ -1831,6 +1834,10 @@ Next, in order:
    to land in, and inventing one to host a card is the page-first mistake the shapes exist to
    prevent. `nav.sidebar` and `record.row-actions` shipped (2026-11-04) because both had a real
    host — the rail and the todo row.
+3. **The first table-owning conversion is the probe that closes the schema split, and it is now
+   unblocked.** `todo` remains the intended unit. Moving one of its tables to a prefixed recipe
+   migration is a real install-and-generate run (`make sqlc`), not a fixture, which is the
+   evidence the last bullet of open question #4 is missing.
 
 ### Build, in this order
 
@@ -2327,7 +2334,7 @@ slots a recipe owns.
 | **Phase 3 conversions** | **Converted:** `review`, `credits`, `config-view`, `room`, `todo`, `notes`, `whiteboard`, `landing`, `account`, `notifications` — routes only, since no in-tree unit owns a table yet; the first one that does declares it and ships DDL through `recipe.Migrator`. Nothing outside the seam is left except the composition root itself |
 | Catalog / install command | **Install/update/uninstall/status wired** (`gogogo recipe …`, 2026-11-03): tree + receipt + generated registration + drift, no anchors. The **catalog entry format is published, validated and consumed** (`recipe install --entry`, hash-verified); hosting and download are not built |
 | Slots in a real page | **`settings.section` renders in `/config` and `nav.sidebar` renders in the shell rail** (2026-11-04), both with a proof and neither page learning a recipe id; the rail also refuses a contribution whose href is not root-relative. `record.row-actions` renders on the shared todo row (2026-11-04) with a registration-time contract (label, closed verb, root-relative template naming the row once). `dashboard.card` remains registry-only: no dashboard in this app |
-| Schema split enforcement | **Enforced at the declaration level (2026-11-04):** `recipe.Migrator` + `Registry.MigrationSets()` feed `dbschema.MigrateWith` from the composition root, and `recipe.ValidateSchema` refuses both a declared table with no `CREATE` and a `CREATE` the declaration omits — comments stripped, `ext_<id>` prefix and the core-table refusal reused. No in-tree unit declares a table yet — `sqlc.yaml` reads the core migrations only, so a recipe-owned table has no generated query path until install-time codegen (see open question #4). The wiring's positive case is a root-level fixture (see "What is NOT red-proofable") |
+| Schema split enforcement | **Enforced at the declaration level (2026-11-04):** `recipe.Migrator` + `Registry.MigrationSets()` feed `dbschema.MigrateWith` from the composition root, and `recipe.ValidateSchema` refuses both a declared table with no `CREATE` and a `CREATE` the declaration omits — comments stripped, `ext_<id>` prefix and the core-table refusal reused. **A recipe-owned table now has a query path (2026-11-05):** install mirrors its DDL flat into `internal/db/recipe_schema/` (`<id>__<migration>.sql`), `sqlc.yaml` reads that directory, and `recipe status` reports a mirror that stopped matching the tree. No in-tree unit declares a table yet, so the shipped mirror is empty and the wiring's positive case is still a root-level fixture (see "What is NOT red-proofable") |
 | SCOPE + trim retirement | Phase 3 has landed; both stay until ownership is data. Decision (2026-11-04): `add` is not retired while `trim` is the only removal path for an in-tree unit — deleting the way back first would make removal one-way. Trigger: the first in-tree unit that ships as a receipt |
 
 ## Open questions for the human
@@ -2394,17 +2401,38 @@ reading this needs an answer, not a menu.
    invisible to the gate), and the first unit to move a table from `isCoreTable` to a prefixed
    recipe migration is still ahead — `todo` remains the intended probe.
 
-   **The blocker that surfaced on inspection (2026-11-04), and the decision it implies:**
-   `internal/db/sqlc.yaml` takes its schema from `../dbschema/migrations`, the CORE set. A table
-   that arrives through `recipe.Migrator` is therefore invisible to `sqlc`, so the first
-   table-owning unit cannot have generated queries — and writing its SQL by hand would break the
-   one rule that keeps queries and schema from drifting. The decision is therefore **install-time
-   codegen**: the installer already generates `recipes.gen.go` from the receipts, so it also
-   owns the sqlc schema list (`schema: [../dbschema/migrations, ../.recipes/schema]`, with the
-   installed recipe migrations gathered there under their ledger namespace). Until that lands, a
-   recipe that declares a table is legal and gated, but has no query path — which is why no
-   in-tree unit has been converted yet, and why the migration call site's positive case is still
-   a fixture.
+   **The blocker that surfaced on inspection (2026-11-04) is closed (2026-11-05).**
+   `internal/db/sqlc.yaml` takes its schema from `../dbschema/migrations`, the CORE set, so a
+   table arriving through `recipe.Migrator` was invisible to `sqlc`: the first table-owning unit
+   could have no generated queries, and writing its SQL by hand is the one rule that keeps
+   queries and schema from drifting. The decision was **install-time codegen**, and the shipped
+   shape is the installer writing the mirror beside `sqlc.yaml` —
+   `internal/db/recipe_schema/<id>__<migration>.sql`, read by a second `schema:` entry.
+
+   **Two measurements changed the layout the plan first assumed.** `sqlc` reads only the top
+   level of a `schema:` entry — it does not descend into subdirectories — and it skips a
+   directory whose name starts with a dot. A mirror at `.recipes/schema/<id>/…` would therefore
+   be silently inert: no error, no table, just queries that do not compile against a schema
+   nobody generated. Hence flat, visible, id-prefixed files, one directory shared by every
+   recipe (the prefix is what keeps two recipes' `0001`s apart, and what scopes prune and
+   uninstall).
+
+   **Three properties hold it together.** The mirrored bytes come from the tree after the plan
+   applied, not from upstream, because the runtime embeds the tree's files — mirroring upstream
+   would leave codegen reading one schema while the database applies another, which is the
+   failure mode this whole item exists to remove. Pruning is scoped to `<id>__`, so an update
+   that drops a migration removes its DDL and an uninstall takes only its own. And `recipe
+   status` compares mirror to tree, so a migration edited without a reinstall is reported
+   instead of silently disagreeing with codegen.
+
+   **What it costs the author:** a table-owning recipe ships its DDL as
+   `<package>/migrations/**.sql` — the path segment is the convention the installer can anchor
+   (it cannot know which directory `Migrations()` embedded) — and the operator runs `make sqlc`
+   once after install, which is the same step a core schema change already requires.
+
+   **Still ahead:** the first in-tree unit to move a table from `isCoreTable` to a prefixed
+   recipe migration (`todo` remains the intended probe), and anything that gates the SQL text
+   itself — a migration that alters a core table is still invisible to the validator.
 
 ## Related
 

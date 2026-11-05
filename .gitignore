@@ -53,6 +53,13 @@ dist/
 # ignored.
 !.agents/
 !.agents/skills/
+# .recipes/ IS source too: the receipt is the ownership record (what was
+# installed, with the pristine hash of every file) and the generated
+# registration is built from it. Ignoring the directory would drop the record on
+# the next clone and leave the committed recipes.gen.go describing a tree nobody
+# can reconstruct.
+!.recipes/
+!.recipes/**
 !.agents/skills/**
 # Cali agent workflow artifacts (execution critiques, UX audits, etc)
 .cali-*/

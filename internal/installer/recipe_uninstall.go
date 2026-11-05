@@ -63,6 +63,12 @@ func runRecipeUninstall(args []string, stdout io.Writer) error {
 	if rerr != nil {
 		return &ExitError{code: 1, msg: "recipe uninstall: " + rerr.Error()}
 	}
+	// The DDL copy is the tool's, not the user's: it is never edited, so it goes
+	// with the recipe rather than lingering as schema nobody owns.
+	removedDDL, cerr := removeRecipeSchema(root, opt.id)
+	if cerr != nil {
+		return &ExitError{code: 1, msg: "recipe uninstall: " + cerr.Error()}
+	}
 	r.Removed = time.Now().UTC().Format(time.RFC3339)
 	if serr := recipe.SaveReceipt(root, r); serr != nil {
 		return &ExitError{code: 1, msg: "recipe uninstall: write receipt: " + serr.Error()}
@@ -76,6 +82,11 @@ func runRecipeUninstall(args []string, stdout io.Writer) error {
 	}
 	fmt.Fprintf(stdout, "  receipt kept: %s (marked removed) — it still records the data owner\n",
 		recipe.ReceiptPath(r.ID))
+	if removedDDL {
+		fmt.Fprintf(stdout, "  schema:   dropped %s/%s — run `make sqlc` so no generated query\n",
+			recipeSchemaDir, opt.id)
+		fmt.Fprintln(stdout, "            still reads a table this recipe no longer creates.")
+	}
 	fmt.Fprintf(stdout, "  registration regenerated: %s\n", recipeRegistrationFile)
 	fmt.Fprintln(stdout, "  next: run `go build ./...` in your tree.")
 	return nil

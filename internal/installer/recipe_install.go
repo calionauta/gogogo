@@ -150,6 +150,14 @@ func applyRecipePlan(root string, manifest recipeManifest, prev recipe.Receipt,
 	if serr := recipe.SaveReceipt(root, next); serr != nil {
 		return &ExitError{code: 1, msg: "recipe install: write receipt: " + serr.Error()}
 	}
+	// A recipe that owns tables ships its DDL; sqlc reads directories, so the
+	// SQL is also written where codegen can see it (see recipe_schema.go). It
+	// mirrors the tree, not upstream, so an edited migration is the one both
+	// codegen and the runtime read.
+	schema, serr := syncRecipeSchema(root, manifest.ID, next.Files)
+	if serr != nil {
+		return &ExitError{code: 1, msg: "recipe install: " + serr.Error()}
+	}
 	if gerr := regenerateRegistration(root); gerr != nil {
 		return gerr
 	}
@@ -160,7 +168,7 @@ func applyRecipePlan(root string, manifest recipeManifest, prev recipe.Receipt,
 	if opt.format == planFormatJSON {
 		return printRecipeInstallJSON(stdout, manifest, plan, res, true, drift.Problems)
 	}
-	printRecipeInstalled(stdout, manifest, res, next)
+	printRecipeInstalled(stdout, manifest, res, next, schema)
 	if len(drift.Problems) > 0 {
 		var sb strings.Builder
 		drift.Render(&sb)
