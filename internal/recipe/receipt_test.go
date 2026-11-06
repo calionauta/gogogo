@@ -188,13 +188,62 @@ func TestDriftAcceptsAMatchingDeclaration(t *testing.T) {
 		Routes: []Route{{Method: "GET", Pattern: "/pomodoro"}},
 		Jobs:   []string{"ext:pomodoro:tick"},
 		Tables: []string{"ext_pomodoro_session"},
-		Slots:  []string{"dashboard.card"},
 	}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(d.Problems) != 0 {
 		t.Fatalf("a matching declaration must produce no problems, got %v", d.Problems)
+	}
+}
+
+// TestDriftAcceptsADeclaredSlotTheCodeContributes is the slot half's negative
+// control. The contribution is spelled the way real code spells it — the Go
+// constant, not the id string — so the check cannot pass by demanding a spelling
+// no recipe uses.
+func TestDriftAcceptsADeclaredSlotTheCodeContributes(t *testing.T) {
+	files := map[string]string{
+		"features/pomodoro/register.go": "package pomodoro\n\nvar slot = recipe.SlotSettingsSection\n",
+	}
+	root := writeTree(t, files)
+	d, err := Check(root, receiptFor(files, Declaration{Slots: []string{"settings.section"}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(d.Problems) != 0 {
+		t.Fatalf("a slot the code contributes must produce no problems, got %v", d.Problems)
+	}
+}
+
+// TestDriftReportsADeclaredSlotNothingContributes is the direction no file hash
+// can answer: the tree can be byte-pristine and the declaration still claim
+// content that no code contributes.
+func TestDriftReportsADeclaredSlotNothingContributes(t *testing.T) {
+	files := map[string]string{"features/pomodoro/register.go": "package pomodoro\n"}
+	root := writeTree(t, files)
+	d, err := Check(root, receiptFor(files, Declaration{Slots: []string{"settings.section"}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(d.Problems) != 1 || !strings.Contains(d.Problems[0], "not contributed") {
+		t.Fatalf("a declared slot with no contribution must be reported, got %v", d.Problems)
+	}
+}
+
+// TestDriftReportsASlotNoPageRenders covers the receipt written by a hand or by
+// an older tool: install refuses it, and status has to report it too, or a
+// project carries a claim nothing will ever draw.
+func TestDriftReportsASlotNoPageRenders(t *testing.T) {
+	files := map[string]string{
+		"features/pomodoro/register.go": "package pomodoro\n\nvar slot = recipe.SlotDashboardCard\n",
+	}
+	root := writeTree(t, files)
+	d, err := Check(root, receiptFor(files, Declaration{Slots: []string{"dashboard.card"}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(d.Problems) != 1 || !strings.Contains(d.Problems[0], "not hosted") {
+		t.Fatalf("an unhosted slot must be reported, got %v", d.Problems)
 	}
 }
 

@@ -207,6 +207,19 @@ func checkDeclaration(root string, r Receipt) []string {
 				fmt.Sprintf("declared job %q is not registered by the recipe's code", job))
 		}
 	}
+	// Slots are the third surface a declaration can claim out of thin air: the
+	// code can be byte-pristine and still contribute nothing to the slot it
+	// declared, or declare a slot this build has no page for.
+	for _, slot := range r.Declaration.Slots {
+		if offer := SlotProblems([]string{slot}); len(offer) > 0 {
+			problems = append(problems, offer...)
+			continue
+		}
+		if !slotContributed(blob, slot) {
+			problems = append(problems,
+				fmt.Sprintf("declared slot %q is not contributed by the recipe's code", slot))
+		}
+	}
 	for _, table := range r.Declaration.Tables {
 		// The ownership boundary is checked FIRST and independently of whether
 		// the table appears in the recipe's SQL. Ordering matters: if the SQL

@@ -157,11 +157,10 @@ func (e CatalogEntry) surfaceProblems() []string {
 			out = append(out, fmt.Sprintf("job %q must be prefixed ext:%s:", j, e.ID))
 		}
 	}
-	for _, s := range e.Slots {
-		if _, ok := ShapeFor(SlotID(s)); !ok {
-			out = append(out, fmt.Sprintf("slot %q is not one of the declared slots", s))
-		}
-	}
+	// The review refuses an unhosted slot as well as an unknown one: a reviewed
+	// recipe claiming content this build does not draw would install cleanly and
+	// render nothing.
+	out = append(out, SlotProblems(e.Slots)...)
 	for _, w := range e.WorksWith {
 		if w == "" {
 			out = append(out, "worksWith holds an empty set name")

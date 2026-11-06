@@ -70,6 +70,93 @@ func ShapeFor(s SlotID) (Shape, bool) {
 	}
 }
 
+// Host names the page in this build that renders a slot.
+//
+// ShapeFor and HostFor answer different questions on purpose. ShapeFor is the
+// design contract: how much room a filler gets. HostFor is the build's truth:
+// which page actually draws the slot. Keeping them apart is what lets
+// `dashboard.card` hold the shape a dashboard page will need, while a
+// contribution to it is refused today — a fragment accepted where nothing draws
+// it is dropped, and a dropped contribution is indistinguishable from a feature
+// that was never built.
+type Host string
+
+const (
+	// HostShellRail is the shell's sidebar, rendered for every page.
+	HostShellRail Host = "the shell rail (internal/ui/shell.templ)"
+	// HostSettingsPage is the settings page's section column.
+	HostSettingsPage Host = "the settings page (/config)"
+	// HostTodoRow is the todo row's action list.
+	HostTodoRow Host = "the todo row (features/todo)"
+)
+
+// hosts is the closed table of what this build renders. Every entry names the
+// page, not a feature, because the page is what owns the frame.
+var hosts = map[SlotID]Host{
+	SlotNavSidebar:       HostShellRail,
+	SlotSettingsSection:  HostSettingsPage,
+	SlotRecordRowActions: HostTodoRow,
+}
+
+// HostFor returns the page that renders s in this build.
+func HostFor(s SlotID) (Host, bool) {
+	h, ok := hosts[s]
+	return h, ok
+}
+
+// Offered reports whether this build renders s. Registration, install and the
+// catalog all gate on it, so the three cannot disagree about what exists.
+func Offered(s SlotID) bool {
+	_, ok := hosts[s]
+	return ok
+}
+
+// refuseSlot is the one offer rule: a contribution is accepted only for a slot
+// this build gives a shape to AND a page to draw it.
+func refuseSlot(slot SlotID) error {
+	if _, ok := ShapeFor(slot); !ok {
+		return fmt.Errorf("slot %q is not offered by this build", slot)
+	}
+	if !Offered(slot) {
+		return fmt.Errorf("slot %q is not hosted by this build: the shape is declared, "+
+			"but no page renders it, so the contribution would be dropped", slot)
+	}
+	return nil
+}
+
+// SlotProblems applies the offer rule to a declared slot list. Exported because
+// three gates need the same answer — registration, the install path before a
+// file is copied, and the catalog review — and a second copy of the rule is how
+// a declaration and its gate drift apart.
+func SlotProblems(slots []string) []string {
+	var out []string
+	for _, s := range slots {
+		if err := refuseSlot(SlotID(s)); err != nil {
+			out = append(out, err.Error())
+		}
+	}
+	return out
+}
+
+// slotIdent is the Go constant a contribution is written through. A declaration
+// names the id ("nav.sidebar") and the code names the constant, so the drift
+// check has to accept both spellings or it reports a correct recipe as broken.
+var slotIdent = map[SlotID]string{
+	SlotDashboardCard:    "SlotDashboardCard",
+	SlotSettingsSection:  "SlotSettingsSection",
+	SlotNavSidebar:       "SlotNavSidebar",
+	SlotRecordRowActions: "SlotRecordRowActions",
+}
+
+// slotContributed reports whether code contributes slot, in either spelling.
+func slotContributed(code, slot string) bool {
+	if strings.Contains(code, slot) {
+		return true
+	}
+	ident, ok := slotIdent[SlotID(slot)]
+	return ok && strings.Contains(code, ident)
+}
+
 // Fragment is what a recipe contributes to a content slot. It carries no recipe
 // id: the page renders fragments, and the arrangement is the page's business.
 type Fragment struct {
@@ -137,18 +224,18 @@ func (s *SlotRegistry) Add(c Contribution) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for slot := range c.Fragments {
-		if _, ok := ShapeFor(slot); !ok {
-			return fmt.Errorf("slot %q is not offered by this build", slot)
+		if err := refuseSlot(slot); err != nil {
+			return err
 		}
 	}
 	for slot := range c.Entries {
-		if _, ok := ShapeFor(slot); !ok {
-			return fmt.Errorf("slot %q is not offered by this build", slot)
+		if err := refuseSlot(slot); err != nil {
+			return err
 		}
 	}
 	for slot := range c.Actions {
-		if _, ok := ShapeFor(slot); !ok {
-			return fmt.Errorf("slot %q is not offered by this build", slot)
+		if err := refuseSlot(slot); err != nil {
+			return err
 		}
 	}
 	for slot, f := range c.Fragments {

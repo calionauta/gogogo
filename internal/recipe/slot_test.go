@@ -20,18 +20,18 @@ func frag(title string) Fragment {
 func TestSlotPageRendersWithoutKnowingTheRecipe(t *testing.T) {
 	reg := NewSlotRegistry()
 	if err := reg.Add(Contribution{
-		Fragments: map[SlotID]Fragment{SlotDashboardCard: frag("Pomodoro")},
+		Fragments: map[SlotID]Fragment{SlotSettingsSection: frag("Pomodoro")},
 	}); err != nil {
 		t.Fatal(err)
 	}
 	if err := reg.Add(Contribution{
-		Fragments: map[SlotID]Fragment{SlotDashboardCard: frag("Review queue")},
+		Fragments: map[SlotID]Fragment{SlotSettingsSection: frag("Review queue")},
 	}); err != nil {
 		t.Fatal(err)
 	}
 
 	// This is the whole of an owning page's involvement.
-	out := reg.RenderSlot(SlotDashboardCard, func(f Fragment) string {
+	out := reg.RenderSlot(SlotSettingsSection, func(f Fragment) string {
 		return "<section class=\"ui-card\">" + f.Render() + "</section>"
 	})
 
@@ -58,6 +58,47 @@ func TestSlotRefusesASlotTheShellDoesNotOffer(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "not offered") {
 		t.Fatalf("the error must explain the slot set is closed, got %v", err)
+	}
+}
+
+// TestSlotRefusesAShapeWithNoHostPage is the gap this gate closes: a slot can be
+// declared and still have no page that draws it. `dashboard.card` has its shape
+// (a cell) and no dashboard in this build, so accepting the fragment would drop
+// it — and a dropped contribution is indistinguishable from a feature nobody
+// built, which is the failure mode the slot contract exists to prevent.
+func TestSlotRefusesAShapeWithNoHostPage(t *testing.T) {
+	reg := NewSlotRegistry()
+	err := reg.Add(Contribution{Fragments: map[SlotID]Fragment{SlotDashboardCard: frag("X")}})
+	if err == nil {
+		t.Fatal("a slot with no host page must be refused, not accepted and dropped")
+	}
+	if !strings.Contains(err.Error(), "not hosted") {
+		t.Fatalf("the error must say the slot has no host, got %v", err)
+	}
+	if got := reg.Fragments(SlotDashboardCard); len(got) != 0 {
+		t.Fatalf("a refused contribution must not reach the registry, got %v", got)
+	}
+}
+
+// TestEveryHostedSlotIsOffered pins the two tables together: a host without an
+// offer would be a page rendering a slot nobody may fill, and an offer without a
+// host is the silent drop above. `dashboard.card` is asserted to have no host on
+// purpose — the day a dashboard page exists, this test is where the offer flips.
+func TestEveryHostedSlotIsOffered(t *testing.T) {
+	for _, slot := range []SlotID{SlotSettingsSection, SlotNavSidebar, SlotRecordRowActions} {
+		host, ok := HostFor(slot)
+		if !ok || host == "" {
+			t.Errorf("slot %q must name the page that renders it", slot)
+		}
+		if !Offered(slot) {
+			t.Errorf("slot %q has a host, so it must be offered", slot)
+		}
+	}
+	if host, ok := HostFor(SlotDashboardCard); ok {
+		t.Fatalf("dashboard.card reports host %q: this build has no dashboard page, so it must stay unoffered", host)
+	}
+	if Offered(SlotDashboardCard) {
+		t.Fatal("dashboard.card must not be offered while no page renders it")
 	}
 }
 
@@ -125,7 +166,7 @@ func TestSlotRenderIsStable(t *testing.T) {
 // project that installs nothing must not gain empty chrome.
 func TestEmptySlotRendersNothing(t *testing.T) {
 	reg := NewSlotRegistry()
-	if out := reg.RenderSlot(SlotDashboardCard, func(Fragment) string { return "X" }); out != "" {
+	if out := reg.RenderSlot(SlotSettingsSection, func(Fragment) string { return "X" }); out != "" {
 		t.Fatalf("an empty slot must render nothing, got %q", out)
 	}
 }

@@ -1555,7 +1555,10 @@ for products, so it must not wait for the catalog.
 handler never sees a recipe id. A fixture fragment proves the page renders it; removing the
 handler's read of the registry turns the test red. `dashboard.card` stays unrendered because
 this app has no dashboard page — inventing one to host a slot would be the page-first
-mistake the slot shapes exist to prevent.
+mistake the slot shapes exist to prevent. **2026-11-06: that stays true by refusal instead of
+by inattention.** Offering a slot and having no page draw it was the one silent drop left in
+the slot model, so the offer is now a table of hosts: registration, `recipe install` (before a
+file is copied) and the catalog review all refuse a slot this build does not render.
 
 **Status, 2026-11-04: the second real page is wired.** `nav.sidebar` renders in the shell's
 rail as its own "Extensions" group, seeded through the request context so `internal/ui` keeps no
@@ -1862,7 +1865,8 @@ Next, in order:
 2. **One slot left, and it needs a page rather than plumbing.** `dashboard.card` has no dashboard
    to land in, and inventing one to host a card is the page-first mistake the shapes exist to
    prevent. `nav.sidebar` and `record.row-actions` shipped (2026-11-04) because both had a real
-   host — the rail and the todo row.
+   host — the rail and the todo row. The gap closed as a gate, not as a page (2026-11-06): the
+   shape stays declared, the contribution is refused until a host exists.
 3. **The first table-owning conversion is the probe that closes the schema split, and it is now
    unblocked.** `todo` remains the intended unit. Moving one of its tables to a prefixed recipe
    migration is what proves an *in-tree* unit can own DDL through the ledger; the reference recipe
@@ -2374,7 +2378,7 @@ slots a recipe owns.
 | **Phase 2 wiring** | **Done for `review`** — declaration beside its routes, mounted only through the seam, gates red-proofed. Nav/panel surface, receipt and slots still open |
 | **Phase 3 conversions** | **Converted:** `review`, `credits`, `config-view`, `room`, `todo`, `notes`, `whiteboard`, `landing`, `account`, `notifications` — routes only, since no in-tree unit owns a table yet; the first one that does declares it and ships DDL through `recipe.Migrator`. Nothing outside the seam is left except the composition root itself |
 | Catalog / install command | **Install/update/uninstall/status wired** (`gogogo recipe …`, 2026-11-03): tree + receipt + generated registration + drift, no anchors. **Install finishes the tree (2026-11-06):** it writes the declared routes' policy block, regenerates pages (`go tool templ generate`) and queries (`sqlc generate` when on `PATH`), and uninstall removes the block plus the generated output of what it deleted. The **catalog entry format is published, validated and consumed** (`recipe install --entry`, hash-verified); hosting and download are not built. The reference recipe is `_extensions/pomodoro` |
-| Slots in a real page | **`settings.section` renders in `/config` and `nav.sidebar` renders in the shell rail** (2026-11-04), both with a proof and neither page learning a recipe id; the rail also refuses a contribution whose href is not root-relative. `record.row-actions` renders on the shared todo row (2026-11-04) with a registration-time contract (label, closed verb, root-relative template naming the row once). `dashboard.card` remains registry-only: no dashboard in this app |
+| Slots in a real page | **`settings.section` renders in `/config` and `nav.sidebar` renders in the shell rail** (2026-11-04), both with a proof and neither page learning a recipe id; the rail also refuses a contribution whose href is not root-relative. `record.row-actions` renders on the shared todo row (2026-11-04) with a registration-time contract (label, closed verb, root-relative template naming the row once). `dashboard.card` keeps its shape but has no host page, so a declaration for it is refused at registration, install and review rather than accepted and dropped |
 | Schema split enforcement | **Enforced at the declaration level (2026-11-04):** `recipe.Migrator` + `Registry.MigrationSets()` feed `dbschema.MigrateWith` from the composition root, and `recipe.ValidateSchema` refuses both a declared table with no `CREATE` and a `CREATE` the declaration omits — comments stripped, `ext_<id>` prefix and the core-table refusal reused. **A recipe-owned table now has a query path (2026-11-05):** install mirrors its DDL flat into `internal/db/recipe_schema/` (`<id>__<migration>.sql`), `sqlc.yaml` reads that directory, and `recipe status` reports a mirror that stopped matching the tree. No in-tree unit declares a table yet, so the shipped mirror is empty and the wiring's positive case is still a root-level fixture (see "What is NOT red-proofable") |
 | SCOPE + trim retirement | Phase 3 has landed; both stay until ownership is data. Decision (2026-11-04): `add` is not retired while `trim` is the only removal path for an in-tree unit — deleting the way back first would make removal one-way. Trigger: the first in-tree unit that ships as a receipt |
 
@@ -2390,7 +2394,7 @@ the rest name the decision each one waits on, and none of them is waiting on a s
 | Dead anchors in `add.go` | **Closed by the generalized gate.** `TestEveryDeclaredAddAnchorIsLive` walks every rule of every unit; `--check` was never the place the class could be caught, because `add` refuses before it mutates |
 | Phase 4 — `add`, `trim`, the scaffold prompt, `SCOPE:` | **Open, gated on evidence that does not exist yet.** `.recipes/` holds no receipt, so no in-tree unit owns its files in data and `trim` is still the only removal path for one; deleting `add` first would make removal one-way (`SCOPE:` retires in the same step, see the transitional-machinery section) |
 | `todo`'s table | **Open, and it is a human decision, not a mechanism.** `todos` is created by a core, append-only migration, so moving it to a prefixed recipe migration is a data migration on the one slice every fixture, smoke and proof copies |
-| `dashboard.card` | **Open by design.** There is no dashboard page, and inventing one to host a card is the page-first mistake the slot shapes exist to prevent |
+| `dashboard.card` | **Open by design, and now refused rather than dropped (2026-11-06).** There is no dashboard page and inventing one to host a card is the page-first mistake the slot shapes exist to prevent. `HostFor` names the page that renders each slot, so registration, install and the catalog review all reject a slot this build does not draw, and `recipe status` reports a declaration whose code contributes nothing. `dashboard.card` keeps its shape and gains no host until a page exists |
 | Catalog hosting / download | **Deferred past v1.** The entry format is published, validated and consumed by `recipe install --entry`; fetching one over the network is distribution, not the model |
 | `new feature` | **Not on the retirement list.** It writes one feature into the tree the user already owns — no catalog, no receipt. Open question 7 retires `scaffold`, `trim` and the `Scaffold` axis (the guided prompt and its unit lists), not the command that builds a slice inside a project |
 

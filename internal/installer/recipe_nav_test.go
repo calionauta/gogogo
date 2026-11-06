@@ -8,16 +8,26 @@ import (
 	"testing"
 )
 
-// newNavRecipeDir writes a recipe whose declaration carries the sidebar slot.
+// recipeNavHandler is the code half of a sidebar contribution: the declaration
+// names the slot id and the code names the constant, which is the spelling the
+// receipt check has to accept.
+const recipeNavHandler = "package handlers\n\nimport \"example.com/recipes/internal/recipe\"\n\n" +
+	"var nav = map[recipe.SlotID][]recipe.Entry{\n" +
+	"\trecipe.SlotNavSidebar: {{Label: \"Pomodoro\", Href: \"/pomodoro\"}},\n}\n"
+
+// newNavRecipeDir writes a recipe whose declaration carries the sidebar slot,
+// with the contribution in its code so the declaration matches what it ships.
 func newNavRecipeDir(t *testing.T, nav bool) string {
 	t.Helper()
 	dir := t.TempDir()
 	manifest := "id: pomodoro\ndeclaration:\n  routes:\n    - {method: GET, pattern: /pomodoro}\n"
+	body := recipeHandlerV1
 	if nav {
 		manifest += "  slots:\n    - nav.sidebar\n"
+		body = recipeNavHandler
 	}
 	writeFile(t, filepath.Join(dir, recipeManifestFile), manifest)
-	writeFile(t, filepath.Join(dir, "features/pomodoro/handlers/chi.go"), recipeHandlerV1)
+	writeFile(t, filepath.Join(dir, "features/pomodoro/handlers/chi.go"), body)
 	return dir
 }
 

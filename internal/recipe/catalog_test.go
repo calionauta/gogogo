@@ -20,7 +20,7 @@ func validCatalogEntry() CatalogEntry {
 		License:         "MIT",
 		MinCore:         "v0.56.0",
 		WorksWith:       []string{"core", "core+todo"},
-		Slots:           []string{"dashboard.card", "settings.section"},
+		Slots:           []string{"settings.section", "nav.sidebar"},
 		Routes:          []Route{{Method: "GET", Pattern: "/pomodoro"}},
 		Tables:          []string{"ext_pomodoro_session"},
 		Jobs:            []string{"ext:pomodoro:tick"},
@@ -63,7 +63,12 @@ func TestCatalogEntryRules(t *testing.T) {
 			e.Tables = []string{"pomodoro_session"}
 		}, "must be prefixed ext_pomodoro"},
 		{"unprefixed job", func(e *CatalogEntry) { e.Jobs = []string{"tick"} }, "must be prefixed ext:pomodoro"},
-		{"unknown slot", func(e *CatalogEntry) { e.Slots = []string{"footer"} }, "not one of the declared slots"},
+		{"unknown slot", func(e *CatalogEntry) { e.Slots = []string{"footer"} }, "not offered by this build"},
+		// A shape with no host page is the review-side half of the same rule: a
+		// reviewed recipe must not claim content nothing draws.
+		{"slot with no host page", func(e *CatalogEntry) {
+			e.Slots = []string{"dashboard.card"}
+		}, "not hosted by this build"},
 		{"empty worksWith", func(e *CatalogEntry) { e.WorksWith = []string{""} }, "worksWith holds an empty set name"},
 	}
 	for _, tc := range tests {
@@ -94,7 +99,7 @@ files:
 license: MIT
 minCore: v0.56.0
 worksWith: [core, core+todo]
-slots: [dashboard.card]
+slots: [settings.section]
 routes:
   - {method: GET, pattern: /pomodoro}
 tables: [ext_pomodoro_session]

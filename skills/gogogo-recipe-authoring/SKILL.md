@@ -68,23 +68,26 @@ slot; its own policy rows.
    its layout, which is exactly what the slot contract exists to prevent.
 4. **Ship a migration the user is expected to edit.** See above.
 
-## Slots: the four that exist, and their shapes
+## Slots: the four declared shapes, three of them rendered
 
 A slot has a **declared shape**, because a slot without a container contract means
-"somewhere in this page" and that is where layout rots.
+"somewhere in this page" and that is where layout rots. A shape is not an offer:
+only a slot with a **host page in this build** can be filled.
 
-| Slot | Shape | You supply |
-|---|---|---|
-| `dashboard.card` | `cell` — one grid cell, narrow | a title and content; the page supplies the card frame |
-| `settings.section` | `section` — a block in the settings column | a form section plus its **own** save endpoint |
-| `nav.sidebar` | `entries` — a list of destinations | a label and a href, not a fragment |
-| `record.row-actions` | `actions` — declarative data | label, href, verb, optional confirmation — **not** a component |
+| Slot | Shape | Rendered in | You supply |
+|---|---|---|---|
+| `settings.section` | `section` — a block in the settings column | the settings page | a form section plus its **own** save endpoint |
+| `nav.sidebar` | `entries` — a list of destinations | the shell rail | a label and a href, not a fragment |
+| `record.row-actions` | `actions` — declarative data | the todo row | label, href, verb, optional confirmation — **not** a component |
+| `dashboard.card` | `cell` — one grid cell, narrow | — no dashboard page exists | declaring it is refused until one does |
 
 `record.row-actions` is data on purpose. A component would need the owning recipe's entity
 and its authorization decisions, which is the hook-inside-a-core-handler failure arriving
 through the UI. Declared as data, the owning page keeps its authority.
 
-An unknown slot id is refused at registration, not silently dropped.
+A slot with no host page is refused like an unknown id — at registration, by `recipe install`
+before a single file is copied, and by the catalog review. It is never accepted and then
+dropped, because a contribution nothing draws is indistinguishable from a feature nobody built.
 
 ## Declaring, so the drift check can work
 
@@ -211,6 +214,8 @@ diff before you run it.
 - [ ] The declaration names every route, table, job and slot the code actually provides
 - [ ] Every table is prefixed with the recipe id; no core table or core column is claimed by a
       declaration OR acted on by a statement (`ALTER`/`DROP`/index/seed/trigger)
+- [ ] Every declared slot is one this build renders, and your code contributes it (`recipe status`
+      reports a declaration that names a slot nothing contributes)
 - [ ] Every job type is prefixed `ext:<id>:`
 - [ ] No route collides with an installed recipe (the seam refuses this before the build,
       naming both owners — read the message, it tells you both)

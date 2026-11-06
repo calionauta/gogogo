@@ -114,6 +114,14 @@ func loadRecipeSource(src string) (recipeManifest, map[string]string, error) {
 			"recipe install: register names %q, but the recipe ships no files under it "+
 				"(the generated registration would import a package that does not exist)", m.Register)}
 	}
+	// A declared slot is content the receipt claims. If no page in this build
+	// renders it the contribution is dropped, so the refusal has to happen before
+	// a single file is copied — after the copy it reads as a working install.
+	if problems := recipe.SlotProblems(m.Declaration.Slots); len(problems) > 0 {
+		return m, nil, &ExitError{code: 1, msg: fmt.Sprintf(
+			"recipe install: %s declares content this build cannot render:\n  - %s",
+			m.ID, strings.Join(problems, "\n  - "))}
+	}
 	return m, files, nil
 }
 

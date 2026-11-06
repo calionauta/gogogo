@@ -42,10 +42,18 @@ func newCatalogFixture(t *testing.T, files map[string]string) (entryPath, conten
 	return entryPath, contentsDir
 }
 
+// catalogFiles is the reviewed file set. The register package contributes the
+// slot the entry declares: a declaration with no contribution is what the
+// receipt check reports, so a fixture without it would be an install that cannot
+// exist.
 func catalogFiles() map[string]string {
 	return map[string]string{
-		"features/pomodoro/handlers/chi.go":      recipeHandlerV1,
-		"features/pomodoro/handlers/register.go": "package handlers\n\nfunc Register(reg any, d any) {}\n",
+		"features/pomodoro/handlers/chi.go": recipeHandlerV1,
+		"features/pomodoro/handlers/register.go": "package handlers\n\n" +
+			"import \"example.com/recipes/internal/recipe\"\n\n" +
+			"var slots = map[recipe.SlotID]recipe.Fragment{\n" +
+			"\trecipe.SlotSettingsSection: {Title: \"Pomodoro\"},\n}\n\n" +
+			"func Register(reg any, d any) {}\n",
 	}
 }
 
