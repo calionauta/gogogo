@@ -19,6 +19,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/calionauta/gogogo/internal/dbschema"
 )
 
 // FileState is what happened to one installed file since it was written.
@@ -248,12 +250,15 @@ func IsCoreTable(table string) bool { return isCoreTable(table) }
 // recipe model depends on: a recipe never owns a core object, because two
 // owners of one table is what makes uninstall unsafe and migrations
 // unmergeable.
+//
+// The set comes from dbschema, which owns it and gates it against the migrated
+// schema in both directions. The inline list this replaces was a stale copy in
+// the wrong package: it named two tables that do not exist and missed nine that
+// do, so `notes` and `boards` were claimable.
 func isCoreTable(table string) bool {
-	for _, core := range []string{
-		"users", "sessions", "todos", "security_events",
-		"magic_links", "schema_migrations", "config",
-	} {
-		if table == core || strings.HasPrefix(table, core+"_") {
+	name := strings.ToLower(table)
+	for _, core := range dbschema.CoreTables() {
+		if name == core || strings.HasPrefix(name, core+"_") {
 			return true
 		}
 	}
