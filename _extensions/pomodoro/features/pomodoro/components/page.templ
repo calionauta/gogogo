@@ -1,0 +1,117 @@
+// SCOPE:plugin — the pomodoro recipe's page inside the shared shell.
+//
+// It renders through ui.Shell like every page in the app: the shell owns the
+// document, the rail, the header and the banners, and this file owns the body.
+// Nothing here knows the recipe is a recipe — after install it is one more page,
+// which is the point of copying instead of mounting a plugin.
+//
+// The view is server-rendered with no stream and no signals: a session list
+// changes only when the viewer writes, so the write redirects back to this page.
+// A recipe that needs live updates adds its own stream; it does not need one to
+// be correct.
+package components
+
+import (
+	"strconv"
+
+	"github.com/calionauta/gogogo/internal/ui"
+)
+
+// Session is one row as the page renders it. The view type is local so this
+// package never imports the generated query package: the page compiles whether
+// or not codegen has run, which is what keeps `make templ` and a first build
+// independent of sqlc.
+type Session struct {
+	Label   string
+	Minutes int64
+	When    string
+}
+
+// PageData is everything Page needs: the rows, the viewer and the build label.
+type PageData struct {
+	Sessions    []Session
+	Email       string
+	Role        string
+	BuildLabel  string
+	BuildCommit string
+}
+
+// Page renders /pomodoro inside the shell.
+templ Page(data PageData) {
+	@ui.Shell(ui.Data{
+		Title:       "Pomodoro — gogogo",
+		Heading:     "Pomodoro",
+		Context:     "turso · ext_pomodoro_sessions",
+		Email:       data.Email,
+		Role:        data.Role,
+		BuildLabel:  data.BuildLabel,
+		BuildCommit: data.BuildCommit,
+	}, nil, nil, nil, pomodoroBody(data))
+}
+
+templ pomodoroBody(data PageData) {
+	<div class="ui-page ui-page-narrow ui-stack">
+		<form class="ui-card" method="post" action="/api/pomodoro/sessions">
+			<div class="ui-card-body ui-stack">
+				<h2 class="ui-title">Start a session</h2>
+				<p class="ui-meta">
+					The recipe owns this form, the table it writes and the route it
+					posts to. Uninstall removes the page; the table stays.
+				</p>
+				<div class="ui-row">
+					<label class="ui-meta" for="pomodoro-label">What</label>
+					<input
+						id="pomodoro-label"
+						name="label"
+						class="input input-sm grow"
+						maxlength="80"
+						placeholder="write the report"
+						required
+					/>
+				</div>
+				<div class="ui-row">
+					<label class="ui-meta" for="pomodoro-minutes">Minutes</label>
+					<input
+						id="pomodoro-minutes"
+						name="minutes"
+						type="number"
+						min="1"
+						max="180"
+						value="25"
+						class="input input-sm w-16"
+					/>
+					<button class="btn btn-primary btn-sm" type="submit">Start</button>
+				</div>
+			</div>
+		</form>
+
+		<div class="ui-card">
+			<div class="ui-card-head">
+				<h2 class="ui-title">Recent sessions</h2>
+				<span class="ui-meta">{ strconv.Itoa(len(data.Sessions)) } shown</span>
+			</div>
+			<div class="ui-card-body">
+				if len(data.Sessions) == 0 {
+					<div class="ui-empty">
+						<p class="ui-empty-title">No sessions yet</p>
+						<p class="ui-empty-body">
+							Start one above. Sessions are per-account: this list is scoped to
+							your own rows in SQL, not filtered in the template.
+						</p>
+					</div>
+				} else {
+					<ul class="ui-stack text-sm">
+						for _, s := range data.Sessions {
+							<li class="ui-row justify-between">
+								<span>{ s.Label }</span>
+								<span class="ui-meta">
+									{ strconv.FormatInt(s.Minutes, 10) } min · { s.When }
+								</span>
+							</li>
+						}
+					</ul>
+				}
+			</div>
+		</div>
+	</div>
+}
