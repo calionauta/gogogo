@@ -174,13 +174,34 @@ install|update|uninstall` regenerates it, and a removed recipe is skipped so the
 file never imports a package that is gone. The receipt keeps the record after an
 uninstall, because the data still needs an owner.
 
-A recipe that declares tables also gets its DDL mirrored flat into
-`internal/db/recipe_schema/<id>__<migration>.sql`, which is where `sqlc` reads it;
-the operator runs `make sqlc` after install to get generated queries. Ship those
-migrations at `<your package>/migrations/**.sql` — the path segment is the only
-anchor the installer has, since it cannot see inside your `Migrations()` call —
-and leave the mirror alone: `recipe status` reports a migration edited after
-install, and `recipe install` is what refreshes the copy.
+**Install finishes the job the tree needs to build.** It does not hand you a list
+of follow-up commands:
+
+- **Pages.** The copied `.templ` files are generated with the module's own pinned
+generator (`go tool templ generate`), so the tree compiles without you running
+`make templ`.
+- **Queries.** A recipe that declares tables gets its DDL mirrored flat into
+`internal/db/recipe_schema/<id>__<migration>.sql`, which is where `sqlc` reads it,
+and install then runs `sqlc generate`. `sqlc` is a standalone binary, so when it is
+not on `PATH` the install says so and names `make sqlc` — that is the one step an
+install can defer, never a step it leaves you to discover.
+- **Policy.** The declared routes get their rows in `internal/rbac/casbin/policy.csv`,
+inside a block marked with the recipe id. Without it every signed-in user gets a 403
+in production: the policy decides reachability by path, and a route it has never seen
+is denied. `recipe uninstall` removes exactly that block, and a re-install rewrites it
+from the declaration — so never hand-edit inside the markers, and never add a row
+beside them for a route the recipe declares.
+
+Ship the migrations at `<your package>/migrations/**.sql` — the path segment is the
+only anchor the installer has, since it cannot see inside your `Migrations()` call —
+and leave the mirror alone: `recipe status` reports a migration edited after install,
+and `recipe install` is what refreshes the copy.
+
+A recipe that contributes a sidebar entry **moves the shell's page digests**, so
+the page-structure gates go red on install and again on uninstall. That is the gate
+working, and the installer prints the command that re-blesses them
+(`PAGES_DIGEST=update go test ./internal/server -run TestPagesDigest`); read the
+diff before you run it.
 
 ## Checklist before calling it done
 

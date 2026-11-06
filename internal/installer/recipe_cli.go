@@ -18,6 +18,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -196,8 +197,12 @@ func printRecipePlan(w io.Writer, id string, plan recipe.PlanResult, applied boo
 }
 
 // printRecipeInstalled is the receipt: what landed, where it came from, and the
-// two things the user must do that no installer can do for them.
-func printRecipeInstalled(w io.Writer, m recipeManifest, res recipe.ApplyResult, r recipe.Receipt, schema []string) {
+// steps that remain. Everything the command could do for the user it reports in
+// the past tense — the one thing it could not (a generator that is not
+// installed) is named with the exact command that finishes it.
+func printRecipeInstalled(w io.Writer, m recipeManifest, res recipe.ApplyResult, r recipe.Receipt,
+	schema, policy []string, codegen codegenReport,
+) {
 	fmt.Fprintf(w, "recipe %s: %d file(s) installed", m.ID, len(res.Written))
 	if len(res.Removed) > 0 {
 		fmt.Fprintf(w, ", %d obsolete file(s) removed", len(res.Removed))
@@ -217,14 +222,42 @@ func printRecipeInstalled(w io.Writer, m recipeManifest, res recipe.ApplyResult,
 	if r.Register != "" {
 		fmt.Fprintf(w, "  register: %s (was added to %s)\n", r.Register, recipeRegistrationFile)
 	}
+	if codegen.Templ != "" {
+		fmt.Fprintln(w, "  pages:    templ generated the recipe's _templ.go in the tree")
+	}
 	if len(schema) > 0 {
 		fmt.Fprintf(w, "  schema:   %d migration file(s) mirrored to %s\n", len(schema), recipeSchemaDir)
-		fmt.Fprintln(w, "            run `make sqlc` to generate queries for the tables it creates.")
+		switch codegen.SQLC {
+		case codegenRan:
+			fmt.Fprintln(w, "  queries:  regenerated (internal/db/sqlcgen) — the recipe's queries compile")
+		case codegenSkipped:
+			fmt.Fprintln(w, "            sqlc is not on PATH: run `make sqlc` so the queries it ships compile")
+		}
+	}
+	if len(policy) > 0 {
+		fmt.Fprintf(w, "  policy:   %d row(s) in %s (removed by `recipe uninstall`)\n",
+			len(policy), recipePolicyFile)
+	}
+	if declaresNav(r.Declaration) {
+		fmt.Fprintln(w, navDigestNotice)
 	}
 	fmt.Fprintln(w, "  next:     the code is yours now — rename it, delete what you do not need.")
 	fmt.Fprintln(w, "            register it through the seam (the handler's Recipe()) and keep")
 	fmt.Fprintln(w, "            the declaration in step with the code; `gogogo recipe status` ")
 	fmt.Fprintln(w, "            reports what you changed.")
+}
+
+// navDigestNotice is the one gate a nav-contributing recipe turns red on purpose.
+//
+// The page digests pin the shell's structure, so a new rail destination changes
+// every page's digest — which is the gate working, not a regression. The fix is
+// to read the diff and re-bless, and nobody guesses that command from a red test.
+const navDigestNotice = "  nav:      a sidebar entry was added, so the page digests moved — read the diff,\n" +
+	"            then re-bless with: PAGES_DIGEST=update go test ./internal/server -run TestPagesDigest"
+
+// declaresNav reports whether a declaration contributes a sidebar destination.
+func declaresNav(d recipe.Declaration) bool {
+	return slices.Contains(d.Slots, string(recipe.SlotNavSidebar))
 }
 
 // validateRegisterPath refuses a path that is not a clean repo-relative package

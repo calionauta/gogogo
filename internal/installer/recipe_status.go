@@ -59,9 +59,10 @@ func runRecipeStatus(args []string, stdout io.Writer) error {
 			return &ExitError{code: 1, msg: "recipe status: " + derr.Error()}
 		}
 		schema := checkRecipeSchema(root, id, r.Files)
-		problems += len(drift.Problems) + len(schema)
+		policy := checkRecipePolicy(root, id, r.Declaration)
+		problems += len(drift.Problems) + len(schema) + len(policy)
 		if opt.format == planFormatJSON {
-			if encErr := printDriftJSON(stdout, drift, schema); encErr != nil {
+			if encErr := printDriftJSON(stdout, drift, schema, policy); encErr != nil {
 				return encErr
 			}
 			continue
@@ -70,6 +71,9 @@ func runRecipeStatus(args []string, stdout io.Writer) error {
 		drift.Render(&sb)
 		for _, p := range schema {
 			fmt.Fprintf(&sb, "  SCHEMA  %s\n", p)
+		}
+		for _, p := range policy {
+			fmt.Fprintf(&sb, "  POLICY  %s\n", p)
 		}
 		fmt.Fprint(stdout, sb.String())
 	}
@@ -131,11 +135,12 @@ func parseRecipeStatusArgs(args []string) (recipeStatusArgs, error) {
 type driftReport struct {
 	recipe.Drift
 	SchemaProblems []string `json:"schemaProblems,omitempty"`
+	PolicyProblems []string `json:"policyProblems,omitempty"`
 }
 
 // printDriftJSON is the machine shape of one recipe's drift.
-func printDriftJSON(w io.Writer, d recipe.Drift, schema []string) error {
+func printDriftJSON(w io.Writer, d recipe.Drift, schema, policy []string) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
-	return enc.Encode(driftReport{Drift: d, SchemaProblems: schema})
+	return enc.Encode(driftReport{Drift: d, SchemaProblems: schema, PolicyProblems: policy})
 }

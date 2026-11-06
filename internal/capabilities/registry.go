@@ -20,11 +20,11 @@ var All = append([]Capability{
 		Kind:    KindPlugin,
 		Summary: "recipe engine: declaration seam, receipt and drift check for installable extensions",
 		Dirs:    []string{"internal/recipe"},
-		Note: "Manual removal, and deleting it changes no running behavior: the " +
-			"composition root has zero callers until the phases in " +
-			"docs/research/extensibility-2026-11.md wire it, and cmd/gogogo never " +
-			"links it. Keep the package while those phases are open; drop it if " +
-			"the direction is abandoned.",
+		Note: "Manual removal, and no longer free: the composition root mounts " +
+			"every route-owning unit through recipe.Registry, and an installed " +
+			"recipe's generated registration calls it too, so deleting the " +
+			"package breaks the web build as well as cmd/gogogo. " +
+			"docs/research/extensibility-2026-11.md records why it stays.",
 	},
 	{
 		ID:      "queue",

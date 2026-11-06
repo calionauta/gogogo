@@ -56,6 +56,12 @@ func runRecipeInstall(args []string, stdout io.Writer, requireExisting bool) err
 	if cerr := assertNoReceiptCollision(root, manifest.ID, upstream); cerr != nil {
 		return cerr
 	}
+	// The policy half is checked here, not at apply time: a route with no policy
+	// row answers 403 in production, and finding that out after the files landed
+	// would leave a half-installed recipe behind.
+	if perr := assertRecipePolicyTarget(root, manifest.ID, manifest.Declaration); perr != nil {
+		return perr
+	}
 	plan := recipe.Plan(prev, upstream, treeReader(root))
 	if plan.Blocked() {
 		return blockedInstall(stdout, manifest, plan, opt)
@@ -158,6 +164,19 @@ func applyRecipePlan(root string, manifest recipeManifest, prev recipe.Receipt,
 	if serr != nil {
 		return &ExitError{code: 1, msg: "recipe install: " + serr.Error()}
 	}
+	// The routes the recipe mounts need a policy row before anything can reach
+	// them: the block is written here and removed by uninstall, so the composed
+	// policy stays the one authorization source.
+	policy, perr := syncRecipePolicy(root, manifest.ID, next.Declaration)
+	if perr != nil {
+		return &ExitError{code: 1, msg: "recipe install: " + perr.Error()}
+	}
+	// Codegen last: templ reads the copied .templ files and sqlc reads the
+	// mirrored DDL plus the copied queries, so all of it has to be in place.
+	codegen, cerr := runRecipeCodegen(root, next)
+	if cerr != nil {
+		return &ExitError{code: 1, msg: "recipe install: " + cerr.Error()}
+	}
 	if gerr := regenerateRegistration(root); gerr != nil {
 		return gerr
 	}
@@ -166,9 +185,10 @@ func applyRecipePlan(root string, manifest recipeManifest, prev recipe.Receipt,
 		return &ExitError{code: 1, msg: "recipe install: drift check: " + derr.Error()}
 	}
 	if opt.format == planFormatJSON {
-		return printRecipeInstallJSON(stdout, manifest, plan, res, true, drift.Problems)
+		return printRecipeInstallJSONWith(stdout, manifest, plan, res, true, drift.Problems,
+			policy, codegen)
 	}
-	printRecipeInstalled(stdout, manifest, res, next, schema)
+	printRecipeInstalled(stdout, manifest, res, next, schema, policy, codegen)
 	if len(drift.Problems) > 0 {
 		var sb strings.Builder
 		drift.Render(&sb)
@@ -236,13 +256,26 @@ type recipeInstallReport struct {
 	Skipped     []string `json:"skipped,omitempty"`
 	Receipt     string   `json:"receipt,omitempty"`
 	Register    string   `json:"register,omitempty"`
-	Problems    []string `json:"declarationProblems,omitempty"`
+	PolicyRows  []string `json:"policyRows,omitempty"`
+	// Codegen says what was regenerated: an empty field means the step did not
+	// apply to this recipe, "skipped" that the tool is not installed.
+	Codegen  *codegenReport `json:"codegen,omitempty"`
+	Problems []string       `json:"declarationProblems,omitempty"`
 }
 
 // printRecipeInstallJSON renders a plan and (when applied) what landed, so an
-// agent can decide without parsing prose.
+// agent can decide without parsing prose. policy and codegen are the applied
+// state; the plan-only paths pass nothing.
 func printRecipeInstallJSON(w io.Writer, m recipeManifest, plan recipe.PlanResult,
 	res recipe.ApplyResult, applied bool, problems []string,
+) error {
+	return printRecipeInstallJSONWith(w, m, plan, res, applied, problems, nil, codegenReport{})
+}
+
+// printRecipeInstallJSONWith is the applied form: rows in the policy and whether
+// codegen ran are decisions an agent has to see, not console decoration.
+func printRecipeInstallJSONWith(w io.Writer, m recipeManifest, plan recipe.PlanResult,
+	res recipe.ApplyResult, applied bool, problems, policy []string, codegen codegenReport,
 ) error {
 	write, ff, keep, obsolete := plan.Counts()
 	rep := recipeInstallReport{
@@ -250,6 +283,7 @@ func printRecipeInstallJSON(w io.Writer, m recipeManifest, plan recipe.PlanResul
 		Write: write, FastForward: ff, Keep: keep, Obsolete: obsolete,
 		Conflicts: plan.Conflicts, Written: res.Written, Removed: res.Removed,
 		Skipped: res.Skipped, Problems: problems,
+		PolicyRows: policy, Codegen: &codegen,
 	}
 	if applied {
 		rep.Receipt = recipe.ReceiptPath(m.ID)

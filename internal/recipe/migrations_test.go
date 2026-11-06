@@ -155,6 +155,26 @@ func TestMigrationSetsOnlyForMigrators(t *testing.T) {
 		t.Fatalf("sets must be id-ordered, got %q then %q", sets[0].ID, sets[1].ID)
 	}
 	if sets[0].Dir != "" {
-		t.Errorf("a recipe set is read from its filesystem root, got dir %q", sets[0].Dir)
+		t.Errorf("a filesystem already rooted at its migrations needs no dir, got %q", sets[0].Dir)
+	}
+}
+
+// TestMigrationSetsReadAMigrationsSubdir is the shape a recipe actually ships:
+// an embed.FS whose DDL sits in `migrations/` (the directory `recipe install`
+// mirrors for sqlc). Reading that filesystem at its root finds one directory and
+// no .sql file, so the set applied nothing and the table never existed — a boot
+// with no error and no table.
+func TestMigrationSetsReadAMigrationsSubdir(t *testing.T) {
+	reg := &Registry{}
+	nested := mapFS(map[string]string{"migrations/0001_init.sql": "SELECT 1;"})
+	reg.Add(migratingProvider{fakeProvider{id: "pomodoro"}, nested})
+
+	sets := reg.MigrationSets()
+	if len(sets) != 1 {
+		t.Fatalf("expected one set, got %d", len(sets))
+	}
+	if sets[0].Dir != migrationDir {
+		t.Fatalf("Dir = %q, want %q: a subdirectory set read at its root applies nothing",
+			sets[0].Dir, migrationDir)
 	}
 }

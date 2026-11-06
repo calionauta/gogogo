@@ -90,8 +90,11 @@ func TestRecipeInstallMirrorsItsDDLForCodegen(t *testing.T) {
 	if string(got) != sessionDDL {
 		t.Fatalf("mirror holds %q, want the migration's own bytes", got)
 	}
-	if !strings.Contains(out, "make sqlc") {
-		t.Fatalf("install must say how the recipe's tables get generated queries, got:\n%s", out)
+	// The mirror is only useful if codegen actually read it, so install runs the
+	// generator and says so — nobody has to be told to run `make sqlc` after a
+	// command whose promise is "install, then build".
+	if !strings.Contains(out, "queries:  regenerated") {
+		t.Fatalf("install must report the regenerated queries, got:\n%s", out)
 	}
 	if _, serr := os.Stat(mirrorAt(root, "chi.go")); !os.IsNotExist(serr) {
 		t.Fatal("the mirror copied files that are not migrations; it holds DDL only")
@@ -185,8 +188,11 @@ func TestRecipeUninstallRemovesTheSchemaMirror(t *testing.T) {
 	if _, serr := os.Stat(mirrorAt(root, "0001_init.sql")); !os.IsNotExist(serr) {
 		t.Fatalf("the mirror survived the uninstall: %v", serr)
 	}
-	if !strings.Contains(out, "make sqlc") {
-		t.Fatalf("uninstall must say the generated queries need regenerating, got:\n%s", out)
+	// The mirror left with the recipe, so the generated queries were rewritten
+	// without it in the same command — saying "run make sqlc" here would be
+	// telling the operator to redo what just happened.
+	if !strings.Contains(out, "queries:  regenerated") {
+		t.Fatalf("uninstall must report the regenerated queries, got:\n%s", out)
 	}
 }
 

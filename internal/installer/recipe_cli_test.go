@@ -20,11 +20,37 @@ const recipeHandlerV2 = "package handlers\n\nfunc routes(r router) {" +
 	" r.Get(\"/pomodoro\", nil); r.Get(\"/pomodoro/today\", nil) }\n"
 
 // newRecipeCheckout builds the smallest tree looksLikeTemplate accepts.
+// stubRecipeCodegen replaces both generators for one test and returns the calls
+// it recorded. An install must never depend on a tool the machine happens to
+// have: a test that shelled out to sqlc would pass on a developer's laptop and
+// fail in CI (and the real templ run would try to build a fake module).
+func stubRecipeCodegen(t *testing.T) *[]string {
+	t.Helper()
+	calls := &[]string{}
+	oldTempl, oldSQLC := recipeTempl, recipeSQLC
+	recipeTempl = func(string) (bool, error) {
+		*calls = append(*calls, "templ")
+		return true, nil
+	}
+	recipeSQLC = func(string) (bool, error) {
+		*calls = append(*calls, "sqlc")
+		return true, nil
+	}
+	t.Cleanup(func() { recipeTempl, recipeSQLC = oldTempl, oldSQLC })
+	return calls
+}
+
 func newRecipeCheckout(t *testing.T) string {
 	t.Helper()
+	stubRecipeCodegen(t)
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "cmd", "web", "main.go"), "package main\n")
 	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/app\n\ngo 1.26\n")
+	// A real checkout always carries the embedded policy (an install writes a
+	// recipe's rows into it), so a fixture without one would be a tree that
+	// cannot exist.
+	writeFile(t, filepath.Join(root, filepath.FromSlash(recipePolicyFile)),
+		"# policy\np, user, /todo, .*\n")
 	return root
 }
 

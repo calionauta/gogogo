@@ -1818,6 +1818,28 @@ mirrored flat into `internal/db/recipe_schema/` as `<id>__<migration>.sql`, whic
 actually reads, so a recipe-owned table gets generated queries instead of hand-written SQL.
 `recipe status` compares the mirror against the tree, and `recipe install` is the repair.
 
+**Install now finishes, and uninstall unwinds (2026-11-06).** Three gaps closed in one pass:
+
+- **Install runs the generators instead of naming them.** templ is a `go tool` dependency of the
+  module, so the copy is generated with the pinned version; `sqlc` is a standalone binary, so it
+  runs when it is on `PATH` and the install says `make sqlc` when it is not. A recipe's table gets
+  generated queries without the operator being told to re-run a command the installer could run.
+- **The policy rows are the tool's.** `policy.csv` was written before the recipe existed, and a
+  route the policy has never seen is a 403 for every signed-in user in production — an install
+  that "worked" and shipped a page nobody can open. Install writes the rows into a block marked
+  with the recipe id, `recipe status` compares that block with the declaration, and `uninstall`
+  removes exactly it. The file stays the one authorization source; the block is data, not a second
+  policy stream.
+- **Uninstall removes what install derived.** Generated output whose source the uninstall just
+  deleted (`page_templ.go`, `sqlcgen/<query>.sql.go`) goes with it, then the generators run again
+  so the rest of the tree stays consistent. A file the user edited stays, and so does its
+  generated companion — uninstall never breaks a build it did not finish removing.
+
+**A reference recipe ships in the repo** (`_extensions/pomodoro`, 2026-11-06): one table, one
+migration, one query file, one page, one write and one sidebar entry, installed end to end by the
+CLI. It is the artifact the "worth using" and "right shape" rows below have no test for, and the
+shape an author copies instead of inventing.
+
 Every route-owning unit in this repo now mounts through the seam: `review`, `credits`,
 `config-view`, `room`, `todo`, `notes`, `whiteboard`, `landing`, `account`, `notifications`. The
 composition root is the only place left that registers a router directly, and that is by design.
@@ -1836,8 +1858,9 @@ Next, in order:
    host — the rail and the todo row.
 3. **The first table-owning conversion is the probe that closes the schema split, and it is now
    unblocked.** `todo` remains the intended unit. Moving one of its tables to a prefixed recipe
-   migration is a real install-and-generate run (`make sqlc`), not a fixture, which is the
-   evidence the last bullet of open question #4 is missing.
+   migration is what proves an *in-tree* unit can own DDL through the ledger; the reference recipe
+   (`_extensions/pomodoro`) proves a *copied* one can, end to end, which is the fixture the
+   install-and-generate path was missing but not the conversion itself.
 
 ### Build, in this order
 
@@ -2338,7 +2361,7 @@ slots a recipe owns.
 | Anchor gate (phase 4 partial) | Done; stale `.templ`/handler table deleted |
 | **Phase 2 wiring** | **Done for `review`** — declaration beside its routes, mounted only through the seam, gates red-proofed. Nav/panel surface, receipt and slots still open |
 | **Phase 3 conversions** | **Converted:** `review`, `credits`, `config-view`, `room`, `todo`, `notes`, `whiteboard`, `landing`, `account`, `notifications` — routes only, since no in-tree unit owns a table yet; the first one that does declares it and ships DDL through `recipe.Migrator`. Nothing outside the seam is left except the composition root itself |
-| Catalog / install command | **Install/update/uninstall/status wired** (`gogogo recipe …`, 2026-11-03): tree + receipt + generated registration + drift, no anchors. The **catalog entry format is published, validated and consumed** (`recipe install --entry`, hash-verified); hosting and download are not built |
+| Catalog / install command | **Install/update/uninstall/status wired** (`gogogo recipe …`, 2026-11-03): tree + receipt + generated registration + drift, no anchors. **Install finishes the tree (2026-11-06):** it writes the declared routes' policy block, regenerates pages (`go tool templ generate`) and queries (`sqlc generate` when on `PATH`), and uninstall removes the block plus the generated output of what it deleted. The **catalog entry format is published, validated and consumed** (`recipe install --entry`, hash-verified); hosting and download are not built. The reference recipe is `_extensions/pomodoro` |
 | Slots in a real page | **`settings.section` renders in `/config` and `nav.sidebar` renders in the shell rail** (2026-11-04), both with a proof and neither page learning a recipe id; the rail also refuses a contribution whose href is not root-relative. `record.row-actions` renders on the shared todo row (2026-11-04) with a registration-time contract (label, closed verb, root-relative template naming the row once). `dashboard.card` remains registry-only: no dashboard in this app |
 | Schema split enforcement | **Enforced at the declaration level (2026-11-04):** `recipe.Migrator` + `Registry.MigrationSets()` feed `dbschema.MigrateWith` from the composition root, and `recipe.ValidateSchema` refuses both a declared table with no `CREATE` and a `CREATE` the declaration omits — comments stripped, `ext_<id>` prefix and the core-table refusal reused. **A recipe-owned table now has a query path (2026-11-05):** install mirrors its DDL flat into `internal/db/recipe_schema/` (`<id>__<migration>.sql`), `sqlc.yaml` reads that directory, and `recipe status` reports a mirror that stopped matching the tree. No in-tree unit declares a table yet, so the shipped mirror is empty and the wiring's positive case is still a root-level fixture (see "What is NOT red-proofable") |
 | SCOPE + trim retirement | Phase 3 has landed; both stay until ownership is data. Decision (2026-11-04): `add` is not retired while `trim` is the only removal path for an in-tree unit — deleting the way back first would make removal one-way. Trigger: the first in-tree unit that ships as a receipt |
@@ -2433,8 +2456,10 @@ reading this needs an answer, not a menu.
 
    **What it costs the author:** a table-owning recipe ships its DDL as
    `<package>/migrations/**.sql` — the path segment is the convention the installer can anchor
-   (it cannot know which directory `Migrations()` embedded) — and the operator runs `make sqlc`
-   once after install, which is the same step a core schema change already requires.
+   (it cannot know which directory `Migrations()` embedded) — and the runtime reads that same
+   subdirectory, not the filesystem root (2026-11-06: reading the root applied nothing and booted
+   with no table, silently). The operator has no follow-up step: install runs `sqlc generate`
+   itself, and names `make sqlc` only when the binary is absent.
 
    **Still ahead:** the first in-tree unit to move a table from `isCoreTable` to a prefixed
    recipe migration (`todo` remains the intended probe), and anything that gates the SQL text

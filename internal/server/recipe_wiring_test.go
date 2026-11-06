@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -136,5 +137,44 @@ func TestDeclaredTableGateAcceptsARealTable(t *testing.T) {
 
 	if problems := declaredTableProblems(sqlDB, reg); len(problems) != 0 {
 		t.Fatalf("a declared table that exists must pass, got %v", problems)
+	}
+}
+
+// assertCoreLedgerApplied reads the shared ledger and demands the embedded core
+// set exactly: every version once, none invented. A recipe adds its own half
+// under "<id>/<version>", so the comparison is over the unprefixed rows — and
+// an unprefixed row that is not embedded is still the drift this pins.
+func assertCoreLedgerApplied(t *testing.T, sqlDB *sql.DB) {
+	t.Helper()
+	rows, err := sqlDB.QueryContext(context.Background(),
+		`SELECT version FROM schema_migrations ORDER BY version`)
+	if err != nil {
+		t.Fatalf("read migrations: %v (seam did not migrate)", err)
+	}
+	defer rows.Close()
+	var versions []string
+	for rows.Next() {
+		var v string
+		if serr := rows.Scan(&v); serr != nil {
+			t.Fatalf("scan: %v", serr)
+		}
+		versions = append(versions, v)
+	}
+	if rerr := rows.Err(); rerr != nil {
+		t.Fatalf("rows: %v", rerr)
+	}
+	want, verr := dbschema.Versions()
+	if verr != nil {
+		t.Fatalf("expected versions: %v", verr)
+	}
+	core := make([]string, 0, len(versions))
+	for _, v := range versions {
+		if !strings.Contains(v, "/") {
+			core = append(core, v)
+		}
+	}
+	if fmt.Sprintf("%v", core) != fmt.Sprintf("%v", want) {
+		t.Fatalf("applied core ledger = %v, want embedded %v (recipe sets: %v)",
+			core, want, versions)
 	}
 }

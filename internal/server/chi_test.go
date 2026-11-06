@@ -4,7 +4,6 @@ package server
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -69,34 +68,12 @@ func TestStartChiBoot(t *testing.T) {
 		t.Fatalf("StartChi addr = %q, want the kernel-chosen port", addr)
 	}
 
-	var versions []string
 	sqlDB, err := sql.Open("turso", cfg.Turso.DBPath+"?_busy_timeout=10000")
 	if err != nil {
 		t.Fatalf("reopen db: %v", err)
 	}
 	defer sqlDB.Close()
-	rows, rerr := sqlDB.QueryContext(context.Background(), `SELECT version FROM schema_migrations ORDER BY version`)
-	if rerr != nil {
-		t.Fatalf("read migrations: %v (seam did not migrate)", rerr)
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var v string
-		if serr := rows.Scan(&v); serr != nil {
-			t.Fatalf("scan: %v", serr)
-		}
-		versions = append(versions, v)
-	}
-	if rerr := rows.Err(); rerr != nil {
-		t.Fatalf("rows: %v", rerr)
-	}
-	want, verr := dbschema.Versions()
-	if verr != nil {
-		t.Fatalf("expected versions: %v", verr)
-	}
-	if fmt.Sprintf("%v", versions) != fmt.Sprintf("%v", want) {
-		t.Fatalf("applied ledger = %v, want embedded %v", versions, want)
-	}
+	assertCoreLedgerApplied(t, sqlDB)
 }
 
 // TestServeChiOnListener is the automated preflight: the production boot
@@ -295,7 +272,14 @@ func TestBuildChiMux(t *testing.T) {
 	docs := collab.NewDocStore()
 	reviewH := newReviewHandlerForTest(cfg, a)
 
-	mux := buildChiMux(a, register.Deps{Cfg: cfg, Auth: a, Queries: dbgen.New(sqlDB), Hub: queue.NewSSEHub()}, todoH,
+	// SQLDB is what the recipe step migrates: without it a recipe that ships DDL
+	// cannot apply its schema, and the composition below would be built with the
+	// recipe step failed and every seam-mounted route (todo's /login among them)
+	// silently missing.
+	mux := buildChiMux(a, register.Deps{
+		Cfg: cfg, Auth: a, Queries: dbgen.New(sqlDB),
+		Hub: queue.NewSSEHub(), SQLDB: sqlDB,
+	}, todoH,
 		landinghandlers.NewHandler(cfg, a),
 		confighandlers.NewHandler(cfg, a, dbgen.New(sqlDB)),
 		wbhandlers.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister, docs, cfg),
@@ -362,6 +346,11 @@ func TestBuildChiMux(t *testing.T) {
 	assertMuxTail(t, mux)
 	assertPolicyCoverage(t, mux)
 	assertRecipeWiring(t, mux, sqlDB)
+	// A failed recipe step is kept on the router for BootChi to fail on; a test
+	// that only inspects responses would see the missing mounts and nothing else.
+	if mux.recipeErr != nil {
+		t.Fatalf("the recipe step failed inside the composition: %v", mux.recipeErr)
+	}
 }
 
 // assertMuxTail pins the responses that do not depend on the feature wiring

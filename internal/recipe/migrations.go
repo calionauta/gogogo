@@ -22,9 +22,35 @@ import (
 // shared ledger under the recipe id, so two recipes may both number their files
 // from 0001 and a boot applies them in one pass (dbschema.MigrateWith).
 type Migrator interface {
-	// Migrations returns the recipe's .sql files, at the root of the filesystem
-	// or in subdirectories; every one of them is read in filename order.
+	// Migrations returns the recipe's DDL. The usual shape is an embed.FS whose
+	// `migrations/` subdirectory holds the .sql files — the convention the
+	// installer mirrors for sqlc and the authoring skill documents — and a
+	// filesystem rooted AT its migrations is accepted too. Anything else is read
+	// as nothing, which is why migrationDirFor looks instead of assuming.
 	Migrations() fs.FS
+}
+
+// migrationDir is the subdirectory a recipe's DDL normally lives in. The name is
+// shared with the installer's own convention on purpose: `recipe install`
+// mirrors these files for sqlc, and a runtime that read a different directory
+// would apply a schema codegen never saw.
+const migrationDir = "migrations"
+
+// migrationDirFor picks the directory to read inside a recipe's filesystem: the
+// `migrations/` subdirectory when it exists, otherwise the filesystem's root.
+//
+// Getting this wrong is silent, not loud: the ledger simply records no versions
+// and the recipe's table is never created, while boot logs look healthy. The
+// reference recipe shipped its DDL in `migrations/` and hit exactly that — the
+// sets were built with an empty Dir, so the app booted with no table.
+func migrationDirFor(fsys fs.FS) string {
+	if fsys == nil {
+		return ""
+	}
+	if info, err := fs.Stat(fsys, migrationDir); err == nil && info.IsDir() {
+		return migrationDir
+	}
+	return ""
 }
 
 // MigrationSets is the registry's view of the optional schema half: one set per
@@ -36,7 +62,8 @@ func (r *Registry) MigrationSets() []dbschema.MigrationSet {
 		if !ok {
 			continue
 		}
-		sets = append(sets, dbschema.MigrationSet{ID: p.ID(), FS: m.Migrations()})
+		fsys := m.Migrations()
+		sets = append(sets, dbschema.MigrationSet{ID: p.ID(), FS: fsys, Dir: migrationDirFor(fsys)})
 	}
 	// Providers() is already id-ordered; sorting here keeps the boot order a
 	// property of this function rather than an assumption about its caller.
