@@ -94,13 +94,17 @@ func ValidateSchema(id string, d Declaration, fsys fs.FS) error {
 	if err != nil {
 		return fmt.Errorf("recipe %q migrations: %w", id, err)
 	}
+	writes, err := coreTableWrites(id, fsys)
+	if err != nil {
+		return fmt.Errorf("recipe %q migrations: %w", id, err)
+	}
 
 	declared := make(map[string]string, len(d.Tables))
 	for _, table := range d.Tables {
 		declared[strings.ToLower(table)] = table
 	}
 
-	var problems []string
+	problems := writes
 	for key, asDeclared := range declared {
 		if !created[key] {
 			problems = append(problems,
@@ -133,9 +137,25 @@ func ValidateSchema(id string, d Declaration, fsys fs.FS) error {
 // creates. A nil filesystem creates nothing, which is exactly what a recipe
 // declaring no table should hand back.
 func createdTables(fsys fs.FS) (map[string]bool, error) {
+	bodies, err := sqlBodies(fsys)
+	if err != nil {
+		return nil, err
+	}
 	out := map[string]bool{}
+	for _, body := range bodies {
+		for _, name := range scanCreateTable(body) {
+			out[name] = true
+		}
+	}
+	return out, nil
+}
+
+// sqlBodies returns every .sql file under fsys, comment-stripped, in sorted
+// order. One walk feeds both scans, so the two cannot disagree about which
+// statements a recipe's migrations contain.
+func sqlBodies(fsys fs.FS) ([]string, error) {
 	if fsys == nil {
-		return out, nil
+		return nil, nil
 	}
 
 	var files []string
@@ -153,16 +173,117 @@ func createdTables(fsys fs.FS) (map[string]bool, error) {
 	}
 	sort.Strings(files)
 
+	out := make([]string, 0, len(files))
 	for _, file := range files {
 		b, rerr := fs.ReadFile(fsys, file)
 		if rerr != nil {
 			return nil, rerr
 		}
-		for _, name := range scanCreateTable(stripSQLComments(string(b))) {
-			out[name] = true
-		}
+		out = append(out, stripSQLComments(string(b)))
 	}
 	return out, nil
+}
+
+// coreTableWrites reports each statement that MODIFIES a core table.
+//
+// createTableRE already refuses a CREATE of a core table, but that is one verb:
+// the ledger would have applied an ALTER, a DROP, an index or a seed write to
+// core data just as silently, and the declaration check never sees the SQL text.
+//
+// The boundary is target-based, not mention-based. A recipe may reference a
+// core table — a foreign key to users is a dependency and the correct way to
+// scope a recipe's rows to an owner — and may alter or index its OWN table. What
+// it may not do is act ON a core object.
+func coreTableWrites(id string, fsys fs.FS) ([]string, error) {
+	bodies, err := sqlBodies(fsys)
+	if err != nil {
+		return nil, err
+	}
+
+	var problems []string
+	seen := map[string]bool{}
+	for _, body := range bodies {
+		for _, stmt := range splitSQLStatements(body) {
+			for _, rule := range coreWriteRules {
+				m := rule.re.FindStringSubmatch(stmt)
+				if m == nil {
+					continue
+				}
+				name := tableFromMatch(m)
+				if name == "" || !isCoreTable(name) {
+					break
+				}
+				line := fmt.Sprintf("recipe %q migration %s core table %s — a recipe may not own a core object",
+					id, rule.verb, name)
+				if !seen[line] {
+					seen[line] = true
+					problems = append(problems, line)
+				}
+				break
+			}
+		}
+	}
+	return problems, nil
+}
+
+// coreWriteRules pairs each modifying verb with the phrase it reports. The
+// table is the LAST capture group set: an index or trigger names its own object
+// first, so identOnly skips that name without capturing it.
+var coreWriteRules = []struct {
+	verb string
+	re   *regexp.Regexp
+}{
+	{"alters", regexp.MustCompile(`(?is)^\s*alter\s+table\s+(?:if\s+exists\s+)?` + identGroup)},
+	{"drops", regexp.MustCompile(`(?is)^\s*drop\s+table\s+(?:if\s+exists\s+)?` + identGroup)},
+	{"indexes", regexp.MustCompile(`(?is)^\s*create\s+(?:unique\s+)?index\s+(?:if\s+not\s+exists\s+)?` +
+		identOnly + `\s+on\s+` + identGroup)},
+	{"inserts into", regexp.MustCompile(`(?is)^\s*insert\s+(?:or\s+\w+\s+)?into\s+` + identGroup)},
+	{"updates", regexp.MustCompile(`(?is)^\s*update\s+(?:or\s+\w+\s+)?` + identGroup)},
+	{"deletes from", regexp.MustCompile(`(?is)^\s*delete\s+from\s+` + identGroup)},
+	{"truncates", regexp.MustCompile(`(?is)^\s*truncate\s+(?:table\s+)?` + identGroup)},
+	{"creates a trigger on", regexp.MustCompile(`(?is)^\s*create\s+(?:temp\s+|temporary\s+)?trigger\s+` +
+		`(?:if\s+not\s+exists\s+)?` + identOnly + `.*?\bon\s+` + identGroup)},
+}
+
+// identGroup matches one SQL identifier and captures it; identOnly matches one
+// without capturing it. The quote alternatives come first so a quoted name is
+// not read as the bare tail of a qualified name.
+const (
+	identGroup = "(?:`([^`]+)`|\"([^\"]+)\"|\\[([^\\]]+)\\]|([A-Za-z0-9_$.]+))"
+	identOnly  = "(?:`[^`]+`|\"[^\"]+\"|\\[[^\\]]+\\]|[A-Za-z0-9_$.]+)"
+)
+
+// tableFromMatch returns the identifier a rule captured, or "" when the match
+// named none (which happens only for a malformed statement).
+func tableFromMatch(match []string) string {
+	for _, group := range match[1:] {
+		if group != "" {
+			return tableName(group)
+		}
+	}
+	return ""
+}
+
+// splitSQLStatements splits on semicolons that are not inside a single-quoted
+// literal, so a default value containing ";" does not cut a statement in half.
+func splitSQLStatements(src string) []string {
+	var out []string
+	start := 0
+	inQuote := false
+	for i := 0; i < len(src); i++ {
+		switch c := src[i]; {
+		case c == '\'':
+			if inQuote && i+1 < len(src) && src[i+1] == '\'' {
+				i++ // an escaped quote stays inside the literal
+				continue
+			}
+			inQuote = !inQuote
+		case c == ';' && !inQuote:
+			out = append(out, src[start:i])
+			start = i + 1
+		}
+	}
+	return append(out, src[start:])
 }
 
 // createTableRE matches the forms a hand-written migration actually uses. The

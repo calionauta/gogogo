@@ -238,7 +238,7 @@ check-fast-capacity:
 
 # check-scope enforces that every non-test, non-generated .go file
 # under internal/ and features/ carries a leading doc-comment line
-# matching `// SCOPE:layer=<infra|feature>,removal=<core|plugin|feature>`.
+# matching `// SCOPE:<core|plugin|feature> — why this file exists`.
 # Lives outside cmd/web/ on purpose: developer tool, not part of the
 # runtime binary. Run after adding/removing files in those trees.
 check-scope:
@@ -677,7 +677,7 @@ help:
 	@echo "  check-host-capacity  Pre-flight: refuse make ci-local when this box cannot carry it"
 	@echo "  reap-stale         Delete mtime-stale smoke artifacts (safe beside live runs)"
 	@echo "  check-sizes    Check file/function size limits"
-	@echo "  check-scope    Enforce SCOPE:layer=…,removal=… annotations"
+	@echo "  check-scope    Enforce SCOPE:<core|plugin|feature> annotations"
 	@echo "  check-flatdeps Enforce flat-stack deps (no banned framework, no cross-feature imports, owned sql.Open)"
 	@echo "  check-dagnats-pin  Keep docs/dagnats.md pin in sync with go.mod"
 	@echo "  check-test-value   Every Test pins behavior beyond err==nil (AST, blocking on vacuous)"

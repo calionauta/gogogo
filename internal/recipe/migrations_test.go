@@ -24,18 +24,42 @@ func mapFS(files map[string]string) fs.FS {
 	return out
 }
 
-func TestValidateSchema(t *testing.T) {
-	const id = "pomodoro"
+// schemaCase is one ValidateSchema row: a declaration, the DDL, and the exact
+// problem lines expected. Empty want means "must validate".
+type schemaCase struct {
+	name   string
+	tables []string
+	files  map[string]string
+	want   []string
+}
 
-	cases := []struct {
-		name   string
-		tables []string
-		files  map[string]string
-		// want is the set of problem lines expected. Empty means the schema
-		// must validate; a non-empty set must match line-for-line in count, so
-		// an extra problem cannot hide behind a substring match.
-		want []string
-	}{
+// runSchemaCase asserts one row. A non-empty want must match line-for-line in
+// count, so an extra problem cannot hide behind a substring match.
+func runSchemaCase(t *testing.T, tc schemaCase) {
+	t.Helper()
+	err := ValidateSchema("pomodoro", Declaration{Tables: tc.tables}, mapFS(tc.files))
+	if len(tc.want) == 0 {
+		if err != nil {
+			t.Fatalf("schema must validate, got: %v", err)
+		}
+		return
+	}
+	if err == nil {
+		t.Fatalf("expected %v, got no error", tc.want)
+	}
+	got := err.Error()
+	for _, line := range tc.want {
+		if !strings.Contains(got, line) {
+			t.Errorf("missing problem line %q in:\n%s", line, got)
+		}
+	}
+	if lines := strings.Count(got, "\n") + 1; lines != len(tc.want) {
+		t.Errorf("expected %d problem line(s), got %d:\n%s", len(tc.want), lines, got)
+	}
+}
+
+func TestValidateSchema(t *testing.T) {
+	cases := []schemaCase{
 		{
 			name:   "matching declaration and create",
 			tables: []string{"ext_pomodoro_cards"},
@@ -99,27 +123,63 @@ func TestValidateSchema(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			err := ValidateSchema(id, Declaration{Tables: tc.tables}, mapFS(tc.files))
-			if len(tc.want) == 0 {
-				if err != nil {
-					t.Fatalf("schema must validate, got: %v", err)
-				}
-				return
-			}
-			if err == nil {
-				t.Fatalf("expected %v, got no error", tc.want)
-			}
-			got := err.Error()
-			for _, line := range tc.want {
-				if !strings.Contains(got, line) {
-					t.Errorf("missing problem line %q in:\n%s", line, got)
-				}
-			}
-			if lines := strings.Count(got, "\n") + 1; lines != len(tc.want) {
-				t.Errorf("expected %d problem line(s), got %d:\n%s", len(tc.want), lines, got)
-			}
-		})
+		t.Run(tc.name, func(t *testing.T) { runSchemaCase(t, tc) })
+	}
+}
+
+// TestValidateSchemaCoreTableBoundary is the other half of the ownership gate:
+// the declaration is not the only way to reach a core table. A migration that
+// alters, drops, indexes or writes one owns it just as hard, and the ledger
+// would have applied it at boot.
+func TestValidateSchemaCoreTableBoundary(t *testing.T) {
+	cases := []schemaCase{
+		{
+			name:  "altering a core table is refused",
+			files: map[string]string{"0001_init.sql": "ALTER TABLE todos ADD COLUMN done_at TEXT;"},
+			want:  []string{`recipe "pomodoro" migration alters core table todos — a recipe may not own a core object`},
+		},
+		{
+			name:  "dropping a core table is refused",
+			files: map[string]string{"0001_init.sql": "DROP TABLE IF EXISTS users;"},
+			want:  []string{`recipe "pomodoro" migration drops core table users — a recipe may not own a core object`},
+		},
+		{
+			name:  "indexing a core table is refused",
+			files: map[string]string{"0001_init.sql": "CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions (token);"},
+			want:  []string{`recipe "pomodoro" migration indexes core table sessions — a recipe may not own a core object`},
+		},
+		{
+			name:  "writing core rows is refused",
+			files: map[string]string{"0001_init.sql": "UPDATE todos SET done = 1;\nDELETE FROM security_events;"},
+			want: []string{
+				`recipe "pomodoro" migration updates core table todos — a recipe may not own a core object`,
+				`recipe "pomodoro" migration deletes from core table security_events — a recipe may not own a core object`,
+			},
+		},
+		{
+			// A trigger reaches a table through a name that is not the target
+			// of the CREATE, which is why the rule reads the ON clause.
+			name:  "a trigger on a core table is refused",
+			files: map[string]string{"0001_init.sql": "CREATE TRIGGER audit AFTER UPDATE ON todos BEGIN SELECT 1; END;"},
+			want: []string{`recipe "pomodoro" migration creates a trigger on core table todos ` +
+				`— a recipe may not own a core object`},
+		},
+		{
+			// The other direction of the same boundary: a recipe MAY alter its
+			// own table and reference a core one, because a foreign key is a
+			// dependency, not ownership.
+			name:   "own table alters and core foreign keys are allowed",
+			tables: []string{"ext_pomodoro_cards"},
+			files: map[string]string{
+				"0001_init.sql": "CREATE TABLE ext_pomodoro_cards (id TEXT, user_id TEXT REFERENCES users(id));\n" +
+					"ALTER TABLE ext_pomodoro_cards ADD COLUMN label TEXT;\n" +
+					"CREATE INDEX idx_cards_user ON ext_pomodoro_cards (user_id);",
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) { runSchemaCase(t, tc) })
 	}
 }
 

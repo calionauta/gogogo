@@ -1840,6 +1840,13 @@ migration, one query file, one page, one write and one sidebar entry, installed 
 CLI. It is the artifact the "worth using" and "right shape" rows below have no test for, and the
 shape an author copies instead of inventing.
 
+**Two gates closed with it (2026-11-06).** The generated `AGENTS.md` now states the Go pin the
+target tree's `go.mod` declares — the scaffolder replaced a file the prove step then read, so a
+real scaffold failed its own proof. And the SQL boundary is enforced on the statements, not only
+on the declaration: a migration that alters, drops, indexes, seeds or triggers a core table is
+refused at boot, while a foreign key that references one is not. Gap analysis 2026-11-06 records
+what is still open.
+
 Every route-owning unit in this repo now mounts through the seam: `review`, `credits`,
 `config-view`, `room`, `todo`, `notes`, `whiteboard`, `landing`, `account`, `notifications`. The
 composition root is the only place left that registers a router directly, and that is by design.
@@ -1911,19 +1918,24 @@ open question #4.
   skill; enforced by `recipe.ValidateSchema` in both directions and by the ledger's id
   prefix.
 
-### Two issues worth filing independently of this work
+### Two issues filed independently of this work — both closed
 
 Discovered during the spikes, real, and not part of the recipe model:
 
-1. **Two anchors in `internal/installer/add.go` are dead in this tree** and
-   `gogogo --check` reports OK, because a strip moved to a different file and orphaned
-   them. Either delete the anchors and the machinery that reads them, or make `--check`
-   validate every anchor in the table regardless of whether a strip still targets its file.
-   Leaving it is a gate that cannot see the class of bug it exists to catch.
-2. **The installer's prove step fails on a renamed project** with unrelated trim work:
-   `TestGoToolchainPinIsConsistent` asserts `AGENTS.md` mentions the Go version, and the
-   rename rewrote paths without carrying that string. A proof that cannot distinguish "the
-   change is wrong" from "the doc did not follow the rename" trains operators to ignore it.
+1. **Dead anchors in `internal/installer/add.go` — closed by the generalized gate.** The
+   anchors were dead and `gogogo --check` reported OK, because a strip moved to a different
+   file and orphaned them. `--check` was never the place the class could be caught: `add`
+   refuses every unit before it mutates the tree, so the anchors had no caller at all.
+   `TestEveryDeclaredAddAnchorIsLive` now walks every rule of every unit and fails on a
+   marker that matches nothing, on an anchor that is not a whole line, and on an anchor its
+   own span or a sibling strip removes.
+2. **The proof failed on a scaffolded project — closed 2026-11-06.** The cause was sharper
+   than "the rename rewrote paths": `writeAgents` REPLACES the template's `AGENTS.md`, and
+   the prove step then runs `TestGoToolchainPinIsConsistent`, which requires that same file
+   to name the Go version. Every real scaffold therefore failed a test its own output had
+   just broken, and the failure read as a broken trim. The generated `AGENTS.md` now states
+   the pin the target tree's `go.mod` declares (`installer.agents.go`), and
+   `TestGeneratedAgentsKeepsTheToolchainPin` asserts the pin test's own predicate.
 
 ### What would make this analysis wrong
 
@@ -2366,6 +2378,22 @@ slots a recipe owns.
 | Schema split enforcement | **Enforced at the declaration level (2026-11-04):** `recipe.Migrator` + `Registry.MigrationSets()` feed `dbschema.MigrateWith` from the composition root, and `recipe.ValidateSchema` refuses both a declared table with no `CREATE` and a `CREATE` the declaration omits — comments stripped, `ext_<id>` prefix and the core-table refusal reused. **A recipe-owned table now has a query path (2026-11-05):** install mirrors its DDL flat into `internal/db/recipe_schema/` (`<id>__<migration>.sql`), `sqlc.yaml` reads that directory, and `recipe status` reports a mirror that stopped matching the tree. No in-tree unit declares a table yet, so the shipped mirror is empty and the wiring's positive case is still a root-level fixture (see "What is NOT red-proofable") |
 | SCOPE + trim retirement | Phase 3 has landed; both stay until ownership is data. Decision (2026-11-04): `add` is not retired while `trim` is the only removal path for an in-tree unit — deleting the way back first would make removal one-way. Trigger: the first in-tree unit that ships as a receipt |
 
+## Gap analysis, 2026-11-06
+
+Re-read against the tree rather than against the plan's earlier claims. Several rows closed;
+the rest name the decision each one waits on, and none of them is waiting on a spike.
+
+| Area | State |
+|---|---|
+| SQL text boundary | **Closed (2026-11-06).** `recipe.ValidateSchema` scans each statement's target, so an `ALTER`, `DROP`, index, seed write or trigger naming a core table is refused at boot. A statement on the recipe's own `ext_` table and a foreign key that only *references* a core one stay legal |
+| Toolchain pin in a scaffolded tree | **Closed (2026-11-06).** The generated `AGENTS.md` replaces the template's, and the prove step's pin test requires that file to name the Go version — so a real scaffold failed its own proof and the failure read as a broken trim. The section now states the pin `go.mod` declares |
+| Dead anchors in `add.go` | **Closed by the generalized gate.** `TestEveryDeclaredAddAnchorIsLive` walks every rule of every unit; `--check` was never the place the class could be caught, because `add` refuses before it mutates |
+| Phase 4 — `add`, `trim`, the scaffold prompt, `SCOPE:` | **Open, gated on evidence that does not exist yet.** `.recipes/` holds no receipt, so no in-tree unit owns its files in data and `trim` is still the only removal path for one; deleting `add` first would make removal one-way (`SCOPE:` retires in the same step, see the transitional-machinery section) |
+| `todo`'s table | **Open, and it is a human decision, not a mechanism.** `todos` is created by a core, append-only migration, so moving it to a prefixed recipe migration is a data migration on the one slice every fixture, smoke and proof copies |
+| `dashboard.card` | **Open by design.** There is no dashboard page, and inventing one to host a card is the page-first mistake the slot shapes exist to prevent |
+| Catalog hosting / download | **Deferred past v1.** The entry format is published, validated and consumed by `recipe install --entry`; fetching one over the network is distribution, not the model |
+| `new feature` | **Not on the retirement list.** It writes one feature into the tree the user already owns — no catalog, no receipt. Open question 7 retires `scaffold`, `trim` and the `Scaffold` axis (the guided prompt and its unit lists), not the command that builds a slice inside a project |
+
 ## Open questions for the human
 
 What remains is written as decisions where the answer is now clear, because an agent
@@ -2425,10 +2453,10 @@ reading this needs an answer, not a menu.
    template's purpose.
 4. **How much of the schema split lands in v1?** Settled for the declaration level
    (2026-11-04): the ledger prefix is the recipe id, the root applies each recipe's own
-   filesystem, and DDL must match the declaration in both directions. What does NOT land:
-   nothing yet compiles or validates the SQL itself (a migration that alters a core table is
-   invisible to the gate), and the first unit to move a table from `isCoreTable` to a prefixed
-   recipe migration is still ahead — `todo` remains the intended probe.
+   filesystem, and DDL must match the declaration in both directions. The SQL text itself was
+   the remaining hole and **closed on 2026-11-06** (below). The first unit to move a table from
+   `isCoreTable` to a prefixed recipe migration is still ahead — `todo` remains the intended
+   probe.
 
    **The blocker that surfaced on inspection (2026-11-04) is closed (2026-11-05).**
    `internal/db/sqlc.yaml` takes its schema from `../dbschema/migrations`, the CORE set, so a
@@ -2461,9 +2489,17 @@ reading this needs an answer, not a menu.
    with no table, silently). The operator has no follow-up step: install runs `sqlc generate`
    itself, and names `make sqlc` only when the binary is absent.
 
+   **The SQL text is gated too (2026-11-06), and the boundary is the target, not the mention.**
+   `ValidateSchema` scans every statement, so an `ALTER`, a `DROP`, an index, a seed write or a
+   trigger that names a core table is refused at boot — the ledger would have applied it just
+   as silently as a `CREATE`. Two things stay legal on purpose: a statement acting on the
+   recipe's own `ext_` table, and a foreign key that merely *references* a core one (`user_id
+   TEXT REFERENCES users(id)`), because a reference is a dependency and ownership is what the
+   boundary is about. Banning the mention would have banned the correct way to scope a
+   recipe's rows to an owner.
+
    **Still ahead:** the first in-tree unit to move a table from `isCoreTable` to a prefixed
-   recipe migration (`todo` remains the intended probe), and anything that gates the SQL text
-   itself — a migration that alters a core table is still invisible to the validator.
+   recipe migration (`todo` remains the intended probe).
 
 ## Related
 

@@ -57,6 +57,9 @@ slot; its own policy rows.
 1. **Own a column on a core table.** Need extra data about a core entity? Own a side table
    keyed by the entity's id. `todos`, `users`, `sessions`, `security_events`,
    `schema_migrations` and `config` are core, and a declaration naming one is refused.
+   The check reads your SQL too, not only the declaration: a migration that `ALTER`s,
+   `DROP`s, indexes, seeds or triggers a core table is refused at boot, while a foreign key
+   that merely *references* one (`REFERENCES users(id)`) is the correct way to scope your rows.
 2. **Add a step inside a core handler.** No hook that runs "when the user saves a todo".
    If you need that, the hook belongs in the extension surface as a real seam — or the
    feature does not belong in a recipe yet.
@@ -206,7 +209,8 @@ diff before you run it.
 ## Checklist before calling it done
 
 - [ ] The declaration names every route, table, job and slot the code actually provides
-- [ ] Every table is prefixed with the recipe id; no core table or core column is claimed
+- [ ] Every table is prefixed with the recipe id; no core table or core column is claimed by a
+      declaration OR acted on by a statement (`ALTER`/`DROP`/index/seed/trigger)
 - [ ] Every job type is prefixed `ext:<id>:`
 - [ ] No route collides with an installed recipe (the seam refuses this before the build,
       naming both owners — read the message, it tells you both)
