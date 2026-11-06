@@ -2399,6 +2399,30 @@ the rest name the decision each one waits on, and none of them is waiting on a s
 | Catalog hosting / download | **Decided: not in v1 (2026-11-06).** The entry format is published, validated and consumed by `recipe install --entry`, which requires the pristine bytes locally and hashes every one against the review — so there is no silent no-op to close. Fetching over the network is distribution, and it would add an HTTP client plus an SSRF surface inside the step that decides what code lands; a v2 can add it behind a hash-pinned source without changing the model |
 | `new feature` | **Not on the retirement list.** It writes one feature into the tree the user already owns — no catalog, no receipt. Open question 7 retires `scaffold`, `trim` and the `Scaffold` axis (the guided prompt and its unit lists), not the command that builds a slice inside a project |
 
+### Design, 2026-11-06 — the in-tree unit manifest (what phase 4 needs first)
+
+Written down because the missing piece is a *format*, not an argument, and the next change
+should not rediscover it. Three parts, in this order:
+
+1. **A derived receipt per unit, committed.** `.recipes/<id>.yml` keeps its shape, with
+   `upstream` naming this repo and the unit's own directory, and `files`/`declaration`/`register`
+   filled by a command that reads the tree and the unit's `Recipe()` — never typed by hand. Install
+   stays what it is (a copy from an upstream); adoption is the new verb, and it writes only the
+   receipt. The gate is `recipe status` over the repo root: every bundled receipt must be pristine,
+   so a unit whose files moved is a red build rather than a receipt nobody refreshed.
+2. **Registration becomes the mount path for every receipted unit.** `recipes.gen.go` already
+   lists exactly the receipts; the composition root stops importing and constructing a unit that a
+   receipt claims and calls its `Register(reg, deps)` instead. This is the step that makes
+   "remove a unit" mean something, and it is per-unit and revertable in the same shape as phase 3.
+3. **The hub dependencies move behind the seam.** `todo`, `notes`, `account` are constructed today
+   for reasons that outlive their routes: the search indexer, the onboarding worker and the LLM demo
+   take the todo handler by pointer, and `Router` keeps it as a field. A unit cannot be removed while
+   those hold it, so each becomes a lookup (`reg.Provider("todo")` plus a narrow interface) or an
+   optional wire. This is the part the plan did not name, and it is where the real work is.
+
+Only after 1–3 does `trim` retire without making removal impossible, `add` lose its last caller, and
+`SCOPE:` become what a receipt plus a core manifest already say.
+
 ## Open questions for the human
 
 What remains is written as decisions where the answer is now clear, because an agent
