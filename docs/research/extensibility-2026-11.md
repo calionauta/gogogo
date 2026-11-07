@@ -2393,35 +2393,47 @@ the rest name the decision each one waits on, and none of them is waiting on a s
 | Toolchain pin in a scaffolded tree | **Closed (2026-11-06).** The generated `AGENTS.md` replaces the template's, and the prove step's pin test requires that file to name the Go version — so a real scaffold failed its own proof and the failure read as a broken trim. The section now states the pin `go.mod` declares |
 | Dead anchors in `add.go` | **Closed by the generalized gate.** `TestEveryDeclaredAddAnchorIsLive` walks every rule of every unit; `--check` was never the place the class could be caught, because `add` refuses before it mutates |
 | Core table ownership | **Closed (2026-11-06).** `dbschema.CoreTables()` is now the single source of "what a recipe may never own", and `tables_test.go` compares it against a *migrated database* in both directions. The list it replaced lived in the plugin package and had drifted twice: it named `magic_links` and `config`, which no migration creates, and omitted `notes`, `boards`, `doc_snapshots`, `notifications`, `op_receipts`, `search_postings`, and the four auth tables — so a recipe could declare `notes` and pass every gate. The prefix rule survives (`users_*` stays core), and the boundary now costs one core-owned slice instead of a stale copy in the wrong package |
-| Phase 4 — `add`, `trim`, the scaffold prompt, `SCOPE:` | **Open, and the blocker is structural, not evidential.** The trigger ("the first in-tree unit that ships as a receipt") has no mechanism: a receipt describes a *copied* file set from an upstream, while an in-tree unit is already in the tree, and `internal/server/chi.go` imports and constructs twelve unit packages — so deleting a unit's files breaks the build no matter what the receipt says. Two things are therefore missing before this phase starts: a bundled-unit manifest (id, files, declaration, register — no install step) and moving the root's construction of a unit into that unit's `Register`. `.recipes/` holding only a README is a symptom, not the cause |
+| Phase 4 — `add`, `trim`, the scaffold prompt, `SCOPE:` | **Open, and the blocker is structural, not evidential.** The trigger ("the first in-tree unit that ships as a receipt") has no mechanism: a receipt describes a *copied* file set from an upstream, while an in-tree unit is already in the tree, and `internal/server/chi.go` imports and constructs twelve unit packages — so deleting a unit's files breaks the build no matter what the receipt says. Two things are therefore missing before this phase starts: `Capability.Register` plus a generated mount list for bundled units (no receipt, no install step), and moving the root's construction of a unit into that unit's `Register`. `.recipes/` holding only a README is a symptom, not the cause |
 | `todo`'s table | **Open, and it waits on the same phase.** `todos` is core-created by an append-only migration, so the probe needs a legacy bridge (`todos` → prefixed table) that works on both a fresh database and one that already applied `0001`, plus `sqlc.yaml` reading the unit's migration copy. The 2026-11-06 ownership gate makes the *refusal* side correct today; the *ownership* side is the probe |
 | `dashboard.card` | **Open by design, and now refused rather than dropped (2026-11-06).** There is no dashboard page and inventing one to host a card is the page-first mistake the slot shapes exist to prevent. `HostFor` names the page that renders each slot, so registration, install and the catalog review all reject a slot this build does not draw, and `recipe status` reports a declaration whose code contributes nothing. `dashboard.card` keeps its shape and gains no host until a page exists |
 | Catalog hosting / download | **Decided: not in v1 (2026-11-06).** The entry format is published, validated and consumed by `recipe install --entry`, which requires the pristine bytes locally and hashes every one against the review — so there is no silent no-op to close. Fetching over the network is distribution, and it would add an HTTP client plus an SSRF surface inside the step that decides what code lands; a v2 can add it behind a hash-pinned source without changing the model |
 | `new feature` | **Not on the retirement list.** It writes one feature into the tree the user already owns — no catalog, no receipt. Open question 7 retires `scaffold`, `trim` and the `Scaffold` axis (the guided prompt and its unit lists), not the command that builds a slice inside a project |
 
-### Design, 2026-11-06 — the in-tree unit manifest (what phase 4 needs first)
+### Design, 2026-11-06 — the in-tree unit mount (what phase 4 needs first)
 
-Written down because the missing piece is a *format*, not an argument, and the next change
-should not rediscover it. Three parts, in this order:
+Rewritten after checking it against the tree: the first version proposed a committed YAML receipt per
+in-tree unit, which would have been a second copy of data the capability registry already owns.
+What is actually true today, measured:
 
-1. **A derived receipt per unit, committed.** `.recipes/<id>.yml` keeps its shape, with
-   `upstream` naming this repo and the unit's own directory, and `files`/`declaration`/`register`
-   filled by a command that reads the tree and the unit's `Recipe()` — never typed by hand. Install
-   stays what it is (a copy from an upstream); adoption is the new verb, and it writes only the
-   receipt. The gate is `recipe status` over the repo root: every bundled receipt must be pristine,
-   so a unit whose files moved is a red build rather than a receipt nobody refreshed.
-2. **Registration becomes the mount path for every receipted unit.** `recipes.gen.go` already
-   lists exactly the receipts; the composition root stops importing and constructing a unit that a
-   receipt claims and calls its `Register(reg, deps)` instead. This is the step that makes
-   "remove a unit" mean something, and it is per-unit and revertable in the same shape as phase 3.
-3. **The hub dependencies move behind the seam.** `todo`, `notes`, `account` are constructed today
-   for reasons that outlive their routes: the search indexer, the onboarding worker and the LLM demo
-   take the todo handler by pointer, and `Router` keeps it as a field. A unit cannot be removed while
-   those hold it, so each becomes a lookup (`reg.Provider("todo")` plus a narrow interface) or an
-   optional wire. This is the part the plan did not name, and it is where the real work is.
+- **Ownership is already data for in-tree units.** `capabilities.Capability` carries `Kind` (the
+  removal class), `Dirs` and `Files`; the conformance test fails on a package owned by nobody, `Files`
+  entries must exist, and `TestScopeAnnotationsMatchRegistryKind` refuses a `SCOPE:` class that
+  disagrees with the unit. So the missing piece is **not** a receipt: a receipt is for code copied
+  from a foreign upstream, and an in-tree unit has no pristine baseline other than git.
+- **The seam already mounts an in-tree unit.** `bootInbox` builds the inbox from `register.Deps` and
+  hands `h.Recipe()` to the same `Registry` an external recipe uses, so mounting is proven; only the
+  *construction* still lives in `internal/server`.
 
-Only after 1–3 does `trim` retire without making removal impossible, `add` lose its last caller, and
-`SCOPE:` become what a receipt plus a core manifest already say.
+Three steps, then:
+
+1. **`Capability.Register` — a package path that exports `Register(*recipe.Registry, register.Deps)`.**
+   The generator emits both lists (installed receipts from `.recipes/`, bundled units from the
+   registry) into `recipes.gen.go`, and boot calls one `registerInstalledRecipes`. A unit opts in by
+   naming its package once, in the file that already owns its identity.
+2. **The first conversion must be a unit nobody holds.** `review` and `landing` are candidates;
+   `notifications` is not, and the reason is instructive: the root keeps `r.inbox`/`r.inboxBus` for the
+   shell session stream and `cmd/web` passes `stack.NotificationsHandler` to the DagNats worker, so it
+   is a *hub dependency* before it is a mount. `register.Deps` also lacks the LLM client `review`
+   needs, so the conversion adds one field by decision (`Deps.LLM`) rather than by convenience.
+3. **Hub dependencies move behind the seam.** `todo` (search indexer, onboarding, the LLM demo) and
+   `notifications` (shell stream, DagNats) are constructed today for reasons that outlive their
+   routes; each becomes a lookup plus a narrow interface, or an optional wire. This is the real work,
+   and it cannot be skipped: a unit whose handler the root holds is not removable no matter what its
+   receipt says.
+
+`SCOPE:` is **not** on this list any more. Its class is already checked against the registry, and its
+free-text line ("why this file exists") is the one thing no registry holds — retiring it would delete
+information, not a duplicate. It stops being load-bearing, it does not disappear.
 
 ## Open questions for the human
 
