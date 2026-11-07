@@ -274,7 +274,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// Console rides the same mount-after-composition rule: the engine listener
 	// is loopback-only, so browsers reach it only through here.
 	mountConsoleProxy(mux, a, cfg)
-	mountGraph(mux, a, cfg)
+	mountGraph(mux, a, cfg, roomHost)
 	// Runtime dashboard: opt-in, operator-only, mounted before applyRBAC (internal/server/perf.go).
 	perfH := bootPerf(mux, a, cfg, &shutdown)
 	// Inbox is an optional surface next to the console.

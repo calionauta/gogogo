@@ -227,6 +227,30 @@ func (s guiStore) ListDocs(ctx context.Context, kind string) ([]docItem, error) 
 	}
 }
 
+// CreateDoc writes a new shared doc metadata row (note or board).
+// Content (Loro doc) starts empty on the web; the native twin owns
+// creation, the web owns editing — the same split the inbox uses.
+func (s guiStore) CreateDoc(ctx context.Context, kind, owner string) (docItem, error) {
+	now := dbschema.Now()
+	id := dbschema.NewID()
+	params := dbgen.UpsertNoteParams{DocID: id, Owner: owner, Updated: now, Created: now}
+	switch kind {
+	case "notes":
+		if err := s.q.UpsertNote(ctx, params); err != nil {
+			return docItem{}, fmt.Errorf("gui: create note: %w", err)
+		}
+	case "boards":
+		if err := s.q.UpsertBoard(ctx, dbgen.UpsertBoardParams{
+			DocID: id, Owner: owner, Updated: now, Created: now,
+		}); err != nil {
+			return docItem{}, fmt.Errorf("gui: create board: %w", err)
+		}
+	default:
+		return docItem{}, fmt.Errorf("gui: unknown doc kind %q", kind)
+	}
+	return docItem{ID: id, Author: "", Title: kind}, nil
+}
+
 // errNotFound mirrors the store contract's not-found signal so callers
 // can tell "row gone" from "row broken".
 var errNotFound = errors.New("gui: not found")

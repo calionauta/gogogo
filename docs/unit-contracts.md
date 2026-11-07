@@ -334,7 +334,7 @@ signed-in summary page; the dashboard.card slot host
 panorama graph (capabilities + recipes)
 
 - **Owned:** `features/graph`, `internal/graph`
-- **Routes:** `/api/graph/dagnats`, `/api/graph/panorama`, `/api/graph/ping`, `/graph`
+- **Routes:** `/api/graph/dagnats`, `/api/graph/panorama`, `/api/graph/ping`, `/api/graph/presence`, `/graph`
 - **Why that class:** Delete dirs + MountFeature line.
 
 ## `landing` — feature

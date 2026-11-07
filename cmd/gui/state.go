@@ -323,6 +323,22 @@ func (s *windowState) refresh() {
 	s.err = ""
 }
 
+func (s *windowState) createDoc(kind string) {
+	s.mu.Lock()
+	owner := s.ownerID
+	s.mu.Unlock()
+	if owner == "" {
+		return
+	}
+	if _, err := s.st.CreateDoc(context.Background(), kind, owner); err != nil {
+		s.mu.Lock()
+		s.err = "create " + kind + ": " + err.Error()
+		s.mu.Unlock()
+		return
+	}
+	s.refresh()
+}
+
 func (s *windowState) setReviewConfigured(v bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

@@ -25,10 +25,11 @@ import (
 // leaves no dangling import here — the endpoint answers with an empty
 // document instead.
 type Handler struct {
-	auth *auth.Auth
-	cfg  *config.Config
-	defs []string
-	runs RunFetcher
+	auth     *auth.Auth
+	cfg      *config.Config
+	defs     []string
+	runs     RunFetcher
+	presence graphservice.PresenceReader
 	// recipesRoot is where .recipes/*.yml lives. Default "." (repo root);
 	// tests or a shipped binary override via SetRecipesRoot when the
 	// receipts live elsewhere. Empty means default.
@@ -52,6 +53,10 @@ type RunFetcher interface {
 // adapter over the DagNats client; the graph unit itself never imports it.
 func (h *Handler) SetRunFetcher(f RunFetcher) { h.runs = f }
 
+// SetPresenceReader wires the room presence seam. Nil (actor off) degrades
+// to an unavailable document, never an error.
+func (h *Handler) SetPresenceReader(r graphservice.PresenceReader) { h.presence = r }
+
 // NewHandler builds the chi handler. Nil deps panic: wire errors surface at
 // boot, not per request.
 func NewHandler(a *auth.Auth, cfg *config.Config) *Handler {
@@ -70,6 +75,7 @@ func (h *Handler) Routes() chi.Router {
 	r.Get("/graph", h.handlePage)
 	r.Get("/api/graph/panorama", h.handlePanorama)
 	r.Get("/api/graph/dagnats", h.handleDagNats)
+	r.Get("/api/graph/presence", h.handlePresence)
 	r.Get("/api/graph/ping", h.handlePing)
 	return r
 }
@@ -147,6 +153,38 @@ func (h *Handler) handleDagNats(w http.ResponseWriter, r *http.Request) {
 	}
 	doc := graphservice.Workflows(defs)
 	_ = json.NewEncoder(w).Encode(doc)
+}
+
+// handlePresence returns one room's live roster as a Document.
+// Default room "lobby" matches the /room demo. Nil reader (actor off)
+// degrades to presence:unavailable, never a 500.
+func (h *Handler) handlePresence(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if _, err := h.auth.Session(r); err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		_ = json.NewEncoder(w).Encode(map[string]string{errorKey: authRequired})
+		return
+	}
+	room := r.URL.Query().Get("room")
+	if room == "" {
+		room = "lobby"
+	}
+	if h.presence == nil {
+		_ = json.NewEncoder(w).Encode(graphservice.PresenceUnavailable(room))
+		return
+	}
+	ro, err := h.presence.Roster(r.Context(), room)
+	if err != nil {
+		_ = json.NewEncoder(w).Encode(graphservice.PresenceUnavailable(room))
+		return
+	}
+	members := make([]graphservice.Member, 0, len(ro.Members))
+	for _, m := range ro.Members {
+		members = append(members, graphservice.Member{Name: m.Name, LastSeen: m.LastSeen})
+	}
+	_ = json.NewEncoder(w).Encode(graphservice.Presence(room, graphservice.Roster{
+		Members: members, Presenter: ro.Presenter, Generation: ro.Generation,
+	}))
 }
 
 // handlePage renders the page for a signed-in user; guests bounce to /login.

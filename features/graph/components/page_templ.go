@@ -75,14 +75,14 @@ func body() templ.Component {
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"ui-page ui-stack\"><section class=\"ui-card\"><div class=\"ui-card-body\"><h2 class=\"ui-title\">System panorama</h2><p class=\"opacity-70\">System map: capabilities (core/plugin/feature) + installed recipes, and live views of the DagNats workflows this binary owns. Pan/zoom, click for detail. <span id=\"graph-rung\" class=\"opacity-60\">Canvas2D</span></p><div class=\"flex gap-2 py-2\"><button id=\"graph-fit\" class=\"btn btn-sm btn-ghost\">Fit</button> <button class=\"btn btn-sm\" data-graph-source=\"panorama\">Panorama</button> <button class=\"btn btn-sm\" data-graph-source=\"dagnats\">Workflows</button> <span id=\"graph-detail\" class=\"opacity-80\">Select a node.</span></div><canvas id=\"graph-canvas\" style=\"width:100%;height:520px;cursor:grab;border:1px solid var(--color-base-300);border-radius:0.5rem\" aria-label=\"system graph\"></canvas></div></section></div><script src=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"ui-page ui-stack\"><section class=\"ui-card\"><div class=\"ui-card-body\"><h2 class=\"ui-title\">System panorama</h2><p class=\"opacity-70\">System map: capabilities (core/plugin/feature) + installed recipes, and live views of the DagNats workflows this binary owns. Pan/zoom, click for detail. <span id=\"graph-rung\" class=\"opacity-60\">Canvas2D</span></p><div class=\"flex gap-2 py-2\"><button id=\"graph-fit\" class=\"btn btn-sm btn-ghost\">Fit</button> <button class=\"btn btn-sm\" data-graph-source=\"panorama\">Panorama</button> <button class=\"btn btn-sm\" data-graph-source=\"dagnats\">Workflows</button> <button class=\"btn btn-sm\" data-graph-source=\"presence\">Presence</button> <span id=\"graph-detail\" class=\"opacity-80\">Select a node.</span></div><canvas id=\"graph-canvas\" style=\"width:100%;height:520px;cursor:grab;border:1px solid var(--color-base-300);border-radius:0.5rem\" aria-label=\"system graph\"></canvas></div></section></div><script src=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(graph.URL("graph.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/graph/components/page.templ`, Line: 43, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/graph/components/page.templ`, Line: 44, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {

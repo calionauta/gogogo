@@ -175,3 +175,4 @@ p, user, /api/graph/panorama, .*
 p, user, /static/graph, .*
 p, user, /static/graph/*, .*
 p, user, /api/graph/dagnats, .*
+p, user, /api/graph/presence, .*

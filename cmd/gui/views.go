@@ -71,8 +71,8 @@ func buildRoot(d uiDeps) widget.Widget {
 	// does not stays web-only. Build runs on the UI thread over a fresh
 	// Document each frame, so web and native can drift only if the domain drifts.
 	children := []widget.Widget{
-		todoView(d, snap), inboxView(snap), notesSection(snap),
-		boardsSection(snap), chatSection(snap), reviewSection(snap),
+		todoView(d, snap), inboxView(snap), notesSection(d, snap),
+		boardsSection(d, snap), chatSection(snap), reviewSection(snap),
 	}
 	recipes, err := graphservice.LoadInstalledRecipes(".")
 	if err != nil {
@@ -80,7 +80,14 @@ func buildRoot(d uiDeps) widget.Widget {
 	}
 	doc := graphservice.Panorama(recipes)
 	for _, p := range graphservice.Providers() {
-		children = append(children, p.Build(doc))
+		next := doc
+		if p.ID == "presence" {
+			// The native window runs no actor host: presence is
+			// unavailable here by construction, and the provider
+			// renders that honest state instead of inventing members.
+			next = graphservice.PresenceUnavailable("lobby")
+		}
+		children = append(children, p.Build(next))
 	}
 	return primitives.VBox(children...).Gap(stackGap)
 }
@@ -262,7 +269,7 @@ func section(title string, rows []widget.Widget) widget.Widget {
 	return primitives.VBox(all...).Padding(contentPadding).Gap(stackGap).Background(contentBg)
 }
 
-func notesSection(snap windowSnapshot) widget.Widget {
+func notesSection(d uiDeps, snap windowSnapshot) widget.Widget {
 	rows := make([]widget.Widget, 0, len(snap.notes))
 	for _, n := range snap.notes {
 		rows = append(rows, primitives.Text(n.ID+" · "+n.Author).FontSize(errorFontSize).Color(inkText))
@@ -270,10 +277,17 @@ func notesSection(snap windowSnapshot) widget.Widget {
 	if len(rows) == 0 {
 		rows = append(rows, primitives.Text("No notes yet.").FontSize(errorFontSize).Color(inkText))
 	}
+	rows = append(rows, button.New(
+		button.TextOpt("New note"),
+		button.OnClick(func() {
+			d.s.createDoc("notes")
+			d.refreshUI()
+		}),
+	))
 	return section("Notes", rows)
 }
 
-func boardsSection(snap windowSnapshot) widget.Widget {
+func boardsSection(d uiDeps, snap windowSnapshot) widget.Widget {
 	rows := make([]widget.Widget, 0, len(snap.boards))
 	for _, b := range snap.boards {
 		rows = append(rows, primitives.Text(b.ID+" · "+b.Author).FontSize(errorFontSize).Color(inkText))
@@ -281,6 +295,13 @@ func boardsSection(snap windowSnapshot) widget.Widget {
 	if len(rows) == 0 {
 		rows = append(rows, primitives.Text("No boards yet.").FontSize(errorFontSize).Color(inkText))
 	}
+	rows = append(rows, button.New(
+		button.TextOpt("New board"),
+		button.OnClick(func() {
+			d.s.createDoc("boards")
+			d.refreshUI()
+		}),
+	))
 	return section("Whiteboard", rows)
 }
 

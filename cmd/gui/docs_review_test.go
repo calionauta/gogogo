@@ -36,3 +36,21 @@ func TestNativeDocsAndReviewSections(t *testing.T) {
 		t.Fatal("reviewConfigured not propagated to snapshot")
 	}
 }
+
+func TestNativeCreateDocWritesRow(t *testing.T) {
+	s := newNativeState(t)
+	signInNative(t, s)
+	s.createDoc("notes")
+	snap := s.snapshot()
+	if len(snap.notes) != 1 {
+		t.Fatalf("notes = %+v, want 1 created", snap.notes)
+	}
+	s.createDoc("boards")
+	snap = s.snapshot()
+	if len(snap.boards) != 1 {
+		t.Fatalf("boards = %+v, want 1 created", snap.boards)
+	}
+	if snap.err != "" {
+		t.Fatalf("create err: %s", snap.err)
+	}
+}
