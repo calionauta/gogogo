@@ -19,7 +19,8 @@ import (
 	"testing"
 )
 
-var apiRoutesDocUpdate = flag.Bool("update", false, "rewrite docs/api-routes.md from source")
+var apiRoutesDocUpdate = flag.Bool("update", false,
+	"rewrite docs/api-routes.md, docs/unit-contracts.md and internal/server/units.gen.go from source")
 
 // TestApiRoutesDocFresh pins the generated inventory: what is on disk must
 // equal what the scanners see. On mismatch it fails naming the exact

@@ -23,6 +23,10 @@ import (
 // installed code claims, the registry's migration sets are applied, and only
 // then are the routes mounted.
 func bootRecipes(r *Router, deps register.Deps) error {
+	// Bundled units first: a unit of this tree is not an install, and its
+	// declaration should win the sort when an installed recipe claims the same
+	// object (the conflict names both either way).
+	registerBundledUnits(r.recipes, deps)
 	registerInstalledRecipes(r.recipes, deps)
 	if err := applyRecipeMigrations(deps.SQLDB, r.recipes); err != nil {
 		return err

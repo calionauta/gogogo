@@ -30,7 +30,6 @@ import (
 	natsio "github.com/nats-io/nats.go"
 
 	"github.com/calionauta/gogogo/config"
-	accounthandlers "github.com/calionauta/gogogo/features/account/handlers"
 	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
 	confighandlers "github.com/calionauta/gogogo/features/config/handlers"
 	creditshandlers "github.com/calionauta/gogogo/features/credits/handlers"
@@ -460,7 +459,8 @@ func buildChiMux(
 	r.recipes.Add(notesH.Recipe())
 	r.recipes.Add(wbH.Recipe())
 	r.recipes.Add(landingH.Recipe())
-	r.recipes.Add(accounthandlers.NewHandler(deps.Cfg, deps.Auth, deps.Queries).Recipe())
+	// Units that mount themselves (Capability.Register) are registered by the
+	// generated list in units.gen.go, not constructed here.
 	bootInbox(r, deps)
 	// Installed recipes register through the generated file, then their own
 	// migrations run, then they mount: one step, in that order (recipe_surface.go).

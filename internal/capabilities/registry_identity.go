@@ -18,8 +18,9 @@ var identityUnits = []Capability{
 		DependsOn: []string{
 			depSounds,
 		},
-		Dirs: []string{"features/account"},
-		Note: "Core identity UX; remove manually with the menu link in features/authviews/controls.templ.",
+		Dirs:     []string{"features/account"},
+		Register: "features/account/handlers",
+		Note:     "Core identity UX; remove manually with the menu link in features/authviews/controls.templ.",
 	},
 	{
 		ID:       "config-view",

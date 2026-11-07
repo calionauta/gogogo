@@ -102,6 +102,11 @@ absolute patterns, and `MountFeature` flattens that table onto the root
 - One `MountFeature` call per capability. A route added to a feature is
   reachable without an edit at the root, and a duplicate method+pattern is a
   boot panic that names both owners.
+- A capability that sets `Capability.Register` builds and declares itself:
+  the generated `internal/server/units.gen.go` calls its
+  `Register(reg *recipe.Registry, deps register.Deps)` from `bootRecipes`, and
+  the root does not import it (a test enforces that). The list is generated
+  from the registry, never edited; `account` is the reference.
 - The auth API is a feature like any other: `internal/auth` exports
   `Routes() chi.Router` with absolute patterns and the router decides the
   method. Static/asset handlers mount through `MountSubtree`, which leaves

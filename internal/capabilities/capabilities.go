@@ -58,6 +58,18 @@ type Capability struct {
 	UISignal string   `json:"uiSignal,omitempty"`
 	Dirs     []string `json:"dirs,omitempty"`
 	Files    []string `json:"files,omitempty"`
+	// Register names the repo-relative package exporting
+	// `Register(reg *recipe.Registry, deps register.Deps)`. A unit that sets it
+	// mounts itself: the generated registration in internal/server calls it at
+	// boot, so the composition root never names the unit's constructor. Empty
+	// means the root still builds the unit itself (the path that a unit takes
+	// until it is converted).
+	//
+	// Why this is data on the capability rather than a line in chi.go: the root
+	// holding a unit's constructor is what makes the unit unremovable, and two
+	// places knowing what a unit needs is how the deps of a removed unit get
+	// "fixed" by hand.
+	Register string   `json:"register,omitempty"`
 	Warns    []string `json:"warnings,omitempty"`
 	Note     string   `json:"note,omitempty"`
 }
