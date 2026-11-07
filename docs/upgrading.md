@@ -15,8 +15,7 @@ neither runs on its own: there is no background check, no nag, no telemetry.
 | What changed since my base? | `gogogo migrate --dir .` | No |
 | Which files does it touch, and do they apply to me? | `gogogo migrate --dir . --files` | No — read-only report, needs the compare API |
 | Does the tree still match the unit manifest? | `gogogo --check --dir .` | No |
-| Which command, for my goal? | `gogogo advise --intent update\|add-unit\|new-feature --dir .` | No — it prints the ordered route for this tree |
-| Restore a unit I trimmed | `gogogo add <unit> --from <template> --dir .` | Yes, with `--yes` |
+| Which command, for my goal? | `gogogo advise --intent update\|port\|new-feature --dir .` | No — it prints the ordered route for this tree |
 | My app already exists; I want one piece | `gogogo export <unit> --dir <template> --to <scratch>` | Only the scratch directory |
 
 The last row is the case this page does not cover, because it is not an
@@ -24,13 +23,11 @@ upgrade: a tree that was never scaffolded has no `scaffolded-from:` marker, so
 there is no base to be behind. See
 [Porting into an existing app](porting-into-an-existing-app.md).
 
-**One release at a time.** `add` copies files *and* restores wiring anchors, so
-it refuses when the `--from` checkout is at a different release than the project's
-recorded base — it names the checkout command instead of grafting next release's
-unit onto this release's composition root. When either side cannot be versioned
-(a checkout with no changelog, a marker that predates the tag) it says the check
-was skipped rather than implying it passed. `export` labels its bundle with the
-release it copied from, so a recipe never floats silently against newer files.
+**One release at a time.** The old `add` command used to copy files *and*
+restore wiring anchors, so it refused when the `--from` checkout was at a
+different release than the project's recorded base. With `add` retired,
+`export` labels its bundle with the release it copied from, so a recipe never
+floats silently against newer files.
 
 Exit codes are part of the contract: `--check-update` returns **3** when an
 update exists and **0** for everything else, including "could not check" (a

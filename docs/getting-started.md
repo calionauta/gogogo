@@ -120,7 +120,7 @@ rules (Go-first with the profiled-kernel Zig exception, runtime switches
 before trim, upstream-first).
 
 Two optional flags turn the opinion into a route. `--intent
-update|port|add-unit|new-feature|scaffold` prints the ordered commands for that
+update|port|new-feature|scaffold` prints the ordered commands for that
 goal (omitted, it is inferred from `--need` and the answer says which it used).
 `--dir <path>` adds one stat, and the answer follows the tree: a path that is
 not a gogogo checkout gets its own scope — the owned paths worth copying plus
@@ -151,19 +151,10 @@ with `trim_plan --dry-run` before any `trim_apply`.
 
 Two cases, sharply different:
 
-**Scaffolded checkout (this template, already trimmed or not).**
-`add` restores one unit back with its dependency closure, module-path
-rebase, and proof build:
-
-```bash
-go run ./cmd/gogogo add whiteboard --from ~/gogogo --dir ./my-app --dry-run
-go run ./cmd/gogogo add whiteboard --from ~/gogogo --dir ./my-app --yes
-```
-
-`--from` is a pristine template checkout to copy from; `--check --dir`
-verifies the markers first. `add` refuses anything that is not a
-scaffolded checkout (`internal/server/chi.go` + `go.mod` must exist) — it
-restores known markers, it does not merge foreign code.
+**Scaffolded checkout (this template).** The old `add` command is retired
+(phase 4: one-way removal beats anchor-patching that cannot see a moved
+core): a scaffolded project already carries every unit, and a capability
+that does not exist yet is built by `new`, below.
 
 **A feature that does not exist yet.** `new` scaffolds one from the todo
 skeleton: handler + page, composition-root wiring, capability unit, RBAC rows,

@@ -25,7 +25,7 @@ Entry points and the data they read, from `ripwire`, `cymbal` and `xerj`:
 | Unit mechanics | `manifest_units.go` `trimUnit` (`mainStrips`, `extraStrips`, `extraDrops`, `replaces`, `goModDrops`) | what a trim deletes and which lines it strips |
 | Registry | `internal/capabilities/registry.go` `All`, `capabilities.go` `OfferedIDs` | kind, summary, `Offered`, `RuntimeOff`, `Reason` |
 | Plan/preview | `internal/installer/plan.go` `scaffoldPlan`, `buildPlan`, `printPlanText` | kept/dropped units, warnings, strips |
-| Inverse | `internal/installer/add.go` + `add_spans.go` | restore a trimmed unit (`gogogo add`) |
+| Inverse | — (retired) | restore a trimmed unit — the `add` command is deleted; `export` is the port tool now |
 | Drift gate | `internal/installer/check.go` (`gogogo --check`) | markers still match the tree |
 | Docs | `docs/unit-contracts.md` (generated), `docs/getting-started.md`, `docs/features.md`, `docs/scope-taxonomy.md`, `site/index.html` | what a reader believes the scaffold offers |
 
@@ -139,8 +139,8 @@ taxonomy already says so (`scope-taxonomy.md`).
 
 Implemented for `perf` (2026-10-30): `ScaffoldOptIn`, a trim unit with the
 dependency drop, and the prompt's fifth question (`--opt-in` in scripted mode).
-The trim is one-way: `gogogo add perf` prints the exact wiring lines because the
-manifest's `extraDrops`/`replaces` are not add-anchored yet. The remaining
+The trim is one-way: the manifest's `extraDrops`/`replaces` are not
+restorable, and the (now-retired) `add` command reported them verbatim. The remaining
 `manual` units are the next phase, one trim unit at a time.
 
 ## Related

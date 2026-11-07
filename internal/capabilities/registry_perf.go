@@ -22,8 +22,7 @@ var perfUnits = []Capability{
 			"match. statsviz is net/http only (no second HTTP stack); pprof is " +
 			"stdlib. The installer drops the dependency with the unit.",
 		Warns: []string{
-			"One-way trim: `gogogo add perf` prints the exact wiring lines; " +
-				"re-adding is manual.",
+			"One-way trim: removal is a hand edit and re-adding is manual.",
 		},
 	},
 }

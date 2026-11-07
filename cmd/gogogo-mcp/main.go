@@ -6,7 +6,7 @@
 //
 //	{"mcpServers": {"gogogo": {"command": "/path/to/gogogo-mcp"}}}
 //
-// Destructive tools (trim_apply, add_unit) require confirm:true — the same
+// Destructive tools (trim_apply, export_unit) respect confirm:true — the same
 // rule as --yes on the CLI. Preview with trim_plan / add dry-run first.
 package main
 
@@ -98,15 +98,6 @@ type migrateArgs struct {
 	Changelog string `json:"changelog,omitempty" jsonschema:"read the changelog from this file instead of the network (offline)"`
 	Files     bool   `json:"files,omitempty" jsonschema:"also list the files upstream changed between the tags, each labelled with the capability it serves and whether this tree kept the unit (needs the compare API; this is the \"which of these apply to me\" half)"`
 	Format    string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
-}
-
-type addArgs struct {
-	Unit    string `json:"unit,omitempty" jsonschema:"installer unit id, e.g. whiteboard (required)"`
-	From    string `json:"from,omitempty" jsonschema:"pristine template checkout to copy from (required)"`
-	Dir     string `json:"dir,omitempty" jsonschema:"target project checkout (required)"`
-	Format  string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
-	Confirm bool   `json:"confirm,omitempty" jsonschema:"must be true (preview with dry-run first)"`
-	DryRun  bool   `json:"dryRun,omitempty" jsonschema:"print the plan and stop when true"`
 }
 
 type newFeatureArgs struct {
@@ -272,33 +263,6 @@ func handleMigratePlan(
 		if kv[1] != "" {
 			cli = append(cli, kv[0], kv[1])
 		}
-	}
-	var buf bytes.Buffer
-	err := installer.Run(ctx, cli, strings.NewReader(""), &buf)
-	return runResult(buf.String(), err)
-}
-
-func handleAddUnit(
-	ctx context.Context, _ *mcp.CallToolRequest, args addArgs,
-) (*mcp.CallToolResult, any, error) {
-	if args.Unit == "" || args.From == "" || args.Dir == "" {
-		return nil, nil, fmt.Errorf("unit, from and dir are all required")
-	}
-	format := args.Format
-	if format == "" {
-		format = defaultFormat
-	}
-	// No --no-tui here: add/new take no TUI flag (it belongs to the root
-	// scaffolder), and passing it made this tool fail at flag parse on every
-	// call. The plumbing test below is what catches the next one (make check-mcp).
-	cli := []string{"add", args.Unit, "--from", args.From, "--dir", args.Dir, "--format", format}
-	if args.DryRun {
-		cli = append(cli, "--dry-run")
-	} else {
-		if !args.Confirm {
-			return nil, nil, fmt.Errorf("refusing without confirm:true (or dryRun:true to preview)")
-		}
-		cli = append(cli, "--yes")
 	}
 	var buf bytes.Buffer
 	err := installer.Run(ctx, cli, strings.NewReader(""), &buf)

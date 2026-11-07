@@ -136,8 +136,6 @@ func runSubcommand(ctx context.Context, args []string, stdin io.Reader, stdout i
 		return false, nil
 	}
 	switch args[0] {
-	case "add":
-		return true, runAdd(ctx, args[1:], stdin, stdout)
 	case "new":
 		return true, runNew(ctx, args[1:], stdin, stdout)
 	case "advise":

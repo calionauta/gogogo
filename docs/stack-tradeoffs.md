@@ -392,11 +392,11 @@ it:
   replaced it — roughly twenty of them for `notes` alone. A bare core has no
   contract to re-pin, so a change to a seam breaks wiring silently instead of
   failing a named test.
-- **The installer works on wiring that only exists in the demos.** `trim`, `add`
+- **The installer works on wiring that only exists in the demos.** `trim`
   and `new` edit markers in real files — the call lines in `cmd/web/main.go`, the
   route lines in `internal/server/chi.go`, the module registry entry, the unit
   rows in `internal/capabilities`. With no demo in the tree, `--features none` has nothing to strip
-  and `gogogo add` has nothing to restore, so "ship everything, delete what you
+  (the retired restore command has nothing to restore either), so "ship everything, delete what you
   do not want" loses its input.
 - **The gates walk units that exist.** `registry-conformance` and
   the RBAC coverage scan enumerate real units, so fewer units means less surface

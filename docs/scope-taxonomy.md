@@ -117,8 +117,8 @@ rename fails CI instead of shipping quietly.
 
 The flat stack composes every capability in two places, both inside
 `internal/server/chi.go`: `BootChi` builds each handler, `buildChiMux` flattens
-its routes onto the root with one `MountFeature` call. The installer (`gogogo` keep lists / presets, plus `gogogo add <unit>` to
-restore one) automates the common ones; when doing it by hand:
+its routes onto the root with one `MountFeature` call. The installer (`gogogo` keep lists / presets)
+automated the common ones; when doing it by hand:
 
 1. Delete the package directory (e.g. `features/todo/`).
 2. Delete dependent packages listed in the `Depends on:` comment.

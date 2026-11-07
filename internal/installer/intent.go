@@ -23,13 +23,12 @@ const (
 	intentNone       = ""
 	intentUpdate     = "update"
 	intentPort       = "port"
-	intentAddUnit    = "add-unit"
 	intentNewFeature = "new-feature"
 	intentScaffold   = "scaffold"
 )
 
 // intentNames is the accepted vocabulary, in the order --help prints it.
-var intentNames = []string{intentUpdate, intentPort, intentAddUnit, intentNewFeature, intentScaffold}
+var intentNames = []string{intentUpdate, intentPort, intentNewFeature, intentScaffold}
 
 // intentSignals is the detection table: the FIRST intent with a hit wins, so
 // the order is the tie-break when a need names two ("update my gogogo project"
@@ -49,7 +48,6 @@ var intentSignals = []struct {
 	// name, so the signal has to be the phrase people use for a codebase that
 	// predates gogogo.
 	{intentPort, []string{"existing", "brownfield", "adopt", "retrofit", "already"}},
-	{intentAddUnit, []string{"restore", "readd", "bring"}},
 	{intentNewFeature, []string{"feature", "slice", "endpoint"}},
 	{intentScaffold, []string{"scaffold", "greenfield", "template", "bootstrap", "start"}},
 }
@@ -151,16 +149,16 @@ func routeFor(intent, tree, dir string) []adviseStep {
 				Why: "after applying: does the tree still match the unit manifest",
 			},
 		}
-	case intentPort, intentAddUnit:
+	case intentPort:
 		if !checkout {
 			return portRoute()
 		}
 		return []adviseStep{
 			{
-				Run: "gogogo add <unit> --from <template> --dir " + where + " --yes",
-				Why: "add restores the unit mechanically in a gogogo checkout (copy + " +
-					"rewire + build proof); on a tree that is NOT one it refuses — point " +
-					"--dir at it and this answer switches to the export route instead",
+				Run: "gogogo export <unit> --dir " + where + " --to <scratch> --module <your-module>",
+				Why: "export writes a scratch bundle (files) plus PORTING.md for the " +
+					"unit and its dependency closure, and never touches --dir — the " +
+					"hand-restore lines are listed verbatim in the bundle",
 			},
 			{
 				Run: "gogogo --check --dir " + where,

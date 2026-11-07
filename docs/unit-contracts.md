@@ -314,7 +314,7 @@ opt-in operator diagnostics: statsviz dashboard + stdlib pprof
 - **Runtime off:** `PERF_ENABLED=false (default off in production)`
 - **Trim:** offered to the installer (a scaffold's keep lists/presets drop it)
 - **Note:** Fenced like /console: session + admin + an ADMIN_EMAILS match. statsviz is net/http only (no second HTTP stack); pprof is stdlib. The installer drops the dependency with the unit.
-- **Warning:** One-way trim: `gogogo add perf` prints the exact wiring lines; re-adding is manual.
+- **Warning:** One-way trim: removal is a hand edit and re-adding is manual.
 
 ## `recipe` — plugin
 
@@ -448,7 +448,7 @@ review loop demo (writer → critic → classifier judge, streamed verdict)
 - **Scaffold:** `default`
 - **Depends on:** genkit
 - **Trim:** offered to the installer (a scaffold's keep lists/presets drop it)
-- **Note:** No UISignal claim by design: the run UI gates on the todo.Signals ReviewEnabled field at runtime (keyless hides it), but the only .templ reader ships inside features/review — claiming it would fail the trimmed-tree conformance, the same reason SimulatedLLM is unclaimed. Trim removes the sidebar entry, so no dead UI either way. DependsOn lists genkit only: llm is never trimmed (runtime-off is blessed), so declaring it would break `gogogo add review` (add fails on deps no unit provides) for zero mechanical gain — the LLM requirement rides the Summary and docs instead.
+- **Note:** No UISignal claim by design: the run UI gates on the todo.Signals ReviewEnabled field at runtime (keyless hides it), but the only .templ reader ships inside features/review — claiming it would fail the trimmed-tree conformance, the same reason SimulatedLLM is unclaimed. Trim removes the sidebar entry, so no dead UI either way. DependsOn lists genkit only: llm is never trimmed (runtime-off is blessed), so declaring it would break a bundle restore (no unit provides the dep) for zero mechanical gain — the LLM requirement rides the Summary and docs instead.
 - **Warning:** The Review sidebar entry is stripped automatically.
 - **Warning:** ci-local smoke: export SMOKE_FEATURES without review (e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the trimmed route.
 

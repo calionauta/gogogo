@@ -75,7 +75,7 @@ Before designing anything, know what already exists. This is not a greenfield.
 |---|---|---|
 | Unit registry | `internal/capabilities/registry.go` and its siblings | Every removable-or-toggleable unit: id, removal kind, scaffold class, owned dirs/files, dependencies, runtime opt-out, warnings, notes |
 | Removal machinery | `internal/installer/manifest.go` | `planTrim` turns a keep set into a drop set; `applyTrim` deletes paths, rewires imports, tidies `go.mod` |
-| Install machinery | `internal/installer/add_spans.go` | Reinverts a trim: copies directories, re-inserts wiring spans at string anchors, rebases the module path |
+| Install machinery | the former anchor table (deleted with `add`) | Reinverted a trim: copied directories, re-inserted wiring spans at string anchors, rebased the module path |
 | Scaffold command | `internal/installer/newcmd.go` | Writes a handler, a page, the composition wiring, the registry entry and the policy rows, then proves the build |
 | Port tool | `internal/installer/export.go` | Bundles one unit into a scratch module with a recipe for transplanting it |
 | Routing seam | `internal/server/route.go` | `MountFeature` walks a capability's own router and flattens it onto the root tree; a duplicate method+pattern panics at boot naming both owners |
@@ -99,8 +99,9 @@ But one property is missing, and it is the blocker.
 
 ## The blocker: install patches the core by string anchors
 
-`internal/installer/add_spans.go` inserts code by finding literal markers inside
-files of the core:
+The span-insertion code this section indicts lived in the
+former addSpans file (deleted with the `add` command). It inserted
+code by finding literal markers inside files of the core:
 
 | Anchor | File edited |
 |---|---|
@@ -1088,8 +1089,8 @@ depends on the unit. The distinction to preserve:
   no longer compiles. The registry keeps the class for the catalog, not as a
   supported operation.
 
-The anchor family in `internal/installer/add_spans.go` and the module-path
-rebasing in `internal/installer/add_rebase.go` lose their reason to exist once
+The anchor family and the module-path rebasing it used lost their reason
+to exist — both files are now deleted with the `add` command — once
 extensions no longer patch core files, and `trim`/`add`/`export` become installer
 history rather than the extension mechanism. That code should not be deleted
 blindly — it still serves the intra-release "put a unit back" case and the port
@@ -1132,7 +1133,7 @@ registered and need no change.
 | Change | Cost | Notes |
 |---|---|---|
 | A public extension surface | **High** | `internal/` is unimportable by another module. Either the consumed packages move to a public tree, or extensions live in-module. This is the single largest decision below |
-| Stop anchor-patching for extensions | Medium | `add_spans.go` and `add_rebase.go` shrink to the intra-release restore case |
+| Stop anchor-patching for extensions | Medium | the anchor family shrank to the intra-release restore case before deletion |
 | Navigation becomes a slot | Low | `internal/ui/modules.go` and the shell template already render a slice; the entries move behind the extension surface. Smallest seam, largest perceived effect for an extension author |
 | Per-extension migrations | Low | `internal/dbschema/migrate.go` embeds one filesystem and sorts filenames; it needs a per-extension filesystem and a version prefix |
 | Policy rows per extension | Low | A second CSV, plus the coverage test iterating registered extensions |
@@ -1241,7 +1242,8 @@ root, the way a version bump would.
 
 - **Question:** does the current install mechanism fail loudly, fail silently, or
   land in the wrong place?
-- **Method:** `internal/installer/spike_anchor_test.go` — five probes over the real
+- **Method:** the spike probe that lived in `spike_anchor_test.go` (deleted
+  with the `add` mechanism it measured) — five probes over the real
   `findAnchor`, `spanPresent` and the live anchor table. The baseline
   `gogogo --check --dir .` is green before and after, which is itself part of the
   result.
@@ -1926,13 +1928,12 @@ open question #4.
 
 Discovered during the spikes, real, and not part of the recipe model:
 
-1. **Dead anchors in `internal/installer/add.go` — closed by the generalized gate.** The
-   anchors were dead and `gogogo --check` reported OK, because a strip moved to a different
-   file and orphaned them. `--check` was never the place the class could be caught: `add`
-   refuses every unit before it mutates the tree, so the anchors had no caller at all.
-   `TestEveryDeclaredAddAnchorIsLive` now walks every rule of every unit and fails on a
-   marker that matches nothing, on an anchor that is not a whole line, and on an anchor its
-   own span or a sibling strip removes.
+1. **Dead anchors, closed by the generalized gate, then retired with `add` itself.** The anchors were dead and `gogogo --check` reported OK,
+   because a strip moved to a different file and orphaned them. `--check` was never the
+   place the class could be caught: `add` refused every unit before it mutated the tree,
+   so the anchors had no caller at all. `TestEveryDeclaredAddAnchorIsLive` walked every
+   rule of every unit and failed on a marker that matches nothing, on an anchor that is
+   not a whole line, and on an anchor its own span or a sibling strip removes.
 2. **The proof failed on a scaffolded project — closed 2026-11-06.** The cause was sharper
    than "the rename rewrote paths": `writeAgents` REPLACES the template's `AGENTS.md`, and
    the prove step then runs `TestGoToolchainPinIsConsistent`, which requires that same file

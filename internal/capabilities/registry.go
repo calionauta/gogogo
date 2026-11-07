@@ -398,7 +398,7 @@ var All = append([]Capability{
 			"sidebar entry, so no dead UI either way. " +
 			"DependsOn lists genkit only: llm is never trimmed " +
 			"(runtime-off is blessed), so declaring it would break " +
-			"`gogogo add review` (add fails on deps no unit provides) " +
+			"a bundle restore (no unit provides the dep) " +
 			"for zero mechanical gain — the LLM requirement rides the " +
 			"Summary and docs instead.",
 	},

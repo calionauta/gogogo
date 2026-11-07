@@ -69,8 +69,12 @@ func TestJoinRoot_BlocksDotDot(t *testing.T) {
 	if _, err := joinRoot(root, "../escaped.txt"); err == nil {
 		t.Fatal("joinRoot accepted a ../ traversal")
 	}
-	if _, err := joinRoot(root, "ok/nested.txt"); err != nil {
+	got, err := joinRoot(root, "ok/nested.txt")
+	if err != nil {
 		t.Fatalf("joinRoot refused a legitimate path: %v", err)
+	}
+	if got != filepath.Join(root, "ok/nested.txt") {
+		t.Fatalf("joinRoot = %q, want the joined path", got)
 	}
 }
 

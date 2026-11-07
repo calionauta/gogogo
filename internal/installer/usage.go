@@ -40,10 +40,6 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
 
     go run ./cmd/gogogo --check --dir ./my-app
 
-  Add a unit to an existing scaffolded checkout (deps cascade automatically):
-
-    go run ./cmd/gogogo add whiteboard --from ~/gogogo --dir ./my-app --yes
-
   Take a unit INTO an app that is not gogogo — read-only: writes a scratch
   bundle plus PORTING.md, and never touches the target tree:
 

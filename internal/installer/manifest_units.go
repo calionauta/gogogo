@@ -221,9 +221,6 @@ const (
 	creditsCallLine = "creditshandlers.NewHandler(a, nil))"
 )
 
-// chiMuxAnchor ends buildChiMux; capability route lines land above it.
-const chiMuxAnchor = "\treturn r"
-
 // Import suffixes dropped from handler dispatch when their unit trims.
 const (
 	soundsImportSuffix = `features/sounds"`

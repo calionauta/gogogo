@@ -76,20 +76,13 @@ var toolCatalog = []toolDef{
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleMigratePlan) },
 	},
 	{
-		"add_unit",
-		"Add one template unit to a checkout (deps, rebase, proof). Requires " +
-			"confirm:true, and needs BOTH `dir` (a gogogo checkout) and `from` " +
-			"(a pristine template copy to copy the unit's files from).",
-		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleAddUnit) },
-	},
-	{
 		"export_unit",
-		"Read-only PORT BUNDLE for a tree that is not a gogogo checkout (where " +
-			"add_unit refuses): copies the unit's owned files into the scratch `to` " +
-			"directory and writes PORTING.md with the measured wiring — routes it " +
-			"registers, imports to rewrite, what YOU must write by hand — plus the " +
-			"proof commands. Changes nothing in `dir` and nothing outside `to`; " +
-			"apply it deliberately, it is a copy and not an installer.",
+		"Read-only PORT BUNDLE for a tree that is not a gogogo checkout " +
+			"(a tree this build does not scaffold): copies the unit's owned files " +
+			"into the scratch `to` directory and writes PORTING.md with the measured " +
+			"wiring — routes it registers, imports to rewrite, what YOU must write " +
+			"by hand — plus the proof commands. Changes nothing in `dir` and nothing " +
+			"outside `to`; apply it deliberately, it is a copy and not an installer.",
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleExportUnit) },
 	},
 	{

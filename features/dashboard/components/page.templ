@@ -9,7 +9,6 @@
 package components
 
 import (
-	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/internal/ui"
 	"github.com/calionauta/gogogo/internal/recipe"
 )
@@ -38,18 +37,16 @@ templ Page(data PageData, buildLabel string, buildCommit string) {
 	}, dashboardHead(), dashboardSound(), nil, dashboardBody(data))
 }
 
-// dashboardHead carries the page's own <head> extras: the sound assets, so
-// the shell's mute control works. A one-line wrapper on purpose: the
-// installer's sounds trim drops the call and leaves the shell's head slot
-// satisfied.
+// dashboardHead carries the page's own <head> extras. The dashboard page
+// deliberately does not embed the sound assets: those belong to interactive
+// work surfaces' head wrappers, and importing the sounds package here would
+// break a trimmed tree that drops the unit.
 templ dashboardHead() {
-	@sounds.SoundAssets()
 }
 
-// dashboardSound is the shell's mute control for this page. Same reason as
-// landingHead: the trim drops the call and leaves an empty wrapper.
+// dashboardSound keeps the shell's sound slot empty on purpose; the shell
+// renders the same document whether the slot carries content or not.
 templ dashboardSound() {
-	@sounds.SoundSwitch()
 }
 
 templ dashboardBody(data PageData) {
