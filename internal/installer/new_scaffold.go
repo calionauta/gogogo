@@ -76,20 +76,38 @@ func newMountBlock(name string) string {
 		"\tmux.MountFeature(\"" + name + "\", " + name + "H.Routes())\n"
 }
 
-// editRegistry appends one feature unit to capabilities.All. The entry is
-// written before the closing brace of the slice, at the end of the file.
+// editRegistry appends one feature unit inside the []Capability literal, so
+// it lands in the slice regardless of how All is wrapped (plain literal or
+// append-wrapped across files). Inserting before the literal's close keeps a
+// moved shape a refusal before any file is written — never a half-wired tree.
 func editRegistry(src, name string) (string, error) {
-	idx := strings.LastIndex(src, "\n}\n")
-	if idx < 0 || idx != len(src)-3 {
-		return "", &ExitError{code: 1, msg: "internal/capabilities/registry.go: cannot find the end of " +
-			"`var All = []Capability{…}` — refusing to guess (the registry shape moved)"}
-	}
 	entry := newRegistryEntry(name)
-	out := src[:idx+1] + entry + src[idx+1:]
+	ins, err := registryInsertPoint(src)
+	if err != nil {
+		return "", err
+	}
+	out := src[:ins] + entry + src[ins:]
 	if err := validateGo("internal/capabilities/registry.go", out); err != nil {
 		return "", err
 	}
 	return out, nil
+}
+
+// registryInsertPoint returns the byte offset just before the closing brace
+// of the []Capability literal: before "\n}\n" for a plain literal, before
+// "\n}, " for the append-wrapped registry (var All = append([]Capability{…
+// }, append(…))). Anything else is refused.
+func registryInsertPoint(src string) (int, error) {
+	if strings.Contains(src, "var All = ") && strings.Contains(src, "[]Capability{") {
+		if idx := strings.LastIndex(src, "\n}\n"); idx >= 0 && idx == len(src)-3 {
+			return idx + 1, nil
+		}
+		if idx := strings.Index(src, "\n}, "); idx >= 0 {
+			return idx + 1, nil
+		}
+	}
+	return 0, &ExitError{code: 1, msg: "internal/capabilities/registry.go: cannot find the end of " +
+		"`var All = []Capability{…}` — refusing to guess (the registry shape moved)"}
 }
 
 // newRegistryEntry is the unit metadata a scaffolded feature starts with.

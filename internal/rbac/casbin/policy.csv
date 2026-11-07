@@ -168,3 +168,10 @@ p, admin, /debug/pprof/*, .*
 # `gogogo new`: notifications (page + actions; add a row per route as it grows)
 p, user, /notifications, .*
 p, user, /api/notifications/*, .*
+# `gogogo new`: graph (page + probe; add a row per route as it grows)
+p, user, /graph, .*
+p, user, /api/graph/ping, .*
+p, user, /api/graph/panorama, .*
+p, user, /static/graph, .*
+p, user, /static/graph/*, .*
+p, user, /api/graph/dagnats, .*
