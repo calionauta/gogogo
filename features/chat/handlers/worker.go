@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP chat worker (model round-trip off the request path)
+// HTTP chat worker (model round-trip off the request path)
 package handlers
 
 import (

@@ -1,4 +1,4 @@
-// SCOPE:core — shell session-recovery contract.
+// Shell session-recovery contract.
 package ui
 
 import (

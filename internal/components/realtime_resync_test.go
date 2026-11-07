@@ -1,4 +1,4 @@
-// SCOPE:core — ListResync render test.
+// ListResync render test.
 package components_test
 
 import (

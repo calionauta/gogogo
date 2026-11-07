@@ -1,4 +1,4 @@
-// SCOPE:plugin — generative leaf render tests (Chat demo).
+// Generative leaf render tests (Chat demo).
 package components_test
 
 import (

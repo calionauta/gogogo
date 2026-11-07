@@ -308,7 +308,7 @@ templ TodoListRegion(signals todo.Signals) {
 			</div>
 		}
 		for _, item := range signals.Todos {
-			@TodoItem(item, pageRowActions(item))
+			@TodoItem(item, pageRowActions(item, signals.RowActions))
 		}
 	</div>
 }
@@ -321,8 +321,9 @@ const deleteDialogID = "confirm-delete-modal"
 
 // pageRowActions is the /todo half of TodoItem: the URL carries the page's
 // filter/scope signals and the trash opens the page's shared dialog.
-func pageRowActions(item todo.Todo) TodoRowActions {
+func pageRowActions(item todo.Todo, extras []todo.RowAction) TodoRowActions {
 	return TodoRowActions{
+		Extras:   extras,
 		IDPrefix: "todo-",
 		Toggle: todoMutateOn("'/api/todos/" + item.ID + "/toggle?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || '')"),
 		Delete: "$confirmingDeleteId = " + safeJSString(item.ID) + "; $confirmingDeleteTitle = " + safeJSString(item.Title) + "; document.getElementById(" + safeJSString(deleteDialogID) + ").showModal()",

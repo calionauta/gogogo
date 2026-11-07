@@ -1,4 +1,4 @@
-// SCOPE:feature — Whiteboard handlers ported contracts (ported from the legacy whiteboard suite)
+// Whiteboard handlers ported contracts (ported from the legacy whiteboard suite)
 
 package handlers
 

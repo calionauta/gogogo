@@ -1,4 +1,4 @@
-// SCOPE:core — Platform database driver selection (ncruces on Android).
+// Platform database driver selection (ncruces on Android).
 
 //go:build android
 

@@ -1,4 +1,4 @@
-// SCOPE:core — the quarantine mechanism's own contract.
+// The quarantine mechanism's own contract.
 //
 // Mostly about the DEADLINE, because that is the part that makes a quarantine
 // honest: without an expiry it is a deletion that lies about itself. The date

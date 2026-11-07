@@ -1,4 +1,4 @@
-// SCOPE:feature — Room SSE stream contract tests (presence by connection).
+// Room SSE stream contract tests (presence by connection).
 //
 // The room stopped polling: a tab opens ONE stream, the grain learns about
 // the connection on connect and about its death on disconnect, and every

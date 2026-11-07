@@ -1,4 +1,4 @@
-// SCOPE:plugin — NATS JetStream + Leaf Node + CRUD proxy
+// NATS JetStream + Leaf Node + CRUD proxy
 package nats_test
 
 import (

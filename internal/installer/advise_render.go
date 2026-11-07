@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: advise rendering (one text shape per scope).
+// Installer engine: advise rendering (one text shape per scope).
 // Split from advise.go so the resolver and the renderers each stay under
 // the file-sizes gate, and so a new scope has one obvious place to land.
 package installer

@@ -1,4 +1,4 @@
-// SCOPE:feature — Notes concurrency handlers port tests
+// Notes concurrency handlers port tests
 
 package handlers
 

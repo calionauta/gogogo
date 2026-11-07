@@ -1,4 +1,4 @@
-// SCOPE:core — The one shell's module registry.
+// The one shell's module registry.
 //
 // Every destination in the app is a Module value. Adding a 9th surface is one
 // entry here, not a layout change (that is criterion C-3 of the revamp brief:
@@ -56,6 +56,7 @@ var Modules = []Module{
 		ID: ModuleInbox, Title: "Inbox", Pinned: true,
 		Icon: "material-symbols:notifications", URL: "/notifications",
 	},
+	{ID: "dashboard", Title: "Dashboard", Group: GroupCollab, Icon: "material-symbols:grid-view", URL: "/dashboard"},
 	{ID: "todo", Title: "Todo", Group: GroupCollab, Icon: "material-symbols:checklist", URL: "/todo"},
 	{ID: "whiteboard", Title: "Whiteboard", Group: GroupCollab, Icon: "material-symbols:draw", URL: "/whiteboard"},
 	{ID: "notes", Title: "Notes", Group: GroupCollab, Icon: "material-symbols:description", URL: "/notes"},
@@ -74,7 +75,7 @@ var Modules = []Module{
 // pins nav/policy parity per role, so a policy grant/removal fails naming
 // the pair. A stale entry for a trimmed module is inert (Visible iterates
 // Modules, and `add` restores the same `{ID: ...}` line).
-var viewerModules = map[string]bool{"todo": true, "whiteboard": true, "notes": true}
+var viewerModules = map[string]bool{"dashboard": true, "todo": true, "whiteboard": true, "notes": true}
 
 // Visible returns the modules the given role may see in the rail. An empty
 // role (guest) sees the non-admin surfaces, matching the navbar's previous

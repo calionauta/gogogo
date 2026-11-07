@@ -1,4 +1,4 @@
-// SCOPE:plugin — Mermaid diagram source validation + fence extraction.
+// Mermaid diagram source validation + fence extraction.
 package components
 
 import (

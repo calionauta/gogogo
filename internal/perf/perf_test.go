@@ -1,4 +1,4 @@
-// SCOPE:plugin — Runtime dashboard handler tests.
+// Runtime dashboard handler tests.
 package perf
 
 import (

@@ -109,6 +109,11 @@ policy in a table is an editable privilege surface).
   but admin. Adding a route without adding its rows is a deny bug (a
   login bounce for anonymous, 403 once signed in), and the coverage test
   names it.
+- **A recipe's rows belong to the tool.** `gogogo recipe install` appends one
+  `# recipe:<id>` … `# end recipe:<id>` block holding a `user` row per declared
+  route; `uninstall` deletes exactly that block and `recipe status` compares it
+  with the declaration. Never hand-edit inside the markers — a re-install
+  rewrites the block, and the routes it grants would otherwise answer 403.
 
 ## Adding a feature (checklist)
 

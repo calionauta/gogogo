@@ -1,4 +1,4 @@
-// SCOPE:core — tests for the Turso DSN configuration.
+// Tests for the Turso DSN configuration.
 package queue
 
 import (

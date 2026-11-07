@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: `gogogo new` sources and wiring edits.
+// Installer engine: `gogogo new` sources and wiring edits.
 //
 // The templates are the skeleton the todo slice would give you if it were
 // writable: a chi handler with an auth-gated page and a JSON probe, the page
@@ -38,7 +38,7 @@ func newPageSource(name, module string) string {
 // editChiGo adds the feature to the composition root: one import and one
 // self-contained block in BootChi (construction + mounts). Mounting in
 // BootChi instead of threading a parameter through buildChiMux keeps the
-// scaffold independent of every trim unit — credits, landing and their
+// scaffold independent of every built-in unit — credits, landing and their
 // signature lines are all removable.
 func editChiGo(src, name, module string) (string, error) {
 	alias := name + "handlers"
@@ -99,7 +99,7 @@ func newRegistryEntry(name string) string {
 		"\t\tKind:    KindFeature,\n" +
 		"\t\tSummary: \"" + name + " feature (scaffolded by `gogogo new`)\",\n" +
 		"\t\tDirs:    []string{\"features/" + name + "\"},\n" +
-		"\t\tReason:  \"Scaffolded: no trim unit yet — removal is manual until you add the strips.\",\n" +
+		"\t\tReason:  \"Scaffolded: no built-in unit yet — removal is manual until you add the strips.\",\n" +
 		"\t},\n"
 }
 
@@ -147,8 +147,8 @@ func validateGo(rel, src string) error {
 }
 
 // newHandlerTemplate is the handler skeleton. {{name}} and {{var}} are
-// substituted; the file carries its SCOPE line so check-scope is green.
-const newHandlerTemplate = `// SCOPE:feature — {{name}} feature (scaffolded by ` + "`gogogo new`" + `)
+// substituted; the removal class is the capability row, not a file header.
+const newHandlerTemplate = `// {{name}} feature (scaffolded by ` + "`gogogo new`" + `)
 //
 // Two routes: an auth-gated page and a JSON probe. Wiring lives in
 // internal/server/chi.go (import, construction, one MountFeature call) and the
@@ -236,7 +236,7 @@ func (h *Handler) handlePing(w http.ResponseWriter, r *http.Request) {
 // in front of the app cache them immutably instead of revalidating on every
 // navigation. A scaffolded page must not be the only one that pays the
 // round trip.
-const newPageTemplate = `// SCOPE:feature — {{name}} page (scaffolded by ` + "`gogogo new`" + `)
+const newPageTemplate = `// {{name}} page (scaffolded by ` + "`gogogo new`" + `)
 package components
 
 import "{{module}}/internal/ui"

@@ -1,4 +1,4 @@
-// SCOPE:plugin — the toggle matrix: what survives per surface set.
+// The toggle matrix: what survives per surface set.
 //
 // The composer toggles ride every request, so the filter is the last word on
 // "the tab turned this band off": an answer reaching for a disabled band is

@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: flags, plan,
+// Installer engine: flags, plan,
 // apply, prove, and exit codes shared by the CLI and the MCP server.
 package installer
 
@@ -18,15 +18,10 @@ import (
 type options struct {
 	name     string
 	owner    string
-	plugins  string
-	features string
-	optIn    string
-	preset   string
 	noTUI    bool
 	dir      string
 	yes      bool
 	dryRun   bool
-	check    bool
 	run      bool
 	updateCh bool
 	// dirGiven distinguishes "--dir was passed" from the project-name default,
@@ -78,7 +73,7 @@ func ErrorText(err error) string {
 // that assumes the prefix.
 var Version = "dev"
 
-func unitOneLiner(u trimUnit) string {
+func unitOneLiner(u builtinUnit) string {
 	byID := capabilities.ByID()
 	if c, ok := byID[u.caps()[0]]; ok {
 		return c.Summary
@@ -107,13 +102,8 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) 
 		}
 		return printUpdateCheck(ctx, stdout, opt.format, dir)
 	}
-	keep := parseKeep(opt.plugins, opt.features, opt.optIn)
-	drop := planTrim(keep)
-	plan := buildPlan(opt.name, opt.owner, opt.dir, keep, drop, opt.dryRun)
-	plan.Preset = opt.preset
-	if opt.check {
-		return runCheck(opt, stdout)
-	}
+	// Scaffold keeps everything: no keep/drop decision exists.
+	plan := buildPlan(opt.name, opt.owner, opt.dir, opt.dryRun)
 	if opt.format == planFormatJSON {
 		if opt.dryRun {
 			return printPlanJSON(stdout, plan)
@@ -126,7 +116,7 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) 
 			return nil
 		}
 	}
-	return runApply(ctx, opt, drop, plan, stdin, stdout)
+	return runApply(ctx, opt, plan, stdin, stdout)
 }
 
 // runSubcommand dispatches the mutating/guiding subcommands, keeping Run's
@@ -136,8 +126,6 @@ func runSubcommand(ctx context.Context, args []string, stdin io.Reader, stdout i
 		return false, nil
 	}
 	switch args[0] {
-	case "add":
-		return true, runAdd(ctx, args[1:], stdin, stdout)
 	case "new":
 		return true, runNew(ctx, args[1:], stdin, stdout)
 	case "advise":
@@ -146,6 +134,10 @@ func runSubcommand(ctx context.Context, args []string, stdin io.Reader, stdout i
 		return true, runMigrate(ctx, args[1:], stdout)
 	case "export":
 		return true, runExport(args[1:], stdout)
+	case "recipe":
+		return true, runRecipe(args[1:], stdout)
+	case "extension":
+		return true, runExtension(ctx, args[1:], stdout)
 	}
 	return false, nil
 }
@@ -157,16 +149,10 @@ func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, err
 	opt := options{}
 	fs.StringVar(&opt.name, "name", "", "new project name (e.g. my-app)")
 	fs.StringVar(&opt.owner, "owner", "calionauta", "GitHub owner/org for the module path")
-	fs.StringVar(&opt.plugins, "plugins", "", "comma-separated default plugins to KEEP (default: all; none drops all)")
-	fs.StringVar(&opt.features, "features", "", "comma-separated default features to KEEP (default: all; none drops all)")
-	fs.StringVar(&opt.optIn, "opt-in", "", "comma-separated opt-in units to ADD (default: none; all adds every opt-in)")
-	fs.StringVar(&opt.preset, "preset", "",
-		"named drop set instead of keep lists: minimal|no-ai|no-collab (conflicts with --plugins/--features)")
 	fs.BoolVar(&opt.noTUI, "no-tui", false, "non-interactive mode (requires --name)")
 	fs.StringVar(&opt.dir, "dir", "", "target checkout directory (default: ./<name>)")
 	fs.BoolVar(&opt.yes, "yes", false, "apply without asking (agents: always pin this)")
 	fs.BoolVar(&opt.dryRun, "dry-run", false, "print the plan and stop; changes nothing")
-	fs.BoolVar(&opt.check, "check", false, "verify manifest markers against --dir, change nothing (drift gate)")
 	fs.BoolVar(&opt.updateCh, "check-update", false, "compare this binary against the latest release, change nothing")
 	fs.BoolVar(&opt.run, "run", false, "hand over to `make dev` after a "+
 		"successful proof (takes this terminal; Ctrl-C stops dev; humans only)")
@@ -180,13 +166,6 @@ func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, err
 	if opt.format != planFormatText && opt.format != planFormatJSON {
 		return opt, fmt.Errorf("unknown --format %q (want text|json)", opt.format)
 	}
-	if opt.check {
-		// --check never prompts and needs no project name: it reads.
-		opt.noTUI = true
-		if opt.name == "" {
-			opt.name = "check"
-		}
-	}
 	if opt.updateCh {
 		// --check-update never prompts either: pure network read.
 		opt.noTUI = true
@@ -198,21 +177,12 @@ func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, err
 		interactive := promptForm(stdin, stdout)
 		opt.name = interactive.name
 		opt.owner = interactive.owner
-		opt.plugins = interactive.plugins
-		opt.features = interactive.features
-		opt.optIn = interactive.optIn
 	}
 	if opt.name == "" {
 		fs.Usage()
 		return opt, errors.New("project name is required (--name my-app or interactive mode)")
 	}
 	if err := validateName(opt.name); err != nil {
-		return opt, err
-	}
-	if err := checkKeepIDs(opt.plugins, opt.features, opt.optIn); err != nil {
-		return opt, err
-	}
-	if err := resolvePreset(&opt); err != nil {
 		return opt, err
 	}
 	if opt.dir == "" {
@@ -231,18 +201,6 @@ const (
 )
 
 const templateCloneURL = "https://github.com/" + templateOwner + "/" + templateRepo
-
-// requireCheckoutDir is the strict gate for read-only paths (--check):
-// nothing is created, so a missing directory is a plain error.
-func requireCheckoutDir(opt options) error {
-	if _, err := os.Stat(opt.dir); err != nil {
-		return &ExitError{code: 1, msg: fmt.Sprintf(
-			"directory %s not found — nothing to check "+
-				"(scaffold it first: go run github.com/calionauta/gogogo/cmd/gogogo@latest --yes)",
-			opt.dir)}
-	}
-	return nil
-}
 
 // ensureCheckoutDir is the apply-path gate: an existing directory is used
 // as-is, a missing one is cloned from the template with explicit consent
@@ -285,23 +243,18 @@ var gitClone = func(ctx context.Context, dir string) error {
 	return err
 }
 
-// applyAndProve trims, renames, writes AGENTS.md, and proves the result.
-func applyAndProve(ctx context.Context, opt options, drop []trimUnit, stdout io.Writer) error {
-	rc := &Receipt{}
-	if err := applyTrim(opt.dir, drop, rc); err != nil {
-		return err
-	}
+// applyAndProve renames, writes AGENTS.md, and proves the result.
+func applyAndProve(ctx context.Context, opt options, stdout io.Writer) error {
 	if err := renameTree(opt.dir, opt.name, opt.owner); err != nil {
 		return err
 	}
-	if err := writeAgents(ctx, opt.dir, opt.name, drop); err != nil {
+	if err := writeAgents(ctx, opt.dir, opt.name, nil); err != nil {
 		return err
 	}
-	printReceiptText(stdout, rc)
-	if err := prove(ctx, opt.dir, drop, stdout); err != nil {
+	if err := prove(ctx, opt.dir, stdout); err != nil {
 		return err
 	}
-	printNextSteps(stdout, opt.dir, drop)
+	printNextSteps(stdout, opt.dir, nil)
 	if opt.run {
 		return handoff(opt.dir, stdout)
 	}
@@ -326,15 +279,12 @@ type nextSteps struct {
 
 // applyAndProveJSON is the machine-readable apply path: one envelope at
 // the end carrying plan + receipt + proof result.
-func applyAndProveJSON(ctx context.Context, opt options, drop []trimUnit, stdout io.Writer, plan scaffoldPlan) error {
+func applyAndProveJSON(ctx context.Context, opt options, stdout io.Writer, plan scaffoldPlan) error {
 	rc := &Receipt{Units: []UnitReceipt{}}
-	if err := applyTrim(opt.dir, drop, rc); err != nil {
-		return err
-	}
 	if err := renameTree(opt.dir, opt.name, opt.owner); err != nil {
 		return err
 	}
-	if err := writeAgents(ctx, opt.dir, opt.name, drop); err != nil {
+	if err := writeAgents(ctx, opt.dir, opt.name, nil); err != nil {
 		return err
 	}
 	// Silence prove chatter in JSON mode: discard its progress lines,
@@ -344,8 +294,8 @@ func applyAndProveJSON(ctx context.Context, opt options, drop []trimUnit, stdout
 		return err
 	}
 	defer func() { _ = devNull.Close() }()
-	proveErr := prove(ctx, opt.dir, drop, devNull)
-	env := envelope{Plan: plan, Receipt: *rc, BuildOk: proveErr == nil, Next: buildNextSteps(opt.dir, drop)}
+	proveErr := prove(ctx, opt.dir, devNull)
+	env := envelope{Plan: plan, Receipt: *rc, BuildOk: proveErr == nil, Next: buildNextSteps(opt.dir, nil)}
 	if proveErr != nil {
 		env.BuildErr = proveErr.Error()
 	}
@@ -365,7 +315,7 @@ func confirm(stdout io.Writer, stdin io.Reader, nDrop int) bool {
 	if nDrop == 0 {
 		fmt.Fprint(stdout, "Proceed with rename only? [y/N]: ")
 	} else {
-		fmt.Fprintf(stdout, "Delete %d unit(s) above and rename? [y/N]: ", nDrop)
+		fmt.Fprintf(stdout, "Scaffold the full template into %s and rename? [y/N]: ", "the target directory")
 	}
 	var answer [8]byte
 	n, _ := stdin.Read(answer[:])
@@ -388,15 +338,11 @@ const (
 
 // prove runs templ generate (only when .templ files were edited in place),
 // go mod tidy, and the build. A failing proof exits 2 with compiler output.
-func prove(ctx context.Context, dir string, drop []trimUnit, stdout io.Writer) error {
-	if needsTemplGen(drop) {
-		fmt.Fprintln(stdout, "gogogo: prove: go tool templ generate …")
-		if out, err := runIn(ctx, dir, "go", "tool", "templ", "generate"); err != nil {
-			fmt.Fprintf(stdout,
-				"gogogo: WARN: templ generate failed (%v) — run `make templ` manually:\n%s\n",
-				err, tailLines(string(out), proofTemplTailLines))
-		}
-	}
+func prove(ctx context.Context, dir string, stdout io.Writer) error {
+	// With no trim, no in-place .templ is edited: the rename rewrites only
+	// module paths in Go sources, which `go build` proves as-is. The
+	// templ step the old port path ran for edited .templ files is gone
+	// with the trim itself.
 	fmt.Fprintln(stdout, "gogogo: prove: go mod tidy …")
 	if out, err := runIn(ctx, dir, "go", "mod", "tidy"); err != nil {
 		return &ExitError{code: 2, msg: fmt.Sprintf(
@@ -418,7 +364,7 @@ func prove(ctx context.Context, dir string, drop []trimUnit, stdout io.Writer) e
 	defer os.Remove(tmpPath)
 	if out, err := runIn(ctx, dir, "go", "build", "-o", tmpPath, "./cmd/web"); err != nil {
 		return &ExitError{code: 2, msg: fmt.Sprintf(
-			"proof build failed (%v) — the trim is applied but broken:\n%s",
+			"proof build failed (%v) — the rename is applied but broken:\n%s",
 			err, tailLines(string(out), proofBuildTailLines))}
 	}
 	fmt.Fprintln(stdout, "gogogo: prove: build OK")
@@ -467,8 +413,8 @@ type UnitView struct {
 
 // Units lists installer units in manifest order.
 func Units() []UnitView {
-	out := make([]UnitView, 0, len(manifestUnits))
-	for _, u := range manifestUnits {
+	out := make([]UnitView, 0, len(builtinUnits))
+	for _, u := range builtinUnits {
 		m := u.meta()
 		summary := u.id
 		if s := unitOneLiner(u); s != u.id {
@@ -491,4 +437,36 @@ func flagGiven(fs *flag.FlagSet, name string) bool {
 		}
 	})
 	return given
+}
+
+// runApply is the mutating tail: preflight, clone-if-missing, confirm,
+// then rename and prove. Separated so Run stays under the gocyclo gate.
+// (The apply-then-trim body lived in apply.go until the trim retired; the
+// function keeps its name so the call order in Run reads the same.)
+func runApply(ctx context.Context, opt options, plan scaffoldPlan, stdin io.Reader, stdout io.Writer) error {
+	if err := guardMutable(opt.dir); err != nil {
+		return err
+	}
+	if err := preflight(ctx, stdout, true, true, opt.format == planFormatJSON); err != nil {
+		return err
+	}
+	if opt.run {
+		if err := preflightRun(stdout); err != nil {
+			return err
+		}
+	}
+	if err := ensureCheckoutDir(ctx, opt, stdin, stdout); err != nil {
+		return err
+	}
+	if err := checkToolchainForTree(ctx, opt.dir, stdout, opt.format == planFormatJSON); err != nil {
+		return err
+	}
+	if !opt.yes && !confirm(stdout, stdin, 0) {
+		fmt.Fprintln(stdout, "gogogo: aborted — nothing changed (re-run with --yes to skip this prompt)")
+		return nil
+	}
+	if opt.format == planFormatJSON {
+		return applyAndProveJSON(ctx, opt, stdout, plan)
+	}
+	return applyAndProve(ctx, opt, stdout)
 }

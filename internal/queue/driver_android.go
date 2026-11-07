@@ -1,4 +1,4 @@
-// SCOPE:core — Platform queue driver selection (ncruces on Android).
+// Platform queue driver selection (ncruces on Android).
 
 //go:build android
 

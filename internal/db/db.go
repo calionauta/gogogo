@@ -1,4 +1,4 @@
-// SCOPE:core — application database: the one place that knows the Turso
+// Application database: the one place that knows the Turso
 // Database connection string, file layout, and pragmas. Schema, versions,
 // IDs and timestamps live in internal/dbschema (driver-free, shared with
 // zero-CGO targets); this package owns the open through a platform driver —

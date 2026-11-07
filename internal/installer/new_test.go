@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: `gogogo new` scaffold tests.
+// Installer engine: `gogogo new` scaffold tests.
 package installer
 
 import (
@@ -27,7 +27,7 @@ func TestValidateNewName(t *testing.T) {
 }
 
 // chiFixture mirrors the two anchors the scaffold edits: the config import
-// and the console mount line in BootChi. Neither belongs to a trim unit, which
+// and the console mount line in BootChi. Neither belongs to a built-in unit, which
 // is what makes the scaffold work on trimmed trees.
 const chiFixture = `package server
 

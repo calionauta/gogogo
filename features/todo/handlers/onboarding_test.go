@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP todo onboarding stream tests (wire side only).
+// HTTP todo onboarding stream tests (wire side only).
 //
 // What is proven here needs no engine: the stepper signal shape, the
 // re-list on the terminal event, and the anonymous skip. The engine side

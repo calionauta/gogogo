@@ -1,4 +1,4 @@
-// SCOPE:core - Browser smoke test (headless). Builds the binary, boots it
+// Browser smoke test (headless). Builds the binary, boots it
 // on an ephemeral port + data dir, creates a test user, loads the real app
 // pages, and exercises offline todo create/delete through Service Worker +
 // IndexedDB + reconnect replay. It FAILS on uncaught client-side JS errors,

@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP todo suggest/retry contract tests (red-proof).
+// HTTP todo suggest/retry contract tests (red-proof).
 package handlers
 
 import (

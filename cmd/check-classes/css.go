@@ -1,4 +1,4 @@
-// SCOPE:core - DO NOT REMOVE - stylesheet reading for the repo class gate.
+// Stylesheet reading for the repo class gate.
 //
 // Two questions, both answered by internal/daisyui now:
 //

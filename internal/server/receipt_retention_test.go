@@ -1,4 +1,4 @@
-// SCOPE:plugin — op-receipt retention window.
+// Op-receipt retention window.
 package server
 
 import (

@@ -1,4 +1,4 @@
-// SCOPE:core — stable instance identity (durable names + event origin)
+// Stable instance identity (durable names + event origin)
 //
 // Every process that participates in cross-instance fan-out needs ONE
 // identity that survives a restart: it names the JetStream durable (one

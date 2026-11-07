@@ -1,4 +1,4 @@
-// SCOPE:core — the gate tools are pinned, never downloaded at gate time.
+// The gate tools are pinned, never downloaded at gate time.
 //
 // Why this file exists: govulncheck was installed with
 // `go install golang.org/x/vuln/cmd/govulncheck@latest` in three gate paths

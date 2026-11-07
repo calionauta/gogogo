@@ -1,9 +1,7 @@
-// SCOPE:plugin — installer engine: trim-provenance reader
+// Installer engine: trim-provenance reader
 package installer
 
 import (
-	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -13,17 +11,12 @@ import (
 
 // trimProvenance records which units a scaffolded project deliberately removed.
 //
-// WHY THIS EXISTS: `--check` answers "would applyTrim succeed fully here?", so
-// against a deliberately trimmed tree every marker it looks for is legitimately
-// absent — and it reported all of them as CHECK-FAIL with exit 1. A human
-// reading that knows to ignore it, but an LLM agent reads exit 1 + the word
-// FAIL and concludes the scaffold is broken. That is precisely the wrong
-// conclusion, and it is a communication bug rather than a correctness one: the
-// tree is correct, the verdict is misleading.
-//
-// The information needed to tell the two apart already exists — `apply` writes
-// a Trim provenance section into the generated AGENTS.md — so this reads it
-// instead of asking the user to remember, and instead of guessing.
+// WHY THIS EXISTS: `apply` (the scaffold that used to trim) wrote a Trim
+// provenance section into the generated AGENTS.md. Trees scaffolded while
+// trimming still record the units they dropped, and `gogogo migrate`
+// labels its per-file impact by whether the owning unit survived — so
+// this reader lives on for those trees even though new scaffolds record
+// "removed: none".
 type trimProvenance struct {
 	// found is false when there is no AGENTS.md, no provenance section, or no
 	// parseable list. Callers must then fall back to strict behaviour rather
@@ -60,7 +53,7 @@ func readTrimProvenance(root string) trimProvenance {
 		return tp
 	}
 	known := map[string]bool{}
-	for _, u := range manifestUnits {
+	for _, u := range builtinUnits {
 		known[u.id] = true
 	}
 	for id := range strings.SplitSeq(m[1], ",") {
@@ -84,41 +77,11 @@ func readTrimProvenance(root string) trimProvenance {
 	return tp
 }
 
-// explainTrim rewrites the check result for a deliberately trimmed tree.
-//
-// Returns the number of units that are still genuinely broken — i.e. units that
-// were NOT recorded as removed and yet do not apply. A unit recorded as removed
-// is reported as CHECK-TRIMMED and does not count as a failure, so the exit
-// code stops conflating "you asked for this" with "something is wrong".
-func explainTrim(w io.Writer, results []unitCheck, tp trimProvenance) int {
-	if !tp.found {
-		return -1 // caller keeps the strict path
-	}
-	failed := 0
-	for _, uc := range results {
-		if len(uc.Problems) == 0 {
-			fmt.Fprintf(w, "CHECK-OK %s\n", uc.ID)
-			continue
-		}
-		if tp.removed[uc.ID] {
-			fmt.Fprintf(w, "CHECK-TRIMMED %s (recorded as removed at scaffold time)\n", uc.ID)
-			continue
-		}
-		// Not recorded as removed, yet it does not apply — this is the real
-		// signal the gate exists for.
-		failed++
-		for _, p := range uc.Problems {
-			fmt.Fprintf(w, "CHECK-FAIL %s %s\n", uc.ID, p)
-		}
-	}
-	return failed
-}
-
 // removedPaths is the machine-read companion to removedIDs: the union of
 // repo-relative dirs and files the dropped units owned, sorted for a stable
 // AGENTS.md. The registry conformance tests skip exactly these paths, so a
 // deliberately trimmed tree does not report its own removals as missing.
-func removedPaths(drop []trimUnit) string {
+func removedPaths(drop []builtinUnit) string {
 	seen := map[string]bool{}
 	var out []string
 	for _, u := range drop {
@@ -139,7 +102,7 @@ func removedPaths(drop []trimUnit) string {
 
 // removedIDs extracts the unit ids from a trim plan, sorted for a stable
 // AGENTS.md (a shuffled list would show as a diff on every scaffold).
-func removedIDs(drop []trimUnit) []string {
+func removedIDs(drop []builtinUnit) []string {
 	ids := make([]string, 0, len(drop))
 	for _, u := range drop {
 		ids = append(ids, u.id)

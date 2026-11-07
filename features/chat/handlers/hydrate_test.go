@@ -1,4 +1,4 @@
-// SCOPE:feature — the system-panel hydration path in chat.
+// The system-panel hydration path in chat.
 package handlers
 
 import (

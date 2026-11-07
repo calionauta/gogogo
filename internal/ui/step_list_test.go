@@ -1,4 +1,4 @@
-// SCOPE:core — StepList legend contract: the state vocabulary is visible
+// StepList legend contract: the state vocabulary is visible
 // in the list itself, so no panel has to explain what a color means.
 package ui
 

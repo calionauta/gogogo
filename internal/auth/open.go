@@ -1,4 +1,4 @@
-// SCOPE:core — AUTH_MODE=open: one local owner, no login.
+// AUTH_MODE=open: one local owner, no login.
 package auth
 
 import (

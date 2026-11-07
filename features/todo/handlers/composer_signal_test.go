@@ -1,4 +1,4 @@
-// SCOPE:feature — todo composer: the box owns the bound signal, not the response.
+// Todo composer: the box owns the bound signal, not the response.
 
 package handlers
 

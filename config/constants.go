@@ -1,4 +1,4 @@
-// SCOPE:core — Process-wide runtime constants (not env knobs).
+// Process-wide runtime constants (not env knobs).
 package config
 
 import "time"

@@ -1,4 +1,4 @@
-// SCOPE:core — Account-management operations shared by the JSON API and the
+// Account-management operations shared by the JSON API and the
 // /account page. Both paths must enforce the same proof and revocation order.
 package auth
 

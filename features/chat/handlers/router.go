@@ -1,4 +1,4 @@
-// SCOPE:feature — the jev-compatible Chat router (see config/chat_router.go).
+// The jev-compatible Chat router (see config/chat_router.go).
 // Moved from the deleted Ask slice: the classifier picks which component
 // leads a Chat answer. To remove: delete this file + the router argument in
 // internal/server/boot_helpers.go + config/chat_router.go + go mod tidy

@@ -1,4 +1,4 @@
-// SCOPE:plugin — the BM25 layer: an inverted index in SQL, scored in Go.
+// The BM25 layer: an inverted index in SQL, scored in Go.
 package search
 
 import (

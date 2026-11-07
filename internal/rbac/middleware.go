@@ -1,4 +1,4 @@
-// SCOPE:core — RBAC HTTP middleware (session role -> policy decision).
+// RBAC HTTP middleware (session role -> policy decision).
 package rbac
 
 import (

@@ -1,4 +1,4 @@
-// SCOPE:feature — the search seam's READ half: the wired layers and the
+// The search seam's READ half: the wired layers and the
 // per-request mode choice.
 //
 // Split from chi.go for the file-size gate, and along a real seam: chi.go holds

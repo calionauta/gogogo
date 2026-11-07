@@ -1,4 +1,4 @@
-// SCOPE:feature — Notes presence seam (fallback vs injected actor).
+// Notes presence seam (fallback vs injected actor).
 //
 // It is the same seam the whiteboard uses (collab.PresenceSeam): one owner
 // per document, whichever backend backs it. These tests pin the notes half of

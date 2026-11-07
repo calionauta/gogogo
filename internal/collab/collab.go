@@ -1,4 +1,4 @@
-// SCOPE:plugin — Loro CRDT + DocStore + sync workers + presence
+// Loro CRDT + DocStore + sync workers + presence
 // To remove: delete internal/collab/ + features/whiteboard/ and drop the
 // whiteboard roots from buildChiMux in internal/server/chi.go.
 // Package collab wraps the Loro CRDT for collaborative features

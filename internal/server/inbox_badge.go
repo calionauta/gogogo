@@ -1,4 +1,4 @@
-// SCOPE:core — Composition-root glue for the rail's inbox count.
+// Composition-root glue for the rail's inbox count.
 //
 // Two consumers share this file: the page middleware (seed every shell render
 // with the owner's count) and the session stream feed (push changes to the

@@ -1,4 +1,4 @@
-// SCOPE:plugin — the answer-surface declaration for the Chat demo.
+// The answer-surface declaration for the Chat demo.
 //
 // Chat is the one AI demo: one surface set, one interaction shape
 // (persisted conversation). The Ask one-shot leg is deleted; its

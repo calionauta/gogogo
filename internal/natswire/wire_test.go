@@ -1,4 +1,4 @@
-// SCOPE:plugin — Wire protocol unit tests (subjects, durables, nil-safety).
+// Wire protocol unit tests (subjects, durables, nil-safety).
 package natswire
 
 import (

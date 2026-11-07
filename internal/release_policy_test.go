@@ -1,4 +1,4 @@
-// SCOPE:core — Release versioning policy: this repo is pre-1.0 and stays there
+// Release versioning policy: this repo is pre-1.0 and stays there
 // until a human says otherwise.
 //
 // release-please maps a breaking change (`feat!:`, a `BREAKING CHANGE:` footer)

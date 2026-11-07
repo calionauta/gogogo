@@ -48,34 +48,6 @@ func TestTrimApplyRequiresConfirm(t *testing.T) {
 	}
 }
 
-func TestAddUnitRequiresConfirm(t *testing.T) {
-	_, _, err := handleAddUnit(context.Background(), nil,
-		addArgs{Unit: "landing", From: "/tmp", Dir: "/tmp"})
-	if err == nil || !strings.Contains(err.Error(), "confirm:true") {
-		t.Errorf("expected confirm:true refusal, got %v", err)
-	}
-}
-
-func TestAddUnitValidatesFields(t *testing.T) {
-	_, _, err := handleAddUnit(context.Background(), nil,
-		addArgs{Unit: "landing", Confirm: true})
-	if err == nil || !strings.Contains(err.Error(), "required") {
-		t.Errorf("expected required-fields error, got %v", err)
-	}
-	_, _, err = handleAddUnit(context.Background(), nil,
-		addArgs{Unit: "nats", From: "/tmp", Dir: "/tmp", Confirm: true})
-	if err == nil {
-		t.Errorf("expected error for non-offered unit nats")
-	}
-}
-
-func TestCheckTreeRequiresDir(t *testing.T) {
-	_, _, err := handleCheckTree(context.Background(), nil, dirArgs{})
-	if err == nil {
-		t.Errorf("expected dir-required error")
-	}
-}
-
 func TestAdviseStackNeedsNothing(t *testing.T) { // The guidance tool is read-only: no dir, no confirm, no changes.
 	res, _, err := handleAdvise(context.Background(), nil, adviseArgs{Need: "offline airplane mode"})
 	if err != nil {
@@ -399,31 +371,6 @@ func TestVersionStatusIsAVerdictNotAnError(t *testing.T) {
 	}
 }
 
-// TestAddUnitDryRunReachesTheEngine is the plumbing test that was missing.
-// add_unit used to pass --no-tui to `gogogo add`, which never defined that flag
-// (it belongs to the root scaffolder), so every call failed at flag parse —
-// and nothing noticed, because this module's tests ran in no gate. A dry run
-// against the template itself proves the argv reaches the real engine without
-// changing anything.
-func TestAddUnitDryRunReachesTheEngine(t *testing.T) {
-	root, err := filepath.Abs("../..")
-	if err != nil {
-		t.Fatal(err)
-	}
-	res, _, err := handleAddUnit(context.Background(), nil, addArgs{
-		Unit: "whiteboard", From: root, Dir: root, DryRun: true, Format: "json",
-	})
-	if err != nil {
-		t.Fatalf("handleAddUnit: %v", err)
-	}
-	if out := toolText(t, res); !strings.Contains(out, "whiteboard") {
-		t.Errorf("dry-run plan does not mention the unit: %s", out)
-	}
-}
-
-// TestExportUnitWritesOnlyTheScratchDirectory proves export_unit is wired to
-// the same engine and that its read-only promise survives the transport: the
-// bundle lands in `to`, and `dir` is untouched.
 func TestExportUnitWritesOnlyTheScratchDirectory(t *testing.T) {
 	root, err := filepath.Abs("../..")
 	if err != nil {
@@ -456,29 +403,22 @@ func TestCapabilitiesListExposesScaffold(t *testing.T) {
 		t.Fatalf("capabilities_list: %v", err)
 	}
 	var caps []struct {
-		ID       string `json:"id"`
-		Scaffold string `json:"scaffold"`
-		Offered  *bool  `json:"offered"`
+		ID         string `json:"id"`
+		RuntimeOff string `json:"runtimeOff"`
 	}
 	if jerr := json.Unmarshal([]byte(toolText(t, res)), &caps); jerr != nil {
 		t.Fatalf("capabilities_list is not JSON: %v", jerr)
 	}
 	perf, auth := false, false
 	for _, c := range caps {
-		if c.Offered != nil {
-			t.Errorf("%s still exposes the removed offered field", c.ID)
-		}
 		switch c.ID {
 		case "perf":
 			perf = true
-			if c.Scaffold != "opt-in" {
-				t.Errorf("perf scaffold = %q, want opt-in", c.Scaffold)
+			if c.RuntimeOff == "" {
+				t.Error("perf must keep its PERF_ENABLED runtime switch")
 			}
 		case "auth":
 			auth = true
-			if c.Scaffold != "core" {
-				t.Errorf("auth scaffold = %q, want core", c.Scaffold)
-			}
 		}
 	}
 	if !perf || !auth {

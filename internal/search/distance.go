@@ -1,4 +1,4 @@
-// SCOPE:plugin — the two string distances the fuzzy tiers use.
+// The two string distances the fuzzy tiers use.
 package search
 
 // editWithinOne reports whether a and b are at most one edit apart, where

@@ -1,4 +1,4 @@
-// SCOPE:core — Local cloud-connection settings (sync.json, 0600).
+// Local cloud-connection settings (sync.json, 0600).
 //
 // The desktop reads this file at boot when NATS_LEAFNODE_URL is unset, so a
 // user can connect the app to a server from the account page without editing

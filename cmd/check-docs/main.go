@@ -1,4 +1,4 @@
-// SCOPE:core — Docs claim guard: no drifting counts, dead paths, or invented commands.
+// Docs claim guard: no drifting counts, dead paths, or invented commands.
 //
 // Prose is the one place the repo's generated docs do not reach. Three drifts
 // shipped and were only caught by hand: "24 capabilities" (the registry had
@@ -176,7 +176,6 @@ func run() error {
 	problems := checkCounts(root, files)
 	problems = append(problems, checkPaths(root, files, trimmedPaths(root))...)
 	problems = append(problems, checkCommands(root, files, subs)...)
-	problems = append(problems, checkStaleScopeDialect(root, files)...)
 	problems = append(problems, checkManifest(root)...)
 	problems = append(problems, checkReadmeIndex(root)...)
 	problems = append(problems, checkClientWeight(root)...)
@@ -370,30 +369,6 @@ func knownSubcommands(root string) ([]string, error) {
 	}
 	slices.Sort(out)
 	return out, nil
-}
-
-// staleScopeRE matches the two-axis SCOPE dialect that was rejected; docs
-// that still teach it send readers to an annotation `make check-scope`
-// refuses.
-var staleScopeRE = regexp.MustCompile(`SCOPE:layer=`)
-
-// checkStaleScopeDialect rejects the retired annotation form in prose.
-func checkStaleScopeDialect(root string, files []string) []string {
-	var out []string
-	for _, rel := range files {
-		lines, err := fileLines(root, rel)
-		if err != nil {
-			continue
-		}
-		for i, line := range lines {
-			if staleScopeRE.MatchString(line) {
-				out = append(out, fmt.Sprintf(
-					"%s:%d: retired two-axis SCOPE dialect — use `// SCOPE:<core|plugin|feature>`",
-					rel, i+1))
-			}
-		}
-	}
-	return out
 }
 
 // checkManifest proves every page under docs/ is either published by the site

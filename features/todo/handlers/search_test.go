@@ -1,4 +1,4 @@
-// SCOPE:feature — the todo search slice's contract: the endpoint narrows an
+// The todo search slice's contract: the endpoint narrows an
 // already-scoped list, ranking survives, and the index write is atomic with
 // the row it describes.
 package handlers

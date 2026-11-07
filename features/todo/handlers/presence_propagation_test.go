@@ -1,4 +1,4 @@
-// SCOPE:feature — todo presence propagation (red-proof for the live "N online" pill)
+// Todo presence propagation (red-proof for the live "N online" pill)
 //
 // Regression test for the reported defect: opening /todo as a second user
 // (demo2 in another browser) left the first tab stuck at "1 online" until a

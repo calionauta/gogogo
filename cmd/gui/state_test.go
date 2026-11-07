@@ -1,4 +1,4 @@
-// SCOPE:feature — Tests for the native window's backend wiring
+// Tests for the native window's backend wiring
 package main
 
 import (
@@ -8,6 +8,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/calionauta/gogogo/features/todo"
 	"github.com/calionauta/gogogo/internal/auth"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
@@ -41,6 +42,10 @@ func newNativeState(t *testing.T) *windowState {
 	t.Cleanup(func() { sqlDB.Close() })
 	if merr := dbschema.Migrate(sqlDB); merr != nil {
 		t.Fatalf("migrate: %v", merr)
+	}
+	todoSet := dbschema.MigrationSet{ID: "todo", FS: todo.Migrations, Dir: "migrations"}
+	if merr := dbschema.MigrateWith(sqlDB, todoSet); merr != nil {
+		t.Fatalf("todo migrate: %v", merr)
 	}
 
 	q := dbgen.New(sqlDB)

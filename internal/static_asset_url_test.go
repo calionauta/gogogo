@@ -1,4 +1,4 @@
-// SCOPE:core — the static-asset URL convention, checked at the SOURCE.
+// The static-asset URL convention, checked at the SOURCE.
 //
 // The rendered sweep (features/todo/components, TestRenderedAssetsAreFingerprinted)
 // proves the pages it renders emit fingerprinted URLs. It cannot see a template

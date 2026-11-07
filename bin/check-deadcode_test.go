@@ -1,4 +1,4 @@
-// SCOPE:core — contract test for the deadcode pre-push guard.
+// Contract test for the deadcode pre-push guard.
 
 package bin_test
 

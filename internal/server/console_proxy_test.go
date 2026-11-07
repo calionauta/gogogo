@@ -1,4 +1,4 @@
-// SCOPE:core — Console proxy tests (red-proof).
+// Console proxy tests (red-proof).
 package server
 
 import (

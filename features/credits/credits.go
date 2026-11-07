@@ -1,4 +1,4 @@
-// SCOPE:plugin — AI credits + BYOK (lib ai-credits).
+// AI credits + BYOK (lib ai-credits).
 // To remove: delete features/credits/ + the bootCredits call in
 // internal/server/chi.go + config fields.
 //

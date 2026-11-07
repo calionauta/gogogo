@@ -1,4 +1,4 @@
-// SCOPE:plugin — the data seams the search layers sit on.
+// The data seams the search layers sit on.
 package search
 
 import "context"

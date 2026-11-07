@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: `gogogo new` scaffolds one feature.
+// Installer engine: `gogogo new` scaffolds one feature.
 //
 // The template's own answer to "copy the todo slice" was prose: a new session
 // read four directories, guessed the wiring, and learned about the RBAC
@@ -69,7 +69,7 @@ func runNew(ctx context.Context, args []string, stdin io.Reader, stdout io.Write
 	if err != nil {
 		return err
 	}
-	// JSON apply mirrors `gogogo add`: the plan is what --dry-run prints,
+	// JSON apply mirrors the scaffold flow: the plan is what --dry-run prints,
 	// and an apply emits exactly one envelope (no plan + progress + result
 	// mixed into one stream a client cannot parse).
 	jsonApply := opt.format == planFormatJSON && !opt.dryRun
@@ -146,7 +146,8 @@ func parseNewArgs(args []string, stdout io.Writer) (newOptions, error) {
 		fs.PrintDefaults()
 	}
 	// The stdlib parser stops at the first positional, so pull the name out
-	// first and parse the rest (same contract as `gogogo add`). The literal
+	// first and parse the rest (same positional-first rule the other
+	// subcommands follow). The literal
 	// "feature" is accepted because the command reads better as
 	// `gogogo new feature reports`; both spellings are the same command.
 	words := make([]string, 0, len(args))
@@ -304,8 +305,11 @@ func printNewPlan(w io.Writer, opt newOptions, plan newPlan) error {
 			"dryRun":  opt.dryRun,
 			"creates": []string{plan.paths.handler, plan.paths.page},
 			"edits":   []string{plan.paths.chi, plan.paths.registry, plan.paths.policy},
-			"proof":   []string{"templ generate", "generated docs", "check-scope", "check-flatdeps", "go build ./cmd/web"},
-			"next":    newNextSteps(opt.name),
+			"proof": []string{
+				"templ generate", "generated docs", "registry conformance",
+				"check-flatdeps", "go build ./cmd/web",
+			},
+			"next": newNextSteps(opt.name),
 		})
 	}
 	fmt.Fprintf(w, "gogogo: new feature %q in %s\n", opt.name, opt.dir)
@@ -313,7 +317,7 @@ func printNewPlan(w io.Writer, opt newOptions, plan newPlan) error {
 	fmt.Fprintf(w, "  edits   %s (import + parameter + mount)\n", plan.paths.chi)
 	fmt.Fprintf(w, "  edits   %s (one feature unit)\n", plan.paths.registry)
 	fmt.Fprintf(w, "  edits   %s (two user rows)\n", plan.paths.policy)
-	fmt.Fprintln(w, "  proof   templ generate, generated docs, check-scope, check-flatdeps, go build ./cmd/web")
+	fmt.Fprintln(w, "  proof   templ generate, generated docs, registry conformance, check-flatdeps, go build ./cmd/web")
 	return nil
 }
 
@@ -388,7 +392,6 @@ func proveNewFeature(ctx context.Context, root string, stdout io.Writer) error {
 		return &ExitError{code: 2, msg: "generated docs regen failed:\n" + tailLines(string(out), proofBuildTailLines)}
 	}
 	for _, gate := range []struct{ label, pkg string }{
-		{"check-scope", "./cmd/check-scope"},
 		{"check-flatdeps", "./cmd/check-flatdeps"},
 	} {
 		fmt.Fprintf(stdout, "gogogo: prove: %s …\n", gate.label)

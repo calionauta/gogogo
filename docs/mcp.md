@@ -55,16 +55,21 @@ JSON-config clients take the Claude Code block verbatim.
 
 | Tool | Changes anything? | What it does |
 |---|---|---|
-| `advise_stack` | No | Opinions **and the route**: which units fit a use-case, off-switches, and the ordered commands for `intent` (`update`/`port`/`add-unit`/`new-feature`/`scaffold`). Optional `dir` adds the same probe as the CLI's `--dir`. Answers in one of four scopes — see below. Start here |
+| `advise_stack` | No | Opinions **and the route**: which capabilities fit a use-case, off-switches, and the ordered commands for `intent` (`update`/`port`/`new-feature`/`scaffold`). Optional `dir` adds the same probe as the CLI's `--dir`. Answers in one of four scopes — see below. Start here |
 | `capabilities_list` | No | Full capability registry JSON |
-| `trim_plan` | No | Preview a scaffold/trim (validates ids, shows consequences) |
-| `trim_apply` | Yes (`confirm:true`) | Rename + trim + tidy + build proof |
-| `check_tree` | No | Marker drift verdict per unit, plus the base revision the tree records |
+| `trim_plan` | No | Preview a scaffold (validates name/owner, shows the plan); changes nothing |
+| `trim_apply` | Yes (`confirm:true`) | Rename + tidy + build proof |
 | `version_status` | No | Is this tool — and this project's recorded base — behind the latest release? Pass `dir` for the project half. "An update exists" is a verdict, not an error |
 | `migrate_plan` | No | Releases between the project's recorded base and the latest, plus the gates that prove a migrated tree. Pass `files:true` to add the per-file impact, labelled by capability and by whether this tree kept the owning unit — the "which of these apply to me" half |
-| `add_unit` | Yes (`confirm:true`) | Restore a unit (`dryRun:true` previews). Refuses when `from` is at a different release than the project's base |
 | `export_unit` | Only writes `to` | Port bundle for a tree that is **not** a gogogo checkout: copies the unit's owned files into `to` + writes `PORTING.md` (routes, imports to rewrite, what to write by hand, proof). `dir` is never touched |
-| `new_feature` | Yes (`confirm:true`) | Scaffold one feature (handler + page + wiring + unit + RBAC rows) and prove the gates (`dryRun:true` previews) |
+| `new_feature` | Yes (`confirm:true`) | Scaffold one feature (handler + page + wiring + capability unit + RBAC rows) and prove the gates (`dryRun:true` previews) |
+| `recipe_install` | Yes (`confirm:true`) | Install a recipe into a gogogo checkout: copy, receipt, generated registration, schema/policy/codegen and proof (dry-run previews) |
+| `recipe_update` | Yes (`confirm:true`) | Update one installed recipe from a directory or catalog entry (dry-run previews) |
+| `recipe_uninstall` | Yes (`confirm:true`) | Remove one installed recipe by id; deletes only pristine files and keeps edited files |
+| `recipe_status` | No | Read-only recipe drift report: pristine vs edited files, generated/schema/policy state |
+| `extension_list` | No | Extension discovery: built-in capabilities plus user-installed recipes, with origin/lifecycle and invocable verbs |
+| `extension_describe` | No | Describe one extension by id (including its invocable verbs) |
+| `extension_invoke` | Yes | Invoke one declared mutating verb against a running server (loopback only) under the operator session token |
 | `build_prerequisites` | No | How to build the desktop shell or the Android target: prerequisites, `make desktop`/`make mobile`, the smoke gates, the Android driver swap (tursogo → ncruces) and the mobile limits. `platform` is `desktop` or `mobile`; empty returns both. Same text as `gogogo --help` |
 | `sync_prerequisites` | No | Desktop↔server sync prerequisites: a reachable NATS leaf listener, `NATS_TOKEN`, `CLOUD_SYNC_URL`, account identity, and a private overlay before public exposure |
 
@@ -85,7 +90,7 @@ plus its one native exception — never a stack label:
 
 | `scope` | When | What the rest of the document contains |
 |---|---|---|
-| `template` | a gogogo-shaped need — or anything the vocabulary does not match (full map shown instead of a guess; scaffold first-run withheld when nothing matched) | the full capabilities table + keep/drop presets — act on these |
+| `template` | a gogogo-shaped need — or anything the vocabulary does not match (full map shown instead of a guess; scaffold first-run withheld when nothing matched) | the full capabilities table + use-case presets — act on these |
 | `exception-to-go` | the need names **Zig** | the exception-to-go gate + skill pointer; **nothing installs** under the exception |
 | `go-standards` | a need that forbids dependencies ("stdlib only", "no deps") | the Go-standards pointer only; the capability table is **absent**, not empty |
 | `foreign-tree` | `dir` points at a path that is not a gogogo checkout | the capability table with its owned paths (what to **copy**), the not-checkout rules, and the route to `export_unit` + the porting checklist |
@@ -95,7 +100,7 @@ the rules say why the template cannot apply and where the Go standards live.
 For an `exception-to-go` need, apply the gate (Go baseline + profile first) and
 read the referenced skill; do not try to install template units.
 
-On `foreign-tree`, nothing installs: `add_unit` and `new_feature` rewire a
+On `foreign-tree`, nothing installs: `new_feature` and `recipe_install` rewire a
 scaffold's own router and registry, and they refuse rather than guess at
 yours. Read `capabilities[].dirs/files` as a shopping list, then `export_unit`
 writes the bundle and the wiring recipe.
@@ -109,13 +114,6 @@ non-checkout `dir` leaves porting as the only step that can work). An absent
 intent means no route: the tool does not guess one. Pass `intent` whenever you
 know the goal — the model reads the user better than any keyword table, and a
 stated intent is never overruled by the wording.
-
-### check_tree needs a gogogo checkout
-
-`check_tree` verifies the trim manifest against a scaffolded tree. Run it on an
-unrelated project and it now returns a single `CHECK-FAIL (tree) not a gogogo
-checkout` line rather than one failure per missing marker, so a wrong-repo call
-is distinguishable from a real drift problem.
 
 ### `version_status` is not a nag
 
@@ -133,8 +131,9 @@ the verdict into work, use the CLI's `gogogo migrate` — see
 
 1. `advise_stack` with the use-case in plain words (empty `need` returns
    the full map).
-2. `trim_plan` to preview the consequences.
+2. `trim_plan` to preview the plan.
 3. `trim_apply` with `confirm:true` to execute.
+4. For extensions: `recipe_status` first, then `recipe_install`, `recipe_update`, or `recipe_uninstall` with `confirm:true` (or `dryRun:true` for install/update).
 
 Full catalog with parameter shapes: [`cmd/gogogo-mcp`](https://github.com/calionauta/gogogo/tree/master/cmd/gogogo-mcp).
 Agent strategies and the scripted CLI equivalent: [getting-started](getting-started.md#0b-opinions-before-changes-advise).

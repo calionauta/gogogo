@@ -1,4 +1,4 @@
-// SCOPE:core — Small render helpers for the shell.
+// Small render helpers for the shell.
 //
 // Templ cannot branch inside an attribute list or a short expression, so the
 // values the shell computes rather than embeds live here.

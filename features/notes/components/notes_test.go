@@ -1,4 +1,4 @@
-// SCOPE:feature — notes doc-page navigation affordance.
+// Notes doc-page navigation affordance.
 package components_test
 
 import (

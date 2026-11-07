@@ -1,4 +1,4 @@
-// SCOPE:core — SSE Hub lifecycle (Close for bounded shutdown)
+// SSE Hub lifecycle (Close for bounded shutdown)
 package queue
 
 // Close drops all live registrations and replay buffers. Sends after

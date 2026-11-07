@@ -1,4 +1,4 @@
-// SCOPE:core — Social logins over golang.org/x/oauth2
+// Social logins over golang.org/x/oauth2
 //
 // Federated login for providers speaking OAuth 2.0 authorization code flow.
 // The only dependency is x/oauth2 itself (Google-maintained, already in the

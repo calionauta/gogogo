@@ -1,4 +1,4 @@
-// SCOPE:feature — acceptance: opening a fresh note id registers it, so it can take writes.
+// Acceptance: opening a fresh note id registers it, so it can take writes.
 
 package handlers
 

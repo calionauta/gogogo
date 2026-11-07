@@ -10,7 +10,7 @@ import (
 )
 
 const countTodosByOwner = `-- name: CountTodosByOwner :one
-SELECT count(*) FROM todos WHERE owner = ?
+SELECT count(*) FROM ext_todo_todos WHERE owner = ?
 `
 
 func (q *Queries) CountTodosByOwner(ctx context.Context, owner string) (int64, error) {
@@ -21,7 +21,7 @@ func (q *Queries) CountTodosByOwner(ctx context.Context, owner string) (int64, e
 }
 
 const createTodo = `-- name: CreateTodo :one
-INSERT INTO todos (id, owner, title, completed, idem_key, visibility, created, updated)
+INSERT INTO ext_todo_todos (id, owner, title, completed, idem_key, visibility, created, updated)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, owner, title, completed, idem_key, created, updated, visibility
 `
@@ -37,7 +37,7 @@ type CreateTodoParams struct {
 	Updated    string
 }
 
-func (q *Queries) CreateTodo(ctx context.Context, arg CreateTodoParams) (Todo, error) {
+func (q *Queries) CreateTodo(ctx context.Context, arg CreateTodoParams) (ExtTodoTodo, error) {
 	row := q.db.QueryRowContext(ctx, createTodo,
 		arg.ID,
 		arg.Owner,
@@ -48,7 +48,7 @@ func (q *Queries) CreateTodo(ctx context.Context, arg CreateTodoParams) (Todo, e
 		arg.Created,
 		arg.Updated,
 	)
-	var i Todo
+	var i ExtTodoTodo
 	err := row.Scan(
 		&i.ID,
 		&i.Owner,
@@ -63,7 +63,7 @@ func (q *Queries) CreateTodo(ctx context.Context, arg CreateTodoParams) (Todo, e
 }
 
 const deleteCompletedByOwner = `-- name: DeleteCompletedByOwner :execrows
-DELETE FROM todos WHERE owner = ? AND completed = 1
+DELETE FROM ext_todo_todos WHERE owner = ? AND completed = 1
 `
 
 func (q *Queries) DeleteCompletedByOwner(ctx context.Context, owner string) (int64, error) {
@@ -75,7 +75,7 @@ func (q *Queries) DeleteCompletedByOwner(ctx context.Context, owner string) (int
 }
 
 const deleteTodo = `-- name: DeleteTodo :exec
-DELETE FROM todos WHERE id = ? AND owner = ?
+DELETE FROM ext_todo_todos WHERE id = ? AND owner = ?
 `
 
 type DeleteTodoParams struct {
@@ -89,7 +89,7 @@ func (q *Queries) DeleteTodo(ctx context.Context, arg DeleteTodoParams) error {
 }
 
 const deleteTodoByID = `-- name: DeleteTodoByID :exec
-DELETE FROM todos WHERE id = ?
+DELETE FROM ext_todo_todos WHERE id = ?
 `
 
 func (q *Queries) DeleteTodoByID(ctx context.Context, id string) error {
@@ -98,7 +98,7 @@ func (q *Queries) DeleteTodoByID(ctx context.Context, id string) error {
 }
 
 const getTodo = `-- name: GetTodo :one
-SELECT id, owner, title, completed, idem_key, created, updated, visibility FROM todos WHERE id = ? AND owner = ?
+SELECT id, owner, title, completed, idem_key, created, updated, visibility FROM ext_todo_todos WHERE id = ? AND owner = ?
 `
 
 type GetTodoParams struct {
@@ -106,9 +106,9 @@ type GetTodoParams struct {
 	Owner string
 }
 
-func (q *Queries) GetTodo(ctx context.Context, arg GetTodoParams) (Todo, error) {
+func (q *Queries) GetTodo(ctx context.Context, arg GetTodoParams) (ExtTodoTodo, error) {
 	row := q.db.QueryRowContext(ctx, getTodo, arg.ID, arg.Owner)
-	var i Todo
+	var i ExtTodoTodo
 	err := row.Scan(
 		&i.ID,
 		&i.Owner,
@@ -123,7 +123,7 @@ func (q *Queries) GetTodo(ctx context.Context, arg GetTodoParams) (Todo, error) 
 }
 
 const getTodoByIdemKey = `-- name: GetTodoByIdemKey :one
-SELECT id, owner, title, completed, idem_key, created, updated, visibility FROM todos WHERE owner = ? AND idem_key = ? AND idem_key <> ''
+SELECT id, owner, title, completed, idem_key, created, updated, visibility FROM ext_todo_todos WHERE owner = ? AND idem_key = ? AND idem_key <> ''
 `
 
 type GetTodoByIdemKeyParams struct {
@@ -131,9 +131,9 @@ type GetTodoByIdemKeyParams struct {
 	IdemKey string
 }
 
-func (q *Queries) GetTodoByIdemKey(ctx context.Context, arg GetTodoByIdemKeyParams) (Todo, error) {
+func (q *Queries) GetTodoByIdemKey(ctx context.Context, arg GetTodoByIdemKeyParams) (ExtTodoTodo, error) {
 	row := q.db.QueryRowContext(ctx, getTodoByIdemKey, arg.Owner, arg.IdemKey)
-	var i Todo
+	var i ExtTodoTodo
 	err := row.Scan(
 		&i.ID,
 		&i.Owner,
@@ -148,9 +148,9 @@ func (q *Queries) GetTodoByIdemKey(ctx context.Context, arg GetTodoByIdemKeyPara
 }
 
 const getTodoVisible = `-- name: GetTodoVisible :one
-SELECT todos.id, todos.owner, todos.title, todos.completed, todos.idem_key, todos.created, todos.updated, todos.visibility, users.email AS owner_email
-FROM todos JOIN users ON users.id = todos.owner
-WHERE todos.id = ? AND (todos.owner = ? OR todos.visibility = 'public')
+SELECT ext_todo_todos.id, ext_todo_todos.owner, ext_todo_todos.title, ext_todo_todos.completed, ext_todo_todos.idem_key, ext_todo_todos.created, ext_todo_todos.updated, ext_todo_todos.visibility, users.email AS owner_email
+FROM ext_todo_todos JOIN users ON users.id = ext_todo_todos.owner
+WHERE ext_todo_todos.id = ? AND (ext_todo_todos.owner = ? OR ext_todo_todos.visibility = 'public')
 `
 
 type GetTodoVisibleParams struct {
@@ -188,7 +188,7 @@ func (q *Queries) GetTodoVisible(ctx context.Context, arg GetTodoVisibleParams) 
 }
 
 const listCompletedIDsByOwner = `-- name: ListCompletedIDsByOwner :many
-SELECT id FROM todos WHERE owner = ? AND completed = 1
+SELECT id FROM ext_todo_todos WHERE owner = ? AND completed = 1
 `
 
 // The completed rows an owner is about to clear, read INSIDE the clearing
@@ -220,22 +220,22 @@ func (q *Queries) ListCompletedIDsByOwner(ctx context.Context, owner string) ([]
 
 const listTodosByOwner = `-- name: ListTodosByOwner :many
 
-SELECT id, owner, title, completed, idem_key, created, updated, visibility FROM todos WHERE owner = ? ORDER BY created DESC, id DESC
+SELECT id, owner, title, completed, idem_key, created, updated, visibility FROM ext_todo_todos WHERE owner = ? ORDER BY created DESC, id DESC
 `
 
 // Todos: the reference vertical slice. Listing is visibility-scoped:
 // a user sees their own rows plus every 'public' row (the collab demo),
 // never another user's 'private' rows. Every statement carries that scope
 // so a handler cannot leak a private row by forgetting a filter.
-func (q *Queries) ListTodosByOwner(ctx context.Context, owner string) ([]Todo, error) {
+func (q *Queries) ListTodosByOwner(ctx context.Context, owner string) ([]ExtTodoTodo, error) {
 	rows, err := q.db.QueryContext(ctx, listTodosByOwner, owner)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Todo{}
+	items := []ExtTodoTodo{}
 	for rows.Next() {
-		var i Todo
+		var i ExtTodoTodo
 		if err := rows.Scan(
 			&i.ID,
 			&i.Owner,
@@ -260,7 +260,7 @@ func (q *Queries) ListTodosByOwner(ctx context.Context, owner string) ([]Todo, e
 }
 
 const listTodosForIndex = `-- name: ListTodosForIndex :many
-SELECT id, owner, title, visibility FROM todos
+SELECT id, owner, title, visibility FROM ext_todo_todos
 `
 
 type ListTodosForIndexRow struct {
@@ -318,10 +318,10 @@ func (q *Queries) ListTodosForIndex(ctx context.Context) ([]ListTodosForIndexRow
 }
 
 const listVisibleTodos = `-- name: ListVisibleTodos :many
-SELECT todos.id, todos.owner, todos.title, todos.completed, todos.idem_key, todos.created, todos.updated, todos.visibility, users.email AS owner_email
-FROM todos JOIN users ON users.id = todos.owner
-WHERE todos.owner = ? OR todos.visibility = 'public'
-ORDER BY todos.created DESC, todos.id DESC
+SELECT ext_todo_todos.id, ext_todo_todos.owner, ext_todo_todos.title, ext_todo_todos.completed, ext_todo_todos.idem_key, ext_todo_todos.created, ext_todo_todos.updated, ext_todo_todos.visibility, users.email AS owner_email
+FROM ext_todo_todos JOIN users ON users.id = ext_todo_todos.owner
+WHERE ext_todo_todos.owner = ? OR ext_todo_todos.visibility = 'public'
+ORDER BY ext_todo_todos.created DESC, ext_todo_todos.id DESC
 `
 
 type ListVisibleTodosRow struct {
@@ -370,7 +370,7 @@ func (q *Queries) ListVisibleTodos(ctx context.Context, owner string) ([]ListVis
 }
 
 const searchTodosByOwner = `-- name: SearchTodosByOwner :many
-SELECT id, owner, title, completed, idem_key, created, updated, visibility FROM todos
+SELECT id, owner, title, completed, idem_key, created, updated, visibility FROM ext_todo_todos
 WHERE owner = ? AND lower(title) LIKE lower(?)
 ORDER BY completed, created DESC
 LIMIT ?
@@ -386,15 +386,15 @@ type SearchTodosByOwnerParams struct {
 // title contains the query, case-insensitively. The caller builds the
 // pattern in Go, so the user's text needs no escaping here. No ranking:
 // that is what the other layers are for.
-func (q *Queries) SearchTodosByOwner(ctx context.Context, arg SearchTodosByOwnerParams) ([]Todo, error) {
+func (q *Queries) SearchTodosByOwner(ctx context.Context, arg SearchTodosByOwnerParams) ([]ExtTodoTodo, error) {
 	rows, err := q.db.QueryContext(ctx, searchTodosByOwner, arg.Owner, arg.LOWER, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Todo{}
+	items := []ExtTodoTodo{}
 	for rows.Next() {
-		var i Todo
+		var i ExtTodoTodo
 		if err := rows.Scan(
 			&i.ID,
 			&i.Owner,
@@ -419,7 +419,7 @@ func (q *Queries) SearchTodosByOwner(ctx context.Context, arg SearchTodosByOwner
 }
 
 const setTodoCompleted = `-- name: SetTodoCompleted :exec
-UPDATE todos SET completed = ?, updated = ? WHERE id = ? AND owner = ?
+UPDATE ext_todo_todos SET completed = ?, updated = ? WHERE id = ? AND owner = ?
 `
 
 type SetTodoCompletedParams struct {
@@ -440,7 +440,7 @@ func (q *Queries) SetTodoCompleted(ctx context.Context, arg SetTodoCompletedPara
 }
 
 const setTodoCompletedByID = `-- name: SetTodoCompletedByID :exec
-UPDATE todos SET completed = ?, updated = ? WHERE id = ?
+UPDATE ext_todo_todos SET completed = ?, updated = ? WHERE id = ?
 `
 
 type SetTodoCompletedByIDParams struct {
@@ -455,7 +455,7 @@ func (q *Queries) SetTodoCompletedByID(ctx context.Context, arg SetTodoCompleted
 }
 
 const setTodoVisibility = `-- name: SetTodoVisibility :exec
-UPDATE todos SET visibility = ?, updated = ? WHERE id = ? AND owner = ?
+UPDATE ext_todo_todos SET visibility = ?, updated = ? WHERE id = ? AND owner = ?
 `
 
 type SetTodoVisibilityParams struct {

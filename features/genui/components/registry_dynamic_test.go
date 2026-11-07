@@ -1,4 +1,4 @@
-// SCOPE:plugin — the panel registry's extensibility contract: a NEW panel is a
+// The panel registry's extensibility contract: a NEW panel is a
 // provider and nothing else.
 //
 // This is the test that keeps the seam honest. The old design made

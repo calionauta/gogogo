@@ -1,4 +1,4 @@
-// SCOPE:plugin — GoAkt room grain tests.
+// GoAkt room grain tests.
 package goakt
 
 import (

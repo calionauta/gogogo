@@ -1,4 +1,4 @@
-// SCOPE:plugin — the fuzzy tier contract, on the example corpus.
+// The fuzzy tier contract, on the example corpus.
 package search
 
 import (

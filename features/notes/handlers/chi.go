@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP notes slice (server-owned Loro Text)
+// HTTP notes slice (server-owned Loro Text)
 //
 // Same routes, wire and components as the framework handlers: index/new/
 // note pages, per-doc stream, op batches with optimistic-concurrency

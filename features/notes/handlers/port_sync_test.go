@@ -1,4 +1,4 @@
-// SCOPE:feature — Notes sync-protocol handlers port tests
+// Notes sync-protocol handlers port tests
 
 package handlers
 

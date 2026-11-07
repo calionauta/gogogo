@@ -1,4 +1,4 @@
-// SCOPE:plugin — the test store BM25 needs (postings + corpus stats).
+// The test store BM25 needs (postings + corpus stats).
 package search
 
 import (

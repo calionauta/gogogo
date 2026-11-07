@@ -1,4 +1,4 @@
-// SCOPE:feature — Review loop (Genkit + goai + jev judge).
+// Review loop (Genkit + goai + jev judge).
 package handlers
 
 import (

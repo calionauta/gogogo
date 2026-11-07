@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP todo offline-replay propagation (red-proof).
+// HTTP todo offline-replay propagation (red-proof).
 //
 // Regression guard for the offline "Add button stuck + todo lost" class:
 // when the Service Worker replays a queued create, the request carries

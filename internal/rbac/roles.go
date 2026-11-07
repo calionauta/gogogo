@@ -1,4 +1,4 @@
-// SCOPE:core — RBAC role vocabulary (single home for LLM discovery).
+// RBAC role vocabulary (single home for LLM discovery).
 //
 // Role lifecycle, end to end:
 //  1. config (ADMIN_EMAILS / VIEWER_EMAILS) names addresses,

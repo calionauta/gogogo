@@ -1,4 +1,4 @@
-// SCOPE:core — request shape for background GETs (signals in the URL, retries).
+// Request shape for background GETs (signals in the URL, retries).
 package ui
 
 import (

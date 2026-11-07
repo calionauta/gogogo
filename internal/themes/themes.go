@@ -1,4 +1,4 @@
-// SCOPE:core — The shipped theme catalog: the one list the UI, the pre-paint
+// The shipped theme catalog: the one list the UI, the pre-paint
 // bootstrap and theme.js all read.
 //
 // Themes are DaisyUI palettes compiled into app.min.css (src/css/input.css).

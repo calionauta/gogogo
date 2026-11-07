@@ -1,4 +1,4 @@
-// SCOPE:feature — /account security page contracts.
+// /account security page contracts.
 package handlers
 
 import (

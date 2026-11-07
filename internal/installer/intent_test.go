@@ -1,4 +1,4 @@
-// SCOPE:plugin — tests for advise intent routing (which command runs next)
+// Tests for advise intent routing (which command runs next)
 package installer
 
 import (
@@ -20,7 +20,7 @@ func TestDetectIntent(t *testing.T) {
 		{"we are behind upstream", intentUpdate},
 		{"my existing app needs a cms", intentPort},
 		{"retrofit whiteboard into our codebase already", intentPort},
-		{"restore the whiteboard unit I trimmed", intentAddUnit},
+		{"bring the whiteboard into our existing app", intentPort},
 		{"add a new feature for reports", intentNewFeature},
 		{"scaffold a greenfield app", intentScaffold},
 		// Nothing named: silence is not an intent.
@@ -66,7 +66,7 @@ func TestRoutesNeverNameARefusedCommand(t *testing.T) {
 	}
 	// And the porting routes must actually carry the export, or the reader has
 	// no way to get the files.
-	for _, intent := range []string{intentPort, intentAddUnit} {
+	for _, intent := range []string{intentPort} {
 		steps := routeFor(intent, treeNotCheckout, "/tmp/foreign")
 		if len(steps) == 0 || !strings.Contains(steps[0].Run, "export") {
 			t.Errorf("intent %q on a foreign tree must lead with export, got %+v", intent, steps)

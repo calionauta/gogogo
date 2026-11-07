@@ -1,4 +1,4 @@
-// SCOPE:core — Passwordless magic-link logins
+// Passwordless magic-link logins
 //
 // A magic link is a single-use random token delivered out-of-band (email).
 // Requesting never reveals whether the address exists; verifying consumes

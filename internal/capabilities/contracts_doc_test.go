@@ -1,4 +1,4 @@
-// SCOPE:plugin — generated unit contract cards (drift test).
+// Generated unit contract cards (drift test).
 //
 // docs/unit-contracts.md is generated from the registry plus the sources each
 // unit owns, never written by hand. The registry already answers "what class
@@ -15,6 +15,8 @@ package capabilities
 
 import (
 	"fmt"
+	"go/parser"
+	"go/token"
 	"io"
 	"os"
 	"path/filepath"
@@ -105,19 +107,17 @@ func renderUnitContracts(t *testing.T, root string) string {
 // (24 vs 35) and no reviewer catches it in a diff.
 func renderRegistrySummary(b *strings.Builder, units []Capability) {
 	counts := map[Kind]int{}
-	scaffold := map[Scaffold]int{}
+	manual := 0
 	for _, c := range units {
 		counts[c.Kind]++
-		scaffold[c.Class()]++
+		if c.Kind != KindCore {
+			manual++
+		}
 	}
-	offered := scaffold[ScaffoldDefault] + scaffold[ScaffoldOptIn]
 	fmt.Fprintf(b, "## Registry at a glance\n\n")
 	fmt.Fprintf(b, "- **Units:** %d — %d core · %d plugin · %d feature\n",
 		len(units), counts[KindCore], counts[KindPlugin], counts[KindFeature])
-	fmt.Fprintf(b, "- **Offered capabilities:** %d — %d default · %d opt-in "+
-		"(bundled capabilities share one installer unit)\n",
-		offered, scaffold[ScaffoldDefault], scaffold[ScaffoldOptIn])
-	fmt.Fprintf(b, "- **Manual removal:** %d (core units are never offered)\n", scaffold[ScaffoldManual])
+	fmt.Fprintf(b, "- **Manual removal:** %d (core units are never removed)\n", manual)
 	b.WriteString("- **Source of truth:** `internal/capabilities/registry.go`; this doc is\n")
 	b.WriteString("  regenerated from it, so the counts above cannot drift.\n\n")
 }
@@ -142,7 +142,6 @@ func renderUnitCard(b *strings.Builder, rootFS *os.Root, c Capability) {
 	writeList(b, "Owned", append(slices.Clone(c.Dirs), c.Files...))
 	writeList(b, "Routes", routes)
 	writeList(b, "Store calls", queries)
-	fmt.Fprintf(b, "- **Scaffold:** `%s`\n", c.Class())
 	if c.RuntimeOff != "" {
 		fmt.Fprintf(b, "- **Runtime off:** `%s`\n", c.RuntimeOff)
 	}
@@ -152,7 +151,6 @@ func renderUnitCard(b *strings.Builder, rootFS *os.Root, c Capability) {
 	if len(c.DependsOn) > 0 {
 		fmt.Fprintf(b, "- **Depends on:** %s\n", strings.Join(c.DependsOn, ", "))
 	}
-	fmt.Fprintf(b, "- **Trim:** %s\n", contractTrim(c))
 	if c.Reason != "" {
 		fmt.Fprintf(b, "- **Why that class:** %s\n", c.Reason)
 	}
@@ -163,20 +161,6 @@ func renderUnitCard(b *strings.Builder, rootFS *os.Root, c Capability) {
 		fmt.Fprintf(b, "- **Warning:** %s\n", w)
 	}
 	b.WriteString("\n")
-}
-
-// contractTrim states how the unit goes away: installer unit or manual. It
-// deliberately names no command: there is no `gogogo trim <id>` subcommand —
-// a unit is dropped by excluding it from a scaffold's keep lists/presets.
-func contractTrim(c Capability) string {
-	switch c.Class() {
-	case ScaffoldCore:
-		return "core (never offered)"
-	case ScaffoldDefault, ScaffoldOptIn:
-		return "offered to the installer (a scaffold's keep lists/presets drop it)"
-	default:
-		return "manual (no installer unit)"
-	}
 }
 
 // writeList writes a labelled inline code list, skipping empty values.
@@ -214,7 +198,11 @@ func scanOwnedSurface(rootFS *os.Root, c Capability, queryNames map[string]bool)
 		if readErr != nil {
 			continue
 		}
-		for _, m := range contractRouteRE.FindAllStringSubmatch(string(raw), -1) {
+		// The card lists registrations, not prose: a route quoted in a doc
+		// comment (rbac/coverage.go explains the runtime gate with
+		// `r.Get("/path")`) is not served by the file it appears in.
+		text := stripComments(raw)
+		for _, m := range contractRouteRE.FindAllStringSubmatch(string(text), -1) {
 			// Template sources (the installer's scaffold strings) carry
 			// placeholders rather than served paths.
 			if strings.Contains(m[1], "{{") {
@@ -222,13 +210,42 @@ func scanOwnedSurface(rootFS *os.Root, c Capability, queryNames map[string]bool)
 			}
 			seenRoute[m[1]] = true
 		}
-		for _, m := range contractQueryRE.FindAllStringSubmatch(string(raw), -1) {
+		for _, m := range contractQueryRE.FindAllStringSubmatch(string(text), -1) {
 			if queryNames[m[1]] {
 				seenQuery["dbgen."+m[1]] = true
 			}
 		}
 	}
 	return sortedKeys(seenRoute), sortedKeys(seenQuery)
+}
+
+// stripComments blanks every Go comment, preserving byte offsets and newlines
+// so the route regex only ever sees code. It is byte-level blanking rather
+// than an AST walk on purpose: the scan keys on the registration idiom
+// (`r.With(...).Get("/x")`), and re-deriving the set from an AST would change
+// what the gate has always compared instead of just removing prose from it.
+func stripComments(src []byte) []byte {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "owned.go", src, parser.ParseComments)
+	if err != nil {
+		// A file the parser rejects cannot register a route the gate should
+		// trust; scanning it unchanged keeps that failure visible rather than
+		// hiding it behind an empty surface.
+		return src
+	}
+	out := append([]byte(nil), src...)
+	for _, group := range f.Comments {
+		for _, c := range group.List {
+			start := fset.Position(c.Slash).Offset
+			end := fset.Position(c.End()).Offset
+			for i := start; i < end && i < len(out); i++ {
+				if out[i] != '\n' {
+					out[i] = ' '
+				}
+			}
+		}
+	}
+	return out
 }
 
 // contractQueryNames collects the query names sqlc generates from

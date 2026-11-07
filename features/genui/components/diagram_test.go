@@ -1,4 +1,4 @@
-// SCOPE:plugin — diagram component tests (red-proof).
+// Diagram component tests (red-proof).
 package components
 
 import (

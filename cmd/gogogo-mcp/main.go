@@ -6,7 +6,7 @@
 //
 //	{"mcpServers": {"gogogo": {"command": "/path/to/gogogo-mcp"}}}
 //
-// Destructive tools (trim_apply, add_unit) require confirm:true — the same
+// Destructive tools (trim_apply, export_unit) respect confirm:true — the same
 // rule as --yes on the CLI. Preview with trim_plan / add dry-run first.
 package main
 
@@ -80,15 +80,11 @@ type versionArgs struct {
 }
 
 type trimArgs struct {
-	Name     string `json:"name,omitempty" jsonschema:"new project name, e.g. my-app (required)"`
-	Owner    string `json:"owner,omitempty" jsonschema:"GitHub owner for the module path (default calionauta)"`
-	Dir      string `json:"dir,omitempty" jsonschema:"target checkout directory (default ./<name>)"`
-	Plugins  string `json:"plugins,omitempty" jsonschema:"comma-separated default plugins to KEEP (default all, none drops all)"`
-	Features string `json:"features,omitempty" jsonschema:"comma-separated default features to KEEP (default all, none drops all)"`
-	OptIn    string `json:"optIn,omitempty" jsonschema:"comma-separated opt-in units to ADD (default none, all adds every opt-in)"`
-	Preset   string `json:"preset,omitempty" jsonschema:"named drop set instead of keep lists: minimal|no-ai|no-collab (conflicts with plugins/features)"`
-	Format   string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
-	Confirm  bool   `json:"confirm,omitempty" jsonschema:"trim_apply only: must be true (preview with trim_plan first)"`
+	Name    string `json:"name,omitempty" jsonschema:"new project name, e.g. my-app (required)"`
+	Owner   string `json:"owner,omitempty" jsonschema:"GitHub owner for the module path (default calionauta)"`
+	Dir     string `json:"dir,omitempty" jsonschema:"target checkout directory (default ./<name>)"`
+	Format  string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
+	Confirm bool   `json:"confirm,omitempty" jsonschema:"trim_apply only: must be true (preview with trim_plan first)"`
 }
 
 type migrateArgs struct {
@@ -100,21 +96,33 @@ type migrateArgs struct {
 	Format    string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
 }
 
-type addArgs struct {
-	Unit    string `json:"unit,omitempty" jsonschema:"installer unit id, e.g. whiteboard (required)"`
-	From    string `json:"from,omitempty" jsonschema:"pristine template checkout to copy from (required)"`
-	Dir     string `json:"dir,omitempty" jsonschema:"target project checkout (required)"`
-	Format  string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
-	Confirm bool   `json:"confirm,omitempty" jsonschema:"must be true (preview with dry-run first)"`
-	DryRun  bool   `json:"dryRun,omitempty" jsonschema:"print the plan and stop when true"`
-}
-
 type newFeatureArgs struct {
 	Name    string `json:"name,omitempty" jsonschema:"feature id, kebab-case, e.g. reports (required)"`
 	Dir     string `json:"dir,omitempty" jsonschema:"target checkout (required)"`
 	Format  string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
 	Confirm bool   `json:"confirm,omitempty" jsonschema:"must be true (preview with dryRun first)"`
 	DryRun  bool   `json:"dryRun,omitempty" jsonschema:"print the plan and stop when true"`
+}
+
+type recipeArgs struct {
+	Src     string `json:"src,omitempty" jsonschema:"recipe directory, or recipe id for install/update (required unless entry is set)"`
+	Entry   string `json:"entry,omitempty" jsonschema:"optional catalog entry (.yml); src is then the pristine contents directory"`
+	ID      string `json:"id,omitempty" jsonschema:"installed recipe id (for status/uninstall)"`
+	Dir     string `json:"dir,omitempty" jsonschema:"target checkout directory (required)"`
+	Format  string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
+	Confirm bool   `json:"confirm,omitempty" jsonschema:"must be true for install/update/uninstall (preview with dryRun first)"`
+	DryRun  bool   `json:"dryRun,omitempty" jsonschema:"print the plan and stop; changes nothing"`
+}
+
+type extensionArgs struct {
+	Dir    string `json:"dir,omitempty" jsonschema:"template checkout directory (default current directory)"`
+	Format string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
+}
+
+type extensionDescribeArgs struct {
+	ID     string `json:"id,omitempty" jsonschema:"extension id (built-in capability id or installed recipe id)"`
+	Dir    string `json:"dir,omitempty" jsonschema:"template checkout directory (default current directory)"`
+	Format string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
 }
 
 // exportArgs is the port-bundle tool: it writes ONLY into `to` (a scratch
@@ -157,15 +165,7 @@ receipts, and tidy+build proof. Version `+installer.Version+`.`)
 func handleCapabilitiesList(
 	_ context.Context, _ *mcp.CallToolRequest, _ struct{},
 ) (*mcp.CallToolResult, any, error) {
-	type view struct {
-		capabilities.Capability
-		Class capabilities.Scaffold `json:"scaffold"`
-	}
-	views := make([]view, 0, len(capabilities.All))
-	for _, c := range capabilities.All {
-		views = append(views, view{Capability: c, Class: c.Class()})
-	}
-	raw, err := json.MarshalIndent(views, "", "  ")
+	raw, err := json.MarshalIndent(capabilities.All, "", "  ")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -179,18 +179,6 @@ func trimCLIArgs(a trimArgs, extra ...string) []string {
 	}
 	if a.Dir != "" {
 		args = append(args, "--dir", a.Dir)
-	}
-	if a.Plugins != "" {
-		args = append(args, "--plugins", a.Plugins)
-	}
-	if a.Features != "" {
-		args = append(args, "--features", a.Features)
-	}
-	if a.OptIn != "" {
-		args = append(args, "--opt-in", a.OptIn)
-	}
-	if a.Preset != "" {
-		args = append(args, "--preset", a.Preset)
 	}
 	format := a.Format
 	if format == "" {
@@ -216,17 +204,6 @@ func handleTrimApply(
 	}
 	var buf bytes.Buffer
 	err := installer.Run(ctx, append(trimCLIArgs(args), "--yes"), strings.NewReader(""), &buf)
-	return runResult(buf.String(), err)
-}
-
-func handleCheckTree(
-	ctx context.Context, _ *mcp.CallToolRequest, args dirArgs,
-) (*mcp.CallToolResult, any, error) {
-	if args.Dir == "" {
-		return nil, nil, fmt.Errorf("dir is required (absolute path)")
-	}
-	var buf bytes.Buffer
-	err := installer.Run(ctx, []string{"--check", "--dir", args.Dir}, strings.NewReader(""), &buf)
 	return runResult(buf.String(), err)
 }
 
@@ -278,33 +255,6 @@ func handleMigratePlan(
 	return runResult(buf.String(), err)
 }
 
-func handleAddUnit(
-	ctx context.Context, _ *mcp.CallToolRequest, args addArgs,
-) (*mcp.CallToolResult, any, error) {
-	if args.Unit == "" || args.From == "" || args.Dir == "" {
-		return nil, nil, fmt.Errorf("unit, from and dir are all required")
-	}
-	format := args.Format
-	if format == "" {
-		format = defaultFormat
-	}
-	// No --no-tui here: add/new take no TUI flag (it belongs to the root
-	// scaffolder), and passing it made this tool fail at flag parse on every
-	// call. The plumbing test below is what catches the next one (make check-mcp).
-	cli := []string{"add", args.Unit, "--from", args.From, "--dir", args.Dir, "--format", format}
-	if args.DryRun {
-		cli = append(cli, "--dry-run")
-	} else {
-		if !args.Confirm {
-			return nil, nil, fmt.Errorf("refusing without confirm:true (or dryRun:true to preview)")
-		}
-		cli = append(cli, "--yes")
-	}
-	var buf bytes.Buffer
-	err := installer.Run(ctx, cli, strings.NewReader(""), &buf)
-	return runResult(buf.String(), err)
-}
-
 func handleNewFeature(
 	ctx context.Context, _ *mcp.CallToolRequest, args newFeatureArgs,
 ) (*mcp.CallToolResult, any, error) {
@@ -323,6 +273,137 @@ func handleNewFeature(
 			return nil, nil, fmt.Errorf("refusing without confirm:true (or dryRun:true to preview)")
 		}
 		cli = append(cli, "--yes")
+	}
+	var buf bytes.Buffer
+	err := installer.Run(ctx, cli, strings.NewReader(""), &buf)
+	return runResult(buf.String(), err)
+}
+
+func recipeCLIArgs(subcommand string, args recipeArgs) ([]string, error) {
+	if args.Dir == "" {
+		return nil, fmt.Errorf("dir is required")
+	}
+	format := args.Format
+	if format == "" {
+		format = defaultFormat
+	}
+	cli := []string{"recipe", subcommand}
+	switch subcommand {
+	case "install", "update":
+		if args.Src == "" {
+			return nil, fmt.Errorf("src is required (recipe directory, catalog contents directory, or recipe id)")
+		}
+		cli = append(cli, args.Src, "--dir", args.Dir, "--format", format)
+		if args.Entry != "" {
+			cli = append(cli, "--entry", args.Entry)
+		}
+	case "status":
+		if args.ID != "" {
+			cli = append(cli, args.ID)
+		}
+		cli = append(cli, "--dir", args.Dir, "--format", format)
+	case "uninstall":
+		if args.ID == "" {
+			return nil, fmt.Errorf("id is required")
+		}
+		cli = append(cli, args.ID, "--dir", args.Dir)
+	}
+	if !args.DryRun {
+		if subcommand != "status" {
+			if !args.Confirm {
+				return nil, fmt.Errorf("refusing without confirm:true (or dryRun:true to preview)")
+			}
+			cli = append(cli, "--yes")
+		}
+	} else if subcommand != "status" {
+		// `recipe uninstall` has no --dry-run; preview through status. Only
+		// install/update can honor a dry run.
+		if subcommand == "uninstall" {
+			return nil, fmt.Errorf("uninstall has no dry-run; use recipe_status, then confirm:true")
+		}
+	}
+	return cli, nil
+}
+
+func handleRecipeInstall(
+	ctx context.Context, _ *mcp.CallToolRequest, args recipeArgs,
+) (*mcp.CallToolResult, any, error) {
+	cli, err := recipeCLIArgs("install", args)
+	if err != nil {
+		return nil, nil, err
+	}
+	var buf bytes.Buffer
+	err = installer.Run(ctx, cli, strings.NewReader(""), &buf)
+	return runResult(buf.String(), err)
+}
+
+func handleRecipeUpdate(
+	ctx context.Context, _ *mcp.CallToolRequest, args recipeArgs,
+) (*mcp.CallToolResult, any, error) {
+	cli, err := recipeCLIArgs("update", args)
+	if err != nil {
+		return nil, nil, err
+	}
+	var buf bytes.Buffer
+	err = installer.Run(ctx, cli, strings.NewReader(""), &buf)
+	return runResult(buf.String(), err)
+}
+
+func handleRecipeUninstall(
+	ctx context.Context, _ *mcp.CallToolRequest, args recipeArgs,
+) (*mcp.CallToolResult, any, error) {
+	cli, err := recipeCLIArgs("uninstall", args)
+	if err != nil {
+		return nil, nil, err
+	}
+	var buf bytes.Buffer
+	err = installer.Run(ctx, cli, strings.NewReader(""), &buf)
+	return runResult(buf.String(), err)
+}
+
+func handleRecipeStatus(
+	ctx context.Context, _ *mcp.CallToolRequest, args recipeArgs,
+) (*mcp.CallToolResult, any, error) {
+	cli, err := recipeCLIArgs("status", args)
+	if err != nil {
+		return nil, nil, err
+	}
+	var buf bytes.Buffer
+	err = installer.Run(ctx, cli, strings.NewReader(""), &buf)
+	return runResult(buf.String(), err)
+}
+
+func handleExtensionList(
+	ctx context.Context, _ *mcp.CallToolRequest, args extensionArgs,
+) (*mcp.CallToolResult, any, error) {
+	format := args.Format
+	if format == "" {
+		format = defaultFormat
+	}
+	cli := []string{"extension", "list", "--dir", args.Dir, "--format", format}
+	if args.Dir == "" {
+		cli = []string{"extension", "list", "--format", format}
+	}
+	var buf bytes.Buffer
+	err := installer.Run(ctx, cli, strings.NewReader(""), &buf)
+	return runResult(buf.String(), err)
+}
+
+func handleExtensionDescribe(
+	ctx context.Context, _ *mcp.CallToolRequest, args extensionDescribeArgs,
+) (*mcp.CallToolResult, any, error) {
+	format := args.Format
+	if format == "" {
+		format = defaultFormat
+	}
+	cli := []string{"extension", "describe", "--format", format}
+	dir := args.Dir
+	if dir == "" {
+		dir = "."
+	}
+	cli = append(cli, "--dir", dir)
+	if args.ID != "" {
+		cli = append(cli, args.ID)
 	}
 	var buf bytes.Buffer
 	err := installer.Run(ctx, cli, strings.NewReader(""), &buf)

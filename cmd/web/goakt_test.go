@@ -1,4 +1,4 @@
-// SCOPE:plugin — GoAkt lifecycle red-team tests.
+// GoAkt lifecycle red-team tests.
 package main
 
 import (

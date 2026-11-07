@@ -1,4 +1,4 @@
-// SCOPE:core — The Client weight table is measured, and every page that quotes
+// The Client weight table is measured, and every page that quotes
 // a weight quotes it from there.
 //
 // docs/features.md is the one place a size lives. Those numbers were

@@ -1,4 +1,4 @@
-// SCOPE:plugin — rendering a parsed directive into a component, with ids,
+// Rendering a parsed directive into a component, with ids,
 // nesting bounds and panel substitution.
 //
 // Split from catalog.go for the file-size gate, and along a real seam: that file

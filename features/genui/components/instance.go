@@ -1,4 +1,4 @@
-// SCOPE:plugin — per-component instance ids, so a rendered answer is
+// Per-component instance ids, so a rendered answer is
 // addressable and two of the same component can coexist.
 //
 // WHY THIS EXISTS. Every catalog leaf and every native panel rendered with a

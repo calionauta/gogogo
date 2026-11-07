@@ -1,4 +1,4 @@
-// SCOPE:core — SessionByToken tests (the transport-free session path)
+// SessionByToken tests (the transport-free session path)
 //
 // Session validates cookies over *http.Request; SessionByToken resolves
 // a raw token without a request — what cmd/gui's persisted "remember

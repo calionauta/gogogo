@@ -1,4 +1,4 @@
-// SCOPE:core — Auth plugin HTTP routes (magic-link, TOTP, OAuth)
+// Auth plugin HTTP routes (magic-link, TOTP, OAuth)
 package auth
 
 import (

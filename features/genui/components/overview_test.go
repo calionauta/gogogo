@@ -1,4 +1,4 @@
-// SCOPE:plugin — the operator catalog covers the registry it documents.
+// The operator catalog covers the registry it documents.
 package components
 
 import (

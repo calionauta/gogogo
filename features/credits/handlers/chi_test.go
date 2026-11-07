@@ -1,4 +1,4 @@
-// SCOPE:plugin — HTTP credits contract tests (red-proof).
+// HTTP credits contract tests (red-proof).
 package handlers
 
 import (

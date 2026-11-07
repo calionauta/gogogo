@@ -41,6 +41,11 @@ type TodoRowActions struct {
 	// Delete is the Datastar click expression for the trash: set the
 	// confirming ids and open the host's confirmation dialog.
 	Delete string
+	// Extras are the actions recipes contributed through the
+	// `record.row-actions` slot. The host passes the same list to every row
+	// and the row substitutes its own id, so a core page never learns which
+	// recipe offered the action.
+	Extras []todo.RowAction
 }
 
 // TodoItem renders one row. Delete + authorship affordances come
@@ -72,6 +77,24 @@ templ TodoItem(item todo.Todo, actions TodoRowActions) {
 			}
 		}
 		<span class="todo-age text-xs text-base-content/40">{ timeAgo(item.CreatedAt) }</span>
+		for _, extra := range actions.Extras {
+			if extra.Verb == "get" {
+				<a
+					href={ templ.SafeURL(actionHref(extra, item.ID)) }
+					class="btn btn-ghost btn-xs"
+					title={ extra.Label }>
+					{ extra.Label }
+				</a>
+			} else {
+				<button
+					type="button"
+					class="btn btn-ghost btn-xs"
+					title={ extra.Label }
+					data-on:click__prevent={ actionPost(extra, item.ID) }>
+					{ extra.Label }
+				</button>
+			}
+		}
 		if item.CanDelete {
 			<button
 				type="button"

@@ -1,4 +1,4 @@
-// SCOPE:plugin — Per-document presence seam (PeerSet fallback / actor adapter).
+// Per-document presence seam (PeerSet fallback / actor adapter).
 package collab
 
 import "context"

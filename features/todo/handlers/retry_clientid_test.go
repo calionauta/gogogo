@@ -1,4 +1,4 @@
-// SCOPE:feature — Todo retry-demo clientID propagation red-proof.
+// Todo retry-demo clientID propagation red-proof.
 //
 // The Queue + Retry demo POSTs with ?clientID=<tab> so worker feedback
 // (attempt/success envelopes + toasts) can be routed back to the tab

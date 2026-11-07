@@ -1,4 +1,4 @@
-// SCOPE:core — Host gate verdict tests (pure logic, instant).
+// Host gate verdict tests (pure logic, instant).
 package hostgate
 
 import (

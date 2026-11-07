@@ -1,4 +1,4 @@
-// SCOPE:core — Route-table contract: flattening, duplicates, 405.
+// Route-table contract: flattening, duplicates, 405.
 package server
 
 import (

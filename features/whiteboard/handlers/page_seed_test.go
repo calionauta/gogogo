@@ -1,4 +1,4 @@
-// SCOPE:feature — the board page seeds the canvas with the server's shapes.
+// The board page seeds the canvas with the server's shapes.
 package handlers
 
 import (

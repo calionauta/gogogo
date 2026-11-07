@@ -1,4 +1,4 @@
-// SCOPE:core — Tests for the observability core
+// Tests for the observability core
 package observability
 
 import (

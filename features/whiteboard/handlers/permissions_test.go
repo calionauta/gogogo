@@ -1,4 +1,4 @@
-// SCOPE:feature — Shared-board contract for the whiteboard (author edits,
+// Shared-board contract for the whiteboard (author edits,
 // author or admin deletes).
 //
 // The demo pair is the spec: demo1 is admin, demo2 is viewer. Both must

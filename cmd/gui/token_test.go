@@ -1,4 +1,4 @@
-// SCOPE:feature — Tests for session token persistence.
+// Tests for session token persistence.
 package main
 
 import (

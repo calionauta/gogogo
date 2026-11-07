@@ -1,4 +1,4 @@
-// SCOPE:plugin — the inverted index in SQL: the plugin's own half.
+// The inverted index in SQL: the plugin's own half.
 package search
 
 import (

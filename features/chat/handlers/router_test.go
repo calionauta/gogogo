@@ -1,4 +1,4 @@
-// SCOPE:feature — the jev-compatible Chat router's decision rules.
+// The jev-compatible Chat router's decision rules.
 package handlers
 
 import (

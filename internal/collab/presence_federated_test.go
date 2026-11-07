@@ -1,4 +1,4 @@
-// SCOPE:plugin — Federated presence contract tests.
+// Federated presence contract tests.
 //
 // These pin the layer the two feature suites cannot isolate: that List is the
 // union (not the local roster), that a peer's retraction removes its ids, that

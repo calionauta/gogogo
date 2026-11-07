@@ -1,4 +1,4 @@
-// SCOPE:core — file discovery for the prose checks.
+// File discovery for the prose checks.
 
 package main
 

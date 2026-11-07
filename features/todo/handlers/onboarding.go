@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP todo onboarding stream rendering (wire side only)
+// HTTP todo onboarding stream rendering (wire side only)
 //
 // This file is what REMAINS of the onboarding slice in the todo package
 // after the engine moved to features/onboarding: the wire constants the

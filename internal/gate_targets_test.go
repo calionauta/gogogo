@@ -1,4 +1,4 @@
-// SCOPE:core — the Makefile's targets are a contract, not a convenience list.
+// The Makefile's targets are a contract, not a convenience list.
 //
 // CI calls them, the git hooks call them, and AGENTS.md tells a human to call
 // them — while a MISSING target is invisible: `make <missing>` prints "Nothing
@@ -112,7 +112,7 @@ func TestDocumentedCommandsExist(t *testing.T) {
 	want := []string{
 		// AGENTS.md Commands table.
 		"dev", "build", "templ", "datastar-lint", "css", "css-check",
-		"check-scope", "test", "check-generated", "ci-local-fast", "lint-safe",
+		"test", "check-generated", "ci-local-fast", "lint-safe",
 		"ci-local", "signoff", "setup", "go-bump",
 		// The class gates the repo publishes (Makefile targets, not scripts).
 		"check-classes", "daisyui-lint", "vocabulary",

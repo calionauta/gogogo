@@ -1,4 +1,4 @@
-// SCOPE:core — RBAC coverage lint: every routed method has a policy decision.
+// RBAC coverage lint: every routed method has a policy decision.
 
 package rbac
 
@@ -13,49 +13,6 @@ import (
 	"strings"
 	"testing"
 )
-
-// adminOnlyRoutes declares the routes the policy deliberately keeps away from
-// a plain `user`. It is the ONE place that decision is written down, so a
-// reviewer sees it in a diff instead of inferring it from an absent policy row.
-var adminOnlyRoutes = map[string]bool{
-	"/config":              true,
-	"/config/":             true,
-	"/config/*":            true,
-	"/config/users/role":   true,
-	"/config/users/revoke": true,
-	"/config/audit.csv":    true,
-	"/debug/statsviz":      true,
-	"/debug/statsviz/*":    true,
-	"/debug/statsviz/ws":   true,
-	"/debug/pprof":         true,
-	"/debug/pprof/*":       true,
-}
-
-// publicRoutes declares the routes a signed-out visitor may reach. An
-// accidentally-public route (reachable through a wildcard nobody meant to
-// widen) fails here instead of shipping.
-var publicRoutes = map[string]bool{
-	"/":                                   true,
-	"/login":                              true,
-	"/signup":                             true,
-	"/activate":                           true,
-	"/logout":                             true,
-	"/health":                             true,
-	"/sw.js":                              true,
-	"/api/auth/signup/credential":         true,
-	"/api/auth/signin/credential":         true,
-	"/api/auth/signout":                   true,
-	"/api/auth/magic":                     true,
-	"/api/auth/magic/request":             true,
-	"/api/auth/oauth/{provider}":          true,
-	"/api/auth/oauth/{provider}/callback": true,
-	"/api/auth/totp/login":                true,
-	"/api/auth/verify":                    true,
-	"/api/auth/verify/request":            true,
-	"/api/auth/password/reset":            true,
-	"/api/auth/password/reset/request":    true,
-	"/api/session/stream":                 true,
-}
 
 // TestRBACCoverageMatchesRoutes is the coverage lint that replaced the
 // hand-maintained path list. It reads every registered route straight from
@@ -93,7 +50,7 @@ func TestRBACCoverageMatchesRoutes(t *testing.T) {
 			if aerr != nil {
 				t.Fatalf("enforce admin %s %s: %v", method, rt.pattern, aerr)
 			}
-			if adminOnlyRoutes[rt.pattern] {
+			if AdminOnlyRoute(rt.pattern) {
 				if allowUser {
 					t.Errorf("%s %s: route is in adminOnlyRoutes but the policy grants it to user", method, rt.pattern)
 				}
@@ -147,11 +104,7 @@ func TestRBACPublicRoutesArePublic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewEnforcer: %v", err)
 	}
-	declared := make([]string, 0, len(publicRoutes))
-	for p := range publicRoutes {
-		declared = append(declared, p)
-	}
-	slices.Sort(declared)
+	declared := PublicRoutePatterns()
 	// A public endpoint is public for the method(s) it registers, not for a
 	// mythical GET: the auth sign-in routes answer POST and 405 a GET.
 	methods := map[string][]string{}
@@ -161,7 +114,17 @@ func TestRBACPublicRoutesArePublic(t *testing.T) {
 	for _, path := range declared {
 		ms := methods[path]
 		if len(ms) == 0 {
-			ms = []string{http.MethodGet}
+			// The source scan cannot see this route, so it cannot name its
+			// method: a path registered from a CONSTANT (`r.Post(cspReportPath,
+			// …)`) or mounted as a subtree prefix never matches the scanner's
+			// literal regex. The policy then owns the method set — asserting a
+			// mythical GET is how this test once disagreed with a real
+			// anonymous POST. The runtime gate in internal/server covers the
+			// same declaration with the walked inventory.
+			ms = []string{
+				http.MethodGet, http.MethodPost, http.MethodPut,
+				http.MethodPatch, http.MethodDelete, http.MethodHead,
+			}
 		}
 		allowed := false
 		for _, method := range ms {
@@ -355,7 +318,7 @@ func TestRBACPrivateRoutesDenyAnonymous(t *testing.T) {
 		t.Fatalf("NewEnforcer: %v", err)
 	}
 	for _, rt := range registeredRoutes(t) {
-		if rt.pattern == "" || publicRoutes[rt.pattern] {
+		if rt.pattern == "" || PublicRoute(rt.pattern) {
 			continue
 		}
 		for _, method := range rt.methods {

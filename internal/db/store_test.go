@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/calionauta/gogogo/features/todo"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
 )
@@ -24,6 +25,10 @@ func openTestDB(t *testing.T) *sql.DB {
 	t.Cleanup(func() { _ = sqlDB.Close() })
 	if err := dbschema.Migrate(sqlDB); err != nil {
 		t.Fatalf("Migrate: %v", err)
+	}
+	todoSet := dbschema.MigrationSet{ID: "todo", FS: todo.Migrations, Dir: "migrations"}
+	if err := dbschema.MigrateWith(sqlDB, todoSet); err != nil {
+		t.Fatalf("todo migrate: %v", err)
 	}
 	return sqlDB
 }
@@ -248,5 +253,9 @@ func TestOpenCreatesParentDir(t *testing.T) {
 	}
 	if err := dbschema.Migrate(sqlDB); err != nil {
 		t.Fatalf("Migrate: %v", err)
+	}
+	todoSet := dbschema.MigrationSet{ID: "todo", FS: todo.Migrations, Dir: "migrations"}
+	if err := dbschema.MigrateWith(sqlDB, todoSet); err != nil {
+		t.Fatalf("todo migrate: %v", err)
 	}
 }

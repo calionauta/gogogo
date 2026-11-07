@@ -1,4 +1,4 @@
-// SCOPE:plugin — prompt rules for the app's own data (red-proof).
+// Prompt rules for the app's own data (red-proof).
 //
 // Two reported failures are pinned here, both from the same root: the prompt
 // treated the app's panels as one option among several, so the model answered

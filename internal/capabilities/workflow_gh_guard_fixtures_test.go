@@ -1,4 +1,4 @@
-// SCOPE:core — adversarial fixtures for the workflow `gh` guard.
+// Adversarial fixtures for the workflow `gh` guard.
 //
 // THE POINT OF THIS FILE. The guard's first version scanned YAML line by line
 // with indentation-keyed regexes, and review correctly rejected it: YAML's surface

@@ -1,4 +1,4 @@
-// SCOPE:core — SSE Hub doc-scoped fan-out (split for size)
+// SSE Hub doc-scoped fan-out (split for size)
 package queue
 
 // SetDoc records which collaborative doc clientID is watching (the

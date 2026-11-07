@@ -40,6 +40,7 @@ p, admin, /*, .*
 # This is a STARTING POINT: tune it for your app before enabling RBAC in
 # production (RBAC_ENABLED=true). The admin-only surface is /config (env
 # secrets view); everything else a login can reach, a user can reach.
+p, anonymous, /static, (GET|HEAD)
 p, anonymous, /static/*, (GET|HEAD)
 p, anonymous, /sw.js, (GET|HEAD)
 p, anonymous, /health, (GET|HEAD)
@@ -82,6 +83,7 @@ p, anonymous, /api/session/stream, GET
 p, user, /_ui/demo, .*
 p, user, /todo, .*
 p, user, /todo/*, .*
+p, user, /dashboard, .*
 p, user, /api/todos, .*
 p, user, /api/todos/*, .*
 p, user, /account, .*
@@ -110,17 +112,20 @@ p, user, /api/review, .*
 p, user, /api/review/*, .*
 p, user, /api/credits, .*
 p, user, /api/credits/*, .*
+p, user, /api/ext/invoke, POST
 p, user, /api/ai/*, .*
 p, user, /api/byok/*, .*
 p, user, /api/onboarding, .*
 p, user, /api/onboarding/*, .*
 p, user, /api/session/stream, GET
+p, user, /static, (GET|HEAD)
 p, user, /static/*, (GET|HEAD)
 p, user, /sw.js, (GET|HEAD)
 p, user, /health, (GET|HEAD)
 p, user, /, GET
 p, user, /api/auth/*, .*
 p, viewer, /_ui/demo, .*
+p, viewer, /dashboard, .*
 p, viewer, /todo, .*
 p, viewer, /todo/*, .*
 p, viewer, /account, .*
@@ -141,6 +146,7 @@ p, viewer, /notes, .*
 p, viewer, /notes/*, .*
 p, viewer, /api/notes/*, .*
 p, viewer, /api/session/stream, GET
+p, viewer, /static, (GET|HEAD)
 p, viewer, /static/*, (GET|HEAD)
 p, viewer, /sw.js, (GET|HEAD)
 p, viewer, /health, (GET|HEAD)

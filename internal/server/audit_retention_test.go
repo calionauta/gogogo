@@ -1,4 +1,4 @@
-// SCOPE:core — audit retention window.
+// Audit retention window.
 package server
 
 import (

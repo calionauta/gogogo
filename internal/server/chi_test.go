@@ -1,10 +1,9 @@
-// SCOPE:core — Flat-stack boot tests (red-proof for the serve seam).
+// Flat-stack boot tests (red-proof for the serve seam).
 package server
 
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -21,7 +20,6 @@ import (
 	landinghandlers "github.com/calionauta/gogogo/features/landing/handlers"
 	noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"
 	reviewhandlers "github.com/calionauta/gogogo/features/review/handlers"
-	roomhandlers "github.com/calionauta/gogogo/features/room/handlers"
 	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 	wbhandlers "github.com/calionauta/gogogo/features/whiteboard/handlers"
 	"github.com/calionauta/gogogo/internal/auth"
@@ -32,6 +30,7 @@ import (
 	appgoakt "github.com/calionauta/gogogo/internal/goakt"
 	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/queue"
+	"github.com/calionauta/gogogo/internal/recipe/register"
 )
 
 func TestStartChiDisabled(t *testing.T) {
@@ -68,34 +67,12 @@ func TestStartChiBoot(t *testing.T) {
 		t.Fatalf("StartChi addr = %q, want the kernel-chosen port", addr)
 	}
 
-	var versions []string
 	sqlDB, err := sql.Open("turso", cfg.Turso.DBPath+"?_busy_timeout=10000")
 	if err != nil {
 		t.Fatalf("reopen db: %v", err)
 	}
 	defer sqlDB.Close()
-	rows, rerr := sqlDB.QueryContext(context.Background(), `SELECT version FROM schema_migrations ORDER BY version`)
-	if rerr != nil {
-		t.Fatalf("read migrations: %v (seam did not migrate)", rerr)
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var v string
-		if serr := rows.Scan(&v); serr != nil {
-			t.Fatalf("scan: %v", serr)
-		}
-		versions = append(versions, v)
-	}
-	if rerr := rows.Err(); rerr != nil {
-		t.Fatalf("rows: %v", rerr)
-	}
-	want, verr := dbschema.Versions()
-	if verr != nil {
-		t.Fatalf("expected versions: %v", verr)
-	}
-	if fmt.Sprintf("%v", versions) != fmt.Sprintf("%v", want) {
-		t.Fatalf("applied ledger = %v, want embedded %v", versions, want)
-	}
+	assertCoreLedgerApplied(t, sqlDB)
 }
 
 // TestServeChiOnListener is the automated preflight: the production boot
@@ -250,7 +227,8 @@ func TestBuildChiMuxRoomDisabledPinsRouteAbsence(t *testing.T) {
 	}
 	docs := collab.NewDocStore()
 	hub := queue.NewSSEHub()
-	mux := buildChiMux(a, todohandlers.NewHandler(q, a, hub),
+	reviewH := newReviewHandlerForTest(cfg, a)
+	mux := buildChiMux(a, register.Deps{Cfg: cfg, Auth: a, Queries: q, Hub: hub}, todohandlers.NewHandler(q, a, hub),
 		landinghandlers.NewHandler(cfg, a),
 		confighandlers.NewHandler(cfg, a, dbgen.New(sqlDB)),
 		wbhandlers.NewHandler(q, a, hub, persister, docs, cfg),
@@ -258,7 +236,7 @@ func TestBuildChiMuxRoomDisabledPinsRouteAbsence(t *testing.T) {
 		nil, // roomHandler: engine disabled
 		chathandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(),
 			stubResponder{raw: "{}"}),
-		newReviewHandlerForTest(cfg, a),
+		reviewH,
 		creditshandlers.NewHandler(a, nil))
 
 	rec := httptest.NewRecorder()
@@ -269,40 +247,8 @@ func TestBuildChiMuxRoomDisabledPinsRouteAbsence(t *testing.T) {
 }
 
 func TestBuildChiMux(t *testing.T) {
-	sqlDB, err := db.OpenAt(t.TempDir() + "/mux.db")
-	if err != nil {
-		t.Fatalf("db open: %v", err)
-	}
-	t.Cleanup(func() { sqlDB.Close() })
-	if err := dbschema.Migrate(sqlDB); err != nil {
-		t.Fatalf("db migrate: %v", err)
-	}
-	a, aerr := auth.New(dbgen.New(sqlDB), false)
-	if aerr != nil {
-		t.Fatalf("auth new: %v", aerr)
-	}
-	todoH := todohandlers.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub())
-	cfg := config.Load()
-	// Retained: combined trims (landing, config, room, chat, genui) drop
-	// every cfg consumer below, which would not compile. Same rule as the
-	// bootCtx retain in chi.go.
-	_ = cfg
-	persister, perr := collab.NewTursoPersister(dbgen.New(sqlDB))
-	if perr != nil {
-		t.Fatalf("persister: %v", perr)
-	}
-	docs := collab.NewDocStore()
-
-	mux := buildChiMux(a, todoH,
-		landinghandlers.NewHandler(cfg, a),
-		confighandlers.NewHandler(cfg, a, dbgen.New(sqlDB)),
-		wbhandlers.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister, docs, cfg),
-		noteshandlers.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister, docs, cfg),
-		roomhandlers.NewHandler(cfg, a, fakeRooms{}, queue.NewSSEHub()),
-		chathandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(),
-			stubResponder{raw: "{}"}),
-		newReviewHandlerForTest(cfg, a),
-		creditshandlers.NewHandler(a, nil))
+	f := buildMuxFixture(t)
+	mux := f.mux
 	body := `{"email":"mux@example.com","password":"Correct-horse-99!"}`
 	req := httptest.NewRequestWithContext(context.Background(),
 		http.MethodPost, "/api/auth/signup/credential", strings.NewReader(body))
@@ -358,6 +304,13 @@ func TestBuildChiMux(t *testing.T) {
 		}
 	}
 	assertMuxTail(t, mux)
+	assertPolicyCoverage(t, mux)
+	assertRecipeWiring(t, mux, f.sqlDB)
+	// A failed recipe step is kept on the router for BootChi to fail on; a test
+	// that only inspects responses would see the missing mounts and nothing else.
+	if mux.recipeErr != nil {
+		t.Fatalf("the recipe step failed inside the composition: %v", mux.recipeErr)
+	}
 }
 
 // assertMuxTail pins the responses that do not depend on the feature wiring

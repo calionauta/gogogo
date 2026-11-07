@@ -1,4 +1,4 @@
-// SCOPE:plugin — the model-facing instructions for the Chat answer shape.
+// The model-facing instructions for the Chat answer shape.
 // Split from catalog.go for the 500-line file gate: the registry decides
 // what RENDERS, this file decides what the model is TOLD.
 //

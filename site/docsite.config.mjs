@@ -123,6 +123,8 @@ export default {
     desc: "The Android spike build log: commands, driver matrix, libc shims, system-bar insets, screenshots, disk usage and cleanup." },
   { group: "Research", slug: "scaffold-choice", file: "research/scaffold-choice-2026-10.md",
     desc: "Why the scaffold prompt offers only the installer units, the three lists that disagree, and the Scaffold class that makes every capability an explicit keep-or-drop." },
+  { group: "Research", slug: "extensibility", file: "research/extensibility-2026-11.md",
+    desc: "Core plus installable extensions evaluated for 2026: why buildmode=plugin is out, why anchor-patching cannot carry N authors, what compile-time registration costs, and the ordered spikes that can kill the idea." },
   { group: "Ship", slug: "deploy", file: "deploy.md",
     desc: "Server layout, first-time setup, deploy workflow, build pipeline and version badge." },
   { group: "Ship", slug: "desktop-mobile", file: "desktop-mobile.md",

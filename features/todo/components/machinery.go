@@ -1,4 +1,4 @@
-// SCOPE:feature — The three machinery sequences as data.
+// The three machinery sequences as data.
 //
 // The queue+retry, AI-suggest and durable-workflow phase lists used to be three
 // hand-written <ul class="steps"> blocks with per-step `data-class` objects

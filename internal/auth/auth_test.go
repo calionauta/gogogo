@@ -1,4 +1,4 @@
-// SCOPE:core — Flat auth tests (owned argon2id + sessions).
+// Flat auth tests (owned argon2id + sessions).
 //
 // Every test runs against a real migrated Turso file: password hashing,
 // session issue/validate/revoke, cookie handling and the HTTP surface.

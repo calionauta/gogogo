@@ -1,4 +1,4 @@
-// SCOPE:plugin — Datastar stream helpers contract tests.
+// Datastar stream helpers contract tests.
 package datastar
 
 import (

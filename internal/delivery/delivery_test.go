@@ -1,4 +1,4 @@
-// SCOPE:plugin — delivery seam contract.
+// Delivery seam contract.
 package delivery
 
 import (

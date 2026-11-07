@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP notes contract tests (red-proof).
+// HTTP notes contract tests (red-proof).
 //
 // Real Turso file, real auth, real Loro DocStore, driven over HTTP.
 // Contracts: paths, statuses, redirects, shared listing, op apply with

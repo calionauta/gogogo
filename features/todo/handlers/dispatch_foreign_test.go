@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP todo foreign-envelope isolation red-proof.
+// HTTP todo foreign-envelope isolation red-proof.
 //
 // All features share one hub, so worker results addressed to other
 // features' tabs (genui/chat broadcasts without a clientID) also cross

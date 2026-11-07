@@ -1,4 +1,4 @@
-// SCOPE:core — Seeds ui.WithOperator for page navigations.
+// Seeds ui.WithOperator for page navigations.
 //
 // The shell's account menu shows the DagNats console entry only when the
 // console would actually answer: a workflow engine was STARTED in this binary,
@@ -25,9 +25,34 @@ import (
 // count and the operator flag — so the composition root states the order once
 // and every shell render gets both before the page runs.
 func shellMiddleware(
-	cfg *config.Config, a *auth.Auth, q *dbgen.Queries, engine engineWired, next http.Handler,
+	cfg *config.Config, a *auth.Auth, q *dbgen.Queries, engine engineWired,
+	nav []ui.NavEntry, next http.Handler,
 ) http.Handler {
-	return perfPageMiddleware(cfg)(operatorPageMiddleware(cfg, a, engine)(inboxBadgeMiddleware(a, q)(next)))
+	// One statement per layer, innermost first: every line belongs to exactly
+	// one capability, so a trim drops its line and leaves a valid chain (the
+	// same rule the composition root follows for its mounts).
+	next = inboxBadgeMiddleware(a, q)(next)
+	next = navPageMiddleware(nav)(next)
+	next = operatorPageMiddleware(cfg, a, engine)(next)
+	next = perfPageMiddleware(cfg)(next)
+	return next
+}
+
+// navPageMiddleware seeds the rail's extension destinations on page navigations.
+// The list is fixed at boot (a recipe's contribution is a build fact), so this
+// is a context write, never a lookup per request.
+func navPageMiddleware(nav []ui.NavEntry) func(http.Handler) http.Handler {
+	if len(nav) == 0 {
+		return func(next http.Handler) http.Handler { return next }
+	}
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if pageRequest(r) {
+				r = r.WithContext(ui.WithNav(r.Context(), nav))
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // perfPageMiddleware seeds ui.WithPerf on page navigations when the runtime

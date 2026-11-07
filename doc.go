@@ -1,4 +1,3 @@
-// SCOPE:core - DO NOT REMOVE - Module root package.
 // Package gogogofullstacktemplate is the module root.
 //
 // This file exists so the module root package is never empty: some Go

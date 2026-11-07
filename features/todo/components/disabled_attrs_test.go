@@ -1,4 +1,4 @@
-// SCOPE:feature — rendered-HTML invariants for the Datastar signal contract.
+// Rendered-HTML invariants for the Datastar signal contract.
 //
 // These assertions exist because the Go-side signal values were right the whole
 // time and the page was still broken. Datastar reads a signal that never

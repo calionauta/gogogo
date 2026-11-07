@@ -1,4 +1,4 @@
-// SCOPE:core — the bump surface: every file must move, in every occurrence.
+// The bump surface: every file must move, in every occurrence.
 package main
 
 import (

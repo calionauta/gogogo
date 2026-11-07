@@ -1,4 +1,4 @@
-// SCOPE:core - DO NOT REMOVE - registry validation (part of make check-classes).
+// Registry validation (part of make check-classes).
 //
 // The registry is the item 2026's design-system research measured as the
 // biggest lever (CHI EA '26: registry-based assembly 95.08% compliance, ahead of

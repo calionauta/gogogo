@@ -1,4 +1,4 @@
-// SCOPE:core — TOTP enrollment, verification and removal.
+// TOTP enrollment, verification and removal.
 //
 // The second factor is owned here, not in a plugin: BeginTOTP stores a sealed
 // secret, VerifyTOTPEnroll proves the device before enforcement starts, and

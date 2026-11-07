@@ -1,4 +1,4 @@
-// SCOPE:core — dagnats worker payload and port wiring.
+// Dagnats worker payload and port wiring.
 package main
 
 import (

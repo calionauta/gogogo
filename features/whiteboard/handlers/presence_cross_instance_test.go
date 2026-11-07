@@ -1,4 +1,4 @@
-// SCOPE:feature — Cross-instance presence: two servers, one board.
+// Cross-instance presence: two servers, one board.
 //
 // The whiteboard half of the presence contract the notes suite also pins: two
 // independent handlers over two independent hubs joined only by NATS — two pods

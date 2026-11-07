@@ -1,4 +1,4 @@
-// SCOPE:core — Repo hygiene guard: removed surfaces may not come back.
+// Repo hygiene guard: removed surfaces may not come back.
 //
 // Two classes of dead weight are invisible to every other gate and were both
 // present when the second UI skin was removed:
@@ -24,6 +24,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -224,6 +225,77 @@ func TestNoDeadMarkupAttributes(t *testing.T) {
 		t.Fatalf("dead markup attributes (nothing reads them):\n  %s",
 			strings.Join(violations, "\n  "))
 	}
+}
+
+// TestNoFileHeaderRemovalClass fails when the retired per-file `SCOPE:` header
+// comes back. The removal class is data on the capability row, and the registry
+// owns which dirs a unit consists of, so a header is a second copy of
+// information that a gate already walks — the copy that drifts.
+func TestNoFileHeaderRemovalClass(t *testing.T) {
+	root := repoRoot(t)
+	vendored := vendoredDocsiteFiles(t, root)
+	var violations []string
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if skipScannedDir(d.Name()) {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		rel, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			return relErr
+		}
+		if historyFiles(rel) || vendored[rel] {
+			return nil
+		}
+		// Source and prose only: a stray build artifact (a checked-in binary)
+		// cannot carry the header a reader would copy, and scanning it would
+		// fail this gate for a file the owner should delete.
+		if !scannedExtensions[strings.ToLower(filepath.Ext(rel))] && !scanByName[d.Name()] {
+			return nil
+		}
+		body, readErr := readFileString(path)
+		if readErr != nil {
+			return readErr
+		}
+		if strings.Contains(body, "SCOPE:") {
+			violations = append(violations, rel)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk %s: %v", root, err)
+	}
+	if len(violations) > 0 {
+		t.Fatalf("the retired per-file removal-class header is back in:\n  %s\n"+
+			"the class lives on the capability row (internal/capabilities); delete the header",
+			strings.Join(violations, "\n  "))
+	}
+}
+
+// vendoredDocsiteFiles reads the pinned docsite set from the drift script that
+// enforces it. Those bytes belong to calionauta/docsite and are copied verbatim:
+// a header that survives upstream is not ours to rewrite, and editing one fails
+// the drift job (it did, once, which is why this exists).
+func vendoredDocsiteFiles(t *testing.T, root string) map[string]bool {
+	t.Helper()
+	script, err := readFileString(filepath.Join(root, "scripts", "check-docsite-drift.sh"))
+	if err != nil {
+		t.Fatalf("read drift script: %v", err)
+	}
+	rel := regexp.MustCompile(`\$root/(\S+?)"`).FindAllStringSubmatch(script, -1)
+	if len(rel) == 0 {
+		t.Fatal("the drift script names no vendored file: the parse below is stale")
+	}
+	set := make(map[string]bool, len(rel))
+	for _, m := range rel {
+		set[m[1]] = true
+	}
+	return set
 }
 
 // readFileString reads a file as text, returning an error the caller ignores

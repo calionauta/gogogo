@@ -1,4 +1,4 @@
-// SCOPE:plugin — the operator-facing answer catalog: what the model may
+// The operator-facing answer catalog: what the model may
 // emit, in one list. Split from catalog.go for the file-size gate: the
 // registry decides what RENDERS, this file decides what the /config page
 // SHOWS about it.

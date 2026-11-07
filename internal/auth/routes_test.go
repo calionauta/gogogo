@@ -1,4 +1,4 @@
-// SCOPE:core — Auth route-table contract: methods and provider params.
+// Auth route-table contract: methods and provider params.
 package auth
 
 import (

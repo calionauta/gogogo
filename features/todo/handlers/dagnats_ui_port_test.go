@@ -1,4 +1,4 @@
-// SCOPE:feature — Ported red-proofs for the todo handlers slice
+// Ported red-proofs for the todo handlers slice
 //
 // Three contracts the legacy handler suite pinned and the HTTP slice now
 // re-pins: the Durable Workflow UI flag is registration truth (not

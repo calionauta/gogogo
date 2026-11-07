@@ -1,4 +1,4 @@
-// SCOPE:feature — Notes cross-doc isolation red-proof.
+// Notes cross-doc isolation red-proof.
 //
 // Two tabs on DIFFERENT notes share one SSE hub. A note-text event for
 // docA must never land on docB's stream: without doc scoping the second

@@ -1,4 +1,4 @@
-// SCOPE:core — CSP violation report sink.
+// CSP violation report sink.
 //
 // report-uri is still the most widely honoured CSP reporting mechanism.
 // Reports are untrusted input: cap the body, never echo it, log only a few

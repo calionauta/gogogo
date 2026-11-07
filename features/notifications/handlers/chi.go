@@ -1,4 +1,4 @@
-// SCOPE:feature — notifications: the inbox page and its actions.
+// Notifications: the inbox page and its actions.
 //
 // Delivery records live in `notifications` (owner-scoped, deduped by
 // transaction id). This file owns the HTTP surface: the page, the live stream,

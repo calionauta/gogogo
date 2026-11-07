@@ -236,16 +236,6 @@ check-host-capacity:
 check-fast-capacity:
 	@bash scripts/check-host-capacity.sh --fast
 
-# check-scope enforces that every non-test, non-generated .go file
-# under internal/ and features/ carries a leading doc-comment line
-# matching `// SCOPE:layer=<infra|feature>,removal=<core|plugin|feature>`.
-# Lives outside cmd/web/ on purpose: developer tool, not part of the
-# runtime binary. Run after adding/removing files in those trees.
-check-scope:
-	@echo "→ check-scope (SCOPE annotation linter)..."
-	@go run ./cmd/check-scope
-	@echo "✅ SCOPE annotations present"
-
 # check-ci-scripts runs the contract tests of the shell scripts that DECIDE what
 # CI does: the changeset classifier (which gates skip) and the race-suite shard
 # split. They are pure functions over synthetic path lists — no repo, no git,
@@ -490,7 +480,7 @@ sqlc:
 	@echo "→ Generating sqlc queries..."
 	@cd internal/db && sqlc generate
 
-ci-local: check-host-capacity reap-stale check-browser-cleanup check-generated check-sizes datastar-lint css-check check-no-jsx check-scope check-ci-scripts check-classes daisyui-lint check-flatdeps check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
+ci-local: check-host-capacity reap-stale check-browser-cleanup check-generated check-sizes datastar-lint css-check check-no-jsx check-ci-scripts check-classes daisyui-lint check-flatdeps check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
 	@echo "→ lint (golangci-lint, same as CI)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/web-packages.sh); golangci-lint run $$PKGS; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 	@echo "→ build (single build, reused by the smoke tests)"
@@ -518,7 +508,7 @@ check-no-jsx:
 	@echo "✅ no JSX idioms in app markup"
 
 # Fast local gate: the same cheap-but-decisive checks as ci-local (templ,
-# datastar-lint, css-check, check-scope, scoped lint) PLUS race tests for ONLY
+# datastar-lint, css-check, scoped lint) PLUS race tests for ONLY
 # the packages your change touches. Skips the full test sweep and the browser
 # smoke. Use it every few edits; run the full `ci-local` (and `make signoff`)
 # before pushing.
@@ -527,7 +517,7 @@ check-no-jsx:
 # so a CSS or installer tweak would otherwise pay for the whole suite. This
 # narrows on the changed packages, falling back to all packages when a shared
 # file (go.mod, config/, db/) changed.
-ci-local-fast: check-fast-capacity reap-stale check-generated check-sizes datastar-lint css-check check-no-jsx check-scope check-ci-scripts check-classes daisyui-lint check-flatdeps check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
+ci-local-fast: check-fast-capacity reap-stale check-generated check-sizes datastar-lint css-check check-no-jsx check-ci-scripts check-classes daisyui-lint check-flatdeps check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
 # Pre-flight: check-fast-capacity refuses a wedged box (use CI instead).
 # Budget: more than $FAST_MAX_PARALLEL_PKGS (default 8) changed packages
 # runs serially (-p 1) to bound shared-host load.
@@ -677,7 +667,6 @@ help:
 	@echo "  check-host-capacity  Pre-flight: refuse make ci-local when this box cannot carry it"
 	@echo "  reap-stale         Delete mtime-stale smoke artifacts (safe beside live runs)"
 	@echo "  check-sizes    Check file/function size limits"
-	@echo "  check-scope    Enforce SCOPE:layer=…,removal=… annotations"
 	@echo "  check-flatdeps Enforce flat-stack deps (no banned framework, no cross-feature imports, owned sql.Open)"
 	@echo "  check-dagnats-pin  Keep docs/dagnats.md pin in sync with go.mod"
 	@echo "  check-test-value   Every Test pins behavior beyond err==nil (AST, blocking on vacuous)"

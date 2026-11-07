@@ -1,4 +1,4 @@
-// SCOPE:feature — the todo panel's filter vocabulary.
+// The todo panel's filter vocabulary.
 //
 // This used to live in features/genui/components/catalog.go, which made the
 // generative-UI plugin the owner of a feature's data shapes (and gave it a

@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP AI suggest slice (queue + LLM, demo path)
+// HTTP AI suggest slice (queue + LLM, demo path)
 package handlers
 
 import (

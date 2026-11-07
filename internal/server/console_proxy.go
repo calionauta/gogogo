@@ -1,4 +1,4 @@
-// SCOPE:core — DagNats console reverse proxy (/console/).
+// DagNats console reverse proxy (/console/).
 //
 // The engine serves its operator UI on its own listener
 // (DAGNATS_HTTP_ADDR, loopback-only in prod), which browsers cannot

@@ -1,4 +1,4 @@
-// SCOPE:plugin - Shell-level proof for the offline contract (no request parks).
+// Shell-level proof for the offline contract (no request parks).
 //
 // `scripts/outbox.test.mjs` proves the transport properties that need a request
 // held open (write-ahead, lost response, two tabs). This suite proves the parts

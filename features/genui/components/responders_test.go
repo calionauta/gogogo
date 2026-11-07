@@ -1,4 +1,4 @@
-// SCOPE:plugin — keyless demo answer and responder selection.
+// Keyless demo answer and responder selection.
 package components
 
 import (

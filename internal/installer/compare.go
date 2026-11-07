@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: which upstream files a migration touches,
+// Installer engine: which upstream files a migration touches,
 // and whether they matter in THIS tree.
 package installer
 

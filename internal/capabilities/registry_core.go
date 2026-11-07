@@ -1,4 +1,4 @@
-// SCOPE:plugin — Core infrastructure entries kept beside the registry.
+// Core infrastructure entries kept beside the registry.
 package capabilities
 
 var coreExtraUnits = []Capability{

@@ -1,4 +1,4 @@
-// SCOPE:core — Tests for the flat-stack dependency guard.
+// Tests for the flat-stack dependency guard.
 package main
 
 import "testing"

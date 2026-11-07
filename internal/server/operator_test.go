@@ -1,4 +1,4 @@
-// SCOPE:core — Operator seeding for the shell's account menu.
+// Operator seeding for the shell's account menu.
 package server
 
 import (

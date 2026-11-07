@@ -1,4 +1,4 @@
-// SCOPE:core — SSE Hub Close contract
+// SSE Hub Close contract
 package queue
 
 import "testing"

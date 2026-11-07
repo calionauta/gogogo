@@ -1,4 +1,4 @@
-// SCOPE:feature — Email-link landing/form contracts.
+// Email-link landing/form contracts.
 package authviews_test
 
 import (

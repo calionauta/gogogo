@@ -1,9 +1,11 @@
-// SCOPE:plugin — installer engine: upstream-first AGENTS.md generation
+// Installer engine: upstream-first AGENTS.md generation
 package installer
 
 import (
 	"context"
+	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -14,6 +16,13 @@ const agentsTemplate = `# AGENTS — upstream-first rule
 
 This project (__PROJECT__) was scaffolded from
 [calionauta/gogogo](https://github.com/calionauta/gogogo).
+
+## Toolchain
+
+__TOOLCHAIN__, and the one internal/toolchain_pin_test.go checks every build
+file, image and doc against. A builder older than the tree either refuses
+outright or downloads the pinned toolchain mid-build, so the pin lives in one
+place instead of drifting per file.
 
 ## Before creating a feature or installing a library, check upstream first
 
@@ -90,8 +99,9 @@ command sequence for this tree, instead of you reconstructing it from the docs.
 // ctx reaches the one subprocess this needs: reading the tree's HEAD commit.
 // That commits the base marker to a real revision instead of a guess, and it
 // costs one git call at scaffold time (skipped silently outside a git tree).
-func writeAgents(ctx context.Context, dir, projectName string, drop []trimUnit) error {
+func writeAgents(ctx context.Context, dir, projectName string, drop []builtinUnit) error {
 	out := strings.ReplaceAll(agentsTemplate, "__PROJECT__", projectName)
+	out = strings.ReplaceAll(out, "__TOOLCHAIN__", toolchainLine(treeGoVersion(dir)))
 	out = strings.ReplaceAll(out, "__TEMPLATE_REF__", templateRef())
 	out = strings.ReplaceAll(out, "__TEMPLATE_COMMIT__", gitHead(ctx, dir))
 	// "none" rather than an empty string, so the lines are always parseable
@@ -109,6 +119,36 @@ func writeAgents(ctx context.Context, dir, projectName string, drop []trimUnit) 
 	}
 	defer t.Close()
 	return t.WriteFile(filepath.Join(dir, "AGENTS.md"), []byte(out), scaffoldFileMode)
+}
+
+// goDirectiveRE captures the `go 1.27.3` line of a go.mod.
+var goDirectiveRE = regexp.MustCompile(`(?m)^go (\d+\.\d+(?:\.\d+)?)$`)
+
+// treeGoVersion reads the Go version the target tree's go.mod pins, or "" when
+// there is nothing to read (a synthetic fixture, a tree mid-rename).
+//
+// It is read from the target, not from this binary, because the proof runs
+// INSIDE that tree: the version the scaffolded go.mod declares is the one its
+// own pin test will demand.
+func treeGoVersion(dir string) string {
+	raw, err := os.ReadFile(filepath.Join(dir, "go.mod"))
+	if err != nil {
+		return ""
+	}
+	if m := goDirectiveRE.FindSubmatch(raw); m != nil {
+		return string(m[1])
+	}
+	return ""
+}
+
+// toolchainLine is the sentence the generated AGENTS.md opens its Toolchain
+// section with. Without a version it still says where the pin lives, because a
+// scaffold must not fail over a line it cannot know.
+func toolchainLine(version string) string {
+	if version == "" {
+		return "This tree builds with the Go version `go.mod` declares"
+	}
+	return "This tree builds with Go " + version + " — the pin `go.mod` declares"
 }
 
 // templateRef is the recorded base reference: "owner/repo@tag", or

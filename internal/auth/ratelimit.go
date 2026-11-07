@@ -1,4 +1,4 @@
-// SCOPE:core — In-process attempt throttling for low-entropy secrets
+// In-process attempt throttling for low-entropy secrets
 //
 // TOTP codes have ~1M possibilities: online guessing is the attack, and
 // throttling is the defense. This tracker allows a burst (10 attempts per

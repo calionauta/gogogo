@@ -1,4 +1,4 @@
-// SCOPE:plugin — GoAkt document-presence actor (whiteboard/notes roster).
+// GoAkt document-presence actor (whiteboard/notes roster).
 //
 // One grain per document holds the client ids watching it. Join/Leave/List
 // are Ask (the HTTP handler needs the roster to answer immediately), so the

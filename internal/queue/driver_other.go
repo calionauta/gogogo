@@ -1,4 +1,4 @@
-// SCOPE:core — Platform queue driver selection (tursogo).
+// Platform queue driver selection (tursogo).
 
 //go:build !android
 

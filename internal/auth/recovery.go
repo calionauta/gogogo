@@ -1,4 +1,4 @@
-// SCOPE:core — TOTP recovery codes (the lost-device path)
+// TOTP recovery codes (the lost-device path)
 //
 // OWASP's MFA sheet requires a secure procedure for MFA reset: without
 // recovery codes, a lost authenticator means a locked-out user and a

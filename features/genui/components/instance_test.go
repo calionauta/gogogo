@@ -1,4 +1,4 @@
-// SCOPE:plugin — per-instance ids and the declared-action gate (red-proof).
+// Per-instance ids and the declared-action gate (red-proof).
 //
 // Two reported problems, one root each:
 //

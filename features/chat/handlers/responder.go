@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP chat LLM bridge (model-leg constructor).
+// HTTP chat LLM bridge (model-leg constructor).
 package handlers
 
 import (

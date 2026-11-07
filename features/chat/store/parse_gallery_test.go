@@ -1,4 +1,4 @@
-// SCOPE:feature — chat visual-gallery + smalltalk red-proofs.
+// Chat visual-gallery + smalltalk red-proofs.
 // Split from parse_test.go for the 500-line file gate.
 package store
 

@@ -1,4 +1,4 @@
-// SCOPE:core — OfflineBanner render contract.
+// OfflineBanner render contract.
 package components_test
 
 import (

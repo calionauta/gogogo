@@ -1,4 +1,4 @@
-// SCOPE:core — Request-scoped "runtime dashboard is enabled" flag for the shell.
+// Request-scoped "runtime dashboard is enabled" flag for the shell.
 //
 // The menu entry is offered only when BOTH this and Operator(ctx) are true: the
 // composition root seeds the build/runtime flag here, and the operator

@@ -1,4 +1,4 @@
-// SCOPE:feature — the todo panel's prompt digest, against a REAL database.
+// The todo panel's prompt digest, against a REAL database.
 //
 // WHY THESE TESTS EXIST. features/genui/components only ever tested DataContext's
 // NEGATIVE cases (no summarizer, empty owner, truncation) — so nothing proved
@@ -48,7 +48,7 @@ func TestTodoPanelSummaryReadsTheRealStore(t *testing.T) {
 	insertTodoFor(t, f, me, "deploy the kestrel parser")
 	insertTodoFor(t, f, me, "write the handoff note")
 
-	panel := NewTodoPanel(f.q)
+	panel := NewTodoPanel(f.q, nil)
 	got, err := panel.Summary(context.Background(), me)
 	if err != nil {
 		t.Fatalf("Summary: %v", err)
@@ -90,11 +90,11 @@ func TestTodoPanelSummarySeparatesOpenFromDone(t *testing.T) {
 		t.Fatal("fixture lost the row it just created")
 	}
 	if _, uerr := f.sqlDB.ExecContext(context.Background(),
-		`UPDATE todos SET completed = 1 WHERE id = ?`, doneID); uerr != nil {
+		`UPDATE ext_todo_todos SET completed = 1 WHERE id = ?`, doneID); uerr != nil {
 		t.Fatalf("complete row: %v", uerr)
 	}
 
-	got, err := NewTodoPanel(f.q).Summary(context.Background(), me)
+	got, err := NewTodoPanel(f.q, nil).Summary(context.Background(), me)
 	if err != nil {
 		t.Fatalf("Summary: %v", err)
 	}
@@ -130,7 +130,7 @@ func TestTodoPanelSummaryIsScopedToTheOwner(t *testing.T) {
 	insertTodoFor(t, f, alice, "alice private task")
 	insertTodoFor(t, f, bob, "bob private task")
 
-	got, err := NewTodoPanel(f.q).Summary(context.Background(), alice)
+	got, err := NewTodoPanel(f.q, nil).Summary(context.Background(), alice)
 	if err != nil {
 		t.Fatalf("Summary: %v", err)
 	}
@@ -151,7 +151,7 @@ func TestTodoPanelSummaryEmptyStoreSaysNothing(t *testing.T) {
 	cookie := f.signup("empty-summary@example.com")
 	me := f.ownerOf(t, cookie)
 
-	got, err := NewTodoPanel(f.q).Summary(context.Background(), me)
+	got, err := NewTodoPanel(f.q, nil).Summary(context.Background(), me)
 	if err != nil {
 		t.Fatalf("Summary: %v", err)
 	}

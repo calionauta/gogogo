@@ -1,4 +1,4 @@
-// SCOPE:feature — the todo feature's search-index heal, run once at boot.
+// The todo feature's search-index heal, run once at boot.
 //
 // WHY THIS EXISTS. The postings table is a CACHE of a Go-side pure function
 // (search.Stem over search.Tokenize), not a SQL expression, so it cannot be

@@ -1,4 +1,4 @@
-// SCOPE:core — Always-on fence for operator surfaces.
+// Always-on fence for operator surfaces.
 //
 // The Casbin policy is opt-in (RBAC_ENABLED=false by default). That is a
 // deliberate single-tenant default, but it cannot mean "operator surfaces

@@ -1,4 +1,4 @@
-// SCOPE:core — shared step-up proof for account and admin mutations.
+// Shared step-up proof for account and admin mutations.
 package auth
 
 import (

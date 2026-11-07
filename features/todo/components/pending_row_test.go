@@ -31,7 +31,7 @@ func TestPendingRowPrototypeMatchesTodoItem(t *testing.T) {
 	t.Parallel()
 
 	fixture := todo.Todo{ID: "abc123", Title: "server row", CanDelete: true}
-	itemHTML := render(t, TodoItem(fixture, pageRowActions(fixture)))
+	itemHTML := render(t, TodoItem(fixture, pageRowActions(fixture, nil)))
 	protoHTML := render(t, TodoListRegion(todo.Signals{}))
 
 	item := mustFirstByClass(t, itemHTML, "todo-item")

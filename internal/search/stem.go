@@ -1,4 +1,4 @@
-// SCOPE:plugin — a Porter stemmer, implemented here rather than vendored.
+// A Porter stemmer, implemented here rather than vendored.
 //
 // WHY THIS EXISTS. The three layers matched on exact tokens only, so a field
 // containing "invoices" was unreachable from a query for "invoice" — the

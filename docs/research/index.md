@@ -38,6 +38,7 @@ individual notes.
 | page | reviewed | answers |
 |---|---|---|
 | [Scaffold choice](scaffold-choice-2026-10.md) | 2026-10-30 | why the prompt offers only the installer units, the three lists that disagree, and the `Scaffold` class that makes every capability an explicit keep-or-drop |
+| [Extensibility](extensibility-2026-11.md) | 2026-11-01 | recipe extensions: why `buildmode=plugin` is out, why a copied-and-owned recipe (not a pinned package) is the right unit, what breaks when code is meant to be edited, why schema must be declared rather than copied, and the ordered spikes that can falsify the idea |
 
 ## Testing and host capacity
 

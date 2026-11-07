@@ -1,4 +1,4 @@
-// SCOPE:core — reference links inside skills (part of the skill-frontmatter gate).
+// Reference links inside skills (part of the skill-frontmatter gate).
 //
 // A skill's body names files by relative path, and the important ones cross
 // skill boundaries: gogogo-ui's "MUST read" list points at

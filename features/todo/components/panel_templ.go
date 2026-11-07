@@ -34,7 +34,7 @@ import (
 // Adding stays on the Todos page (the link above): a create answers with a
 // result card, not a re-rendered list, so a composer here would replace the
 // panel with its own receipt.
-func Panel(id string, filter string, rows []todo.Todo) templ.Component {
+func Panel(id string, filter string, rows []todo.Todo, extras []todo.RowAction) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -113,7 +113,7 @@ func Panel(id string, filter string, rows []todo.Todo) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			for _, row := range rows {
-				templ_7745c5c3_Err = TodoItem(row, panelRowActions(row, id, filter)).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = TodoItem(row, panelRowActions(row, id, filter, extras)).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -294,9 +294,10 @@ func panelFilterExpr(panelID, filter string) string {
 // the trash sets the confirming ids then opens THIS panel's dialog (the
 // page's #confirm-delete-modal is not on the Chat page). Everything the row
 // SHOWS stays TodoItem's.
-func panelRowActions(item todo.Todo, panelID, filter string) TodoRowActions {
+func panelRowActions(item todo.Todo, panelID, filter string, extras []todo.RowAction) TodoRowActions {
 	idSignal, titleSignal := panelPendingSignals(panelID)
 	return TodoRowActions{
+		Extras:   extras,
 		IDPrefix: panelID + "-todo-",
 		Toggle:   todoMutateOn("'/api/todos/" + item.ID + "/toggle?filter=" + filter + "&_target=" + panelID + "&clientID=' + encodeURIComponent($clientID || '')"),
 		Delete:   idSignal + " = " + safeJSString(item.ID) + "; " + titleSignal + " = " + safeJSString(item.Title) + "; document.getElementById(" + safeJSString(panelDeleteDialogID(panelID)) + ").showModal()",

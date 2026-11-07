@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: the toolchain pin proof
+// Installer engine: the toolchain pin proof
 package installer
 
 import (
@@ -76,7 +76,7 @@ func TestProveFailsWhenThePinSurfaceBreaks(t *testing.T) {
 			"}\n")
 
 	var out bytes.Buffer
-	err := prove(context.Background(), dir, nil, &out)
+	err := prove(context.Background(), dir, &out)
 	if err == nil {
 		t.Fatalf("prove passed although the pin surface is broken (output: %s)", out.String())
 	}

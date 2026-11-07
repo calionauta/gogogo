@@ -1,4 +1,4 @@
-// SCOPE:feature — todo NATS bridge (cross-instance convergence)
+// Todo NATS bridge (cross-instance convergence)
 //
 // RunCrudConsumer subscribes to the app.crud.todo.> subjects, applies each
 // operation to Turso, and fans the record event out to local chi streams.

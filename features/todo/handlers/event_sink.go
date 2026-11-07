@@ -1,4 +1,4 @@
-// SCOPE:feature — todo event sinks (hub + NATS adapters)
+// Todo event sinks (hub + NATS adapters)
 package handlers
 
 import (

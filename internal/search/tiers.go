@@ -1,4 +1,4 @@
-// SCOPE:plugin — the fuzzy tier rules, split from fuzzy.go for the file gate.
+// The fuzzy tier rules, split from fuzzy.go for the file gate.
 package search
 
 import "strings"

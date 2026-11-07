@@ -1,4 +1,4 @@
-// SCOPE:core — In-process per-session request limiter.
+// In-process per-session request limiter.
 //
 // The login surface has its own tighter budget (internal/auth/ratelimit.go).
 // This one bounds the authenticated dynamic surface so a stock single-box

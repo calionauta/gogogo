@@ -1,4 +1,4 @@
-// SCOPE:core — the bump surface and the version-token rewrite.
+// The bump surface and the version-token rewrite.
 //
 // Two rules live here, and both exist because the pin test cannot see a
 // partial rewrite: it asks "does this file carry the version?", so a file that
