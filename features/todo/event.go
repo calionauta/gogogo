@@ -1,4 +1,4 @@
-// SCOPE:feature — todo domain events (one fact, every transport)
+// Todo domain events (one fact, every transport)
 package todo
 
 import "context"

@@ -1,4 +1,4 @@
-// SCOPE:feature — notifications page helpers.
+// Notifications page helpers.
 package components
 
 import "strconv"

@@ -1,4 +1,4 @@
-// SCOPE:feature — Fuzz seed for the model-HTML sanitizer.
+// Fuzz seed for the model-HTML sanitizer.
 package components
 
 import (

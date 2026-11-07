@@ -1,4 +1,4 @@
-// SCOPE:core — the one place the search plugin's three layers meet the
+// The one place the search plugin's three layers meet the
 // composition root. Split from chi.go for the function-length and
 // file-size gates, mirroring bootOnboarding/bootReview.
 //
@@ -16,6 +16,7 @@ import (
 
 	"github.com/calionauta/gogogo/config"
 	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
+	"github.com/calionauta/gogogo/internal/recipe"
 	"github.com/calionauta/gogogo/internal/search"
 )
 
@@ -66,6 +67,16 @@ func bootSearch(ctx context.Context, cfg *config.Config, todoH *todohandlers.Han
 	ix := todohandlers.NewTodoIndexer(idx)
 	todoH.SetSearch(set, ix, sqlDB)
 
+	// The todo unit owns its table, and the heal below is its first reader:
+	// the unit's migration set must land before the rows are read. The
+	// composition root's recipe step (bootRecipes) re-applies the same set
+	// through the full registry; the ledger makes the second pass a no-op.
+	todoReg := &recipe.Registry{}
+	todoReg.Add(todoH.Recipe())
+	//nolint:contextcheck // boot-time ledger apply (Background), same as bootRecipes.
+	if err := applyRecipeMigrations(sqlDB, todoReg); err != nil {
+		return fmt.Errorf("todo set before heal: %w", err)
+	}
 	if err := todohandlers.HealSearchIndex(ctx, todoH.Q, ix, sqlDB); err != nil {
 		return fmt.Errorf("server: search index heal: %w", err)
 	}

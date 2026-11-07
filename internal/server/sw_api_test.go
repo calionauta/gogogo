@@ -1,4 +1,4 @@
-// SCOPE:core — the Service Worker never touches the API.
+// The Service Worker never touches the API.
 //
 // This replaced the SSE skip-list. The worker used to intercept /api/* and
 // needed an explicit SKIP_PATTERNS entry per streaming route, because caching

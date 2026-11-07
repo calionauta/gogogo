@@ -1,4 +1,4 @@
-// SCOPE:plugin — GoAkt entity actors (room authority demo)
+// GoAkt entity actors (room authority demo)
 //
 // Package goakt hosts the template's actor system: one room grain per
 // chat/whiteboard-style room, holding the roster and the presenter lock

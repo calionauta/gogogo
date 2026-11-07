@@ -104,6 +104,7 @@ manifest, then `make docs-index`; `make check-docs` fails when this block drifts
 - [mobile-android](docs/research/mobile-android-2026-10.md) — The 2026-10-30 Android spike: tursogo has no Android library, ncruces keeps SQL and migrations shared, cmd/gui chose ncruces explicitly, and cmd/mobile is the separate entrypoint.
 - [android-spike](docs/research/android-spike-2026-10.md) — The Android spike build log: commands, driver matrix, libc shims, system-bar insets, screenshots, disk usage and cleanup.
 - [scaffold-choice](docs/research/scaffold-choice-2026-10.md) — Why the scaffold prompt offers only the installer units, the three lists that disagree, and the Scaffold class that makes every capability an explicit keep-or-drop.
+- [extensibility](docs/research/extensibility-2026-11.md) — Core plus installable extensions evaluated for 2026: why buildmode=plugin is out, why anchor-patching cannot carry N authors, what compile-time registration costs, and the ordered spikes that can kill the idea.
 
 **Ship**
 - [deploy](docs/deploy.md) — Server layout, first-time setup, deploy workflow, build pipeline and version badge.
@@ -263,18 +264,19 @@ by deleting the package and its one wiring call — see
 
 ## Core / Plugin / Feature
 
-Every non-test `.go` file under `internal/` and `features/` carries a SCOPE
-annotation declaring its removal class. `make check-scope` enforces it in CI and
-in your pre-commit hook.
+Every removable piece of the template is one row in
+`internal/capabilities`, and the row declares its removal class. There is no
+per-file header to keep in sync: a package's class is its owning row's, and a
+package no row owns fails the registry's coverage test.
 
-| Annotation | Meaning | You would |
+| Class | Meaning | You would |
 |---|---|---|
-| `SCOPE:core` 🔴 | The binary does not work without it | Customize, never remove |
-| `SCOPE:plugin` 🟡 | The binary works but loses a capability | Swap, or delete + remove the wiring call |
-| `SCOPE:feature` 🟢 | A demo or add-on | Keep as reference, then remove |
+| `core` 🔴 | The binary does not work without it | Customize, never remove |
+| `plugin` 🟡 | The binary works but loses a capability | Swap, or delete + remove the wiring call |
+| `feature` 🟢 | A demo or add-on | Keep as reference, then remove |
 
-The rule for agents: **never delete a `core` file without asking; never
-keep a `feature` file in production if the domain doesn't need it.**
+The rule for agents: **never delete a `core` row without asking; never
+keep a `feature` row in production if the domain doesn't need it.**
 Full taxonomy and per-package removal table:
 [scope-taxonomy](docs/scope-taxonomy.md).
 
@@ -290,12 +292,10 @@ the same code path with the same receipts and proof):
   (reads nothing, changes nothing; `--intent` turns the opinion into the
   ordered commands for a goal), `--preset minimal|no-ai|no-collab` or
   `--plugins/--features` keep lists + `--dry-run` to preview,
-  `gogogo add <unit>` to reverse a trim, `gogogo export <unit> --to <scratch>`
   to take one into a tree that is not gogogo (read-only bundle + porting
   checklist), `gogogo new feature <name>` to scaffold one feature with wiring +
   gates + proof. Full reference: [cmd/gogogo/README.md](cmd/gogogo/README.md).
 - MCP server — `cmd/gogogo-mcp` (separate module, stdio): the same engine as
-  tools — advice and routes, trim, drift check, version and migration, add,
   export, new feature. The served surface, with parameters, is the table in
   [cmd/gogogo-mcp/README.md](cmd/gogogo-mcp/README.md); that module's test
   asserts it against the catalog, which is why this line names no list to
@@ -337,8 +337,7 @@ preview second, mutation last. Full guides live in their own section:
 |---|---|---|
 | `advise` | deciding what to keep (use-case → keep/drop + off-switches + Go/Zig rule). Changes nothing | `go run ./cmd/gogogo advise --need "..." --format json` |
 | trim `--dry-run` | previewing the scaffold as one JSON document | `--no-tui --dry-run --format json` (add `--yes` to apply) |
-| `add` / `--check` | restoring a unit into a scaffolded checkout / verifying markers | `add <unit> --from <pristine> --dir <proj> [--dry-run\|--yes]` |
-| MCP server | tool calls instead of shell (`advise_stack`, `capabilities_list`, `trim_plan`, `trim_apply`, `check_tree`, `version_status`, `migrate_plan`, `add_unit`, `export_unit`, `new_feature`) | `cmd/gogogo-mcp` (own module, stdio) + one JSON block in the client config |
+| MCP server | tool calls instead of shell (`advise_stack`, `capabilities_list`, `trim_plan`, `trim_apply`, `check_tree`, `version_status`, `migrate_plan`, `export_unit`, `new_feature`) | `cmd/gogogo-mcp` (own module, stdio) + one JSON block in the client config |
 
 Destructive paths refuse without explicit confirmation (`--yes` /
 `confirm:true`). Strategy and the foreign-codebase boundary:
@@ -354,7 +353,6 @@ at.
 |---|---|---|
 | Create | `gogogo --dry-run` then `--yes` (interactive, or `--preset`/`--plugins`/`--features`) | Yes — the new directory |
 | Evolve: your own slice | `gogogo new feature <name> --dir .` | Yes — inside your tree |
-| Evolve: restore a trimmed unit | `gogogo add <unit> --from <pristine> --dir .` | Yes — inside your tree. Refuses a checkout from a different release than your base |
 | Update: is there anything? | `gogogo --check-update --dir .` | No. **Exit 3 means yes** |
 | Update: what changed? | `gogogo migrate --dir .` | No — a list you apply |
 | Update: which files apply to me? | `gogogo migrate --dir . --files` | No — labels each upstream file with its capability and whether you kept its unit |
@@ -362,7 +360,7 @@ at.
 | Take a unit into a non-gogogo app | `gogogo export <unit> --to <scratch>` + [porting checklist](docs/porting-into-an-existing-app.md) | Only the scratch directory, and the bundle is stamped with the release it came from |
 
 Agents get the same answers as an ordered route: `advise --intent
-update|port|add-unit|new-feature|scaffold` prints the exact commands for this
+update|port|new-feature|scaffold` prints the exact commands for this
 tree (and refuses to name a command the tree would reject). Details:
 [upgrading](docs/upgrading.md),
 [porting](docs/porting-into-an-existing-app.md),

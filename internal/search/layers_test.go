@@ -1,4 +1,4 @@
-// SCOPE:plugin — the plugin's contract: one name per layer, one default.
+// The plugin's contract: one name per layer, one default.
 package search
 
 import "testing"

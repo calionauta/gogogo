@@ -1,4 +1,4 @@
-// SCOPE:plugin — MCP tool: desktop-sync prerequisites.
+// MCP tool: desktop-sync prerequisites.
 //
 // Split from main.go for the file-sizes gate. The text itself lives in
 // internal/installer, so the CLI help and this tool cannot drift.

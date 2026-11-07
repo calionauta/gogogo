@@ -1,4 +1,4 @@
-// SCOPE:core — Session lifecycle routes: revoke-all and password change.
+// Session lifecycle routes: revoke-all and password change.
 //
 // Both revoke every other session before continuing. That is the point:
 // a stolen cookie must stop working the moment the owner rotates a

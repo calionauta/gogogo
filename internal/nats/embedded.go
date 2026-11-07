@@ -1,4 +1,4 @@
-// SCOPE:plugin — NATS JetStream + Leaf Node + CRUD proxy
+// NATS JetStream + Leaf Node + CRUD proxy
 // Starts embedded NATS server or connects as Leaf Node.
 package nats
 

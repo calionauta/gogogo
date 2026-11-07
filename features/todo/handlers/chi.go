@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP todo slice (flat stack)
+// HTTP todo slice (flat stack)
 //
 // Package todo's chi Handler serves the todo surface on the flat stack:
 // chi routing, owned auth sessions, sqlc queries called directly, the same
@@ -61,6 +61,11 @@ type Handler struct {
 	// in production builds, "dev"/"unknown" otherwise).
 	BuildLabel  string
 	BuildCommit string
+	// RowActions are the actions recipes contributed through the
+	// `record.row-actions` slot. Filled once at boot by the composition root;
+	// empty in a build with no installed recipe, which renders the row exactly
+	// as before.
+	RowActions []todo.RowAction
 	// OfflineSyncEnabled mirrors the config flag into the page signals.
 	OfflineSyncEnabled bool
 	// DemoAccounts lets the login page prefill/advertise the seeded pair.

@@ -1,4 +1,4 @@
-// SCOPE:core - DO NOT REMOVE - Server configuration (env vars, secrets).
+// Server configuration (env vars, secrets).
 //
 // ── Env vars (all optional, see Load() for defaults) ──
 //

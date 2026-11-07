@@ -4,7 +4,7 @@ Pinned: DagNats v0.0.30 (go.mod). Bump procedure: `bin/check-dagnats-pin.sh`
 fails when these drift — then diff upstream `CHANGELOG.md` between the two
 tags, update the capability table below, and move the pin in the same commit.
 
-DagNats (`internal/dagnats/`, `SCOPE:plugin`) is the durable multi-step
+DagNats (`internal/dagnats/`, a `plugin` capability row) is the durable multi-step
 engine: declarative JSON workflows, state on the JetStream the binary
 already runs, console on `:8090` (`DAGNATS_HTTP_ADDR`), opt-out via
 `DAGNATS_ENABLED=false`. The browser-facing console is `/console/`

@@ -1,4 +1,4 @@
-// SCOPE:core — Static sink guard for the HTTP handler surface.
+// Static sink guard for the HTTP handler surface.
 //
 // Ruleguard covers a few shapes, but it cannot see a request-derived URL
 // inside an http.Get or a path inside os.Open. This test makes those sinks

@@ -1,4 +1,4 @@
-// SCOPE:plugin — Datastar rendering helpers (RenderAndPatch, MergeSignals)
+// Datastar rendering helpers (RenderAndPatch, MergeSignals)
 package datastar
 
 import (

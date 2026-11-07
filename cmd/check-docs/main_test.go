@@ -1,4 +1,4 @@
-// SCOPE:core — Tests for the docs claim guard.
+// Tests for the docs claim guard.
 package main
 
 import (
@@ -108,21 +108,6 @@ func TestTrimmedPaths(t *testing.T) {
 	}
 }
 
-// TestStaleScopeDialect keeps the retired two-axis annotation out of prose:
-// docs taught it while `make check-scope` rejects it.
-func TestStaleScopeDialect(t *testing.T) {
-	root := t.TempDir()
-	rel := "doc.md"
-	body := "# doc\n\n- `// SCOPE:layer=feature,removal=core` on new files\n- `// SCOPE:plugin` is fine\n"
-	if err := os.WriteFile(filepath.Join(root, rel), []byte(body), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	got := checkStaleScopeDialect(root, []string{rel})
-	if len(got) != 1 {
-		t.Fatalf("checkStaleScopeDialect = %v, want one offender", got)
-	}
-}
-
 // TestCommandMatches proves the rule that caught the invented `gogogo trim`
 // subcommand.
 func TestCommandMatches(t *testing.T) {
@@ -152,10 +137,10 @@ func TestCommandMatches(t *testing.T) {
 	if err != nil {
 		t.Fatalf("knownSubcommands: %v", err)
 	}
-	if slices.Contains(subs, "trim") {
-		t.Fatal("premise broken: trim became a subcommand — update the rule and the docs")
+	if slices.Contains(subs, "trim") || slices.Contains(subs, "add") || slices.Contains(subs, "check") {
+		t.Fatal("premise broken: a retired subcommand returned — update the rule and the docs")
 	}
-	for _, want := range []string{"add", "new", "advise"} {
+	for _, want := range []string{"new", "advise"} {
 		if !slices.Contains(subs, want) {
 			t.Errorf("subcommand %q missing from the dispatch parser: %v", want, subs)
 		}

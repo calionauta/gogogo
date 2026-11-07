@@ -1,4 +1,4 @@
-// SCOPE:feature — notifications: in-process inbox change fan-out.
+// Notifications: in-process inbox change fan-out.
 //
 // One event per owner whose inbox changed. Subscribers are open SSE streams;
 // the bus exists so a delivery written by the DagNats worker reaches tabs that

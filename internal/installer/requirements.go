@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: pre-apply requirement checks
+// Installer engine: pre-apply requirement checks
 package installer
 
 import (

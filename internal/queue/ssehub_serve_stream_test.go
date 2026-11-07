@@ -1,4 +1,4 @@
-// SCOPE:core — ServeStream disconnect authority test (split for size).
+// ServeStream disconnect authority test (split for size).
 package queue
 
 import (

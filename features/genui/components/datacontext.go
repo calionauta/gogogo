@@ -1,4 +1,4 @@
-// SCOPE:plugin — the app's real data as prompt context for the model.
+// The app's real data as prompt context for the model.
 //
 // WHY THIS EXISTS. A panel renders the user's rows into the ANSWER, but it
 // cannot help the model REASON about them. Asked to "plan my days from to-dos",

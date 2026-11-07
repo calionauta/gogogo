@@ -1,4 +1,4 @@
-// SCOPE:plugin — the fuzzy layer: no index, no extra write, typo tolerant.
+// The fuzzy layer: no index, no extra write, typo tolerant.
 package search
 
 import (

@@ -1,4 +1,4 @@
-// SCOPE:plugin — the tolerant front door of the component catalog.
+// The tolerant front door of the component catalog.
 package components
 
 import (

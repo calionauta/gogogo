@@ -1,4 +1,4 @@
-// SCOPE:plugin — lenient conversion tests (partial render + catch-all).
+// Lenient conversion tests (partial render + catch-all).
 package components
 
 import (

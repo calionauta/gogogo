@@ -1,4 +1,4 @@
-// SCOPE:core — ToastContainer render test.
+// ToastContainer render test.
 package components_test
 
 import (

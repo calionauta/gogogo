@@ -1,4 +1,4 @@
-// SCOPE:feature — Whiteboard handlers port tests (ported from the legacy whiteboard suite)
+// Whiteboard handlers port tests (ported from the legacy whiteboard suite)
 //
 // The legacy suite pinned the collaborative whiteboard end to end over a live
 // SSE stream: session frame, authoritative peer counts, cursor relay with

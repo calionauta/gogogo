@@ -1,4 +1,4 @@
-// SCOPE:plugin — delivery transport: notify adapter contract.
+// Delivery transport: notify adapter contract.
 package notify
 
 import (

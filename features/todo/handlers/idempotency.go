@@ -1,4 +1,4 @@
-// SCOPE:feature — exactly-once effect for a mutation delivered more than once.
+// Exactly-once effect for a mutation delivered more than once.
 package handlers
 
 import (

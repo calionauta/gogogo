@@ -1,4 +1,4 @@
-// SCOPE:core — Demo-seed contract tests.
+// Demo-seed contract tests.
 //
 // The login form promises two demo accounts (demo1 prefilled, demo2 for
 // the second browser) and, since the roles landed, a fixed permission

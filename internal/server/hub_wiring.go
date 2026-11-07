@@ -1,4 +1,4 @@
-// SCOPE:core — SSE hub cross-instance wiring (ephemeral signals + doc fan-out)
+// SSE hub cross-instance wiring (ephemeral signals + doc fan-out)
 //
 // Two wires with disjoint traffic, both attached by cmd/web after startNATS.
 // Split out of chi.go for the file-sizes gate; keeping them side by side is

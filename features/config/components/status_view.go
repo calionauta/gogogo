@@ -1,4 +1,4 @@
-// SCOPE:feature — the /config runtime status card (rows, groups, tones).
+// The /config runtime status card (rows, groups, tones).
 //
 // Split from safe_view.go for the file-size gate, along a real seam: safe_view
 // builds the masked field tables, this file answers "is this thing on" and

@@ -1,4 +1,4 @@
-// SCOPE:feature — the chat panel is the native todo row, not a lookalike.
+// The chat panel is the native todo row, not a lookalike.
 //
 // The panel used to carry its own row markup and its own dialog; both drifted
 // from /todo (no shared badge, no author, no age, no viewer gate, and a
@@ -40,7 +40,7 @@ func panelTestRows() []todo.Todo {
 // Reimplementing the row (removing the '@TodoItem' call) fails these.
 func TestPanelRendersTheNativeRow(t *testing.T) {
 	t.Parallel()
-	html := renderOrFail(t, Panel("chat-abc1", "open", panelTestRows()))
+	html := renderOrFail(t, Panel("chat-abc1", "open", panelTestRows(), nil))
 	for _, want := range []string{
 		`id="chat-abc1-todo-row-1"`,
 		`id="chat-abc1-todo-row-2"`,
@@ -63,7 +63,7 @@ func TestPanelRendersTheNativeRow(t *testing.T) {
 // (the first fix) fails the modal-id assertion.
 func TestPanelDeleteUsesThePageDialog(t *testing.T) {
 	t.Parallel()
-	html := stdhtml.UnescapeString(renderOrFail(t, Panel("chat-abc1", "open", panelTestRows())))
+	html := stdhtml.UnescapeString(renderOrFail(t, Panel("chat-abc1", "open", panelTestRows(), nil)))
 
 	dialogID := "chat-abc1-delete"
 	if !strings.Contains(html, `id="`+dialogID+`"`) {
@@ -102,8 +102,8 @@ func TestPanelDeleteUsesThePageDialog(t *testing.T) {
 // thread render two dialogs with different ids, and each trash opens its own.
 func TestPanelDeleteIsScopedToItsInstance(t *testing.T) {
 	t.Parallel()
-	first := renderOrFail(t, Panel("chat-a1", "open", panelTestRows()[0:1]))
-	second := renderOrFail(t, Panel("chat-b2", "open", panelTestRows()[0:1]))
+	first := renderOrFail(t, Panel("chat-a1", "open", panelTestRows()[0:1], nil))
+	second := renderOrFail(t, Panel("chat-b2", "open", panelTestRows()[0:1], nil))
 	for _, c := range []struct{ id, signal, html string }{
 		{"chat-a1-delete", "confirmingDeleteId_chat_a1", first},
 		{"chat-b2-delete", "confirmingDeleteId_chat_b2", second},
@@ -131,7 +131,7 @@ func TestPanelEmptyCopyNamesTheSlice(t *testing.T) {
 		"done": "No completed todos",
 		"all":  "No todos to show here",
 	} {
-		html := renderOrFail(t, Panel("chat-empty", filter, nil))
+		html := renderOrFail(t, Panel("chat-empty", filter, nil, nil))
 		if !strings.Contains(html, want) {
 			t.Errorf("filter=%s empty state missing %q (got %.300q…)", filter, want, html)
 		}

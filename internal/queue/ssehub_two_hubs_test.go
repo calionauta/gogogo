@@ -1,4 +1,4 @@
-// SCOPE:core — shared two-instance fixture for the cross-instance bridge tests.
+// Shared two-instance fixture for the cross-instance bridge tests.
 
 package queue_test
 

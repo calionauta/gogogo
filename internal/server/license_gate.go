@@ -1,4 +1,4 @@
-// SCOPE:core — Distribution gate: blocks the app until an entitlement token
+// Distribution gate: blocks the app until an entitlement token
 // is active (LICENSE_MODE=license|account). With LICENSE_MODE=none the gate
 // is never in the chain and the store is nil.
 package server

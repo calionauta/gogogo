@@ -1,4 +1,4 @@
-// SCOPE:core - Behavioral proof: stale-tab reload fires EXACTLY once.
+// Behavioral proof: stale-tab reload fires EXACTLY once.
 //
 // A build-tag mismatch must reload the tab once (fresh DOM from the new
 // server), then stay stable. The first implementation stored the tag only

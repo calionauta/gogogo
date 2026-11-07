@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP chat contract tests (red-proof).
+// HTTP chat contract tests (red-proof).
 package handlers
 
 import (

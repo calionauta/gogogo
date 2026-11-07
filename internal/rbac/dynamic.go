@@ -1,4 +1,4 @@
-// SCOPE:core — Dynamic / ABAC decision inputs for the RBAC enforcer.
+// Dynamic / ABAC decision inputs for the RBAC enforcer.
 //
 // The base policy decides on the coarse role subject + path + method
 // (policy.csv). This file adds the two dynamic inputs the static policy

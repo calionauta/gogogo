@@ -23,7 +23,7 @@
 #
 # Overrides (env):
 #   LINT_FULL=1            force a full-repo run (still memory-capped)
-#   LINT_SCOPE=1           force a changed-packages run
+#   LINT_SCOPED=1           force a changed-packages run
 #   LINT_FULL_BUDGET_MB=N  headroom required before a full run is auto-chosen
 #   LINT_NO_CGROUP=1       skip the systemd-run scope even when available
 #   LINT_CAP_MB=N          hard override for the memory ceiling
@@ -54,7 +54,7 @@ LINT_FULL_BUDGET_MB=${LINT_FULL_BUDGET_MB:-4096}
 
 # --- choose scope from the evidence ------------------------------------------
 run_full=0
-if [ "${LINT_SCOPE:-0}" = "1" ]; then
+if [ "${LINT_SCOPED:-0}" = "1" ]; then
   run_full=0
 elif [ "${LINT_FULL:-0}" = "1" ]; then
   run_full=1

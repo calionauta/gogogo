@@ -1,4 +1,4 @@
-// SCOPE:core - Behavioral test: doc-version watcher is reactive, not polling.
+// Behavioral test: doc-version watcher is reactive, not polling.
 //
 // Boots the real binary, signs a user up (the cookie is the session),
 // loads /todo, and proves the resync

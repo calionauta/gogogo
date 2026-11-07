@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP todo cross-session propagation (red-proof for the realtime contract)
+// HTTP todo cross-session propagation (red-proof for the realtime contract)
 //
 // Flat replacement for the legacy e2e that used to boot the
 // real binary and drive /api/realtime (features/todo/realtime_propagation_test.go,

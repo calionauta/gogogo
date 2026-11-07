@@ -1,4 +1,4 @@
-// SCOPE:feature — Native-window store over the flat data layer
+// Native-window store over the flat data layer
 //
 // The window's claim is that the domain is transport-agnostic: the same
 // todos the chi handlers read and write are reachable here with no HTTP,
@@ -163,7 +163,7 @@ var errNotFound = errors.New("gui: not found")
 // toTodo converts a sqlc row to the domain model. Copied from the chi
 // slice (same conversion, same TimeFormat) rather than shared: the
 // flat-deps gate keeps packages from reaching sideways for helpers.
-func toTodo(row dbgen.Todo) (todo.Todo, error) {
+func toTodo(row dbgen.ExtTodoTodo) (todo.Todo, error) {
 	created, err := time.Parse(dbschema.TimeFormat, row.Created)
 	if err != nil {
 		return todo.Todo{}, fmt.Errorf("todo %s created %q: %w", row.ID, row.Created, err)

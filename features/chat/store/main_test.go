@@ -1,4 +1,4 @@
-// SCOPE:feature — test-scope action declarations.
+// Test-scope action declarations.
 package store
 
 import (

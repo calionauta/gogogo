@@ -5,10 +5,9 @@ import "github.com/modelcontextprotocol/go-sdk/mcp"
 var toolCatalog = []toolDef{
 	{
 		"capabilities_list",
-		"Raw registry JSON: every template capability with id, kind, scaffold " +
-			"class (core/default/opt-in/manual), summary, and off-switch. Registry " +
-			"only — takes no path, so it answers from any directory. Use it to look " +
-			"up an id/class/off-switch; use advise_stack to decide WHICH ones apply.",
+		"Raw registry JSON: every template capability with id, kind, summary, and off-switch. Registry " +
+			"only — takes no path, so it answers from any directory. Use it to look up an id or off-switch; " +
+			"use advise_stack to decide WHICH ones apply.",
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleCapabilitiesList) },
 	},
 	{
@@ -41,31 +40,21 @@ var toolCatalog = []toolDef{
 	},
 	{
 		"trim_plan",
-		"Preview scaffolding/trimming a checkout (validates ids, shows consequences). " +
-			"Defaults are kept unless dropped; opt-in units (perf) are dropped unless " +
-			"named in optIn. Changes nothing. Requires a gogogo checkout at `dir` unless it does not " +
-			"exist yet (then it previews the clone) — on an unrelated project it " +
-			"cannot preview anything, so call advise_stack for guidance instead. " +
-			"Decide what to keep with advise_stack first (business-language fit: " +
-			"https://calionauta.github.io/gogogo/docs/use-cases/).",
+		"Preview scaffolding a checkout (validates name and owner, shows the " +
+			"plan envelope). The scaffold ships the whole template — no keep/drop " +
+			"list exists — and changes nothing. Requires a gogogo checkout at `dir` unless it " +
+			"does not exist yet (then it previews the clone) — on an unrelated project " +
+			"it cannot preview anything, so call advise_stack for guidance instead.",
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleTrimPlan) },
 	},
 	{
 		"trim_apply",
-		"Scaffold/trim a checkout (rename, trim, prove with build). Requires " +
+		"Scaffold a checkout (rename, prove with build). Requires " +
 			"confirm:true. Mutates the target tree; only for a gogogo checkout or a " +
 			"path to scaffold into.",
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleTrimApply) },
 	},
-	{
-		"check_tree",
-		"Verify installer markers without changing anything (drift gate). Requires " +
-			"a gogogo checkout at `dir`: it compares the trim manifest against the " +
-			"tree. On a project that is not a gogogo checkout it returns a single " +
-			"'not a gogogo checkout' failure rather than a marker inventory — do not " +
-			"read that as the project being broken.",
-		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleCheckTree) },
-	},
+
 	{
 		"migrate_plan",
 		"Read-only migration list: every release between the project's recorded " +
@@ -76,30 +65,61 @@ var toolCatalog = []toolDef{
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleMigratePlan) },
 	},
 	{
-		"add_unit",
-		"Add one template unit to a checkout (deps, rebase, proof). Requires " +
-			"confirm:true, and needs BOTH `dir` (a gogogo checkout) and `from` " +
-			"(a pristine template copy to copy the unit's files from).",
-		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleAddUnit) },
-	},
-	{
 		"export_unit",
-		"Read-only PORT BUNDLE for a tree that is not a gogogo checkout (where " +
-			"add_unit refuses): copies the unit's owned files into the scratch `to` " +
-			"directory and writes PORTING.md with the measured wiring — routes it " +
-			"registers, imports to rewrite, what YOU must write by hand — plus the " +
-			"proof commands. Changes nothing in `dir` and nothing outside `to`; " +
-			"apply it deliberately, it is a copy and not an installer.",
+		"Read-only PORT BUNDLE for a tree that is not a gogogo checkout " +
+			"(a tree this build does not scaffold): copies the unit's owned files " +
+			"into the scratch `to` directory and writes PORTING.md with the measured " +
+			"wiring — routes it registers, imports to rewrite, what YOU must write " +
+			"by hand — plus the proof commands. Changes nothing in `dir` and nothing " +
+			"outside `to`; apply it deliberately, it is a copy and not an installer.",
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleExportUnit) },
 	},
 	{
 		"new_feature",
 		"Scaffold one new feature inside a gogogo checkout: handler + page, " +
 			"composition-root wiring, capability unit, RBAC rows, then templ generate, " +
-			"generated docs, check-scope, check-flatdeps and a build proof. Requires " +
+			"generated docs, registry conformance, check-flatdeps and a build proof. Requires " +
 			"confirm:true (or dryRun:true to preview). Needs `dir` (a scaffolded " +
 			"checkout) and `name` (kebab-case, unused).",
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleNewFeature) },
+	},
+	{
+		"recipe_install",
+		"Install a recipe package (tree plus .recipe.yml) into a gogogo checkout: copy, " +
+			"receipt, generated registration, schema/policy/codegen and proof. Mutates the target directory. " +
+			"Requires confirm:true plus src (recipe directory or id) and dir; use dryRun:true to preview. " +
+			"For a catalog entry, also provide entry and the pristine contents directory.",
+		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeInstall) },
+	},
+	{
+		"recipe_update",
+		"Update an already-installed recipe from a recipe directory or catalog entry. Same guards as recipe_install: " +
+			"requires confirm:true (or dryRun:true to preview), plus src and dir.",
+		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeUpdate) },
+	},
+	{
+		"recipe_uninstall",
+		"Uninstall one installed recipe by id: removes only pristine files, keeps edited or derived state, " +
+			"updates registration/policy/schema surfaces and marks the receipt removed. Requires confirm:true; " +
+			"without it returns the removal plan.",
+		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeUninstall) },
+	},
+	{
+		"recipe_status",
+		"Read-only recipe drift report: pristine vs edited copy, generated/schema/policy state, or one recipe by id. " +
+			"Changes nothing and needs no confirmation.",
+		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeStatus) },
+	},
+	{
+		"extension_list",
+		"Read-only extension discovery: every built-in capability plus every user-installed recipe, with " +
+			"origin, kind, installed/removed state and the available lifecycle verbs. Changes nothing.",
+		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleExtensionList) },
+	},
+	{
+		"extension_describe",
+		"Describe one extension by id: kind, origin, summary, registration surface, dependencies and available lifecycle verbs. Changes nothing.",
+		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleExtensionDescribe) },
 	},
 	{
 		"advise_stack",
@@ -108,7 +128,7 @@ var toolCatalog = []toolDef{
 			"Empty need returns the full map; no preset matched means decide from the " +
 			"capabilities table or retry with broader terms. Business-language fit per " +
 			"unit: https://calionauta.github.io/gogogo/docs/use-cases/. Start here when " +
-			"deciding. Pass `intent` (update|port|add-unit|new-feature|scaffold) to get " +
+			"deciding. Pass `intent` (update|port|new-feature|scaffold) to get " +
 			"the ordered commands for that goal; omitted = inferred from `need`, and the " +
 			"answer says which it used. Pass `dir` so the answer can say whether that " +
 			"path is a gogogo checkout: a tree that is NOT one gets its own scope with " +

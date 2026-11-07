@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP notes presence (peer bookkeeping, stream seeding, split for size)
+// HTTP notes presence (peer bookkeeping, stream seeding, split for size)
 package handlers
 
 import (

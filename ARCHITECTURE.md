@@ -14,23 +14,23 @@
 
 ---
 
-> **SCOPE annotations in code.** Every non-test, non-generated `.go` file under `internal/` and `features/` carries a leading doc-comment line declaring its removal class on a **single axis**: `// SCOPE:<core|plugin|feature> — <description>`. The class says what happens if you delete it (binary breaks, binary loses capability, or pure demo). The **directory is the layer** — `internal/` is infrastructure, `features/` is product — so there is no separate `layer` axis to keep in sync (an earlier two-axis `layer=…,removal=…` form was dropped for exactly that reason: `layer` merely restated the directory and the two dialects drifted apart). See `docs/scope-taxonomy.md` (normative) and `cmd/check-scope` (enforcement).
+> **Removal class in the registry.** Every removable-or-toggleable unit is one row in `internal/capabilities`, and the row declares its class on a **single axis**: `Kind` = `core` | `plugin` | `feature`. The class says what happens if you delete it (binary breaks, binary loses capability, or pure demo). The **directory is the layer** — `internal/` is infrastructure, `features/` is product — so there is no separate `layer` axis to keep in sync. See `docs/scope-taxonomy.md` (normative); the registry is the only place the class is written.
 
-> The `cmd/check-scope` Go program walks every `.go` file in `internal/` and `features/` and asserts the canonical SCOPE line is present in the leading doc-comment group. `make ci-local` runs it via the `check-scope` target. The pre-commit hook runs it conditionally when staged files match `^(internal|features)/.*\.go$`. Migrating an existing file uses `python3 scripts/migrate-scope.py` (idempotent). The `SCOPE` annotations in source files are the authoritative reference; this table is a summary.
+> The registry's coverage test walks `internal/` and `features/` and fails when a package no row owns, when a row's `Dirs`/`Files` do not exist, and when a self-mounting unit (`Capability.Register`) is also imported by the composition root. A per-file removal-class header coming back fails the no-legacy guard.
 
 > **Security map.** Sessions, RBAC, step-up, audit retention, CSP reporting, secrets/email and the residual risks are in [docs/security.md](docs/security.md). The normative agent checklist is in [AGENTS.md](AGENTS.md#security-invariants-agent-gate).
 
-> **Native boundary (not a layer).** `native` is a reserved implementation boundary, not a fourth SCOPE value. There is no Zig code or toolchain in this repo. If a justified case ever arrives, the Go API lives in its normal package (`internal/<thing>/` with the usual SCOPE) and Zig sources stay inside it behind a small C ABI — see `docs/exception-to-go.md`. Do not create a top-level `native/` directory speculatively.
+> **Native boundary (not a layer).** `native` is a reserved implementation boundary, not a fourth removal class. There is no Zig code or toolchain in this repo. If a justified case ever arrives, the Go API lives in its normal package (`internal/<thing>/` with its capability row) and Zig sources stay inside it behind a small C ABI — see `docs/exception-to-go.md`. Do not create a top-level `native/` directory speculatively.
 
-## Layer taxonomy (SCOPE)
+## Layer taxonomy
 
-Every component belongs to one of three removal classes, matching the `SCOPE:` annotation in each source file:
+Every component belongs to one of three removal classes, declared by its capability row:
 
-| SCOPE | Meaning | You would… |
+| Class | Meaning | You would… |
 |:------|:--------|:-----------|
-| **Core** 🔴 `SCOPE:core` | Binary does not work without it. | Customize, never remove. |
-| **Plugin** 🟡 `SCOPE:plugin` | Binary works but loses capability if removed. Clear removal instructions inline. | Swap for an equivalent, or delete + remove wiring call. |
-| **Feature** 🟢 `SCOPE:feature` | A demo/add-on. Depends on other packages (listed in comment). | Delete the package + dependent packages + remove wiring call. |
+| **Core** 🔴 `Kind: core` | Binary does not work without it. | Customize, never remove. |
+| **Plugin** 🟡 `Kind: plugin` | Binary works but loses capability if removed. The row names what goes with it. | Swap for an equivalent, or delete + remove wiring call. |
+| **Feature** 🟢 `Kind: feature` | A demo/add-on. Depends on other packages (listed on the row). | Delete the package + dependent packages + remove wiring call. |
 
 ---
 
@@ -217,7 +217,7 @@ main.go
    `go run ./cmd/gogogo new feature <name>`. It writes `features/<name>/handlers/chi.go`
    + `components/page.templ`, wires `BootChi`, registers the capability unit, adds
    the RBAC rows, regenerates the generated docs, and proves the build
-   (`templ` → docs → `check-scope` → `check-flatdeps` → `go build ./cmd/web`).
+   (`templ` → docs → registry conformance → `check-flatdeps` → `go build ./cmd/web`).
    Read the unit's card in [`docs/unit-contracts.md`](docs/unit-contracts.md) first:
    it lists the routes and generated queries the unit already owns.
 1. Grow the slice in `features/<name>/handlers/` + `components/` (Templ), calling
@@ -225,9 +225,9 @@ main.go
 2. A feature never imports another feature's domain: only `features/authviews`,
    `features/sounds` and `features/genui/components` are shared leaves — the rest
    fails `cmd/check-flatdeps` (so a trim never breaks a neighbour).
-3. Add a `// SCOPE:<core|plugin|feature>` line to every new `.go` file and a unit
-   in `internal/capabilities/registry.go` — `make check-scope` and
-   `TestRegistryCoversPackages` enforce both.
+3. Add the unit's row in `internal/capabilities` (`Kind`, `Dirs`/`Files`, and
+   `Register` when it mounts itself) — `TestRegistryCoversPackages` fails a
+   package no row owns.
 4. Add the RBAC row for each route in `internal/rbac/casbin/policy.csv`; the
    coverage lint walks the real handlers and fails a route with no `user` row.
 5. Add a row to the Features table above and, if the unit is offered to the

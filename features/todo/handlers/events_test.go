@@ -1,4 +1,4 @@
-// SCOPE:feature — JSON event stream contract (non-browser clients).
+// JSON event stream contract (non-browser clients).
 package handlers
 
 import (

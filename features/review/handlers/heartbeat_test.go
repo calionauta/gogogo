@@ -1,4 +1,4 @@
-// SCOPE:feature — SSE heartbeat + locked writer tests (red-proof).
+// SSE heartbeat + locked writer tests (red-proof).
 package handlers
 
 import (

@@ -1,4 +1,4 @@
-// SCOPE:plugin — reading postings and corpus stats (BM25's inputs).
+// Reading postings and corpus stats (BM25's inputs).
 package search
 
 import (

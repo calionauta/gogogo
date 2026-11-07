@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: project rename (module path + references)
+// Installer engine: project rename (module path + references)
 package installer
 
 import (
@@ -170,7 +170,7 @@ func walkRenameTree(root string, fn func(rel string, info os.FileInfo) error) er
 			return nil
 		}
 		rel = filepath.ToSlash(rel)
-		if rel == ".git" || strings.HasPrefix(rel, ".git/") {
+		if rel == gitDirName || strings.HasPrefix(rel, gitDirName+"/") {
 			if info.IsDir() {
 				return filepath.SkipDir
 			}

@@ -1,4 +1,4 @@
-// SCOPE:core — static asset + Service Worker mounts (the one serving path).
+// Static asset + Service Worker mounts (the one serving path).
 //
 // Split out of chi.go, which is at the file-sizes gate: the core bundle and
 // the Service Worker serving are one subject. Each handler is a named func so

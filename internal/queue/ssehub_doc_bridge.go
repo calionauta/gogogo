@@ -1,4 +1,4 @@
-// SCOPE:core — SSE Hub doc-scoped cross-instance bridge (presence fan-out)
+// SSE Hub doc-scoped cross-instance bridge (presence fan-out)
 package queue
 
 import (

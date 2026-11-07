@@ -1,4 +1,4 @@
-// SCOPE:plugin — GoAI LLM client (used by Suggest)
+// GoAI LLM client (used by Suggest)
 // To remove: delete internal/llm/ + features/todo/handlers/llm_suggest.go.
 // Package llm wires the GoAI SDK (github.com/zendev-sh/goai) into the
 // gogogo template. The Client is configured via env so the

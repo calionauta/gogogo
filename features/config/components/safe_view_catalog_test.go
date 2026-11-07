@@ -1,4 +1,4 @@
-// SCOPE:feature — the /config answer-catalog wiring (genui-owned).
+// The /config answer-catalog wiring (genui-owned).
 //
 // This file is listed in the genui trim unit: without the generative
 // catalog the config page has no components section to wire, so the file

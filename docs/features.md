@@ -15,12 +15,12 @@ being one.
 | **Todo app + realtime** | SSE Hub record-sync + ephemeral signals | — |
 | **Background jobs + retry** | `goqite` + `retry-go` | — |
 | **AI Suggest** | GoAI | `GOAI_API_KEY` unset |
-| **Chat (conversation)** | Invented visuals (sanitized) + catalog + diagrams + persisted history + the app's own panels | `GOAI_API_KEY` unset (`SIMULATE_LLM` demo answers keyless), or `trim genui` (removes Chat) |
-| **Review loop** | Genkit flows (plugin) + GoAI + jev classifier judge | `GOAI_API_KEY` unset (real-LLM only; page shows a setup hint), or `trim review` |
+| **Chat (conversation)** | Invented visuals (sanitized) + catalog + diagrams + persisted history + the app's own panels | `GOAI_API_KEY` unset (`SIMULATE_LLM` demo answers keyless); delete genui for a smaller tree (its registry Reason walks the delete) |
+| **Review loop** | Genkit flows (plugin) + GoAI + jev classifier judge | `GOAI_API_KEY` unset (real-LLM only; page shows a setup hint); delete review by hand (its registry Reason walks the delete) |
 | **AI credits + BYOK** | [ai-credits](https://github.com/calionauta/ai-credits) | `CREDITS_ENABLED=false` |
-| **Search (one seam, three layers)** | Own layers — no external engine | `trim search` |
-| **Collaborative whiteboard** | Loro CRDT + Rough.js + NATS | `trim whiteboard` (bundle with notes + collab transport), or `COLLAB_SNAPSHOTS=memory` for snapshot-free local mode |
-| **Shared notes** | Loro Text (server-owned) + SSE Hub | `trim whiteboard` (bundle with whiteboard + collab transport) |
+| **Search (one seam, three layers)** | Own layers — no external engine | delete search by hand (its registry Reason) |
+| **Collaborative whiteboard** | Loro CRDT + Rough.js + NATS | delete by hand (bundle with notes + collab transport; see its registry Reason), or `COLLAB_SNAPSHOTS=memory` for snapshot-free local mode |
+| **Shared notes** | Loro Text (server-owned) + SSE Hub | delete by hand (bundle with whiteboard + collab transport) |
 | **Durable workflows** | DagNats over JetStream | `DAGNATS_ENABLED=false` |
 | **Inbox + reminders** | DagNats `sleep` → owner-scoped delivery row | `DAGNATS_ENABLED=false` hides the form; the inbox stays |
 | **Entity actors** | GoAkt grains (room lease + whiteboard presence) | `GOAKT_ENABLED=false` (whiteboard falls back to `PeerSet`) |
@@ -70,13 +70,14 @@ being one.
    add one `MountFeature` line in `buildChiMux`.
 3. Use **goqite** for async work, the **SSE Hub** for user-facing feedback, and
    **Datastar** for the reactive frontend.
-4. Add a `SCOPE:` annotation — `make check-scope` enforces it.
+4. Add the unit's row in `internal/capabilities` — a package no row owns fails
+   the registry's coverage test.
 5. Add a `Routes()` method on your handler (absolute `chi` patterns) and pass it
    to that `MountFeature` call — never re-declare the URLs at the root.
 
 A feature never imports another feature. Three shared UI leaves are the only
 exception (`features/authviews`, `features/sounds`, `features/genui/components`);
-`cmd/check-flatdeps` fails the gate on anything else, so a trim never breaks a
+`cmd/check-flatdeps` fails the gate on anything else, so a unit delete never breaks a
 neighbour.
 
 The [Todo feature](todo-example.md) is the full reference implementation.
@@ -189,11 +190,11 @@ or the catalog is the thing to fix.
 
 ## Removing a feature
 
-Every feature package carries a `SCOPE:feature` annotation. The rule:
-delete the package directory, delete its dependents, remove the wiring call
-from `internal/server/chi.go`, and — if it was a plugin — remove the
-`start*` call in `cmd/web/main.go`. Full checklist in
-[Scope taxonomy](scope-taxonomy.md#removing-a-component).
+A feature is a capability row with `Kind: feature` and the dirs/files it owns.
+Delete the package directory, delete its dependents, drop the row, and — if the
+unit does not mount itself — remove the wiring call from
+`internal/server/chi.go` and the `start*` call in `cmd/web/main.go`. Full
+checklist in [Scope taxonomy](scope-taxonomy.md#removing-a-component).
 
 ## Client weight
 

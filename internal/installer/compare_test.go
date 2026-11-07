@@ -1,4 +1,4 @@
-// SCOPE:plugin — tests for the migration file-impact report (`migrate --files`)
+// Tests for the migration file-impact report (`migrate --files`)
 package installer
 
 import (

@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP room integration + resilience tests (ported from features/room)
+// HTTP room integration + resilience tests (ported from features/room)
 //
 // Two shapes, like the framework suite: over-HTTP tests against the real
 // GoAkt host (page renders, crash recovery advances the generation, two

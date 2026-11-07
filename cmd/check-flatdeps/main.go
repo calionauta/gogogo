@@ -1,4 +1,4 @@
-// SCOPE:core — Flat-stack dependency guard (framework-free, one SQLite driver,
+// Flat-stack dependency guard (framework-free, one SQLite driver,
 // no cross-feature domain imports, owned sql.Open sites)
 //
 // Command check-flatdeps proves the flat-stack invariant without booting
@@ -224,7 +224,7 @@ func sharedLeaf(importPath string) bool {
 // a new pool per handler against the same SQLite file is never what you
 // want. database/sql as a type/constant (sql.ErrNoRows) stays allowed
 // everywhere; only the Open call is owned. Scoped to internal/ + features/
-// (the SCOPE-linted product trees, same as check-scope) — dev tools under
+// (the product trees the registry owns) — dev tools under
 // cmd/ and rule patterns under rules/ only mention sql.Open in strings.
 //
 // Limitation: textual scan, so an aliased import (sq.Open) or a call hidden

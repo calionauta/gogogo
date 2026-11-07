@@ -1,4 +1,4 @@
-// SCOPE:plugin — the class vocabulary model-authored markup may use.
+// The class vocabulary model-authored markup may use.
 package components
 
 import (

@@ -1,4 +1,4 @@
-// SCOPE:feature — Viewer machinery-panel contract (red-proof).
+// Viewer machinery-panel contract (red-proof).
 //
 // TodoStatePanel is queue+retry, AI suggest and durable workflow — every
 // button in it POSTs to an endpoint the viewer policy denies (retry-demo,

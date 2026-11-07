@@ -1,4 +1,4 @@
-// SCOPE:core — Queue handlers + retry + workers
+// Queue handlers + retry + workers
 package queue
 
 import (

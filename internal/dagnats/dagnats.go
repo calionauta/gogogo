@@ -1,4 +1,4 @@
-// SCOPE:plugin — DagNats durable workflow engine
+// DagNats durable workflow engine
 // To remove: delete internal/dagnats/, cmd/web/dagnats.go, features/onboarding/,
 // features/todo/handlers/onboarding.go and the bootOnboarding call in internal/server/chi.go.
 // Package dagnats is an HTTP client for the DagNats workflow engine.

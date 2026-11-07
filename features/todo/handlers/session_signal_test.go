@@ -1,4 +1,4 @@
-// SCOPE:feature — the shared session banner must only hear from the stream.
+// The shared session banner must only hear from the stream.
 //
 // This file exists because of a shipped bug: todo.Signals carried a
 // SessionAuthed field, and every list/search/fragment response merges the

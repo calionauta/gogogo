@@ -102,6 +102,11 @@ absolute patterns, and `MountFeature` flattens that table onto the root
 - One `MountFeature` call per capability. A route added to a feature is
   reachable without an edit at the root, and a duplicate method+pattern is a
   boot panic that names both owners.
+- A capability that sets `Capability.Register` builds and declares itself:
+  the generated `internal/server/units.gen.go` calls its
+  `Register(reg *recipe.Registry, deps register.Deps)` from `bootRecipes`, and
+  the root does not import it (a test enforces that). The list is generated
+  from the registry, never edited; `account` is the reference.
 - The auth API is a feature like any other: `internal/auth` exports
   `Routes() chi.Router` with absolute patterns and the router decides the
   method. Static/asset handlers mount through `MountSubtree`, which leaves
@@ -243,24 +248,26 @@ TOTP last-step replay tracking (needs a schema column for a 30-second window),
 and breached-password checks (an external-service dependency). Each is a
 product or schema decision, not a missing primitive.
 
-## SCOPE annotations
+## Removal class
 
-Every non-test, non-generated `.go` file under `internal/` and `features/`
-carries a leading doc-comment line declaring its removal class:
+Every removable-or-toggleable unit is one row in `internal/capabilities`, and
+the row declares its class and the dirs/files it owns:
 
+```go
+{ID: "review", Kind: KindPlugin, Scaffold: ScaffoldDefault,
+ Dirs: []string{"features/review"}, Register: "features/review/handlers"},
 ```
-// SCOPE:<core|plugin|feature> — <short description>
-```
 
-The directory is the layer (`internal/` = infra, `features/` = product); the
-annotation only records what happens if the file is deleted. See
+The directory is the layer (`internal/` = infra, `features/` = product); the row
+only records what happens if the unit is deleted. Nothing per-file restates it,
+and the registry's coverage test fails a package no row owns. See
 [scope-taxonomy](scope-taxonomy.md).
 
-The `cmd/check-scope` program walks every `.go` file in `internal/` and
-`features/` and asserts the canonical line is present. `make ci-local` runs it,
-and the lefthook pre-commit runs it whenever staged files match
-`{internal,features}/**/*.go`. Migrating an existing file uses
-`python3 scripts/migrate-scope.py` (idempotent).
+The registry's tests walk `internal/` and `features/`, so a package added
+without a row fails the build; `make ci-local` and the pre-commit hook both run
+them. A unit that sets `Register` also mounts itself through the generated
+`internal/server/units.gen.go`, so adding one never means editing the root's
+constructor list.
 
 See [Scope taxonomy](scope-taxonomy.md) for the full rules.
 

@@ -1,4 +1,4 @@
-// SCOPE:core — generated-query contract for the notifications table.
+// Generated-query contract for the notifications table.
 package db
 
 import (

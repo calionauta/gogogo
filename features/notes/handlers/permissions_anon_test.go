@@ -1,4 +1,4 @@
-// SCOPE:feature — acceptance: anonymous callers can neither read nor write a note.
+// Acceptance: anonymous callers can neither read nor write a note.
 
 package handlers
 

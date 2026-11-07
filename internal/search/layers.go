@@ -1,4 +1,4 @@
-// SCOPE:plugin — the three layers behind one name, selected by convention.
+// The three layers behind one name, selected by convention.
 package search
 
 import (

@@ -1,4 +1,4 @@
-// SCOPE:core — TOTP secret encryption at rest
+// TOTP secret encryption at rest
 //
 // A database read must not yield any user's second factor: sessions,
 // magic-link tokens and recovery codes are all stored hashed, and TOTP

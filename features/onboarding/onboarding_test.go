@@ -1,4 +1,4 @@
-// SCOPE:feature — onboarding engine contract tests.
+// Onboarding engine contract tests.
 //
 // What is proven here needs no todo slice: the route is owner-scoped, an
 // unreachable engine surfaces as a workflow-error event rather than a

@@ -1,4 +1,4 @@
-// SCOPE:core — Shell registry contract.
+// Shell registry contract.
 package ui
 
 import "testing"

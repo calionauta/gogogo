@@ -1,4 +1,4 @@
-// SCOPE:core - DO NOT REMOVE - the UI registry reader (agent-facing).
+// The UI registry reader (agent-facing).
 //
 // `go run ./cmd/ui-registry list` shows the approved compositions; `show <id>`
 // prints one with its rule of use, the anti-pattern it replaces, the canonical

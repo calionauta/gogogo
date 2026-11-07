@@ -1,4 +1,4 @@
-// SCOPE:plugin — real-data prompt context (red-proof).
+// Real-data prompt context (red-proof).
 //
 // The report this pins: "plan my days from to-dos" invented todo titles
 // because the model could not see the user's actual rows. The prompt rules

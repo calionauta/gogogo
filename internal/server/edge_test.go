@@ -1,4 +1,4 @@
-// SCOPE:core — HTTP edge middleware tests: security headers + access log.
+// HTTP edge middleware tests: security headers + access log.
 package server
 
 import (

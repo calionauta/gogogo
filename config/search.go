@@ -1,4 +1,4 @@
-// SCOPE:core — the search plugin's env knob (SEARCH_MODE), split from
+// The search plugin's env knob (SEARCH_MODE), split from
 // config.go for the file-size gate. Config keeps one Search field.
 //
 // The valid names live HERE, not in internal/search, because config is core

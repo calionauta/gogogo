@@ -1,4 +1,4 @@
-// SCOPE:feature — the todo search seam's contract (rows, filter, scoping).
+// The todo search seam's contract (rows, filter, scoping).
 package handlers
 
 import (

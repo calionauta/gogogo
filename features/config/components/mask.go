@@ -1,4 +1,4 @@
-// SCOPE:feature — Auth-gated read-only /config view (masked secrets)
+// Auth-gated read-only /config view (masked secrets)
 //
 // Package config exposes a SAFE view of the running server
 // configuration: every secret-shaped field is masked before the

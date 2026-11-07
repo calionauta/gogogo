@@ -1,4 +1,4 @@
-// SCOPE:feature — acceptance: a draw on an unregistered board id is refused.
+// Acceptance: a draw on an unregistered board id is refused.
 
 package handlers
 

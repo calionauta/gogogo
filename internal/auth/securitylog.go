@@ -1,4 +1,4 @@
-// SCOPE:core — security-event vocabulary for the owned auth stack
+// Security-event vocabulary for the owned auth stack
 //
 // internal/auth logged NOTHING before this file existed: a failed login, a
 // TOTP guess, an expired magic link and a revoked session were all invisible.

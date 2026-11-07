@@ -1,4 +1,4 @@
-// SCOPE:core — RBAC middleware contract tests.
+// RBAC middleware contract tests.
 package rbac
 
 import (

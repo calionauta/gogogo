@@ -34,6 +34,17 @@ type DocSnapshot struct {
 	Updated  string
 }
 
+type ExtTodoTodo struct {
+	ID         string
+	Owner      string
+	Title      string
+	Completed  bool
+	IdemKey    string
+	Created    string
+	Updated    string
+	Visibility string
+}
+
 type MagicToken struct {
 	TokenHash string
 	UserID    string
@@ -119,7 +130,7 @@ type Todo struct {
 	ID         string
 	Owner      string
 	Title      string
-	Completed  bool
+	Completed  int64
 	IdemKey    string
 	Created    string
 	Updated    string

@@ -1,4 +1,4 @@
-// SCOPE:feature — Entitlement gate for the native window.
+// Entitlement gate for the native window.
 package main
 
 import (

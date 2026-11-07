@@ -1,4 +1,4 @@
-// SCOPE:plugin - Per-instance signal naming helper: collision + safety.
+// Per-instance signal naming helper: collision + safety.
 //
 // The helper exposes Signal and Signals (what the toast uses); the tests here
 // pin the two properties the naming scheme has to have — two instances never

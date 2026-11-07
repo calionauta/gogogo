@@ -1,4 +1,4 @@
-// SCOPE:plugin — the surface declaration's contract: parsing, the native
+// The surface declaration's contract: parsing, the native
 // invariant, and the per-leg vocabularies.
 package components
 

@@ -1,4 +1,4 @@
-// SCOPE:core — Auth signin throttle tests (per-IP password budget).
+// Auth signin throttle tests (per-IP password budget).
 
 package auth
 

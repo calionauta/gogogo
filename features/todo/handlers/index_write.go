@@ -1,4 +1,4 @@
-// SCOPE:feature — the todo index writer: the postings half of every mutation
+// The todo index writer: the postings half of every mutation
 // that can change which rows a search matches.
 //
 // Both write paths go through here — the HTTP handlers and the cross-instance

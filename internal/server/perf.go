@@ -1,4 +1,4 @@
-// SCOPE:core — Mount for the opt-in runtime dashboard (/debug/statsviz).
+// Mount for the opt-in runtime dashboard (/debug/statsviz).
 //
 // The dashboard itself is internal/perf (plugin). This file owns the fence:
 // session + ADMIN_EMAILS + admin, the same triple /console uses, so the

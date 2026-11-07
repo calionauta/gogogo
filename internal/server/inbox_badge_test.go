@@ -1,4 +1,4 @@
-// SCOPE:core — Rail inbox count middleware: scope and seeding.
+// Rail inbox count middleware: scope and seeding.
 package server
 
 import (

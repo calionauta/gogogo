@@ -1,4 +1,4 @@
-// SCOPE:core — Email verification and password-reset HTTP surface.
+// Email verification and password-reset HTTP surface.
 package auth
 
 import (

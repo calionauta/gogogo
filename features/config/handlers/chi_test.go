@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP config view contract tests.
+// HTTP config view contract tests.
 package handlers
 
 import (
@@ -14,6 +14,7 @@ import (
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/rbac"
+	"github.com/calionauta/gogogo/internal/recipe"
 )
 
 func TestHandlersConfigGate(t *testing.T) {
@@ -329,6 +330,65 @@ func TestAuditURLPreservesFilterAndPage(t *testing.T) {
 	for _, tc := range cases {
 		if got := auditURL(tc.event, tc.page); got != tc.want {
 			t.Fatalf("auditURL(%q, %d) = %q, want %q", tc.event, tc.page, got, tc.want)
+		}
+	}
+}
+
+// TestConfigPageRendersRecipeSettingsSlot is the slot contract in miniature: a
+// recipe contributes content for settings.section, the page renders it inside
+// its own frame, and the page never learns which recipe sent it.
+func TestConfigPageRendersRecipeSettingsSlot(t *testing.T) {
+	sqlDB, err := db.OpenAt(t.TempDir() + "/config-slot.db")
+	if err != nil {
+		t.Fatalf("db open: %v", err)
+	}
+	t.Cleanup(func() { sqlDB.Close() })
+	if merr := dbschema.Migrate(sqlDB); merr != nil {
+		t.Fatalf("db migrate: %v", merr)
+	}
+	a, aerr := auth.New(dbgen.New(sqlDB), false)
+	if aerr != nil {
+		t.Fatalf("auth new: %v", aerr)
+	}
+	cfg := config.Load()
+
+	slots := recipe.NewSlotRegistry()
+	if aerr := slots.Add(recipe.Contribution{Fragments: map[recipe.SlotID]recipe.Fragment{
+		recipe.SlotSettingsSection: {
+			Title:  "Pomodoro settings",
+			Render: func() string { return `<p data-slot-proof="yes">25:00 default</p>` },
+		},
+	}}); aerr != nil {
+		t.Fatalf("slot add: %v", aerr)
+	}
+	h := NewHandler(cfg, a, dbgen.New(sqlDB))
+	h.SetSlots(slots)
+
+	mux := http.NewServeMux()
+	mux.Handle("/api/auth/", a.Routes())
+	mux.Handle("/", h.Routes())
+
+	ctx := context.Background()
+	if _, _, serr := a.Signup(ctx, "slot@example.com", "Correct-horse-99!", ""); serr != nil {
+		t.Fatalf("signup: %v", serr)
+	}
+	promoteConfigAdmin(t, dbgen.New(sqlDB), "slot@example.com")
+	token, _, lerr := a.Login(ctx, "slot@example.com", "Correct-horse-99!")
+	if lerr != nil {
+		t.Fatalf("login: %v", lerr)
+	}
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/config", nil)
+	// #nosec G124 — test-only request cookie.
+	req.AddCookie(&http.Cookie{Name: auth.CookieName, Value: token})
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("admin /config status = %d, want 200", rec.Code)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{"data-slot-proof=\"yes\"", "Pomodoro settings", "25:00 default"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("page does not render the slot fragment (%q missing)", want)
 		}
 	}
 }

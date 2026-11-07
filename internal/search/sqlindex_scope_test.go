@@ -1,4 +1,4 @@
-// SCOPE:plugin — the index's authorization boundary, in SQL.
+// The index's authorization boundary, in SQL.
 package search
 
 import (

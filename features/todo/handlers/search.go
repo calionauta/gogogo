@@ -1,4 +1,4 @@
-// SCOPE:feature — the todo search slice: the read path honours the active
+// The todo search slice: the read path honours the active
 // query and the endpoint the search box fires.
 //
 // Split from chi.go for the file-size gate. To remove: delete with

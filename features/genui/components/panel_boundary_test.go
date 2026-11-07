@@ -1,4 +1,4 @@
-// SCOPE:plugin — the panel boundary at the CATALOG: what a model may write,
+// The panel boundary at the CATALOG: what a model may write,
 // what parses, and what renders. The todo feature's own rendering is tested
 // there (features/todo/components); this file is about the seam.
 package components

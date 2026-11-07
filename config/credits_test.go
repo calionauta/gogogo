@@ -1,4 +1,4 @@
-// SCOPE:core — BYOK provider URL guardrail.
+// BYOK provider URL guardrail.
 package config
 
 import "testing"

@@ -1,4 +1,4 @@
-// SCOPE:core — SSE hub doc-scoping red-proof.
+// SSE hub doc-scoping red-proof.
 //
 // Collaborative features share ONE hub across docs. A shapes/note-text
 // event for docA must reach only streams watching docA: global fan-out

@@ -1,4 +1,4 @@
-// SCOPE:plugin — stream retention bounds tests.
+// Stream retention bounds tests.
 package nats_test
 
 import (

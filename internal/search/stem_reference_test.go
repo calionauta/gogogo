@@ -1,4 +1,4 @@
-// SCOPE:plugin — the reference-corpus parity check for the stemmer.
+// The reference-corpus parity check for the stemmer.
 //
 // This is the test that makes the stemmer's correctness claim falsifiable
 // instead of asserted. The corpus is the canonical Porter reference set (the

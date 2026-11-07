@@ -1,4 +1,4 @@
-// SCOPE:feature — Review loop page signals.
+// Review loop page signals.
 package components
 
 import "encoding/json"

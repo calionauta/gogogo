@@ -1,4 +1,4 @@
-// SCOPE:core — The shell every module renders inside.
+// The shell every module renders inside.
 //
 // One sidebar, one module header, one work area, one toast root. Before this
 // file each page template owned its own <head>, navbar, banner stack and
@@ -111,6 +111,12 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 							}
 							for _, m := range group.Modules {
 								@railItem(m, m.ID == d.Module, InboxUnread(ctx))
+							}
+						}
+						if entries := visibleNav(ctx, d.Role); len(entries) > 0 {
+							<p class="app-rail-group">Extensions</p>
+							for _, e := range entries {
+								@railEntry(e)
 							}
 						}
 					</nav>
@@ -316,5 +322,22 @@ templ dockLink(current string, id string, href string, iconName string, label st
 	>
 		@icon.Icon(iconName, "app-dock-icon")
 		<span class="dock-label">{ label }</span>
+	</a>
+}
+
+// railEntry is a destination a recipe contributed through the nav.sidebar slot.
+//
+// It draws no badge, carries no module id and has no active state: the recipe's
+// page renders under its own route, and the rail is not the place for the shell
+// to learn which recipe contributed the link.
+templ railEntry(e NavEntry) {
+	<a
+		href={ templ.SafeURL(e.Href) }
+		class="app-rail-item"
+		data-cuelume-hover="tick"
+		data-cuelume-press="toggle"
+		data-on:click="$railOpen = false">
+		@icon.Icon("material-symbols:stack", "app-rail-icon")
+		<span class="app-rail-label">{ e.Label }</span>
 	</a>
 }

@@ -1,4 +1,3 @@
-// SCOPE:core — Job queue (goqite) + Worker Pool
 // Package queue implements the background job subsystem: a goqite-backed
 // SQLite queue, an SSE hub for streaming progress to the browser, and a
 // worker pool that dispatches messages through a typed HandlerRegistry.

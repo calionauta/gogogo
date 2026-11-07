@@ -1,4 +1,4 @@
-// SCOPE:feature — todo record-event stream for non-browser clients
+// Todo record-event stream for non-browser clients
 package handlers
 
 import (

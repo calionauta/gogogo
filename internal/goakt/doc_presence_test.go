@@ -1,4 +1,4 @@
-// SCOPE:plugin — GoAkt document-presence adapter tests.
+// GoAkt document-presence adapter tests.
 package goakt
 
 import (

@@ -1,4 +1,4 @@
-// SCOPE:core — vanilla-JS allowlist guard (locality-of-behavior enforcement).
+// Vanilla-JS allowlist guard (locality-of-behavior enforcement).
 //
 // Datastar owns behavior; vanilla JS is the last resort (see the skill's
 // references/datastar.md item 3: enumerate the primitive first, and when

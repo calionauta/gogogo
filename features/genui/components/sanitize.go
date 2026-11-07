@@ -1,4 +1,4 @@
-// SCOPE:plugin — model-HTML sanitizer for the html_block component.
+// Model-HTML sanitizer for the html_block component.
 package components
 
 import (

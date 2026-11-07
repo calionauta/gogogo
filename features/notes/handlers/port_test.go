@@ -1,4 +1,4 @@
-// SCOPE:feature — Notes handlers port tests (ported from the legacy notes suite)
+// Notes handlers port tests (ported from the legacy notes suite)
 //
 // The legacy suite pinned ~20 behaviours of the notes slice over a live SSE
 // stream: caret atomicity, presence join/leave counts, typing relay,

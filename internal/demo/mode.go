@@ -1,4 +1,4 @@
-// SCOPE:core — Demo mode: the one place that decides what the cookie means.
+// Demo mode: the one place that decides what the cookie means.
 //
 // Two surfaces ask the same question ("is the machinery docked?"): the todo
 // handler, to render the page, and the /_ui/demo route, to flip it. They must

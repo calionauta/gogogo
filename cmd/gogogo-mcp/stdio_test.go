@@ -59,20 +59,20 @@ func TestStdioRoundTrip(t *testing.T) {
 	}
 
 	// Omitted handler-required fields must fail with the handler's
-	// friendly error, not a schema wall: check_tree without dir. (Tool
-	// failures surface as error content, not a Go error — assert there.)
+	// friendly error, not a schema wall: trim_apply without confirm.
+	// (Tool failures surface as error content, not a Go error — assert there.)
 	res2, err := session.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "check_tree",
-		Arguments: map[string]any{},
+		Name:      "trim_apply",
+		Arguments: map[string]any{"name": "x"},
 	})
 	if err != nil {
 		t.Fatalf("transport error, want tool-level refusal: %v", err)
 	}
 	if len(res2.Content) == 0 {
-		t.Fatal("empty check_tree refusal")
+		t.Fatal("empty trim_apply refusal")
 	}
 	tc2, ok := res2.Content[0].(*mcp.TextContent)
-	if !ok || !strings.Contains(tc2.Text, "dir is required") {
-		t.Errorf("expected the handler dir-required error, got %#v", res2.Content)
+	if !ok || !strings.Contains(tc2.Text, "confirm:true") {
+		t.Errorf("expected the handler confirm error, got %#v", res2.Content)
 	}
 }

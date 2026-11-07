@@ -1,4 +1,4 @@
-// SCOPE:feature — Theme toggle contract
+// Theme toggle contract
 //
 // The suite renders the shell from features/authviews and pins the
 // single-toggle path (signal flip, icon sync, persistence order) plus the

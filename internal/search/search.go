@@ -1,4 +1,4 @@
-// SCOPE:plugin — search: one seam, three layers, no external engine.
+// Search: one seam, three layers, no external engine.
 //
 // To remove: delete internal/search + the capability entry + the wiring in
 // internal/server/chi.go. A consumer that loses it keeps working with the

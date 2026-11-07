@@ -1,4 +1,4 @@
-// SCOPE:feature — Admin user-action role predicates.
+// Admin user-action role predicates.
 //
 // Ruleguard allows role comparisons in a feature permissions.go: the
 // comparison is a local admin-action guard, not a route policy (the route is

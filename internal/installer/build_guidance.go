@@ -1,4 +1,4 @@
-// SCOPE:plugin — Installer engine: build-target guidance shared by the CLI
+// Installer engine: build-target guidance shared by the CLI
 // help and the MCP `build_prerequisites` tool.
 package installer
 

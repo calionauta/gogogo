@@ -1,4 +1,4 @@
-// SCOPE:plugin — Installer engine: the desktop-sync guidance shared by the CLI
+// Installer engine: the desktop-sync guidance shared by the CLI
 // help and the MCP tool. One string, so the two transports cannot drift.
 package installer
 

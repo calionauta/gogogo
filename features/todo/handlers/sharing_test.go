@@ -1,4 +1,4 @@
-// SCOPE:feature — Shared (public) vs private todo contract tests (red-proof).
+// Shared (public) vs private todo contract tests (red-proof).
 //
 // Demo1 and demo2 must prove live collab from two browsers: a 'public' todo
 // created by one login is listed, toggled and re-rendered by the other,

@@ -1,4 +1,4 @@
-// SCOPE:feature — Room SSE stream (presence by connection, pushed roster)
+// Room SSE stream (presence by connection, pushed roster)
 //
 // The room reads as a live roster instead of a 3s poll. Presence is the
 // CONNECTION: onConnect joins the grain, onDisconnect leaves it, and the

@@ -1,4 +1,4 @@
-// SCOPE:feature — The todo state-panel gate: viewers get no machinery dock.
+// The todo state-panel gate: viewers get no machinery dock.
 //
 // TodoStatePanel is the queue+retry demo, the AI suggest affordance and the
 // durable workflow. Every one of them POSTs to an endpoint the viewer policy

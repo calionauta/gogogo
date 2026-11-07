@@ -1,4 +1,4 @@
-// SCOPE:core — the cache contract for embedded assets.
+// The cache contract for embedded assets.
 //
 // These assertions exist because the contract was documented in AssetHandler
 // and never enforced: an unversioned URL revalidated on every navigation, and

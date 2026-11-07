@@ -1,4 +1,4 @@
-// SCOPE:feature — notifications: the live inbox stream, end to end.
+// Notifications: the live inbox stream, end to end.
 package handlers
 
 import (

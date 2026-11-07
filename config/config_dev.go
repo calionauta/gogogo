@@ -1,6 +1,6 @@
 //go:build dev
 
-// SCOPE:core - DO NOT REMOVE - Development defaults.
+// Development defaults.
 package config
 
 import "os"

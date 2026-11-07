@@ -1,4 +1,4 @@
-// SCOPE:plugin — reading the index's own inventory, for the boot heal.
+// Reading the index's own inventory, for the boot heal.
 //
 // WHY THIS EXISTS. Postings are a cache of a Go-side pure function
 // (search.Stem over search.Tokenize), not a SQL expression, so a row created

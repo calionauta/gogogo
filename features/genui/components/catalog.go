@@ -1,4 +1,4 @@
-// SCOPE:plugin — gogen-ui component catalog.
+// Gogen-ui component catalog.
 package components
 
 import (

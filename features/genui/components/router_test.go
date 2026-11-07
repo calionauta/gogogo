@@ -1,4 +1,4 @@
-// SCOPE:plugin — the Chat router's contract at the prompt seam.
+// The Chat router's contract at the prompt seam.
 package components
 
 import (

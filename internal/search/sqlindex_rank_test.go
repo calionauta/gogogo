@@ -1,4 +1,4 @@
-// SCOPE:plugin — BM25 over the SQL index, end to end.
+// BM25 over the SQL index, end to end.
 package search
 
 import (

@@ -1,4 +1,4 @@
-// SCOPE:feature — todo event bus tests (one publish, adapters per transport).
+// Todo event bus tests (one publish, adapters per transport).
 package todo
 
 import (

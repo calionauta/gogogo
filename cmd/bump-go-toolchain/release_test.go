@@ -1,4 +1,4 @@
-// SCOPE:core — the release feed and the release-existence check.
+// The release feed and the release-existence check.
 package main
 
 import (

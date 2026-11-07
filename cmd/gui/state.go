@@ -1,4 +1,4 @@
-// SCOPE:feature — Window state + backend wiring for the gogpu/ui native window
+// Window state + backend wiring for the gogpu/ui native window
 package main
 
 import (

@@ -183,7 +183,7 @@ for exactly that reason.
    `Pinned` module renders above the group headings (no heading of its own);
    a `MenuOnly` module is reached from the account menu and never renders in
    the rail.
-2. A body inside `ui.Shell` (`// SCOPE:` per the taxonomy).
+2. A body inside `ui.Shell` (the page's unit has its own capability row).
 3. If it has a pipeline, a `*StatePanel` and `Panel:` in the shell data.
 4. If it needs its own head extras or mute control, the one-line `*Head()` /
    `*Sound()` wrappers (see "What a page owns") — never inline the call, or a

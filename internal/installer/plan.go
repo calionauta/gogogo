@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: plan preview, receipts, and JSON envelopes
+// Installer engine: plan preview, receipts, and JSON envelopes
 package installer
 
 import (
@@ -11,10 +11,12 @@ import (
 )
 
 // planUnit is the agent- and human-readable rendering of one dropped unit.
+// Scaffold keeps every capability, so the scaffold plan carries no dropped
+// units; the type is retained only to keep the documented JSON shape stable
+// for existing consumers.
 type planUnit struct {
 	ID         string   `json:"id"`
 	Kind       string   `json:"kind"`
-	Scaffold   string   `json:"scaffold"`
 	Dirs       []string `json:"dirs"`
 	Files      []string `json:"files"`
 	Warns      []string `json:"warnings"`
@@ -23,18 +25,19 @@ type planUnit struct {
 	RuntimeOff string   `json:"runtimeOff,omitempty"`
 }
 
-// keptUnit is what stays: id + kind + one-line summary, so deciders
-// reading --format json see what each kept unit IS, not just its id.
+// keptUnit is what ships: id + kind + one-line summary, so deciders
+// reading --format json see what each capability is, not just its id.
 // Additive (the id lists stay): stable field names are untouched.
 type keptUnit struct {
-	ID       string `json:"id"`
-	Kind     string `json:"kind"`
-	Scaffold string `json:"scaffold"`
-	Summary  string `json:"summary"`
+	ID      string `json:"id"`
+	Kind    string `json:"kind"`
+	Summary string `json:"summary"`
 }
 
-// scaffoldPlan is the full preview of what the installer will do.
-// JSON field names are stable: agents may parse --format json output.
+// scaffoldPlan is the full preview of what the installer will do. Scaffold
+// ships the whole tree: there is no keep/drop decision, and the arrays list
+// every capability that the scaffold keeps. JSON field names are stable:
+// agents may parse --format json output.
 type scaffoldPlan struct {
 	Name         string     `json:"name"`
 	Owner        string     `json:"owner"`
@@ -42,128 +45,48 @@ type scaffoldPlan struct {
 	Dir          string     `json:"dir"`
 	KeepPlugins  []string   `json:"keepPlugins"`
 	KeepFeatures []string   `json:"keepFeatures"`
-	KeepOptIn    []string   `json:"keepOptIn"`
 	Keep         []keptUnit `json:"keepUnits"`
 	Drop         []planUnit `json:"drop"`
 	DryRun       bool       `json:"dryRun"`
-	// Preset names the --preset that produced this plan ("" for explicit
-	// keep lists). Additive: parsers that ignore unknown fields are unaffected.
-	Preset string `json:"preset,omitempty"`
 }
 
-func buildPlan(name, owner, dir string, keep keepSet, drop []trimUnit, dryRun bool) scaffoldPlan {
+func buildPlan(name, owner, dir string, dryRun bool) scaffoldPlan {
+	// No keep/drop decision exists: scaffold now ships the whole tree.
+	// The JSON fields stay populated — keepPlugins/keepFeatures list every
+	// plugin/feature the tree keeps — so an agent parsing --format
+	// json sees the same shape it always did.
 	p := scaffoldPlan{
 		Name:         name,
 		Owner:        owner,
 		Module:       "github.com/" + owner + "/" + name,
 		Dir:          dir,
-		KeepPlugins:  sortedKeys(keep.plugins),
-		KeepFeatures: sortedKeys(keep.features),
-		KeepOptIn:    sortedKeys(keep.optIn),
+		KeepPlugins:  []string{},
+		KeepFeatures: []string{},
 		Keep:         []keptUnit{},
 		Drop:         []planUnit{},
 		DryRun:       dryRun,
 	}
-	for _, u := range manifestUnits {
-		m := u.meta()
-		kept := m.scaffold == capabilities.ScaffoldDefault &&
-			(m.kind == capabilities.KindPlugin && keep.plugins[u.id] ||
-				m.kind == capabilities.KindFeature && keep.features[u.id]) ||
-			m.scaffold == capabilities.ScaffoldOptIn && keep.optIn[u.id]
-		if !kept {
-			continue
+	for _, capability := range capabilities.All {
+		c := capability.ID
+		summary := capability.Summary
+		kept := keptUnit{ID: c, Kind: string(capability.Kind), Summary: summary}
+		switch capability.Kind {
+		case capabilities.KindPlugin:
+			p.KeepPlugins = append(p.KeepPlugins, c)
+		case capabilities.KindFeature:
+			p.KeepFeatures = append(p.KeepFeatures, c)
 		}
-		summary := ""
-		if caps := u.caps(); len(caps) > 0 {
-			if c, ok := capabilities.ByID()[caps[0]]; ok {
-				summary = c.Summary
-			}
-		}
-		p.Keep = append(p.Keep, keptUnit{
-			ID: u.id, Kind: string(m.kind), Scaffold: string(m.scaffold), Summary: summary,
-		})
-	}
-	for _, u := range drop {
-		m := u.meta()
-		p.Drop = append(p.Drop, planUnit{
-			ID:         u.id,
-			Kind:       string(m.kind),
-			Scaffold:   string(m.scaffold),
-			Dirs:       m.dirs,
-			Files:      m.files,
-			Warns:      m.warns,
-			Note:       m.note,
-			Strips:     len(u.mainStrips) + len(u.desktopStrips) + len(u.extraStrips),
-			RuntimeOff: m.runtimeOff,
-		})
+		p.Keep = append(p.Keep, kept)
 	}
 	return p
-}
-
-// needsTemplGen reports whether any dropped unit edited a .templ file that
-// stays on disk (navbar links, sound call sites, brand retarget). Whole-dir
-// .templ deletions need no regen; in-place edits do.
-func needsTemplGen(drop []trimUnit) bool {
-	for _, u := range drop {
-		for _, es := range u.extraStrips {
-			if strings.HasSuffix(es.path, ".templ") {
-				return true
-			}
-		}
-		for _, ed := range u.extraDrops {
-			if strings.HasSuffix(ed.path, ".templ") {
-				return true
-			}
-		}
-		for _, rp := range u.replaces {
-			if strings.HasSuffix(rp.path, ".templ") {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 func printPlanText(w io.Writer, p scaffoldPlan) {
 	fmt.Fprintf(w, "gogogo: scaffolding %s\n", p.Module)
 	fmt.Fprintf(w, "  dir:            %s\n", p.Dir)
-	if p.Preset != "" {
-		fmt.Fprintf(w, "  preset:         %s\n", p.Preset)
-	}
-	fmt.Fprintf(w, "  keep plugins:   %s\n", strings.Join(p.KeepPlugins, ", "))
-	fmt.Fprintf(w, "  keep features:  %s\n", strings.Join(p.KeepFeatures, ", "))
-	if len(p.KeepOptIn) > 0 {
-		fmt.Fprintf(w, "  keep opt-in:    %s\n", strings.Join(p.KeepOptIn, ", "))
-	}
-	if len(p.Drop) == 0 {
-		fmt.Fprintln(w, "  trim:           nothing (full template)")
-		return
-	}
-	fmt.Fprintln(w, "  trim:")
-	for _, u := range p.Drop {
-		nFiles := len(u.Dirs) + len(u.Files)
-		fmt.Fprintf(w, "    - %-12s (%s, %d path(s), %d wiring strip(s))",
-			u.ID, u.Kind, nFiles, u.Strips)
-		if u.RuntimeOff != "" {
-			fmt.Fprintf(w, " [reversible: %s]", u.RuntimeOff)
-		}
-		fmt.Fprintln(w)
-	}
-	fmt.Fprintln(w, "  consequences (read before confirming):")
-	n := 0
-	for _, u := range p.Drop {
-		for _, warn := range u.Warns {
-			n++
-			fmt.Fprintf(w, "    %d. [%s] %s\n", n, u.ID, warn)
-		}
-		if u.Note != "" {
-			n++
-			fmt.Fprintf(w, "    %d. [%s] note: %s\n", n, u.ID, u.Note)
-		}
-	}
-	if n == 0 {
-		fmt.Fprintln(w, "    none — pure deletions with their wiring calls.")
-	}
+
+	fmt.Fprintf(w, "  capabilities:   %s\n", strings.Join(p.KeepPlugins, ", ")+"; "+strings.Join(p.KeepFeatures, ", "))
+	fmt.Fprintln(w, "  removal:        none (full template)")
 }
 
 func printPlanJSON(w io.Writer, p scaffoldPlan) error {
@@ -186,21 +109,4 @@ func printEnvelopeJSON(w io.Writer, e envelope) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	return enc.Encode(e)
-}
-
-// printReceiptText reports per-unit counts plus every missed marker.
-// Missed markers are manifest drift: loud, but not fatal while the
-// proof build passes (re-runs must stay idempotent).
-func printReceiptText(w io.Writer, rc *Receipt) {
-	applied, missed := 0, 0
-	for _, u := range rc.Units {
-		applied += u.StripsApplied
-		missed += len(u.StripsMissed)
-	}
-	fmt.Fprintf(w, "gogogo: receipt: %d strip(s) applied, %d missed\n", applied, missed)
-	for _, u := range rc.Units {
-		for _, m := range u.StripsMissed {
-			fmt.Fprintf(w, "gogogo: WARN: missed strip [%s] %s\n", u.ID, m)
-		}
-	}
 }

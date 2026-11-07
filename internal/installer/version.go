@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: version parsing and ordering
+// Installer engine: version parsing and ordering
 //
 // Two callers need ordering, and neither needs a dependency: the update check
 // ("is this binary behind the latest release?") and the migration range

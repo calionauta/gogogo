@@ -1,4 +1,4 @@
-// SCOPE:plugin — Capability registry entries for the delivery slice.
+// Capability registry entries for the delivery slice.
 //
 // Split from registry.go for the file-size gate, the same reason the table
 // lives in its own file: the slice can grow without pushing the shared table

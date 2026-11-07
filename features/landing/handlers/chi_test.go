@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP landing/config contract tests.
+// HTTP landing/config contract tests.
 package handlers
 
 import (

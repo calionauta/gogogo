@@ -1,4 +1,4 @@
-// SCOPE:core — attempt-throttle contract tests.
+// Attempt-throttle contract tests.
 package auth
 
 import (

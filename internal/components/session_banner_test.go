@@ -1,4 +1,4 @@
-// SCOPE:core — SessionBanner render test.
+// SessionBanner render test.
 package components_test
 
 import (

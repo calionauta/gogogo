@@ -1,4 +1,4 @@
-// SCOPE:feature — Cross-instance presence: two servers, one board/note.
+// Cross-instance presence: two servers, one board/note.
 //
 // These are the tests that make "presence is not per-instance any more" a
 // fact rather than a comment. Each one boots TWO independent handlers over two

@@ -1,4 +1,4 @@
-// SCOPE:core - The vendored Pele bundle's version is pinned by test.
+// The vendored Pele bundle's version is pinned by test.
 package resources
 
 import (

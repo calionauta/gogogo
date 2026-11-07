@@ -1,4 +1,4 @@
-// SCOPE:feature — notifications handler contract.
+// Notifications handler contract.
 package handlers
 
 import (

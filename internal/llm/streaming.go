@@ -1,4 +1,4 @@
-// SCOPE:plugin — GoAI LLM client (used by Suggest)
+// GoAI LLM client (used by Suggest)
 package llm
 
 import (

@@ -1,4 +1,4 @@
-// SCOPE:plugin — DagNats durable workflow engine
+// DagNats durable workflow engine
 package dagnats
 
 // ReminderWorkflowJSON is the durable reminder workflow. The delay is an engine

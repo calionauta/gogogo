@@ -1,4 +1,4 @@
-// SCOPE:feature — the runtime search-mode selector (red-proof).
+// The runtime search-mode selector (red-proof).
 //
 // Split from search_test.go for the file-size gate, and along a real seam: that
 // file covers search itself (does it narrow, does it rank, does it degrade),

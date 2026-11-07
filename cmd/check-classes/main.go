@@ -1,4 +1,3 @@
-// SCOPE:core - DO NOT REMOVE - class integrity gate (pre-commit + CI).
 // Package main implements `make check-classes`, the executable half of the UI
 // rules in docs/ui-shell.md and docs/ui-compositions.md.
 //

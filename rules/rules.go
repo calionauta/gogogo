@@ -210,7 +210,7 @@ func StdoutBypassesSlog(m dsl.Matcher) {
 			!m.File().Name.Matches(`_test\.go`) &&
 			// cmd/ holds standalone CLIs and gate binaries. Their stdout IS the
 			// product (a human or a shell script reads it), and several run
-			// before the app's logger could exist — check-flatdeps, check-scope
+			// before the app's logger could exist — check-flatdeps, the registry's
 			// and the age helper all print by design. Flagging them made the
 			// rule fail the whole tree as soon as any change widened the lint
 			// scope to "all packages", which trained people to ignore it.

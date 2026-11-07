@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: latest-release check (advisory, read-only)
+// Installer engine: latest-release check (advisory, read-only)
 //
 // The check answers ONE question with TWO halves, because they drift
 // independently: the binary's release and the project's recorded template

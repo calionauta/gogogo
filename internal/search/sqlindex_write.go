@@ -1,4 +1,4 @@
-// SCOPE:plugin — writing postings, split from sqlindex.go for the file gate.
+// Writing postings, split from sqlindex.go for the file gate.
 package search
 
 import (

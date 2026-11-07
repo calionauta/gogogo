@@ -1,4 +1,4 @@
-// SCOPE:feature - mirrors safe_view.go coverage.
+// Mirrors safe_view.go coverage.
 //
 // Tests for the redacted view builder. We exercise four invariants:
 //

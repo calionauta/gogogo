@@ -1,4 +1,4 @@
-// SCOPE:core — CSP report sink contract.
+// CSP report sink contract.
 package server
 
 import (

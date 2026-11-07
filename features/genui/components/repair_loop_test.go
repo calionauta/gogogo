@@ -1,4 +1,4 @@
-// SCOPE:plugin — the bounded validate→repair loop's contract.
+// The bounded validate→repair loop's contract.
 package components
 
 import (

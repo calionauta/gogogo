@@ -1,4 +1,4 @@
-// SCOPE:plugin - Behavioral proof for the durable outbox (write-ahead + receipt).
+// Behavioral proof for the durable outbox (write-ahead + receipt).
 //
 // Three properties the design depends on, none of which a Go test can see:
 //

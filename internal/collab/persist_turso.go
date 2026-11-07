@@ -1,4 +1,4 @@
-// SCOPE:plugin — Turso snapshot persister (production flat-stack store)
+// Turso snapshot persister (production flat-stack store)
 package collab
 
 import (

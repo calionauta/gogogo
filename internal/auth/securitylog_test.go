@@ -1,4 +1,4 @@
-// SCOPE:core — security-event logging contract tests.
+// Security-event logging contract tests.
 //
 // A security log that nobody asserts on rots quietly: a refactor drops the
 // call and nothing fails. These tests pin both directions — the event fires

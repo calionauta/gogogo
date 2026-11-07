@@ -1,8 +1,10 @@
 # Porting into an existing app
 
-`gogogo add` and `gogogo new` only touch a checkout they scaffolded. They
-rewrite the scaffold's own router, composition root and capability registry,
-and they refuse rather than guess at yours. That is the right default — a tool
+`gogogo new` only touches a checkout it scaffolded. (The sibling `add`
+command that restored trimmed units is retired: one-way removal is
+preferable to anchor-patching that cannot see a moved core.) `gogogo new`
+rewrites the scaffold's own router, composition root and capability
+registry, and refuses rather than guessing at yours. That is the right default — a tool
 that edits an arbitrary codebase is a rewrite wearing a flag — but it leaves
 one case uncovered: **my app already exists, and I want this piece.**
 

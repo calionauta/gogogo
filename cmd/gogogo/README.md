@@ -4,35 +4,33 @@ Scaffold a new project from `gogogo` without hand-rename
 drift and without dead code left behind.
 
 ```bash
-# Interactive (4 questions: name, owner, plugins, features), then hands
+# Interactive (2 questions: name, owner), then hands
 # the terminal to `make dev` in the new checkout (Ctrl-C stops dev).
 go run github.com/calionauta/gogogo/cmd/gogogo@latest --run
 
 # Scripted (agents must NOT use --run: it never returns)
-go run ./cmd/gogogo --name my-app --owner myorg \
-  --plugins dagnats,nats,llm --features todo,landing,config --no-tui
+go run ./cmd/gogogo --name my-app --owner myorg --no-tui
 ```
 
 ## What it does, in order
 
-1. Shows the trim plan with every consequence (never silent).
+1. Shows the plan with every consequence (never silent).
 2. Clones the template into `--dir` when it is missing (asks, or `--yes`
    to proceed unattended).
-3. Deletes skipped plugins/features with their wiring calls.
-4. Renames it (same rules as `scripts/rename-project.py`: module path first,
+3. Renames it (same rules as `scripts/rename-project.py`: module path first,
    bare name second, Pages host only on `--owner` change, then every path
    whose NAME carries the template name — `cmd/gogogo`, `cmd/gogogo-mcp`,
    `skills/gogogo-coding-standards` and its `.agents/skills` registration —
    because the content pass rewrites every reference to those paths; shields
    `ai-credits`, `datastar-lint`, `pi-leakguard`; skips generated `site/docs/`).
-5. Trims what you skipped (see below), then `go mod tidy`, `make templ`,
-   proof `go build ./cmd/web` + the toolchain pin test when the tree carries
-   it (it names files by path, so it is what catches a half-renamed tree).
-6. Writes an `AGENTS.md` in the new repo pointing agents back at the upstream
+4. `go mod tidy`, proof `go build ./cmd/web` + the toolchain pin test when
+   the tree carries it (it names files by path, so it is what catches a
+   half-renamed tree).
+5. Writes an `AGENTS.md` in the new repo pointing agents back at the upstream
    template before they add a dependency or a feature.
    Generated code follows `skills/gogogo-coding-standards/SKILL.md`
    (same Go rules `advise` cites).
-7. Prints `cd <dir> && make dev` — or, with `--run`, becomes dev itself
+6. Prints `cd <dir> && make dev` — or, with `--run`, becomes dev itself
    by execing `make dev` in the new checkout (humans only; never returns,
    so agents must not use it).
 
@@ -50,7 +48,7 @@ go run ./cmd/gogogo new feature reports --dir ./my-app --yes
 the registry + the policy file). It refuses before writing when an anchor
 moved, when the name collides with a capability or a reserved route, or when
 `features/<name>` already exists. The proof runs `gofmt`, `templ generate`,
-the generated-docs regen, `check-scope`, `check-flatdeps` and
+the generated-docs regen, registry conformance, `check-flatdeps` and
 `go build ./cmd/web`; a failing step exits 2 and leaves the tree for you to
 inspect. The generated unit's card appears in `docs/unit-contracts.md`.
 
@@ -83,13 +81,12 @@ local-only (no CI). Prerequisites, limits and the emulator recipe:
 `--help` prints the full matrix (units, flags, exit codes). The fast paths:
 
 ```bash
-# Humans: 4 questions, plan printed, confirm [y/N], then `make dev`
+# Humans: 2 questions, plan printed, confirm [y/N], then `make dev`
 # takes this terminal (Ctrl-C stops dev).
 go run github.com/calionauta/gogogo/cmd/gogogo@latest --run
 
 # Agents, step 1 — preview as JSON (changes nothing, exit 0):
 go run ./cmd/gogogo --name my-app --owner myorg \
-  --plugins dagnats,whiteboard --features landing,config-view \
   --no-tui --dry-run --format json --dir ./my-app
 
 # Agents, step 2 — apply. --yes is mandatory without a terminal:
@@ -99,36 +96,12 @@ go run ./cmd/gogogo --name my-app --no-tui --yes --dir ./my-app
 - `--dry-run` prints the plan (text|json) and stops. `--no-tui` without
   `--yes` also stops after the plan with a re-run hint — the installer never
   deletes on an assumption.
-- `--check --dir X` verifies every marker against a checkout without
-  changing anything (drift gate; `CHECK-OK`/`CHECK-TRIMMED`/`CHECK-FAIL`
-  lines, exit 1 only on real drift). The three verdicts are distinct:
-  `CHECK-OK` the unit applies; `CHECK-TRIMMED` the unit is gone and the tree's
-  AGENTS.md records that it was removed on purpose (`removed:` line) — **exit 0**;
-  `CHECK-FAIL` a unit does not apply and nothing says it was trimmed — exit 1.
-  So `--check` on a project you scaffolded with fewer features passes instead of
-  reporting the units you deliberately dropped as errors. A tree with no
-  `removed:` line is checked strictly. The same check runs in-process as
-  `TestCheckTreeAgainstRepoRoot`, so CI fails when a source edit moves a marker.
-- `add <unit> --from TEMPLATE --dir PROJECT` reverses a trim (or ports a
-  unit into an evolved codebase): resolves `DependsOn` first (e.g. adding
-  whiteboard pulls sounds), copies owned paths, re-inserts call lines +
-  imports + spans at the anchor table, rebases the template module path
-  to the target's, then the same tidy+build proof. Imports restore only
-  where used (no unused-import breakage). `.templ` call sites and the
-  shell brand stay manual (warned). Refuses non-scaffolded trees
-  instead of guessing. Fully mechanical only where every wiring edit is
-  anchored (no unit qualifies today — every unit refuses BEFORE mutating,
-  printing the exact lines to re-add by hand plus the unit's follow-ups;
-  writing a reversible subset and failing the proof mid-tree is worse
-  than refusing with a recipe).
-- Interactive menus are numbered (stable manifest order) and accept
-  numbers, ids, or both; invalid answers re-ask. Scripted flags take ids
-  only — numbers never cross the CLI boundary (positional = fragile).
+- Scaffold ships every capability. Manual removal is recorded by the
+  registry's per-unit `Reason`; there is no keep/drop prompt or preset.
 - `--format json` field names are stable (`name`, `owner`, `module`, `dir`,
-  `keepPlugins`, `keepFeatures`,
-  `drop[{id, kind, dirs, files, warnings, note, wiringStrips}]`).
+  `keepUnits`, `drop` (the unit lists, stable).
 - Exit codes: 0 ok or plan-only, 1 usage/validation/apply error, 2 the
-  post-trim proof build failed (compiler output included — fix the named
+  post-rename proof build failed (compiler output included — fix the named
   file, don't guess).
 
 ## Alternatives considered
@@ -141,16 +114,14 @@ go run ./cmd/gogogo --name my-app --no-tui --yes --dir ./my-app
 | `go run ./cmd/gogogo` stdlib-only in the main module (this) | **Chosen**: `go run` needs nothing but Go, zero new dependencies, fully testable, and the trim engine is the same one a future TUI would call. `--no-tui` flag shape already matches the scripted path. Prebuilt binaries (GoReleaser, same engine) cover Go-less machines. |
 | `gh extension` / `make init` wrapper | Rejected as primary (needs `gh` + extension install); `make init` may wrap this CLI later for discoverability. |
 
-## Safe trim subset
+## Manual deletions (registry paths)
 
-The installer only deletes what it can decouple without breaking the build.
-Capability metadata (kinds, warnings, owned paths, runtime switches) comes
-from `internal/capabilities` — the single source of truth, enforced by
-conformance tests on both sides. The tables below are human prose over that
-registry: unit ids must match it (`TestManifestUnitsMatchRegistry`) and
-appear here (`TestReadmeDocumentsUnits`).
+Deletion is manual: each capability's `Reason` in
+`internal/capabilities` says what disappears with the unit.
+The table below is the per-unit manual deletion map — use it when a user
+wants a smaller tree, guided by the unit card in `docs/unit-contracts.md`.
 
-| Unit | Deletes | Router / wiring strip |
+| Unit | Deletes | Manual edit |
 |---|---|---|
 | `dagnats` | `internal/dagnats/`, `features/todo/handlers/onboarding.go` (+ its test), `internal/nats/single_nats_test.go`, `cmd/web/dagnats.go`, `cmd/web/start_nats_test.go` | Drop the `bootOnboarding` line and the `/api/onboarding` mounts in `internal/server/chi.go`; `startDagNats` / `shutdownDagNats` calls in `cmd/web/main.go`; drop `danmestas/dagnats` from `go.mod`. No dead UI: the workflow tab auto-hides via the `dagnatsUIEnabled` signal |
 | `goakt` | `internal/goakt/`, `features/room/`, `cmd/web/goakt.go` | Drop the `bootRoomActor` line, the `/room` mounts and the room-actor shutdown in `internal/server/chi.go` (+ the `fakeRooms` fixture in its test); `startGoAkt` / `shutdownGoAkt` calls in `cmd/web/main.go`; drop `tochemey/goakt` from `go.mod`. Navbar Room link stripped |
@@ -162,7 +133,7 @@ appear here (`TestReadmeDocumentsUnits`).
 | `genui` | `features/genui/`, `features/chat/`, `internal/server/genui_stubs_test.go` | Drop the `chatH` handler line and the `/chat` mount in `internal/server/chi.go`; Chat `[]Module` entry stripped; mux target table shrinks (re-add by hand, see follow-ups). Warns: `SMOKE_FEATURES` must drop `genui` |
 | `review` | `features/review/` | Drop the `bootReview` helper + `reviewH` line and the `/review` + `/api/review/` mounts in `internal/server/chi.go` (+ the `newReviewHandlerForTest` fixture in its test); Review `[]Module` entry stripped; `go mod tidy` drops `genkit` + `go-jev`. Warns: `SMOKE_FEATURES` must drop `review` |
 | `search` | `internal/search/` | Delete the package and the capability entry. A consumer keeps working with the SQL-only substring layer (it holds a `Searcher`), and `features/todo/handlers/search_source.go` goes with the unit because it exists only to feed the plugin |
-| `perf` (opt-in) | `internal/perf/`, `internal/server/perf.go` (+ its test), `internal/ui/perf.go` | Drop the `bootPerf`/`closePerf` lines and the `perfPageMiddleware`/menu entry; remove `PerfEnabled` and the `/debug/*` policy rows; drop `arl/statsviz` from `go.mod`. Opt-in: dropped unless `--opt-in perf`. One-way trim: `add perf` prints the exact wiring lines |
+| `perf` | `internal/perf/`, `internal/server/perf.go` (+ its test), `internal/ui/perf.go` | Drop the `bootPerf`/`closePerf` lines and the `perfPageMiddleware`/menu entry; remove `PerfEnabled` and the `/debug/*` policy rows; drop `arl/statsviz` from `go.mod`. Manual deletion; the runtime switch keeps it off in production |
 
 Deliberately **not** offered: `todo` (reference implementation — remove manually
 later per `docs/scope-taxonomy.md`), `auth` (middleware is core), `queue`
@@ -198,7 +169,7 @@ env-blessed with the reason recorded.
 Full env reference: `docs/configuration.md`. Deletion checklists:
 `docs/scope-taxonomy.md#removing-a-component`.
 
-After any trim the installer runs `go mod tidy` and `go build ./cmd/web` as
+After any manual deletion, run `go mod tidy` and `go build ./cmd/web` as
 proof. If the build fails it prints the compiler error verbatim — fix the named
 file, don't guess.
 

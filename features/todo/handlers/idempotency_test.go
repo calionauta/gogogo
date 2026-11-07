@@ -1,4 +1,4 @@
-// SCOPE:feature — idempotent replay of a queued mutation.
+// Idempotent replay of a queued mutation.
 //
 // A queued write is delivered at least once: the response can be lost after
 // the server committed, and the outbox will send the SAME intent again. A

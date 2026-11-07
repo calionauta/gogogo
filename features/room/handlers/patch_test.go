@@ -1,4 +1,4 @@
-// SCOPE:feature — Room patch payload contract.
+// Room patch payload contract.
 //
 // The room's SSE payload is produced in ONE place (sendRosterPatch) and read
 // by two audiences: the stream (broadcast to peers) and the POST answer (the

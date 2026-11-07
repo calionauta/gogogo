@@ -343,7 +343,7 @@ If Zig is ever introduced, the component must be:
 
 Do not spread Zig concepts (allocators, `comptime`, error unions, slices-as-
 fat-pointers) through Go code. The Go side sees `package thing` with a
-`// SCOPE:` annotation like any other package; the Zig sources are an opaque
+capability row like any other package; the Zig sources are an opaque
 implementation detail behind it.
 
 ## Directory and package conventions
@@ -354,8 +354,7 @@ conventions instead of inventing a parallel tree:
 
 - Go API lives where the codebase already puts that kind of code:
   `internal/<thing>/` (infra) or `features/<thing>/` (product), with the
-  normal `// SCOPE:<core|plugin|feature>` annotation — the linter
-  (`cmd/check-scope`, run via `make check-scope`) only walks those two
+  normal capability row — the registry's coverage test only walks those two
   trees.
 - Zig sources, if any, live **inside that package** (e.g.
   `internal/<thing>/zig/`), never in a top-level `native/zig/...` forest

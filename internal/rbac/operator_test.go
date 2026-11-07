@@ -1,4 +1,4 @@
-// SCOPE:core — Operator-surface fence red-proof.
+// Operator-surface fence red-proof.
 package rbac
 
 import (

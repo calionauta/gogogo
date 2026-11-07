@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP todo stream dispatch (record + worker envelopes)
+// HTTP todo stream dispatch (record + worker envelopes)
 package handlers
 
 import (

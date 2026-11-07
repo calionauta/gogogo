@@ -1,4 +1,4 @@
-// SCOPE:plugin — Snapshot persisters (memory + Turso)
+// Snapshot persisters (memory + Turso)
 package collab
 
 import (

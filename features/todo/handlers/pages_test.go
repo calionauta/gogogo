@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP page contract tests (login + index, step 6).
+// HTTP page contract tests (login + index, step 6).
 //
 // Same red-proof fixture as the data endpoints: real Turso, real auth,
 // driven over HTTP. Contracts: paths, redirects, rendered components.

@@ -1,4 +1,4 @@
-// SCOPE:core — Platform database driver selection (tursogo).
+// Platform database driver selection (tursogo).
 
 //go:build !android
 

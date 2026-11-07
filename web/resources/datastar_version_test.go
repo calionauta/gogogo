@@ -1,4 +1,4 @@
-// SCOPE:core - The vendored Datastar core bundle's version is pinned by test.
+// The vendored Datastar core bundle's version is pinned by test.
 package resources
 
 import (

@@ -1,4 +1,4 @@
-// SCOPE:core — ephemeral cross-instance bridge contract tests.
+// Ephemeral cross-instance bridge contract tests.
 package queue_test
 
 import (

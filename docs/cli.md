@@ -13,13 +13,17 @@ curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh
 
 | Command | Changes anything? | What it does |
 |---|---|---|
-| `gogogo advise --need "..." [--intent <goal>] [--dir <path>]` | No | Which lib or language fits the use-case; how each capability switches off; and the ordered command ROUTE for `--intent update|port|add-unit|new-feature|scaffold` (omitted = inferred from `--need`, and the answer says which). `--dir` is optional and adds one stat: a path that is not a gogogo checkout gets its own scope — the copy surface plus the export route |
-| `gogogo --dry-run --format json` | No | The trim plan as one JSON document |
-| `gogogo --yes` | Yes | Scaffold: clone when missing, trim, rename, prove the build |
-| `gogogo add <unit> --from <pristine> --dir <proj>` | Yes (`--yes`) | Bring a trimmed unit back (`--dry-run` previews). Refuses when the checkout is at a different release than the project's base — unit files and wiring anchors move together, so it names `git -C <clone> checkout vX` instead of mixing two trees |
+| `gogogo advise --need "..." [--intent <goal>] [--dir <path>]` | No | Which lib or language fits the use-case; how each capability switches off; and the ordered command ROUTE for `--intent update|port|new-feature|scaffold` (omitted = inferred from `--need`, and the answer says which). `--dir` is optional and adds one stat: a path that is not a gogogo checkout gets its own scope — the copy surface plus the export route |
+| `gogogo --dry-run --format json` | No | The scaffold plan as one JSON document |
+| `gogogo --yes` | Yes | Scaffold: clone when missing, rename, prove the build |
 | `gogogo export <unit> --dir <pristine> --to <scratch>` | No | Port bundle for a tree that is NOT a gogogo checkout: copies the unit's owned files into `<scratch>` and writes `PORTING.md` (routes it registers, imports to rewrite, what you write by hand, the proof). Nothing in `--dir` changes, nothing outside `--to` |
-| `gogogo new feature <name> --dir <proj>` | Yes (`--yes`) | Scaffold one feature: handler + page, composition-root wiring, capability unit, RBAC rows, then templ generate + generated docs + check-scope + flatdeps + build (`--dry-run` previews) |
-| `gogogo --check --dir <proj>` | No | Marker drift verdict per unit, plus the base revision the tree records |
+| `gogogo extension list [--dir <proj>] [--format json]` | No | Discover extensions: built-in capabilities plus user-installed recipes, with origin, kind, installed/removed state, and the available lifecycle verbs |
+| `gogogo extension describe <id> [--dir <proj>] [--format json]` | No | Describe one extension by id: kind, origin, summary, registration surface, dependencies, and available lifecycle verbs |
+| `gogogo recipe install <dir> --dir <proj> [--yes] [--entry <catalog.yml>]` | Yes (`--yes`) | Install a packaged extension into a gogogo checkout (copy, receipt, generated registration, schema/policy/codegen and proof). Without `--yes` prints the plan and changes nothing |
+| `gogogo recipe update <dir> --dir <proj> [--yes] [--entry <catalog.yml>]` | Yes (`--yes`) | Update one installed extension from a directory or a catalog entry. Without `--yes` prints the plan and changes nothing |
+| `gogogo recipe status [--dir <proj>] [id]` | No | Read-only extension drift report: pristine vs edited files, generated/schema/policy state (one id or all installed) |
+| `gogogo recipe uninstall <id> --dir <proj> [--yes]` | Yes (`--yes`) | Remove one installed extension by id. Removes only pristine files, keeps edited files, marks the receipt removed, and updates registration/policy/schema surfaces |
+| `gogogo new feature <name> --dir <proj>` | Yes (`--yes`) | Scaffold one feature: handler + page, composition-root wiring, capability unit, RBAC rows, then templ generate + generated docs + registry conformance + flatdeps + build (`--dry-run` previews) |
 | `gogogo --check-update --dir <proj>` | No | Compares the **binary** and the project's recorded base against the latest release. Exit `3` means an update exists; exit `0` covers "nothing to do" and "could not check" |
 | `gogogo migrate --dir <proj>` | No | Every release between the recorded base and the latest, plus the gates that prove a migrated tree. Flags: `--from`, `--to`, `--files`, `--changelog`, `--notes`, `--format`. `--files` adds the per-file impact, labelled by capability and by whether this tree kept the owning unit |
 | `gogogo --run` | Takes the terminal | After a successful proof, `make dev` replaces this process (Ctrl-C stops dev; humans only) |
@@ -42,7 +46,7 @@ with the same flags (always tracks the latest commit; releases pin a version).
   read-only, both are opt-in, and neither ever runs in the background. See
   [Upgrading](upgrading.md).
 - Never `--run` without a terminal: it never returns.
-- `add`/`new`/`trim` only touch scaffolded checkouts (`internal/server/chi.go`
+- `new`/`recipe` only touch scaffolded checkouts (`internal/server/chi.go`
   + `go.mod` must exist) — foreign Go codebases get the copy surface (`advise
   --dir`) plus `export`, which writes a bundle and never merges. Porting
   checklist: [Porting into an existing app](porting-into-an-existing-app.md).
@@ -61,7 +65,7 @@ with the same flags (always tracks the latest commit; releases pin a version).
 
   | Scope | When | What you get |
   |---|---|---|
-  | `template` | a gogogo-shaped need (or anything the vocabulary does not match — the full map is shown instead of a guess) | the capability table + keep/drop presets. When nothing matched, the scaffold first-run is withheld and the text names the preset list to retry with |
+  | `template` | a gogogo-shaped need (or anything the vocabulary does not match — the full map is shown instead of a guess) | the capability table + use-case presets. When nothing matched, the scaffold first-run is withheld and the text names the preset list to retry with |
   | `exception-to-go` | the need names **Zig**, the repo's one documented exception to Go-first | the exception-to-go gate (`pprof → SIMD → Zig`, Go baseline first) + the skill pointer; no capability table, nothing installs under the exception |
   | `go-standards` | a need that forbids dependencies ("stdlib only", "no deps", "single binary") | the Go-standards pointer; the capability table is omitted because each entry is or pulls a dependency the need rules out |
   | `foreign-tree` | `--dir` points at a path that is **not** a gogogo checkout | the capability table with the owned paths to **copy**, the not-checkout rules, and the route to `export` + the porting checklist. Nothing installs here; a unit can still be taken |

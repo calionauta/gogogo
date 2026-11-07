@@ -1,4 +1,4 @@
-// SCOPE:core — Request-scoped inbox count for the rail indicator.
+// Request-scoped inbox count for the rail indicator.
 //
 // The rail is rendered by every page, but only the notifications feature owns
 // the count query. The composition root resolves it once per page request and

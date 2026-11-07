@@ -1,4 +1,4 @@
-// SCOPE:core — Environment readers shared by the config loaders.
+// Environment readers shared by the config loaders.
 package config
 
 import (

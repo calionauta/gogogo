@@ -1,4 +1,4 @@
-// SCOPE:core — Flat-stack chi server (the only server)
+// Flat-stack chi server (the only server)
 //
 // BootChi / AttachJetStream / Serve compose the flat stack: boot builds
 // everything that needs no engines (DB, auth, handlers, hubs, queues,
@@ -30,7 +30,6 @@ import (
 	natsio "github.com/nats-io/nats.go"
 
 	"github.com/calionauta/gogogo/config"
-	accounthandlers "github.com/calionauta/gogogo/features/account/handlers"
 	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
 	confighandlers "github.com/calionauta/gogogo/features/config/handlers"
 	creditshandlers "github.com/calionauta/gogogo/features/credits/handlers"
@@ -54,6 +53,8 @@ import (
 	"github.com/calionauta/gogogo/internal/nats"
 	"github.com/calionauta/gogogo/internal/natswire"
 	"github.com/calionauta/gogogo/internal/queue"
+	"github.com/calionauta/gogogo/internal/recipe"
+	"github.com/calionauta/gogogo/internal/recipe/register"
 )
 
 // shutdownTimeout bounds chi-stack shutdown: in-flight SSE streams get a
@@ -141,7 +142,7 @@ func bootOnboarding(
 // AttachJetStream runs. js-free by design — the engine owns the NATS, so
 // JetStream is attached after boot, never passed into it.
 //
-//nolint:funlen // composition root: one line per feature, and the installer
+//nolint:funlen,gocyclo // composition root: one line per feature, and the installer
 func BootChi(cfg *config.Config) (*ChiStack, error) {
 	if verr := cfg.ValidateModes(); verr != nil {
 		return nil, verr
@@ -214,11 +215,13 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		shutdown = append(shutdown, func() { stopRoomActor(roomHost) })
 	}
 
+	// One slot registry for the boot: the AI panel renders the SAME row.
+	slots := recipe.NewSlotRegistry()
 	realLLM, simulatedLLM := wireTodoLLM(todoH, chiQ, cfg)
 	// Retained for the trimmed tree: the genui trim drops the constructions
 	// below, and an unused local would not compile there.
 	_, _ = realLLM, simulatedLLM
-	chatH, err := bootAI(cfg, a, chiQ, hub, realLLM, simulatedLLM, queries)
+	chatH, err := bootAI(cfg, a, chiQ, hub, realLLM, simulatedLLM, queries, slots)
 	if err != nil {
 		cancelConsumer()
 		return nil, err
@@ -248,11 +251,8 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	}
 	wbH.SetPresence(federated)
 	notesH.SetPresence(federated)
-	// One argument per line, deliberately: every line belongs to exactly one
-	// feature, so trimming a feature drops its lines without touching its
-	// neighbours. A shared line would make a line drop take two features at
-	// once (and the add path restores these same lines — see routerCallLines).
-	mux := buildChiMux(a, todoH,
+	// One argument per line: a trim drops its features' lines, nothing else.
+	mux := buildChiMux(a, register.Deps{Cfg: cfg, Auth: a, Queries: queries, Hub: hub, Slots: slots, SQLDB: sqlDB}, todoH,
 		landinghandlers.NewHandler(cfg, a),
 		confighandlers.NewHandler(cfg, a, queries),
 		wbH,
@@ -262,6 +262,9 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		reviewH,
 		creditsH,
 	)
+	if mux.recipeErr != nil {
+		return bootFail(cancelConsumer, sqlDB, "recipes", mux.recipeErr)
+	}
 	mountOnboarding(mux, onboardingH)
 	// Distribution axes (open auth + activation gate). Mounted here because
 	// the activation feature is a normal router mount; the open-auth owner is
@@ -270,8 +273,6 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	if modeErr != nil {
 		return bootFail(cancelConsumer, sqlDB, "access modes", modeErr)
 	}
-	// Account is an authenticated user surface, not a trimmable demo plugin.
-	mux.MountFeature("account", accounthandlers.NewHandler(cfg, a, queries).Routes())
 	// Console rides the same mount-after-composition rule: the engine listener
 	// is loopback-only, so browsers reach it only through here. It stays a
 	// single core line because `gogogo new` anchors its mount below it.
@@ -279,7 +280,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// Runtime dashboard: opt-in, operator-only, mounted before applyRBAC (internal/server/perf.go).
 	perfH := bootPerf(mux, a, cfg, &shutdown)
 	// Inbox is an optional surface next to the console.
-	notificationsH := mountInbox(mux, a, cfg, queries)
+	notificationsH := mountInbox(mux, a, queries)
 
 	// RBAC is wired, not optional plumbing: one enforcer built here and the
 	// middleware wraps the whole mux (pass-through when disabled, enforced
@@ -293,7 +294,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// The edge wrappers sit above RBAC on purpose: a 403 and a router 404
 	// carry the same headers, and the access log sees both. The rate limiter
 	// sits just inside them so a 429 gets the same headers.
-	handler = rateLimit(cfg.RateLimitRPM, shellMiddleware(cfg, a, queries, notificationsH, handler))
+	handler = rateLimit(cfg.RateLimitRPM, shellMiddleware(cfg, a, queries, notificationsH, shellNav(slots), handler))
 	// Inside the edge wrappers (headers/log still apply) and outside the
 	// router (every route is gated). Only the shell gates.
 	handler = applyLicenseGate(cfg, licStore, handler)
@@ -399,22 +400,20 @@ func StartChi(cfg *config.Config, nc *natsio.Conn, js nats.JetStreamLike) (stop 
 	return stack.Serve(cfg.ChiAddr)
 }
 
-// mountOnboarding registers the onboarding routes after the composition,
-// not inside it: buildChiMux takes one concrete pointer per feature, and
-// every extra parameter is a line every trim must edit. The optional mount
-// keeps the signature stable while the engine is present or not. Nil is a
-// no-op, so a stock boot never registers the route.
+// mountOnboarding registers the onboarding routes after the composition, not
+// inside it: buildChiMux takes one concrete pointer per feature, and every extra
+// parameter is a line every trim must edit. Nil is a no-op, so a stock boot
+// never registers the route.
 func mountOnboarding(r *Router, onboardingH *onboarding.Handler) {
 	if onboardingH != nil {
 		r.MountFeature("onboarding", onboardingH.Routes())
 	}
 }
 
-// buildChiMux composes the flat-stack routes. Pure constructor (no ports,
-// no goroutines) so contract tests cover the exact composition production
-// serves. The onboarding routes are NOT parameters here: they mount after
-// the composition in BootChi, so adding or removing an optional surface
-// never changes this signature (see the mount block there).
+// buildChiMux composes the flat-stack routes. Pure constructor (no ports, no
+// goroutines) so contract tests cover the exact composition production serves.
+// Optional surfaces mount after it, so their absence never changes this
+// signature (see the mount block in BootChi).
 //
 // Convention: a feature router declares its own absolute paths, and
 // MountFeature flattens that table onto the root (internal/server/route.go) —
@@ -422,7 +421,7 @@ func mountOnboarding(r *Router, onboardingH *onboarding.Handler) {
 // The landing router is also the not-found handler, so an unknown path lands
 // on the same page every unmatched URL already has.
 func buildChiMux(
-	a *auth.Auth, todoH *todohandlers.Handler,
+	a *auth.Auth, deps register.Deps, todoH *todohandlers.Handler,
 	landingH *landinghandlers.Handler,
 	configH *confighandlers.Handler,
 	wbH *wbhandlers.Handler,
@@ -449,16 +448,27 @@ func buildChiMux(
 	// long-lived SSE the banner holds open and it only hears about changes.
 	MountPath(r, "/api/session/stream", a.SessionStreamHandler())
 
-	r.MountFeature("todo", todoH.Routes())
-	r.MountFeature("config", configH.Routes())
-	r.MountFeature("whiteboard", wbH.Routes())
-	r.MountFeature("notes", notesH.Routes())
-	// roomH is nil when the engine is disabled or failed to start; the
-	// handler answers nil from Routes() then, and MountFeature mounts nothing.
-	r.MountFeature("room", roomH.Routes())
 	r.MountFeature("chat", chatH.Routes())
-	r.MountFeature("review", reviewH.Routes())
-	r.MountFeature("credits", creditsH.Routes())
+	// Installed recipes mount through the seam; a trim drops the line with its import.
+	r.recipes = &recipe.Registry{}
+	r.recipes.Add(reviewH.Recipe())
+	r.recipes.Add(creditsH.Recipe())
+	r.recipes.Add(configH.Recipe())
+	r.recipes.Add(roomH.Recipe())
+	r.recipes.Add(todoH.Recipe())
+	r.recipes.Add(notesH.Recipe())
+	r.recipes.Add(wbH.Recipe())
+	r.recipes.Add(landingH.Recipe())
+	// Units that mount themselves (Capability.Register) are registered by the
+	// generated list in units.gen.go, not constructed here.
+	bootInbox(r, deps)
+	// Installed recipes register through the generated file, then their own
+	// migrations run, then they mount: one step, in that order (recipe_surface.go).
+	r.recipeErr = bootRecipes(r, deps)
+	// settings.section: recipes contribute content, this page renders it.
+	configH.SetSlots(deps.Slots)
+	// record.row-actions: copied once, when the registry is complete.
+	todoH.RowActions = todohandlers.RowActionsFrom(deps.Slots)
 
 	// Static: the core bundle, then the Service Worker at the ROOT URL so its
 	// scope is "/" (see static.go). HEAD rides GET per HTTP semantics.

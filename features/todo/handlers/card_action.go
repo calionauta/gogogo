@@ -1,4 +1,4 @@
-// SCOPE:feature — answering a model-authored card's action, in place.
+// Answering a model-authored card's action, in place.
 //
 // Split from mutations.go for the file-size gate, and along a real seam: that
 // file owns the HTTP mutations a person triggers on the todo page, this one owns

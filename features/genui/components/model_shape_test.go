@@ -1,4 +1,4 @@
-// SCOPE:plugin — the two answer shapes a live model produced for "what are my
+// The two answer shapes a live model produced for "what are my
 // tasks?", and the one shape that is not recoverable.
 //
 // Reported transcript: the model answered the user's own-data question with

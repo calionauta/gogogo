@@ -1,4 +1,4 @@
-// SCOPE:plugin - installer engine: the toolchain pin proof.
+// Installer engine: the toolchain pin proof.
 //
 // It lives beside the main proof (prove, in run.go) but in its own file because
 // it is conditional: only a real template tree carries internal/toolchain_pin_test.go.

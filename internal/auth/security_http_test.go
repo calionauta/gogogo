@@ -1,4 +1,4 @@
-// SCOPE:core — Security hardening contracts: signup gate, magic-link
+// Security hardening contracts: signup gate, magic-link
 // origin + browser binding, OAuth browser binding, and session revocation.
 package auth
 

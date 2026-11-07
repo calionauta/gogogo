@@ -1,4 +1,4 @@
-// SCOPE:core — Demo-user seed for fresh installs
+// Demo-user seed for fresh installs
 //
 // A fresh clone needs a way in: one idempotent call at boot
 // (internal/server) and on the native window's first run (cmd/gui) signs

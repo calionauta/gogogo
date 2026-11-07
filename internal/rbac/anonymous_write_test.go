@@ -1,4 +1,4 @@
-// SCOPE:core — every mutating route refuses an anonymous caller.
+// Every mutating route refuses an anonymous caller.
 
 package rbac
 
@@ -115,10 +115,13 @@ func TestAnonymousPolicyIsMinimal(t *testing.T) {
 			anon = append(anon, strings.TrimSpace(parts[2]))
 		}
 	}
-	// 21 since /signup joined the signed-out surface: public account
-	// creation is a deliberate product switch (SIGNUP_ENABLED), reviewed
-	// here so a wildcard cannot widen the block unnoticed.
-	const maxAnonymousObjects = 21
+	// 22 since /static joined /static/*: MountSubtree registers the bare prefix
+	// as well as the subtree, and without its own row GET /static was admin-only
+	// while GET /static/x was public (found by the runtime gate in
+	// internal/server). Public account creation (/signup) is the other
+	// deliberate widening, reviewed here so a wildcard cannot widen the block
+	// unnoticed.
+	const maxAnonymousObjects = 22
 	if len(anon) > maxAnonymousObjects {
 		t.Errorf("the anonymous block has %d objects (max %d): is every one still public by intent?\n%v",
 			len(anon), maxAnonymousObjects, anon)

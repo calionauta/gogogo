@@ -1,4 +1,4 @@
-// SCOPE:plugin — the prompt that reaches the model carries the user's real data.
+// The prompt that reaches the model carries the user's real data.
 //
 // The todo feature proves a ROW reaches the digest (features/todo/handlers).
 // This proves the WIRING: composePrompt concatenates that digest into the

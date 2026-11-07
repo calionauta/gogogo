@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: the migration range as data
+// Installer engine: the migration range as data
 //
 // `gogogo migrate` answers "what changed between the revision this project
 // records and the latest release?", and nothing else. It never edits the tree.
@@ -47,7 +47,7 @@ const maxChangelogBytes = 4 << 20
 // no list.
 var migrationGates = []string{
 	"gogogo --check --dir .",
-	"make check-scope && make check-docs",
+	"make check-docs",
 	"make ci-local-fast",
 }
 

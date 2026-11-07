@@ -1,4 +1,4 @@
-// SCOPE:core — Auth deployment switches: public base URL and signup gate.
+// Auth deployment switches: public base URL and signup gate.
 //
 // Both are set once at boot, before the HTTP surface starts. Keeping them
 // here (instead of reading env inside the auth stack) gives the config

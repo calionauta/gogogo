@@ -1,4 +1,4 @@
-// SCOPE:core — SSE Hub (in-memory fan-out, replay buffer, backpressure)
+// SSE Hub (in-memory fan-out, replay buffer, backpressure)
 package queue
 
 import (

@@ -1,4 +1,4 @@
-// SCOPE:feature — Review loop contract tests (red-proof).
+// Review loop contract tests (red-proof).
 package handlers
 
 import (

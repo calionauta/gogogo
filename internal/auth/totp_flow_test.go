@@ -1,4 +1,4 @@
-// SCOPE:core — TOTP removal for passwordless (OAuth-only) rows.
+// TOTP removal for passwordless (OAuth-only) rows.
 package auth
 
 import (

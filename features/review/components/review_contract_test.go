@@ -1,4 +1,4 @@
-// SCOPE:feature — Review patch-target contract (red-proof).
+// Review patch-target contract (red-proof).
 //
 // The bug these tests exist for: the handler patches `#review-result` with
 // Datastar's default `outer` mode, which morphs the target and SYNCS ITS

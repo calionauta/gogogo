@@ -1,4 +1,4 @@
-// SCOPE:core — CSP nonce plumbing contract across the real HTTP stack.
+// CSP nonce plumbing contract across the real HTTP stack.
 package server
 
 import (

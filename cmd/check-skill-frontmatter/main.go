@@ -1,4 +1,4 @@
-// SCOPE:core — SKILL.md frontmatter linter (pre-commit + CI gate).
+// SKILL.md frontmatter linter (pre-commit + CI gate).
 //
 // Package main implements the check-skill-frontmatter linter referenced by the
 // Makefile (`make check-skill-frontmatter`) and the lefthook pre-commit

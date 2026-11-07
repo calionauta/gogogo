@@ -1,4 +1,4 @@
-// SCOPE:core — test helper: a TOTP code that is provably not valid right now.
+// Test helper: a TOTP code that is provably not valid right now.
 package auth
 
 import (

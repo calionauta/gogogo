@@ -1,4 +1,4 @@
-// SCOPE:core — Distribution and auth mode constants, plus the boot-time
+// Distribution and auth mode constants, plus the boot-time
 // validation that refuses an incoherent or unsafe pair.
 package config
 
