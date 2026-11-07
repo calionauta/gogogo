@@ -101,7 +101,7 @@ visibility refetch never fires) and a replay broadcast landing mid
 re-establishment is missed with nothing after it.
 
 `make ci-local-fast` runs the same cheap-but-decisive checks
-(`templ`, `datastar-lint`, `css-check`, `check-scope`) plus **scoped** lint and
+(`templ`, `datastar-lint`, `css-check`) plus **scoped** lint and
 race tests, narrowed by `scripts/changed-packages.sh` to the packages your
 diff actually touches. Measured: **~2s** for a CSS-only change, **~10s** for a
 single-package Go change, versus ~6min full. It falls back to all packages when

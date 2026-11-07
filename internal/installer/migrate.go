@@ -47,7 +47,7 @@ const maxChangelogBytes = 4 << 20
 // no list.
 var migrationGates = []string{
 	"gogogo --check --dir .",
-	"make check-scope && make check-docs",
+	"make check-docs",
 	"make ci-local-fast",
 }
 

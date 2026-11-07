@@ -8,7 +8,7 @@ Enforced by: `thelper`, `testifylint`, `sloglint` + `make ci-local` (race, paral
 
 - T3 scoped: `go test -race -count=1 <changed-pkg>`.
 - T3.5 fast gate: `make ci-local-fast` — cheap checks + race tests for the changed packages only (~2-30s). Use while iterating.
-- T4 gate: `make ci-local` (templ + datastar-lint + css-check + check-scope + lint + race tests + build + smoke). T5: `make signoff` stamps.
+- T4 gate: `make ci-local` (templ + datastar-lint + css-check + lint + race tests + build + smoke). T5: `make signoff` stamps.
 
 The suite runs in parallel across packages (`scripts/test-web.sh`). It used to
 force `-p 1` "for DagNats engine stability" — the real cause was that engine

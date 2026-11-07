@@ -96,7 +96,7 @@ var toolCatalog = []toolDef{
 		"new_feature",
 		"Scaffold one new feature inside a gogogo checkout: handler + page, " +
 			"composition-root wiring, capability unit, RBAC rows, then templ generate, " +
-			"generated docs, check-scope, check-flatdeps and a build proof. Requires " +
+			"generated docs, registry conformance, check-flatdeps and a build proof. Requires " +
 			"confirm:true (or dryRun:true to preview). Needs `dir` (a scaffolded " +
 			"checkout) and `name` (kebab-case, unused).",
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleNewFeature) },

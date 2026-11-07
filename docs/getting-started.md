@@ -167,7 +167,7 @@ restores known markers, it does not merge foreign code.
 
 **A feature that does not exist yet.** `new` scaffolds one from the todo
 skeleton: handler + page, composition-root wiring, capability unit, RBAC rows,
-then templ generate, generated docs, `check-scope`, `check-flatdeps` and a
+then templ generate, generated docs, registry conformance, `check-flatdeps` and a
 build proof. It works on trimmed trees too (the anchors it edits are core):
 
 ```bash

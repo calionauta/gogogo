@@ -334,7 +334,7 @@ Full gate: `references/exception-to-go.md` (summary) + `docs/exception-to-go.md`
 | Lint | `make lint-safe` — sizes to the host's free RAM/cores, scopes to changed packages when memory is tight, caps the run in a cgroup (`scripts/lint-safe.sh`). Manual: `golangci-lint run <changed-pkgs>` (the `.golangci.yml` set) |
 | Custom rules | `rules/rules.go` via `ruleguard` (`.golangci.yml` → `gocritic.settings.ruleguard`) — project footguns, CI-blocking |
 | Templ | `make templ && make datastar-lint` (when `.templ` changed) |
-| Sizes/scope | pre-commit `file-sizes` + `go run ./cmd/check-scope` |
+| Sizes/scope | pre-commit `file-sizes` + the registry's coverage test |
 | Tests | `go test -race <pkgs>`; full `make ci-local`; stamp `make signoff` |
 | Vuln/deadcode | pre-push `govulncheck`, `deadcode -test` |
 | Secrets | pre-commit + CI `gitleaks` (`bin/check-secrets.sh`); keys in `~/.secrets/` (600) or age `.env.age` via `bin/init-secrets` — never in git, chat-visible commands, or fixtures; never print values (lengths/names only); `go run ./cmd/check-secrets-env` gates secret-env *sites* (config loader, secrets loader, narrow allowlist) |

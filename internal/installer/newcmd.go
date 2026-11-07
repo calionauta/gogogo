@@ -304,8 +304,11 @@ func printNewPlan(w io.Writer, opt newOptions, plan newPlan) error {
 			"dryRun":  opt.dryRun,
 			"creates": []string{plan.paths.handler, plan.paths.page},
 			"edits":   []string{plan.paths.chi, plan.paths.registry, plan.paths.policy},
-			"proof":   []string{"templ generate", "generated docs", "check-scope", "check-flatdeps", "go build ./cmd/web"},
-			"next":    newNextSteps(opt.name),
+			"proof": []string{
+				"templ generate", "generated docs", "registry conformance",
+				"check-flatdeps", "go build ./cmd/web",
+			},
+			"next": newNextSteps(opt.name),
 		})
 	}
 	fmt.Fprintf(w, "gogogo: new feature %q in %s\n", opt.name, opt.dir)
@@ -313,7 +316,7 @@ func printNewPlan(w io.Writer, opt newOptions, plan newPlan) error {
 	fmt.Fprintf(w, "  edits   %s (import + parameter + mount)\n", plan.paths.chi)
 	fmt.Fprintf(w, "  edits   %s (one feature unit)\n", plan.paths.registry)
 	fmt.Fprintf(w, "  edits   %s (two user rows)\n", plan.paths.policy)
-	fmt.Fprintln(w, "  proof   templ generate, generated docs, check-scope, check-flatdeps, go build ./cmd/web")
+	fmt.Fprintln(w, "  proof   templ generate, generated docs, registry conformance, check-flatdeps, go build ./cmd/web")
 	return nil
 }
 
@@ -388,7 +391,6 @@ func proveNewFeature(ctx context.Context, root string, stdout io.Writer) error {
 		return &ExitError{code: 2, msg: "generated docs regen failed:\n" + tailLines(string(out), proofBuildTailLines)}
 	}
 	for _, gate := range []struct{ label, pkg string }{
-		{"check-scope", "./cmd/check-scope"},
 		{"check-flatdeps", "./cmd/check-flatdeps"},
 	} {
 		fmt.Fprintf(stdout, "gogogo: prove: %s …\n", gate.label)

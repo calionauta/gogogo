@@ -186,8 +186,8 @@ func routeFor(intent, tree, dir string) []adviseStep {
 			},
 			{
 				Run: "gogogo new feature <name> --dir " + where + " --yes",
-				Why: "apply, then the built-in proof runs templ, docs, check-scope, " +
-					"flatdeps and the build",
+				Why: "apply, then the built-in proof runs templ, docs, registry " +
+					"conformance, flatdeps and the build",
 			},
 		}
 	case intentScaffold:

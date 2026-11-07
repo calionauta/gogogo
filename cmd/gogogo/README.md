@@ -50,7 +50,7 @@ go run ./cmd/gogogo new feature reports --dir ./my-app --yes
 the registry + the policy file). It refuses before writing when an anchor
 moved, when the name collides with a capability or a reserved route, or when
 `features/<name>` already exists. The proof runs `gofmt`, `templ generate`,
-the generated-docs regen, `check-scope`, `check-flatdeps` and
+the generated-docs regen, registry conformance, `check-flatdeps` and
 `go build ./cmd/web`; a failing step exits 2 and leaves the tree for you to
 inspect. The generated unit's card appears in `docs/unit-contracts.md`.
 

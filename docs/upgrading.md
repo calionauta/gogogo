@@ -102,7 +102,7 @@ gogogo: 0.50.0 → 0.53.0 — 3 release(s), 14 change(s), from calionauta/gogogo
 ...
 prove the result with:
   gogogo --check --dir .
-  make check-scope && make check-docs
+  make check-docs
   make ci-local-fast
 ```
 
@@ -192,7 +192,7 @@ no shared base until you unshallow it.
 
 What works instead is the shape this repo already has: **a list to apply
 deliberately, plus gates that prove the result.** The tree's own `make` targets
-are the conformance check — `check-scope`, `check-docs`, `lint`, tests — and the
+are the conformance check — the registry's tests, `check-docs`, `lint`, tests — and the
 project's agent can apply the list and run them.
 
 So the loop is:

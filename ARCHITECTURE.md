@@ -217,7 +217,7 @@ main.go
    `go run ./cmd/gogogo new feature <name>`. It writes `features/<name>/handlers/chi.go`
    + `components/page.templ`, wires `BootChi`, registers the capability unit, adds
    the RBAC rows, regenerates the generated docs, and proves the build
-   (`templ` → docs → `check-scope` → `check-flatdeps` → `go build ./cmd/web`).
+   (`templ` → docs → registry conformance → `check-flatdeps` → `go build ./cmd/web`).
    Read the unit's card in [`docs/unit-contracts.md`](docs/unit-contracts.md) first:
    it lists the routes and generated queries the unit already owns.
 1. Grow the slice in `features/<name>/handlers/` + `components/` (Templ), calling
