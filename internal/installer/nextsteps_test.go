@@ -20,7 +20,7 @@ func TestNextStepsOmitsTrimmedConsole(t *testing.T) {
 		t.Fatalf("with dagnats kept, Flows should advertise the console; got %q", withConsole.Flows)
 	}
 
-	dropped := []trimUnit{{id: unitDagnats}}
+	dropped := []builtinUnit{{id: unitDagnats}}
 	withoutConsole := buildNextSteps("/tmp/x", dropped)
 	if withoutConsole.Flows != "" {
 		t.Errorf("with dagnats trimmed, Flows must be empty; got %q", withoutConsole.Flows)
@@ -45,7 +45,7 @@ func TestNextStepsPrintsConsoleWhenKept(t *testing.T) {
 	t.Parallel()
 
 	var b strings.Builder
-	printNextSteps(&b, "/tmp/x", []trimUnit{{id: unitDagnats}})
+	printNextSteps(&b, "/tmp/x", []builtinUnit{{id: unitDagnats}})
 	trimmed := b.String()
 	if strings.Contains(trimmed, "/dagnats/") {
 		t.Fatalf("trimmed output advertises /dagnats/:\n%s", trimmed)

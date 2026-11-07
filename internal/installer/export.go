@@ -105,7 +105,7 @@ func parseExportArgs(args []string) (exportArgs, error) {
 	if *format != planFormatText && *format != planFormatJSON {
 		return opt, &ExitError{code: 1, msg: fmt.Sprintf("unknown --format %q (want text|json)", *format)}
 	}
-	if _, err := addClosure(names[0]); err != nil {
+	if _, err := portClosure(names[0]); err != nil {
 		return opt, &ExitError{code: 1, msg: err.Error()}
 	}
 	return exportArgs{unit: names[0], from: *dir, to: *to, module: *module, format: *format}, nil
@@ -120,7 +120,7 @@ func exportUnit(opt exportArgs) (exportBundle, error) {
 	if resolveErr != nil {
 		return exportBundle{}, resolveErr
 	}
-	units, closureErr := addClosure(opt.unit)
+	units, closureErr := portClosure(opt.unit)
 	if closureErr != nil {
 		return exportBundle{}, &ExitError{code: 1, msg: closureErr.Error()}
 	}
@@ -165,14 +165,14 @@ func resolveExportPaths(opt exportArgs) (root, dest string, err error) {
 
 // planBundle lists every file the closure owns, attaches the wiring data, and
 // pre-flights the sources: nothing is written until every source is readable.
-func planBundle(root, dest string, opt exportArgs, units []trimUnit) (exportBundle, error) {
+func planBundle(root, dest string, opt exportArgs, units []builtinUnit) (exportBundle, error) {
 	bundle := exportBundle{
 		Unit: opt.unit, From: root, To: dest, Module: opt.module,
 		Release: sourceRelease(root),
 		Proof:   []string{"go build ./...", "go test ./..."},
 	}
 	for _, u := range units {
-		if err := addUnitToBundle(&bundle, root, dest, u); err != nil {
+		if err := builtinUnitToBundle(&bundle, root, dest, u); err != nil {
 			return exportBundle{}, err
 		}
 	}
@@ -192,19 +192,19 @@ func planBundle(root, dest string, opt exportArgs, units []trimUnit) (exportBund
 	return bundle, nil
 }
 
-// addUnitToBundle records one unit's files and wiring. The wiring lists are
+// builtinUnitToBundle records one unit's files and wiring. The wiring lists are
 // what `add` would restore mechanically; in a foreign tree they are the work.
-func addUnitToBundle(bundle *exportBundle, root, dest string, u trimUnit) error {
+func builtinUnitToBundle(bundle *exportBundle, root, dest string, u builtinUnit) error {
 	bundle.Units = append(bundle.Units, u.id)
 	routes := exportRoutes(u)
 	bundle.Routes = append(bundle.Routes, routes...)
-	for _, line := range addManualWiring(u) {
+	for _, line := range portManualWiring(u) {
 		if manualDuplicatesRoute(line, routes) {
 			continue
 		}
 		bundle.Manual = append(bundle.Manual, line)
 	}
-	bundle.FollowUps = append(bundle.FollowUps, addFollowUps(u)...)
+	bundle.FollowUps = append(bundle.FollowUps, portFollowUps(u)...)
 	m := u.meta()
 	for _, rel := range m.dirs {
 		files, err := collectUnitDir(root, rel)
@@ -343,7 +343,7 @@ func manualDuplicatesRoute(line string, routes []string) bool {
 // actually register something. routerCallLines is the add engine's restore list
 // and deliberately carries comments and struct fields too (it re-creates a
 // block verbatim); a port recipe that prints those would read as route wiring.
-func exportRoutes(u trimUnit) []string {
+func exportRoutes(u builtinUnit) []string {
 	var out []string
 	for _, line := range routerCallLines(u) {
 		trimmed := strings.TrimSpace(line)

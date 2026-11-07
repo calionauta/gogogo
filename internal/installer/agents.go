@@ -99,7 +99,7 @@ command sequence for this tree, instead of you reconstructing it from the docs.
 // ctx reaches the one subprocess this needs: reading the tree's HEAD commit.
 // That commits the base marker to a real revision instead of a guess, and it
 // costs one git call at scaffold time (skipped silently outside a git tree).
-func writeAgents(ctx context.Context, dir, projectName string, drop []trimUnit) error {
+func writeAgents(ctx context.Context, dir, projectName string, drop []builtinUnit) error {
 	out := strings.ReplaceAll(agentsTemplate, "__PROJECT__", projectName)
 	out = strings.ReplaceAll(out, "__TOOLCHAIN__", toolchainLine(treeGoVersion(dir)))
 	out = strings.ReplaceAll(out, "__TEMPLATE_REF__", templateRef())

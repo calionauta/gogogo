@@ -127,8 +127,8 @@ func capUnit() map[string]string {
 // unit ids expand to their capabilities' dirs+files (sorted, deduped),
 // core/runtime markers contribute nothing (no code to copy).
 func presetCopyDirs(p advisePreset) []string {
-	byUnit := map[string]trimUnit{}
-	for _, u := range manifestUnits {
+	byUnit := map[string]builtinUnit{}
+	for _, u := range builtinUnits {
 		byUnit[u.id] = u
 	}
 	byID := capabilities.ByID()
@@ -188,7 +188,7 @@ func buildAdvise(need string) adviseDoc {
 func buildAdviseIn(need, dir, intent string) adviseDoc {
 	owners := capUnit()
 	unitKind := map[string]capabilities.Kind{}
-	for _, u := range manifestUnits {
+	for _, u := range builtinUnits {
 		unitKind[u.id] = u.meta().kind
 	}
 	matched := matchPresets(need)
@@ -283,7 +283,7 @@ func adviseTrim(c capabilities.Capability, owners map[string]string, unitKind ma
 		}
 		if c.Kind != capabilities.KindCore {
 			// A manual-removal slice is not core: it can go, just not through
-			// the trim engine. Saying "core" here would tell the reader the
+			// the port engine. Saying "core" here would tell the reader the
 			// opposite of the unit's own contract.
 			return "not an installer unit (manual removal)"
 		}

@@ -1,4 +1,4 @@
-// Installer engine: the opt-in diagnostics trim unit.
+// Installer engine: the opt-in diagnostics built-in unit.
 //
 // perf is the unit the opt-in class used to carry: offered by the old scaffold,
 // dropped
@@ -21,7 +21,7 @@ const (
 	menuCallThree      = ", false)"
 )
 
-var perfTrimUnit = []trimUnit{
+var perfBuiltinUnit = []builtinUnit{
 	{
 		id:         unitPerf,
 		goModDrops: []string{"github.com/arl/statsviz"},

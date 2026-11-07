@@ -75,7 +75,7 @@ func goModModule(path string) (string, error) {
 // routerCalls plus router.go line-drops that are calls, not imports.
 // Import-lookalikes (ending in a quote) are restored elsewhere and are not
 // listed as wiring.
-func routerCallLines(u trimUnit) []string {
+func routerCallLines(u builtinUnit) []string {
 	var out []string
 	seen := map[string]bool{}
 	add := func(c string) {
@@ -112,11 +112,11 @@ func isRestorableRouteCall(sub string) bool {
 		strings.HasPrefix(sub, "r.Get(")
 }
 
-// addManualWiring lists the trim edits no tool can reverse mechanically:
+// portManualWiring lists the trim edits no tool can reverse mechanically:
 // chi.go lines that are not route registrations, unanchored strip blocks,
 // one-way replaces, and desktop imports. In a foreign tree these are the
 // hand-restored lines, printed verbatim so they can be pasted, not summarized.
-func addManualWiring(u trimUnit) []string {
+func portManualWiring(u builtinUnit) []string {
 	var out []string
 	for _, ed := range u.extraDrops {
 		for _, sub := range ed.substrs {
@@ -154,9 +154,9 @@ func addManualWiring(u trimUnit) []string {
 	return out
 }
 
-// addFollowUps lists the manual steps no tool can do: .templ call sites
+// portFollowUps lists the manual steps no tool can do: .templ call sites
 // (positions vary per layout) and the navbar brand (user taste).
-func addFollowUps(u trimUnit) []string {
+func portFollowUps(u builtinUnit) []string {
 	var out []string
 	switch u.id {
 	case unitWhiteboard:
@@ -193,21 +193,21 @@ func addFollowUps(u trimUnit) []string {
 	return out
 }
 
-// addClosure orders unit + its transitive deps (deps first), so the port
+// portClosure orders unit + its transitive deps (deps first), so the port
 // bundle carries a unit's soft dependencies (landing needs sounds' package).
-func addClosure(unitID string) ([]trimUnit, error) {
-	byUnit := map[string]trimUnit{}
-	for _, u := range manifestUnits {
+func portClosure(unitID string) ([]builtinUnit, error) {
+	byUnit := map[string]builtinUnit{}
+	for _, u := range builtinUnits {
 		byUnit[u.id] = u
 	}
 	byCap := capabilities.ByID()
 	unitOf := map[string]string{}
-	for _, u := range manifestUnits {
+	for _, u := range builtinUnits {
 		for _, c := range u.caps() {
 			unitOf[c] = u.id
 		}
 	}
-	var ordered []trimUnit
+	var ordered []builtinUnit
 	visited := map[string]bool{}
 	var visit func(id string) error
 	visit = func(id string) error {
@@ -217,7 +217,7 @@ func addClosure(unitID string) ([]trimUnit, error) {
 		visited[id] = true
 		u, ok := byUnit[id]
 		if !ok {
-			return fmt.Errorf("unknown unit %q (valid: %s)", id, strings.Join(dropIDs(manifestUnits), ", "))
+			return fmt.Errorf("unknown unit %q (valid: %s)", id, strings.Join(dropIDs(builtinUnits), ", "))
 		}
 		for _, dep := range u.caps() {
 			c := byCap[dep]

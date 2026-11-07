@@ -55,8 +55,11 @@ slot; its own policy rows.
 **May never:**
 
 1. **Own a column on a core table.** Need extra data about a core entity? Own a side table
-   keyed by the entity's id. `todos`, `users`, `sessions`, `security_events`,
+   keyed by the entity's id. `todos` (the legacy seed), `users`, `sessions`, `security_events`,
    `schema_migrations` and `config` are core, and a declaration naming one is refused.
+   The built-in `todo` unit is the one deliberate exception: it ships its
+   own `ext_todo_todos` table through the same declaration gate, so runtime
+   queries may only target that table and a recipe can never claim `todos`.
    The check reads your SQL too, not only the declaration: a migration that `ALTER`s,
    `DROP`s, indexes, seeds or triggers a core table is refused at boot, while a foreign key
    that merely *references* one (`REFERENCES users(id)`) is the correct way to scope your rows.
@@ -79,7 +82,7 @@ only a slot with a **host page in this build** can be filled.
 | `settings.section` | `section` — a block in the settings column | the settings page | a form section plus its **own** save endpoint |
 | `nav.sidebar` | `entries` — a list of destinations | the shell rail | a label and a href, not a fragment |
 | `record.row-actions` | `actions` — declarative data | the todo row | label, href, verb, optional confirmation — **not** a component |
-| `dashboard.card` | `cell` — one grid cell, narrow | — no dashboard page exists | declaring it is refused until one does |
+| `dashboard.card` | `cell` — one grid cell, narrow | the dashboard page (`features/dashboard`, GET `/dashboard`) | a title and rendered content; the dashboard owns the card and the grid |
 
 `record.row-actions` is data on purpose. A component would need the owning recipe's entity
 and its authorization decisions, which is the hook-inside-a-core-handler failure arriving

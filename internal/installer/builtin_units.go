@@ -1,7 +1,7 @@
-// Installer engine: unit ids, capability map, trim manifest
+// Installer engine: unit ids, capability map, builtin extension index
 package installer
 
-// Unit ids, the capability map and the per-unit trim manifest. Split out of
+// Unit ids, the capability map and the per-unit builtin extension index. Split out of
 // manifest.go so the data and the machinery that applies it can be read
 // separately.
 
@@ -58,11 +58,11 @@ const scaffoldFileMode = 0o644
 // deliberately empty removal list, spelled as a word so it survives editing.
 const keepNone = "none"
 
-// trimUnit is one installer unit: registry capabilities plus the
+// builtinUnit is one installer unit: registry capabilities plus the
 // mechanical wiring edits that delete them. All metadata (kind, warns,
 // owned paths) comes from internal/capabilities via meta(); this struct
 // holds only the mechanics.
-type trimUnit struct {
+type builtinUnit struct {
 	id string
 	// mainStrips are applied to cmd/web/main.go in order.
 	mainStrips []stripRule
@@ -97,7 +97,7 @@ type unitMeta struct {
 	runtimeOff string
 }
 
-func (u trimUnit) meta() unitMeta {
+func (u builtinUnit) meta() unitMeta {
 	byID := capabilities.ByID()
 	m := unitMeta{
 		dirs:  []string{},
@@ -129,7 +129,7 @@ func (u trimUnit) meta() unitMeta {
 	return m
 }
 
-func (u trimUnit) caps() []string {
+func (u builtinUnit) caps() []string {
 	if caps, ok := unitCaps[u.id]; ok {
 		return caps
 	}
@@ -200,7 +200,7 @@ func soundsPageLines() []string {
 const soundsPanelControl = `sounds.SoundSwitch()` // the shell's mute control
 
 // modulesFile is the shell's navigation registry: one line per module, which
-// is what trim units drop when they remove a destination. The brand lives in
+// is what built-in units drop when they remove a destination. The brand lives in
 // shellTempl, and that is what the landing unit retargets.
 const (
 	modulesFile = "internal/ui/modules.go"
@@ -239,30 +239,30 @@ const (
 	reviewImportSuffix = `features/review/handlers"`
 )
 
-// manifestUnits is every offered unit in canonical menu order. The order is
+// builtinUnits is every offered unit in canonical menu order. The order is
 // load-bearing: TestUnitMenusFollowRegistryKinds pins it, and the file
 // split (dagNats / feature / base) is by size, not by domain — so the order
 // is reconstructed here explicitly rather than by concatenating the slices.
-var manifestUnits = buildManifestUnits()
+var builtinUnits = buildBuiltinUnits()
 
-func buildManifestUnits() []trimUnit {
-	byID := make(map[string]trimUnit)
-	for _, u := range dagNatsTrimUnit {
+func buildBuiltinUnits() []builtinUnit {
+	byID := make(map[string]builtinUnit)
+	for _, u := range dagNatsBuiltinUnit {
 		byID[u.id] = u
 	}
-	for _, u := range featureTrimUnits {
+	for _, u := range featureBuiltinUnits {
 		byID[u.id] = u
 	}
-	for _, u := range genuiTrimUnits {
+	for _, u := range genuiBuiltinUnits {
 		byID[u.id] = u
 	}
-	for _, u := range searchTrimUnit {
+	for _, u := range searchBuiltinUnit {
 		byID[u.id] = u
 	}
-	for _, u := range baseTrimUnits {
+	for _, u := range baseBuiltinUnits {
 		byID[u.id] = u
 	}
-	for _, u := range perfTrimUnit {
+	for _, u := range perfBuiltinUnit {
 		byID[u.id] = u
 	}
 	order := []string{
@@ -270,7 +270,7 @@ func buildManifestUnits() []trimUnit {
 		unitConfigView, unitCredits, unitSounds,
 		unitGenUI, unitReview, unitSearch, unitPerf,
 	}
-	out := make([]trimUnit, 0, len(order))
+	out := make([]builtinUnit, 0, len(order))
 	for _, id := range order {
 		u, ok := byID[id]
 		if !ok {
@@ -281,7 +281,7 @@ func buildManifestUnits() []trimUnit {
 	return out
 }
 
-var baseTrimUnits = []trimUnit{
+var baseBuiltinUnits = []builtinUnit{
 	{
 		id: unitGoAkt,
 		// Bundle rationale, same as whiteboard+collab: the room demo

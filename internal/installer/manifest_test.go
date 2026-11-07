@@ -29,7 +29,7 @@ func TestValidateName(t *testing.T) {
 func TestManifestUnitsCoverTheRegistry(t *testing.T) {
 	byID := capabilities.ByID()
 	seen := map[string]bool{}
-	for _, u := range manifestUnits {
+	for _, u := range builtinUnits {
 		if seen[u.id] {
 			t.Errorf("duplicate unit %q", u.id)
 		}
@@ -46,7 +46,7 @@ func TestManifestUnitsCoverTheRegistry(t *testing.T) {
 	}
 	var b strings.Builder
 	printPlanText(&b, p)
-	if !strings.Contains(b.String(), "trim:           nothing (full template)") {
+	if !strings.Contains(b.String(), "removal:        none (full template)") {
 		t.Errorf("plan text must say the trim is gone:\n%s", b.String())
 	}
 }

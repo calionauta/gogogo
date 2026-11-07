@@ -104,6 +104,16 @@ type newFeatureArgs struct {
 	DryRun  bool   `json:"dryRun,omitempty" jsonschema:"print the plan and stop when true"`
 }
 
+type recipeArgs struct {
+	Src     string `json:"src,omitempty" jsonschema:"recipe directory, or recipe id for install/update (required unless entry is set)"`
+	Entry   string `json:"entry,omitempty" jsonschema:"optional catalog entry (.yml); src is then the pristine contents directory"`
+	ID      string `json:"id,omitempty" jsonschema:"installed recipe id (for status/uninstall)"`
+	Dir     string `json:"dir,omitempty" jsonschema:"target checkout directory (required)"`
+	Format  string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
+	Confirm bool   `json:"confirm,omitempty" jsonschema:"must be true for install/update/uninstall (preview with dryRun first)"`
+	DryRun  bool   `json:"dryRun,omitempty" jsonschema:"print the plan and stop; changes nothing"`
+}
+
 // exportArgs is the port-bundle tool: it writes ONLY into `to` (a scratch
 // directory) and never touches `dir`, so it needs no confirm gate — the
 // destructive-tool rule protects the tree the caller cares about.
@@ -255,6 +265,98 @@ func handleNewFeature(
 	}
 	var buf bytes.Buffer
 	err := installer.Run(ctx, cli, strings.NewReader(""), &buf)
+	return runResult(buf.String(), err)
+}
+
+func recipeCLIArgs(subcommand string, args recipeArgs) ([]string, error) {
+	if args.Dir == "" {
+		return nil, fmt.Errorf("dir is required")
+	}
+	format := args.Format
+	if format == "" {
+		format = defaultFormat
+	}
+	cli := []string{"recipe", subcommand}
+	switch subcommand {
+	case "install", "update":
+		if args.Src == "" {
+			return nil, fmt.Errorf("src is required (recipe directory, catalog contents directory, or recipe id)")
+		}
+		cli = append(cli, args.Src, "--dir", args.Dir, "--format", format)
+		if args.Entry != "" {
+			cli = append(cli, "--entry", args.Entry)
+		}
+	case "status":
+		if args.ID != "" {
+			cli = append(cli, args.ID)
+		}
+		cli = append(cli, "--dir", args.Dir, "--format", format)
+	case "uninstall":
+		if args.ID == "" {
+			return nil, fmt.Errorf("id is required")
+		}
+		cli = append(cli, args.ID, "--dir", args.Dir)
+	}
+	if !args.DryRun {
+		if subcommand != "status" && !args.Confirm {
+			return nil, fmt.Errorf("refusing without confirm:true (or dryRun:true to preview)")
+		}
+		cli = append(cli, "--yes")
+	} else if subcommand != "status" {
+		// `recipe uninstall` has no --dry-run; preview through status. Only
+		// install/update can honor a dry run.
+		if subcommand == "uninstall" {
+			return nil, fmt.Errorf("uninstall has no dry-run; use recipe_status, then confirm:true")
+		}
+	}
+	return cli, nil
+}
+
+func handleRecipeInstall(
+	ctx context.Context, _ *mcp.CallToolRequest, args recipeArgs,
+) (*mcp.CallToolResult, any, error) {
+	cli, err := recipeCLIArgs("install", args)
+	if err != nil {
+		return nil, nil, err
+	}
+	var buf bytes.Buffer
+	err = installer.Run(ctx, cli, strings.NewReader(""), &buf)
+	return runResult(buf.String(), err)
+}
+
+func handleRecipeUpdate(
+	ctx context.Context, _ *mcp.CallToolRequest, args recipeArgs,
+) (*mcp.CallToolResult, any, error) {
+	cli, err := recipeCLIArgs("update", args)
+	if err != nil {
+		return nil, nil, err
+	}
+	var buf bytes.Buffer
+	err = installer.Run(ctx, cli, strings.NewReader(""), &buf)
+	return runResult(buf.String(), err)
+}
+
+func handleRecipeUninstall(
+	ctx context.Context, _ *mcp.CallToolRequest, args recipeArgs,
+) (*mcp.CallToolResult, any, error) {
+	cli, err := recipeCLIArgs("uninstall", args)
+	if err != nil {
+		return nil, nil, err
+	}
+	var buf bytes.Buffer
+	err = installer.Run(ctx, cli, strings.NewReader(""), &buf)
+	return runResult(buf.String(), err)
+}
+
+func handleRecipeStatus(
+	ctx context.Context, _ *mcp.CallToolRequest, args recipeArgs,
+) (*mcp.CallToolResult, any, error) {
+	cli, err := recipeCLIArgs("status", args)
+	if err != nil {
+		return nil, nil, err
+	}
+	var buf bytes.Buffer
+	err = installer.Run(ctx, cli, strings.NewReader(""), &buf)
 	return runResult(buf.String(), err)
 }
 

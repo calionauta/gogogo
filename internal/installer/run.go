@@ -73,7 +73,7 @@ func ErrorText(err error) string {
 // that assumes the prefix.
 var Version = "dev"
 
-func unitOneLiner(u trimUnit) string {
+func unitOneLiner(u builtinUnit) string {
 	byID := capabilities.ByID()
 	if c, ok := byID[u.caps()[0]]; ok {
 		return c.Summary
@@ -339,7 +339,7 @@ const (
 func prove(ctx context.Context, dir string, stdout io.Writer) error {
 	// With no trim, no in-place .templ is edited: the rename rewrites only
 	// module paths in Go sources, which `go build` proves as-is. The
-	// templ step the old trim path ran for edited .templ files is gone
+	// templ step the old port path ran for edited .templ files is gone
 	// with the trim itself.
 	fmt.Fprintln(stdout, "gogogo: prove: go mod tidy …")
 	if out, err := runIn(ctx, dir, "go", "mod", "tidy"); err != nil {
@@ -411,8 +411,8 @@ type UnitView struct {
 
 // Units lists installer units in manifest order.
 func Units() []UnitView {
-	out := make([]UnitView, 0, len(manifestUnits))
-	for _, u := range manifestUnits {
+	out := make([]UnitView, 0, len(builtinUnits))
+	for _, u := range builtinUnits {
 		m := u.meta()
 		summary := u.id
 		if s := unitOneLiner(u); s != u.id {

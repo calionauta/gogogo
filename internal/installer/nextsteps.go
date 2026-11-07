@@ -18,7 +18,7 @@ const emailNextSteps = "set APP_URL + SMTP_ADDR/SMTP_FROM as environment variabl
 	"keep SMTP_USERNAME/SMTP_PASSWORD in ~/.secrets/<your-app>.env (then bin/init-secrets --reencrypt). " +
 	"Never reuse another project's secrets file; `make mailpit` is local capture only."
 
-func buildNextSteps(dir string, dropped []trimUnit) nextSteps {
+func buildNextSteps(dir string, dropped []builtinUnit) nextSteps {
 	n := nextSteps{
 		Dir:   dir,
 		Dev:   "cd " + dir + " && make dev",
@@ -37,7 +37,7 @@ func buildNextSteps(dir string, dropped []trimUnit) nextSteps {
 	return n
 }
 
-func printNextSteps(w io.Writer, dir string, dropped []trimUnit) {
+func printNextSteps(w io.Writer, dir string, dropped []builtinUnit) {
 	n := buildNextSteps(dir, dropped)
 	fmt.Fprintln(w, "gogogo: done — next:")
 	fmt.Fprintf(w, "  %s\n", n.Dev)

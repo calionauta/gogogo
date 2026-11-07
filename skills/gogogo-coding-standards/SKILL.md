@@ -180,6 +180,12 @@ Full strategy: `references/go-testing.md`.
 - `t.Parallel()` is the biggest single lever on wall-clock (per-test fixtures like the temp-dir database are the fixed cost). Audit first: no `t.Setenv`, no shared package global, no shared connection/server singleton — otherwise it is a red race, not a speed-up.
 - **Test/request timeouts must exceed SQLite's `busy_timeout`** (10s here), or a request cancels while the DB is still legitimately waiting for the lock — the "intermittent `context deadline exceeded`" that is really lock contention.
 - Test servers bind EPHEMERAL ports (`127.0.0.1:0`, NATS `-1`) and read the real address back from the server; a fixed port lets another package's test steal it under `-p N`, which reads as "needs `-p 1`" but is a collision.
+- **Fixtures outlive features.** A helper used by more than one test file belongs
+  in a fixture file (`*_fixture_test.go`), not beside one feature's
+  implementation: deleting or moving the feature must not orphan those call
+  sites. During the phase-4 retirement, `writeFile`, `mustOpenTree`,
+  `captureStdout`, `repoRoot` and `findUnit` were moved from four deleted
+  feature-adjacent files into a shared installer fixture file.
 - **Constructors build, callers start; tests own the listener.** `BootChi` builds the stack without listening; `serveChiOnListener` serves an already-bound listener. Tests bind `127.0.0.1:0`, read the port back, and drive real HTTP through it — the automated preflight. Never add a serve path tests cannot borrow (a second constructor that binds its own port is untestable without a fixed port, which the rule above forbids).
 - Table-driven for multi-case logic. `t.Helper()` in helpers (`thelper`).
 - Turso/SQLite: temp-dir file + `Migrate()`, drive via `httptest`. LLM points: function-field injection, no VCR server.
@@ -232,12 +238,13 @@ Full rules: `references/datastar.md`.
   the RBAC rows, regenerates the docs and proves the build. Read the unit's
   card in [`docs/unit-contracts.md`](../../docs/unit-contracts.md) first: it
   lists the routes and generated queries the unit already owns.
-- **A capability entry declares its Scaffold class.** `core` never appears in
-  the prompt; `default` is kept unless dropped; `opt-in` is dropped unless
-  named; `manual` is not offered and carries a `Reason`. The prompt and the
-  MCP read `internal/capabilities`; a `default`/`opt-in` unit without a trim
-  unit fails the installer conformance test. See
-  [`docs/research/scaffold-choice-2026-10.md`](../../docs/research/scaffold-choice-2026-10.md).
+- **A capability entry is data, not a scaffold choice.** Every entry in
+  `internal/capabilities` now ships in the tree: scaffold no longer offers
+  keep/drop lists or an opt-in prompt. Removal is manual and per-unit — the
+  registry `Reason` says what disappears with the unit. For a removable or
+  reinstallable extension, use the recipe path: `gogogo recipe install` on
+  the CLI, or `recipe_install` / `recipe_update` / `recipe_uninstall` /
+  `recipe_status` over MCP, all backed by the same engine declaration.
 - **New feature code goes in `features/<feature>/handlers/`.** That package is
   the live surface: chi routes, owned auth, `dbgen` queries called directly, the
   same Templ components, the same SSE wire. The entry file is `chi.go` in every

@@ -79,28 +79,27 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
   Strategy: empty --need returns the full map (presets + every
   capability); a need that matches nothing prints the preset names to
   retry with — or decide straight from the capabilities table. --intent
-  (update|port|add-unit|new-feature|scaffold) prints the ordered commands
+  (update|port|new-feature|scaffold) prints the ordered commands
   for that goal; omitted, it is inferred from --need and the answer says
   which. A --dir that is not a gogogo checkout answers with the copy
   surface and the export route instead of "cannot".
 
   What it does, in order:
-    1. shows the trim plan with every consequence (never silent),
+    1. shows the plan with every consequence (never silent),
     2. clones the template into --dir when it is missing (with consent),
-    3. deletes skipped plugins/features with their wiring calls,
-    4. renames the module path + every reference (rename-project.py rules),
-    5. writes AGENTS.md with the upstream-first rule,
-    6. proves it: templ generate (when .templ edited) + go mod tidy +
+    3. renames the module path + every reference (rename-project.py rules),
+    4. writes AGENTS.md with the upstream-first rule,
+    5. proves: templ generate (when .templ edited) + go mod tidy +
        go build ./cmd/web, then prints the exact next commands
        (cd <dir> && make dev — a child process cannot cd its parent).
        With --run it skips the printing and becomes dev itself: execs
        make dev in the new checkout (humans only; agents must not).
 
-  Units (id, kind). Kind follows the servant principle, not the directory:
-  a plugin serves other capabilities (sounds, credits serve pages);
+  Capabilities (id, kind). Kind follows the servant principle, not the
+  directory: a plugin serves other capabilities (sounds, credits serve pages);
   a feature is a terminal user surface (todo, whiteboard, landing, config).
-  No unit is offered or dropped at scaffold anymore: every unit ships, and
-  the removal choices live in the registry's per-unit Reason.`)
+  Every capability ships in the scaffold; manual removal is recorded by the
+  registry's per-unit Reason.`)
 	printUsageTail(w, fs)
 }
 
@@ -109,7 +108,7 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
 // what a reader consults after deciding on a command.
 func printUsageTail(w io.Writer, fs *flag.FlagSet) {
 	printBuildGuidance(w)
-	fmt.Fprintln(w, "\n  Trim units:")
+	fmt.Fprintln(w, "\n  Capabilities:")
 	for _, u := range Units() {
 		fmt.Fprintf(w, "    %-12s %-7s %s\n", u.ID, u.Kind, u.Summary)
 	}
@@ -123,6 +122,6 @@ func printUsageTail(w io.Writer, fs *flag.FlagSet) {
   {plan, receipt{units[{id, dirsRemoved, filesRemoved,
   stripsApplied, stripsMissed}]}, buildOk, buildError,
   next{dir, dev, app, todo, login, admin, workflows}}.
-  Exit codes: 0 ok/plan-only, 1 usage or apply error, 2 proof build failed,
-  3 an update exists (--check-update only).`)
+   Exit codes: 0 ok/plan-only, 1 usage or apply error, 2 proof build failed,
+   3 an update exists (--check-update only).`)
 }

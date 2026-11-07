@@ -255,7 +255,7 @@ var stdlibRules = []string{
 // notCheckoutRules replace the template rules when --dir points at something
 // that is NOT a gogogo checkout. Distinct from stdlibRules because the cause is
 // different: the need did not rule the template out, the PATH did — there is no
-// trim manifest to act on, so the advice is about what can still be reused
+// builtin extension index to act on, so the advice is about what can still be reused
 // rather than about dependencies.
 var notCheckoutRules = []string{
 	"The path given with --dir is not a gogogo checkout (no cmd/web/main.go " +

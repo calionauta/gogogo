@@ -38,7 +38,7 @@ func newPageSource(name, module string) string {
 // editChiGo adds the feature to the composition root: one import and one
 // self-contained block in BootChi (construction + mounts). Mounting in
 // BootChi instead of threading a parameter through buildChiMux keeps the
-// scaffold independent of every trim unit — credits, landing and their
+// scaffold independent of every built-in unit — credits, landing and their
 // signature lines are all removable.
 func editChiGo(src, name, module string) (string, error) {
 	alias := name + "handlers"
@@ -99,7 +99,7 @@ func newRegistryEntry(name string) string {
 		"\t\tKind:    KindFeature,\n" +
 		"\t\tSummary: \"" + name + " feature (scaffolded by `gogogo new`)\",\n" +
 		"\t\tDirs:    []string{\"features/" + name + "\"},\n" +
-		"\t\tReason:  \"Scaffolded: no trim unit yet — removal is manual until you add the strips.\",\n" +
+		"\t\tReason:  \"Scaffolded: no built-in unit yet — removal is manual until you add the strips.\",\n" +
 		"\t},\n"
 }
 

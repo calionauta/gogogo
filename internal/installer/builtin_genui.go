@@ -1,4 +1,4 @@
-// Installer engine: the genui/chat trim unit (data only)
+// Installer engine: the genui/chat built-in unit (data only)
 //
 // Split out of trim_features.go for the file-size gate. genui is the AI
 // bundle: chat imports genui components (no-compile without it), so the two
@@ -8,8 +8,8 @@
 
 package installer
 
-// genuiTrimUnits holds the one AI unit. A slice (not a bare literal) so
-// manifest_units.go appends it the same way it appends featureTrimUnits.
+// genuiBuiltinUnits holds the one AI unit. A slice (not a bare literal) so
+// builtin_units.go appends it the same way it appends featureBuiltinUnits.
 //
 // The import lines are consts because the unit drops them from three files
 // (chi.go, chi_test.go and boot_helpers.go) and goconst is right that one
@@ -24,7 +24,7 @@ const (
 	configPageTempl = "features/config/components/page.templ"
 )
 
-var genuiTrimUnits = []trimUnit{
+var genuiBuiltinUnits = []builtinUnit{
 	{
 		id: unitGenUI,
 		// Bundle rationale lives in the genui capability entry: chat imports

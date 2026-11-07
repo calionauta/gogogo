@@ -53,7 +53,7 @@ func readTrimProvenance(root string) trimProvenance {
 		return tp
 	}
 	known := map[string]bool{}
-	for _, u := range manifestUnits {
+	for _, u := range builtinUnits {
 		known[u.id] = true
 	}
 	for id := range strings.SplitSeq(m[1], ",") {
@@ -81,7 +81,7 @@ func readTrimProvenance(root string) trimProvenance {
 // repo-relative dirs and files the dropped units owned, sorted for a stable
 // AGENTS.md. The registry conformance tests skip exactly these paths, so a
 // deliberately trimmed tree does not report its own removals as missing.
-func removedPaths(drop []trimUnit) string {
+func removedPaths(drop []builtinUnit) string {
 	seen := map[string]bool{}
 	var out []string
 	for _, u := range drop {
@@ -102,7 +102,7 @@ func removedPaths(drop []trimUnit) string {
 
 // removedIDs extracts the unit ids from a trim plan, sorted for a stable
 // AGENTS.md (a shuffled list would show as a diff on every scaffold).
-func removedIDs(drop []trimUnit) []string {
+func removedIDs(drop []builtinUnit) []string {
 	ids := make([]string, 0, len(drop))
 	for _, u := range drop {
 		ids = append(ids, u.id)

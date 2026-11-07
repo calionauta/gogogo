@@ -5,10 +5,9 @@ import "github.com/modelcontextprotocol/go-sdk/mcp"
 var toolCatalog = []toolDef{
 	{
 		"capabilities_list",
-		"Raw registry JSON: every template capability with id, kind, scaffold " +
-			"class (core/default/opt-in/manual), summary, and off-switch. Registry " +
-			"only — takes no path, so it answers from any directory. Use it to look " +
-			"up an id/class/off-switch; use advise_stack to decide WHICH ones apply.",
+		"Raw registry JSON: every template capability with id, kind, summary, and off-switch. Registry " +
+			"only — takes no path, so it answers from any directory. Use it to look up an id or off-switch; " +
+			"use advise_stack to decide WHICH ones apply.",
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleCapabilitiesList) },
 	},
 	{
@@ -85,13 +84,40 @@ var toolCatalog = []toolDef{
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleNewFeature) },
 	},
 	{
+		"recipe_install",
+		"Install a recipe package (tree plus .recipe.yml) into a gogogo checkout: copy, " +
+			"receipt, generated registration, schema/policy/codegen and proof. Mutates the target directory. " +
+			"Requires confirm:true plus src (recipe directory or id) and dir; use dryRun:true to preview. " +
+			"For a catalog entry, also provide entry and the pristine contents directory.",
+		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeInstall) },
+	},
+	{
+		"recipe_update",
+		"Update an already-installed recipe from a recipe directory or catalog entry. Same guards as recipe_install: " +
+			"requires confirm:true (or dryRun:true to preview), plus src and dir.",
+		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeUpdate) },
+	},
+	{
+		"recipe_uninstall",
+		"Uninstall one installed recipe by id: removes only pristine files, keeps edited or derived state, " +
+			"updates registration/policy/schema surfaces and marks the receipt removed. Requires confirm:true; " +
+			"without it returns the removal plan.",
+		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeUninstall) },
+	},
+	{
+		"recipe_status",
+		"Read-only recipe drift report: pristine vs edited copy, generated/schema/policy state, or one recipe by id. " +
+			"Changes nothing and needs no confirmation.",
+		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeStatus) },
+	},
+	{
 		"advise_stack",
 		"Opinions, not changes: which units to keep for a use-case, how each " +
 			"switches off, and the exact command ROUTE for the goal. " +
 			"Empty need returns the full map; no preset matched means decide from the " +
 			"capabilities table or retry with broader terms. Business-language fit per " +
 			"unit: https://calionauta.github.io/gogogo/docs/use-cases/. Start here when " +
-			"deciding. Pass `intent` (update|port|add-unit|new-feature|scaffold) to get " +
+			"deciding. Pass `intent` (update|port|new-feature|scaffold) to get " +
 			"the ordered commands for that goal; omitted = inferred from `need`, and the " +
 			"answer says which it used. Pass `dir` so the answer can say whether that " +
 			"path is a gogogo checkout: a tree that is NOT one gets its own scope with " +

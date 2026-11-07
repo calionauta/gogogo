@@ -67,14 +67,3 @@ func ByID() map[string]Capability {
 	}
 	return m
 }
-
-// Class resolves the scaffold class. Core wins over the field (a core unit is
-// never offered, even if a stray Scaffold says otherwise), and a non-core
-// unit without a class is manual.
-
-// OfferedIDs returns the ids the installer may keep or drop, in registry
-// order. Bundled capabilities (room, collab, notes, chat) appear here because
-// their unit removes them too; the installer maps ids to its own units.
-
-// IDsByScaffold returns the capability ids in one scaffold class, in registry
-// order. The installer uses it for the default and opt-in prompt groups.

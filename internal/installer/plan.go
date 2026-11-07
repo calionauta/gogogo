@@ -11,10 +11,12 @@ import (
 )
 
 // planUnit is the agent- and human-readable rendering of one dropped unit.
+// Scaffold keeps every capability, so the scaffold plan carries no dropped
+// units; the type is retained only to keep the documented JSON shape stable
+// for existing consumers.
 type planUnit struct {
 	ID         string   `json:"id"`
 	Kind       string   `json:"kind"`
-	Scaffold   string   `json:"scaffold"`
 	Dirs       []string `json:"dirs"`
 	Files      []string `json:"files"`
 	Warns      []string `json:"warnings"`
@@ -23,18 +25,19 @@ type planUnit struct {
 	RuntimeOff string   `json:"runtimeOff,omitempty"`
 }
 
-// keptUnit is what stays: id + kind + one-line summary, so deciders
-// reading --format json see what each kept unit IS, not just its id.
+// keptUnit is what ships: id + kind + one-line summary, so deciders
+// reading --format json see what each capability is, not just its id.
 // Additive (the id lists stay): stable field names are untouched.
 type keptUnit struct {
-	ID       string `json:"id"`
-	Kind     string `json:"kind"`
-	Scaffold string `json:"scaffold"`
-	Summary  string `json:"summary"`
+	ID      string `json:"id"`
+	Kind    string `json:"kind"`
+	Summary string `json:"summary"`
 }
 
-// scaffoldPlan is the full preview of what the installer will do.
-// JSON field names are stable: agents may parse --format json output.
+// scaffoldPlan is the full preview of what the installer will do. Scaffold
+// ships the whole tree: there is no keep/drop decision, and the arrays list
+// every capability that the scaffold keeps. JSON field names are stable:
+// agents may parse --format json output.
 type scaffoldPlan struct {
 	Name         string     `json:"name"`
 	Owner        string     `json:"owner"`
@@ -42,19 +45,15 @@ type scaffoldPlan struct {
 	Dir          string     `json:"dir"`
 	KeepPlugins  []string   `json:"keepPlugins"`
 	KeepFeatures []string   `json:"keepFeatures"`
-	KeepOptIn    []string   `json:"keepOptIn"`
 	Keep         []keptUnit `json:"keepUnits"`
 	Drop         []planUnit `json:"drop"`
 	DryRun       bool       `json:"dryRun"`
-	// Preset names the --preset that produced this plan ("" for explicit
-	// keep lists). Additive: parsers that ignore unknown fields are unaffected.
-	Preset string `json:"preset,omitempty"`
 }
 
 func buildPlan(name, owner, dir string, dryRun bool) scaffoldPlan {
 	// No keep/drop decision exists: scaffold now ships the whole tree.
 	// The JSON fields stay populated — keepPlugins/keepFeatures list every
-	// offered plugin/feature the tree keeps — so an agent parsing --format
+	// plugin/feature the tree keeps — so an agent parsing --format
 	// json sees the same shape it always did.
 	p := scaffoldPlan{
 		Name:         name,
@@ -63,7 +62,6 @@ func buildPlan(name, owner, dir string, dryRun bool) scaffoldPlan {
 		Dir:          dir,
 		KeepPlugins:  []string{},
 		KeepFeatures: []string{},
-		KeepOptIn:    []string{},
 		Keep:         []keptUnit{},
 		Drop:         []planUnit{},
 		DryRun:       dryRun,
@@ -71,7 +69,7 @@ func buildPlan(name, owner, dir string, dryRun bool) scaffoldPlan {
 	for _, capability := range capabilities.All {
 		c := capability.ID
 		summary := capability.Summary
-		kept := keptUnit{ID: c, Kind: string(capability.Kind), Scaffold: "", Summary: summary}
+		kept := keptUnit{ID: c, Kind: string(capability.Kind), Summary: summary}
 		switch capability.Kind {
 		case capabilities.KindPlugin:
 			p.KeepPlugins = append(p.KeepPlugins, c)
@@ -87,16 +85,8 @@ func printPlanText(w io.Writer, p scaffoldPlan) {
 	fmt.Fprintf(w, "gogogo: scaffolding %s\n", p.Module)
 	fmt.Fprintf(w, "  dir:            %s\n", p.Dir)
 
-	fmt.Fprintf(w, "  keep plugins:   %s\n", strings.Join(p.KeepPlugins, ", "))
-	fmt.Fprintf(w, "  keep features:  %s\n", strings.Join(p.KeepFeatures, ", "))
-	if len(p.KeepOptIn) > 0 {
-		fmt.Fprintf(w, "  keep opt-in:    %s\n", strings.Join(p.KeepOptIn, ", "))
-	}
-	if len(p.Drop) == 0 {
-		fmt.Fprintln(w, "  trim:           nothing (full template)")
-		return
-	}
-	fmt.Fprintln(w, "  trim:           nothing (full template)")
+	fmt.Fprintf(w, "  capabilities:   %s\n", strings.Join(p.KeepPlugins, ", ")+"; "+strings.Join(p.KeepFeatures, ", "))
+	fmt.Fprintln(w, "  removal:        none (full template)")
 }
 
 func printPlanJSON(w io.Writer, p scaffoldPlan) error {

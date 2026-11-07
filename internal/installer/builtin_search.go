@@ -1,4 +1,4 @@
-// Installer engine: the search trim unit (data only)
+// Installer engine: the search built-in unit (data only)
 //
 // Split from trim_features.go for the file-sizes gate, mirroring
 // trim_dagnats.go. The unit is small, but its rules are the subtlest in the
@@ -8,7 +8,7 @@
 
 package installer
 
-// searchTrimUnit removes the search plugin.
+// searchBuiltinUnit removes the search plugin.
 //
 // What goes: internal/search, the consumer half of the seam
 // (features/todo/handlers/search_source.go) and its tests, the boot helper
@@ -21,7 +21,7 @@ package installer
 // interfaces and a bool, so they compile untouched and degrade to the plain
 // list — the removal contract the capability advertises. Dropping the
 // endpoint instead would break trim_chi_sync's route accounting.
-var searchTrimUnit = []trimUnit{
+var searchBuiltinUnit = []builtinUnit{
 	{
 		id: unitSearch,
 		// The composition-root call is the only remaining reference to the

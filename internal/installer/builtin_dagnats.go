@@ -1,6 +1,6 @@
-// Installer engine: the DagNats trim unit (data only)
+// Installer engine: the DagNats built-in unit (data only)
 //
-// Split from manifest_units.go because it is by far the largest unit: the
+// Split from builtin_units.go because it is by far the largest unit: the
 // flat stack embeds onboarding-adjacent wiring in the composition root, so
 // trimming the engine edits the boot block, the mount helper, the route
 // lines and the import. One unit one file keeps that readable, and the
@@ -8,7 +8,7 @@
 
 package installer
 
-var dagNatsTrimUnit = []trimUnit{
+var dagNatsBuiltinUnit = []builtinUnit{
 	{
 		id: unitDagnats,
 		extraDrops: []fileDrop{

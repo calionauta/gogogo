@@ -14,7 +14,7 @@ import (
 // stable: an unsorted list would show as a diff on every scaffold, and a diff in
 // a machine-read line is exactly what erodes trust in it.
 func TestRemovedIDsAreSorted(t *testing.T) {
-	got := removedIDs([]trimUnit{{id: "whiteboard"}, {id: "sounds"}, {id: "dagnats"}})
+	got := removedIDs([]builtinUnit{{id: "whiteboard"}, {id: "sounds"}, {id: "dagnats"}})
 	want := []string{"dagnats", "sounds", "whiteboard"}
 	if !slices.Equal(got, want) {
 		t.Errorf("removedIDs = %v, want %v", got, want)
@@ -54,7 +54,7 @@ func TestReadTrimProvenanceMissingSection(t *testing.T) {
 func TestWriteAgentsPointsUpstream(t *testing.T) {
 	dir := t.TempDir()
 	// Sorted, as removedIDs produces it in the real apply path.
-	drop := []trimUnit{findUnit(t, "sounds"), findUnit(t, "whiteboard")}
+	drop := []builtinUnit{findUnit(t, "sounds"), findUnit(t, "whiteboard")}
 	if err := writeAgents(context.Background(), dir, "my-app", drop); err != nil {
 		t.Fatal(err)
 	}

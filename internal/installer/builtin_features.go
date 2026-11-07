@@ -1,8 +1,8 @@
-// Installer engine: the feature trim units (data only)
+// Installer engine: the feature built-in units (data only)
 //
 // Whiteboard, landing, config-view, credits and genui: each wires into the
 // composition root, so their trims edit the shared signature, call site and
-// composition test. Grouped here so manifest_units.go stays under the
+// composition test. Grouped here so builtin_units.go stays under the
 // file-sizes gate; the grouping is by size, not by domain.
 
 package installer
@@ -16,7 +16,7 @@ const (
 	muxGoneStatus = "http.StatusNotFound"
 )
 
-var featureTrimUnits = []trimUnit{
+var featureBuiltinUnits = []builtinUnit{
 	{
 		id: unitWhiteboard,
 		// Bundle rationale lives in the collab capability entry: one
@@ -237,7 +237,7 @@ var featureTrimUnits = []trimUnit{
 				// Landing owned the only root route: without it GET /
 				// 404s (pinned here, warned in the capability). One-way
 				// (add leaves the 404 pin): re-assert 200 by hand, see
-				// addFollowUps.
+				// portFollowUps.
 				path:        chiTestFile,
 				matchSubstr: "landingRec.Code != http.StatusOK",
 				old:         "http.StatusOK",
@@ -298,7 +298,7 @@ var featureTrimUnits = []trimUnit{
 				// admin fence (403). Without the unit the route must 404
 				// (same rule as credits/landing: absence says "not
 				// here"). One-way (add leaves the 404 pin): re-assert
-				// 403 by hand, see addFollowUps.
+				// 403 by hand, see portFollowUps.
 				path:        chiTestFile,
 				matchSubstr: "configRec.Code != http.StatusForbidden",
 				old:         "http.StatusForbidden",
@@ -368,7 +368,7 @@ var featureTrimUnits = []trimUnit{
 				// a dead route answering anything else is worse than one
 				// that says "not here" (same rule as the room-disabled
 				// test). One-way (add leaves the 404 pin): re-assert 401
-				// by hand, see addFollowUps.
+				// by hand, see portFollowUps.
 				path:        chiTestFile,
 				matchSubstr: "creditsRec.Code != http.StatusUnauthorized",
 				old:         "http.StatusUnauthorized",

@@ -19,20 +19,20 @@ func writeFile(t *testing.T, path, content string) {
 }
 
 // findUnit returns the manifest unit with id, failing the test otherwise.
-func findUnit(t *testing.T, id string) trimUnit {
+func findUnit(t *testing.T, id string) builtinUnit {
 	t.Helper()
-	for _, u := range manifestUnits {
+	for _, u := range builtinUnits {
 		if u.id == id {
 			return u
 		}
 	}
 	t.Fatalf("no manifest unit %q", id)
-	return trimUnit{}
+	return builtinUnit{}
 }
 
 // captureStdout runs fn with the process stdout replaced by a pipe and
 // returns what it wrote. The old apply_test.go copy of this helper died with
-// the trim engine; advise and scaffold tests still need it.
+// the port engine; advise and scaffold tests still need it.
 func captureStdout(t *testing.T, fn func(w *os.File)) string {
 	t.Helper()
 	r, w, err := os.Pipe()
