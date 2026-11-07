@@ -21,11 +21,11 @@ func TestHandlersIndexFailsClosedWhenListFails(t *testing.T) {
 	cookie := f.signup("failclosed@example.com")
 	f.do(http.MethodPost, "/api/todos", "title=Real+item&filter=all", cookie)
 
-	// Drop only the todos table: the session still resolves through users and
+	// Drop only the owned todos table: the session still resolves through users and
 	// sessions, so the request reaches the list and the list alone fails.
 	// (Closing the whole store would bounce to /login first, which is correct
 	// but tests nothing about the list.)
-	if _, err := f.sqlDB.ExecContext(context.Background(), "DROP TABLE todos"); err != nil {
+	if _, err := f.sqlDB.ExecContext(context.Background(), "DROP TABLE ext_todo_todos"); err != nil {
 		t.Fatalf("drop todos table: %v", err)
 	}
 

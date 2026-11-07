@@ -35,5 +35,5 @@ sql:
         overrides:
           # INTEGER 0/1 reads better as a bool at every call site; the
           # database/sql scan path converts the engine's integer for us.
-          - column: "todos.completed"
+          - column: "ext_todo_todos.completed"
             go_type: "bool"

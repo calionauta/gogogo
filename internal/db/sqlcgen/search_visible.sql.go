@@ -10,7 +10,7 @@ import (
 )
 
 const searchTodosVisible = `-- name: SearchTodosVisible :many
-SELECT id, owner, title, completed, idem_key, created, updated, visibility FROM todos
+SELECT id, owner, title, completed, idem_key, created, updated, visibility FROM ext_todo_todos
 WHERE (owner = ? OR visibility = 'public') AND lower(title) LIKE lower(?)
 ORDER BY completed, created DESC
 LIMIT ?
@@ -25,15 +25,15 @@ type SearchTodosVisibleParams struct {
 // The shared-search half of layer 1: own rows plus public rows, same
 // case-insensitive substring and order as SearchTodosByOwner. The caller
 // builds the pattern in Go, so the user's text needs no escaping here.
-func (q *Queries) SearchTodosVisible(ctx context.Context, arg SearchTodosVisibleParams) ([]Todo, error) {
+func (q *Queries) SearchTodosVisible(ctx context.Context, arg SearchTodosVisibleParams) ([]ExtTodoTodo, error) {
 	rows, err := q.db.QueryContext(ctx, searchTodosVisible, arg.Owner, arg.LOWER, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Todo{}
+	items := []ExtTodoTodo{}
 	for rows.Next() {
-		var i Todo
+		var i ExtTodoTodo
 		if err := rows.Scan(
 			&i.ID,
 			&i.Owner,

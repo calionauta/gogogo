@@ -90,7 +90,7 @@ func TestTodoPanelSummarySeparatesOpenFromDone(t *testing.T) {
 		t.Fatal("fixture lost the row it just created")
 	}
 	if _, uerr := f.sqlDB.ExecContext(context.Background(),
-		`UPDATE todos SET completed = 1 WHERE id = ?`, doneID); uerr != nil {
+		`UPDATE ext_todo_todos SET completed = 1 WHERE id = ?`, doneID); uerr != nil {
 		t.Fatalf("complete row: %v", uerr)
 	}
 

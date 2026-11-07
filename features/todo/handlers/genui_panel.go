@@ -216,7 +216,7 @@ func (p *TodoPanel) Summary(ctx context.Context, owner string) (string, error) {
 }
 
 // titles joins the titles of one slice, separated by "; ".
-func titles(rows []dbgen.Todo, done bool) string {
+func titles(rows []dbgen.ExtTodoTodo, done bool) string {
 	parts := make([]string, 0, len(rows))
 	for _, r := range rows {
 		if r.Completed == done {

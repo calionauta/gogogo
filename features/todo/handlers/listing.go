@@ -64,7 +64,7 @@ func (h *Handler) viewerOwner(ctx context.Context, owner string) bool {
 // toTodo maps a sqlc row onto the wire model. Timestamps are caller-written
 // RFC3339 (dbschema.TimeFormat); a row that does not parse is data corruption,
 // flagged as a 500 rather than rendered half-empty.
-func toTodo(row dbgen.Todo) (todo.Todo, error) {
+func toTodo(row dbgen.ExtTodoTodo) (todo.Todo, error) {
 	created, err := time.Parse(dbschema.TimeFormat, row.Created)
 	if err != nil {
 		return todo.Todo{}, fmt.Errorf("todo %s created %q: %w", row.ID, row.Created, err)
@@ -87,7 +87,7 @@ func toTodo(row dbgen.Todo) (todo.Todo, error) {
 // toVisibleTodo maps a visibility-scoped join row (todo + author email)
 // onto the wire model. Same corruption contract as toTodo.
 func toVisibleTodo(row dbgen.ListVisibleTodosRow) (todo.Todo, error) {
-	item, err := toTodo(dbgen.Todo{
+	item, err := toTodo(dbgen.ExtTodoTodo{
 		ID: row.ID, Owner: row.Owner, Title: row.Title,
 		Completed: row.Completed, IdemKey: row.IdemKey,
 		Visibility: row.Visibility, Created: row.Created, Updated: row.Updated,
@@ -101,7 +101,7 @@ func toVisibleTodo(row dbgen.ListVisibleTodosRow) (todo.Todo, error) {
 
 // toVisibleOne maps the single-row join (GetTodoVisible) the same way.
 func toVisibleOne(row dbgen.GetTodoVisibleRow) (todo.Todo, error) {
-	item, err := toTodo(dbgen.Todo{
+	item, err := toTodo(dbgen.ExtTodoTodo{
 		ID: row.ID, Owner: row.Owner, Title: row.Title,
 		Completed: row.Completed, IdemKey: row.IdemKey,
 		Visibility: row.Visibility, Created: row.Created, Updated: row.Updated,

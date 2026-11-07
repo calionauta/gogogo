@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/calionauta/gogogo/features/todo"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
@@ -38,6 +39,20 @@ type handlersFixture struct {
 	auth  *auth.Auth
 }
 
+// applyTodoMigrations migrates a test database the way the composition root
+// does: core ledger first, then the todo unit's own schema set. Every fixture
+// that runs todo queries must do both, or the owned table does not exist.
+func applyTodoMigrations(tb testing.TB, sqlDB *sql.DB) {
+	tb.Helper()
+	if merr := dbschema.Migrate(sqlDB); merr != nil {
+		tb.Fatalf("db migrate: %v", merr)
+	}
+	todoSet := dbschema.MigrationSet{ID: RecipeID, FS: todo.Migrations, Dir: "migrations"}
+	if merr := dbschema.MigrateWith(sqlDB, todoSet); merr != nil {
+		tb.Fatalf("todo migrate: %v", merr)
+	}
+}
+
 func newHandlersFixture(tb testing.TB) *handlersFixture {
 	tb.Helper()
 
@@ -46,9 +61,7 @@ func newHandlersFixture(tb testing.TB) *handlersFixture {
 		tb.Fatalf("db open: %v", err)
 	}
 	tb.Cleanup(func() { sqlDB.Close() })
-	if merr := dbschema.Migrate(sqlDB); merr != nil {
-		tb.Fatalf("db migrate: %v", merr)
-	}
+	applyTodoMigrations(tb, sqlDB)
 
 	a, err := auth.New(dbgen.New(sqlDB), false)
 	if err != nil {

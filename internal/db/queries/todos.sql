@@ -4,64 +4,64 @@
 -- so a handler cannot leak a private row by forgetting a filter.
 
 -- name: ListTodosByOwner :many
-SELECT * FROM todos WHERE owner = ? ORDER BY created DESC, id DESC;
+SELECT * FROM ext_todo_todos WHERE owner = ? ORDER BY created DESC, id DESC;
 
 -- name: ListVisibleTodos :many
-SELECT todos.*, users.email AS owner_email
-FROM todos JOIN users ON users.id = todos.owner
-WHERE todos.owner = ? OR todos.visibility = 'public'
-ORDER BY todos.created DESC, todos.id DESC;
+SELECT ext_todo_todos.*, users.email AS owner_email
+FROM ext_todo_todos JOIN users ON users.id = ext_todo_todos.owner
+WHERE ext_todo_todos.owner = ? OR ext_todo_todos.visibility = 'public'
+ORDER BY ext_todo_todos.created DESC, ext_todo_todos.id DESC;
 
 -- name: GetTodo :one
-SELECT * FROM todos WHERE id = ? AND owner = ?;
+SELECT * FROM ext_todo_todos WHERE id = ? AND owner = ?;
 
 -- name: GetTodoVisible :one
-SELECT todos.*, users.email AS owner_email
-FROM todos JOIN users ON users.id = todos.owner
-WHERE todos.id = ? AND (todos.owner = ? OR todos.visibility = 'public');
+SELECT ext_todo_todos.*, users.email AS owner_email
+FROM ext_todo_todos JOIN users ON users.id = ext_todo_todos.owner
+WHERE ext_todo_todos.id = ? AND (ext_todo_todos.owner = ? OR ext_todo_todos.visibility = 'public');
 
 -- name: CreateTodo :one
-INSERT INTO todos (id, owner, title, completed, idem_key, visibility, created, updated)
+INSERT INTO ext_todo_todos (id, owner, title, completed, idem_key, visibility, created, updated)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: SetTodoCompleted :exec
-UPDATE todos SET completed = ?, updated = ? WHERE id = ? AND owner = ?;
+UPDATE ext_todo_todos SET completed = ?, updated = ? WHERE id = ? AND owner = ?;
 
 -- name: SetTodoCompletedByID :exec
-UPDATE todos SET completed = ?, updated = ? WHERE id = ?;
+UPDATE ext_todo_todos SET completed = ?, updated = ? WHERE id = ?;
 
 -- name: SetTodoVisibility :exec
-UPDATE todos SET visibility = ?, updated = ? WHERE id = ? AND owner = ?;
+UPDATE ext_todo_todos SET visibility = ?, updated = ? WHERE id = ? AND owner = ?;
 
 -- name: DeleteTodo :exec
-DELETE FROM todos WHERE id = ? AND owner = ?;
+DELETE FROM ext_todo_todos WHERE id = ? AND owner = ?;
 
 -- name: DeleteTodoByID :exec
-DELETE FROM todos WHERE id = ?;
+DELETE FROM ext_todo_todos WHERE id = ?;
 
 -- name: CountTodosByOwner :one
-SELECT count(*) FROM todos WHERE owner = ?;
+SELECT count(*) FROM ext_todo_todos WHERE owner = ?;
 
 -- name: GetTodoByIdemKey :one
-SELECT * FROM todos WHERE owner = ? AND idem_key = ? AND idem_key <> '';
+SELECT * FROM ext_todo_todos WHERE owner = ? AND idem_key = ? AND idem_key <> '';
 
 -- name: DeleteCompletedByOwner :execrows
-DELETE FROM todos WHERE owner = ? AND completed = 1;
+DELETE FROM ext_todo_todos WHERE owner = ? AND completed = 1;
 
 -- name: ListCompletedIDsByOwner :many
 -- The completed rows an owner is about to clear, read INSIDE the clearing
 -- transaction. The search writer needs their ids to drop the matching
 -- postings in that same transaction: reading them outside would race a
 -- concurrent toggle into leaving an orphan posting behind.
-SELECT id FROM todos WHERE owner = ? AND completed = 1;
+SELECT id FROM ext_todo_todos WHERE owner = ? AND completed = 1;
 
 -- name: SearchTodosByOwner :many
 -- The todo search plugin's cheapest layer, in SQL: the owner's rows whose
 -- title contains the query, case-insensitively. The caller builds the
 -- pattern in Go, so the user's text needs no escaping here. No ranking:
 -- that is what the other layers are for.
-SELECT * FROM todos
+SELECT * FROM ext_todo_todos
 WHERE owner = ? AND lower(title) LIKE lower(?)
 ORDER BY completed, created DESC
 LIMIT ?;
@@ -86,4 +86,4 @@ LIMIT ?;
 -- quote -- the generated SQL came out as "FROM tod", silently, with sqlc
 -- exiting 0). Keep this comment ASCII, and if a query ever generates a
 -- suspiciously short statement, check for non-ASCII bytes before anything else.
-SELECT id, owner, title, visibility FROM todos;
+SELECT id, owner, title, visibility FROM ext_todo_todos;

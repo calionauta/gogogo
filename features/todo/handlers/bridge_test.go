@@ -46,9 +46,7 @@ func newBridgeFixture(tb testing.TB) *bridgeFixture {
 		tb.Fatalf("db open: %v", err)
 	}
 	tb.Cleanup(func() { sqlDB.Close() })
-	if merr := dbschema.Migrate(sqlDB); merr != nil {
-		tb.Fatalf("db migrate: %v", merr)
-	}
+	applyTodoMigrations(tb, sqlDB)
 
 	h, err := nats.StartEmbedded(tb.TempDir() + "/nats")
 	if err != nil {
@@ -86,7 +84,7 @@ func newBridgeFixture(tb testing.TB) *bridgeFixture {
 }
 
 // waitRow polls Turso until the todo exists or the deadline hits.
-func (f *bridgeFixture) waitRow(owner string, id string) dbgen.Todo {
+func (f *bridgeFixture) waitRow(owner string, id string) dbgen.ExtTodoTodo {
 	f.tb.Helper()
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
@@ -96,7 +94,7 @@ func (f *bridgeFixture) waitRow(owner string, id string) dbgen.Todo {
 		time.Sleep(20 * time.Millisecond)
 	}
 	f.tb.Fatalf("todo %s never applied", id)
-	return dbgen.Todo{}
+	return dbgen.ExtTodoTodo{}
 }
 
 func TestHandlersBridgeCreateToggleDelete(t *testing.T) {
@@ -225,9 +223,7 @@ func newLoopInstanceA(t *testing.T, h *nats.Handle) (http.Handler, *sql.DB) {
 		t.Fatalf("db open A: %v", err)
 	}
 	t.Cleanup(func() { sqlA.Close() })
-	if merr := dbschema.Migrate(sqlA); merr != nil {
-		t.Fatalf("db migrate A: %v", merr)
-	}
+	applyTodoMigrations(t, sqlA)
 	authA, aerr := auth.New(dbgen.New(sqlA), false)
 	if aerr != nil {
 		t.Fatalf("auth A: %v", aerr)
@@ -272,9 +268,7 @@ func newLoopInstanceB(t *testing.T, js natsio.JetStreamContext, userID string) (
 		t.Fatalf("db open B: %v", err)
 	}
 	t.Cleanup(func() { sqlB.Close() })
-	if merr := dbschema.Migrate(sqlB); merr != nil {
-		t.Fatalf("db migrate B: %v", merr)
-	}
+	applyTodoMigrations(t, sqlB)
 	now := dbschema.Now()
 	if _, err := sqlB.ExecContext(context.Background(),
 		`INSERT INTO users (id, email, password_hash, name, created, updated) VALUES (?, ?, ?, ?, ?, ?)`,
@@ -345,9 +339,7 @@ func TestHandlersBridgeTwoInstancesConverge(t *testing.T) {
 			t.Fatalf("db open %s: %v", name, oerr)
 		}
 		t.Cleanup(func() { sqlDB.Close() })
-		if merr := dbschema.Migrate(sqlDB); merr != nil {
-			t.Fatalf("db migrate %s: %v", name, merr)
-		}
+		applyTodoMigrations(t, sqlDB)
 		if _, xerr := sqlDB.ExecContext(context.Background(),
 			`INSERT INTO users (id, email, password_hash, name, created, updated) VALUES (?, ?, ?, ?, ?, ?)`,
 			owner, name+"@example.com", "hash", name, now, now,

@@ -2,8 +2,11 @@
 package handlers
 
 import (
+	"io/fs"
+
 	"github.com/go-chi/chi/v5"
 
+	"github.com/calionauta/gogogo/features/todo"
 	"github.com/calionauta/gogogo/internal/recipe"
 )
 
@@ -20,17 +23,20 @@ type recipeProvider struct{ h *Handler }
 
 func (p recipeProvider) ID() string { return RecipeID }
 
-// Declaration is the surface todo claims. It declares NO table on purpose:
-// `todos` is created by the core migration ledger and is in isCoreTable, so
-// claiming it would make Validate refuse the declaration and Mount panic
-// before boot. The recipe model's answer is the schema split (a prefixed,
-// recipe-owned migration), and the table declaration moves here when that
-// lands — not before, because a declaration the core does not honour is the
-// drift class this seam exists to prevent.
+// Declaration is the surface todo claims. It now declares its table:
+// `ext_todo_todos` is created only by this unit's own migration
+// (features/todo/migrations, applied through the core ledger under the "todo"
+// namespace), and the declaration <-> DDL gate in internal/server checks both
+// directions — this is the first in-tree table-owning conversion, proving an
+// in-tree unit can own DDL the same way an installed recipe does. The legacy
+// core `todos` table stays as the empty seed (append-only history): its rows
+// are carried into the owned table by the migration itself, and every sqlc
+// query reads only the owned table (features/todo/migrations/0001_init.sql
+// documents the bridge).
 //
 // The auth pages ride this router (they are the demo's entry surface), so they
 // are declared with the rest: the claim table attributes routes by who mounts
-// them, and a route that ship without a declaration is the failure the gate
+// them, and a route that ships without a declaration is the failure the gate
 // reports.
 func (p recipeProvider) Declaration() recipe.Declaration {
 	const (
@@ -44,6 +50,7 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 		signup   = "/signup"
 	)
 	return recipe.Declaration{
+		Tables: []string{"ext_todo_todos"},
 		Routes: []recipe.Route{
 			{Method: get, Pattern: todosAPI},
 			{Method: get, Pattern: "/api/todos/search"},
@@ -69,3 +76,10 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 }
 
 func (p recipeProvider) Routes() chi.Router { return p.h.Routes() }
+
+// Migrations is the optional schema half of the seam: the unit's own DDL,
+// embedded so the binary carries it and applied through the core ledger under
+// this unit's id. The composition root re-runs this set on every boot through
+// the same Registry an installed recipe uses, so an in-tree unit and an
+// installed recipe own storage through one path.
+func (p recipeProvider) Migrations() fs.FS { return todo.Migrations }

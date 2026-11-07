@@ -58,6 +58,8 @@ import (
 	"github.com/gogpu/ui/widget"
 
 	"github.com/calionauta/gogogo/config"
+	"github.com/calionauta/gogogo/features/todo"
+	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 	"github.com/calionauta/gogogo/internal/auth"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
@@ -112,6 +114,12 @@ func run() error {
 	defer sqlDB.Close()
 	if merr := dbschema.Migrate(sqlDB); merr != nil {
 		return fmt.Errorf("migrate: %w", merr)
+	}
+	// The todo unit owns ext_todo_todos now; the core ledger alone does not
+	// create it (see features/todo/migrations/0001_init.sql).
+	todoSet := dbschema.MigrationSet{ID: todohandlers.RecipeID, FS: todo.Migrations, Dir: "migrations"}
+	if merr := dbschema.MigrateWith(sqlDB, todoSet); merr != nil {
+		return fmt.Errorf("todo migrate: %w", merr)
 	}
 
 	a, aerr := auth.New(dbgen.New(sqlDB), cfg.Auth.SecureCookies)
