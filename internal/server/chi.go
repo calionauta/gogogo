@@ -1,4 +1,4 @@
-// SCOPE:core — Flat-stack chi server (the only server)
+// Flat-stack chi server (the only server)
 //
 // BootChi / AttachJetStream / Serve compose the flat stack: boot builds
 // everything that needs no engines (DB, auth, handlers, hubs, queues,

@@ -1,4 +1,4 @@
-// SCOPE:feature — notifications: the live inbox stream.
+// Notifications: the live inbox stream.
 //
 // One Datastar SSE stream per open tab. The first frame is the open ack the
 // shared opener waits for; the second is the inbox itself, so a reconnect

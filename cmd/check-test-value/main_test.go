@@ -1,4 +1,4 @@
-// SCOPE:core — contract tests for the test-value guard itself.
+// Contract tests for the test-value guard itself.
 //
 // A gate that matches nothing is indistinguishable from a gate that is
 // broken. Each case below pins one classification the guard must make, so a

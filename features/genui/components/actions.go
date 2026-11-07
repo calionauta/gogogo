@@ -1,4 +1,4 @@
-// SCOPE:plugin — the action catalog: what a model-authored component may offer
+// The action catalog: what a model-authored component may offer
 // to DO in this app.
 //
 // WHY THIS EXISTS. plan_cards used to carry a hardcoded `@post('/api/todos')`.

@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP todo retry-demo slice (queue + SSE feedback)
+// HTTP todo retry-demo slice (queue + SSE feedback)
 package handlers
 
 import (

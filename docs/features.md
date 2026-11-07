@@ -70,7 +70,8 @@ being one.
    add one `MountFeature` line in `buildChiMux`.
 3. Use **goqite** for async work, the **SSE Hub** for user-facing feedback, and
    **Datastar** for the reactive frontend.
-4. Add a `SCOPE:` annotation — `make check-scope` enforces it.
+4. Add the unit's row in `internal/capabilities` — a package no row owns fails
+   the registry's coverage test.
 5. Add a `Routes()` method on your handler (absolute `chi` patterns) and pass it
    to that `MountFeature` call — never re-declare the URLs at the root.
 
@@ -189,11 +190,11 @@ or the catalog is the thing to fix.
 
 ## Removing a feature
 
-Every feature package carries a `SCOPE:feature` annotation. The rule:
-delete the package directory, delete its dependents, remove the wiring call
-from `internal/server/chi.go`, and — if it was a plugin — remove the
-`start*` call in `cmd/web/main.go`. Full checklist in
-[Scope taxonomy](scope-taxonomy.md#removing-a-component).
+A feature is a capability row with `Kind: feature` and the dirs/files it owns.
+Delete the package directory, delete its dependents, drop the row, and — if the
+unit does not mount itself — remove the wiring call from
+`internal/server/chi.go` and the `start*` call in `cmd/web/main.go`. Full
+checklist in [Scope taxonomy](scope-taxonomy.md#removing-a-component).
 
 ## Client weight
 

@@ -1,4 +1,4 @@
-// SCOPE:plugin — shared peer-set mechanics for collab features
+// Shared peer-set mechanics for collab features
 package collab
 
 import "sync"

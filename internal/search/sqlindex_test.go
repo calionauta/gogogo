@@ -1,4 +1,4 @@
-// SCOPE:plugin — the SQL index against a real database.
+// The SQL index against a real database.
 package search
 
 import (

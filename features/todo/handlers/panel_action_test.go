@@ -1,4 +1,4 @@
-// SCOPE:feature — native panel in-place actions (red-proof).
+// Native panel in-place actions (red-proof).
 //
 // A chat answer renders the todo_list panel with the feature's REAL row
 // actions (toggle, delete), each carrying the panel instance's id as

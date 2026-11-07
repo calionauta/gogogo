@@ -1,4 +1,4 @@
-// SCOPE:feature — the whiteboard unit declares its surface to the recipe seam.
+// The whiteboard unit declares its surface to the recipe seam.
 package handlers
 
 import (

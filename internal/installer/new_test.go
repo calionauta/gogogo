@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: `gogogo new` scaffold tests.
+// Installer engine: `gogogo new` scaffold tests.
 package installer
 
 import (

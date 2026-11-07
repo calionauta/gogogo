@@ -1,4 +1,4 @@
-// SCOPE:plugin — the policy half of install: a recipe's routes get their rows,
+// The policy half of install: a recipe's routes get their rows,
 // uninstall takes them away, and status names a block that went missing.
 package installer
 

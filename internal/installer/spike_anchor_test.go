@@ -1,4 +1,4 @@
-// SCOPE:plugin — Spike 0 probe: measure the anchor model's failure modes.
+// Spike 0 probe: measure the anchor model's failure modes.
 //
 // This file answers one question with evidence rather than argument: when the
 // core moves, does `add` fail loudly, fail silently, or insert in the wrong

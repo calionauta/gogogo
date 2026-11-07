@@ -1,4 +1,4 @@
-// SCOPE:core — RBAC coverage lint: every routed method has a policy decision.
+// RBAC coverage lint: every routed method has a policy decision.
 
 package rbac
 

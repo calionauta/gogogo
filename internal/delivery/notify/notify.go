@@ -1,4 +1,4 @@
-// SCOPE:plugin — delivery transport: notify (an external delivery engine).
+// Delivery transport: notify (an external delivery engine).
 //
 // notify carries the channel, not the inbox: the app writes its own in_app
 // rows, and this adapter only triggers an e-mail workflow. The engine's

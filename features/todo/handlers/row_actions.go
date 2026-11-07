@@ -1,4 +1,4 @@
-// SCOPE:feature — the todo slice's half of the record.row-actions slot.
+// The todo slice's half of the record.row-actions slot.
 //
 // A recipe declares an action as data; this file is where that data becomes
 // something the reference slice can render. It exists because the conversion is

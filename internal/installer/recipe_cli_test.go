@@ -1,4 +1,4 @@
-// SCOPE:plugin — recipe CLI evidence: install writes the tree and the receipt,
+// Recipe CLI evidence: install writes the tree and the receipt,
 // status reports what the user changed, and a blocked plan changes nothing.
 package installer
 

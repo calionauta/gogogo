@@ -1,4 +1,4 @@
-// SCOPE:core — the cache contract for every embedded asset.
+// The cache contract for every embedded asset.
 //
 // The contract, in one place: an asset served to a browser must be either
 // fingerprinted (immutable, cached for a year) or explicitly bare. The bare

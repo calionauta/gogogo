@@ -1,4 +1,4 @@
-// SCOPE:core — The demo-mode toggle route.
+// The demo-mode toggle route.
 //
 // Demo mode decides whether the state panel is docked. It is a session cookie
 // set here, not a query param and not localStorage: the mode has to follow the

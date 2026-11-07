@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP todo mutations (create/toggle/delete/clear)
+// HTTP todo mutations (create/toggle/delete/clear)
 package handlers
 
 import (

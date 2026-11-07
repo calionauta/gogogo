@@ -1,4 +1,4 @@
-// SCOPE:feature — Whiteboard presence seam (fallback vs injected actor).
+// Whiteboard presence seam (fallback vs injected actor).
 package handlers
 
 import (

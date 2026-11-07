@@ -1,4 +1,4 @@
-// SCOPE:feature — acceptance: anonymous callers can neither read nor write a board.
+// Acceptance: anonymous callers can neither read nor write a board.
 
 package handlers
 

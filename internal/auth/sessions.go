@@ -1,4 +1,4 @@
-// SCOPE:core — Flat auth sessions (validate, middleware, cookies)
+// Flat auth sessions (validate, middleware, cookies)
 package auth
 
 import (

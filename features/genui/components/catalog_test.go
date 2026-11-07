@@ -1,4 +1,4 @@
-// SCOPE:feature — gogen-ui catalog tests.
+// Gogen-ui catalog tests.
 package components
 
 import (

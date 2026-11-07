@@ -1,4 +1,4 @@
-// SCOPE:core — Config types: the struct Load fills.
+// Config types: the struct Load fills.
 //
 // Split from config.go so the env-loading code and the type surface stay
 // under the file-size gate; the package is one source of truth either way.

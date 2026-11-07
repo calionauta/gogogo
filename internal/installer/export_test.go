@@ -1,4 +1,4 @@
-// SCOPE:plugin — tests for `gogogo export` (read-only port bundle)
+// Tests for `gogogo export` (read-only port bundle)
 package installer
 
 import (

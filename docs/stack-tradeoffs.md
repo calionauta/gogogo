@@ -394,8 +394,8 @@ it:
   failing a named test.
 - **The installer works on wiring that only exists in the demos.** `trim`, `add`
   and `new` edit markers in real files — the call lines in `cmd/web/main.go`, the
-  route lines in `internal/server/chi.go`, the module registry entry, the `// SCOPE:`
-  annotations. With no demo in the tree, `--features none` has nothing to strip
+  route lines in `internal/server/chi.go`, the module registry entry, the unit
+  rows in `internal/capabilities`. With no demo in the tree, `--features none` has nothing to strip
   and `gogogo add` has nothing to restore, so "ship everything, delete what you
   do not want" loses its input.
 - **The gates walk units that exist.** `registry-conformance`, `check-scope` and

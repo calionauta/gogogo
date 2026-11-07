@@ -1,4 +1,4 @@
-// SCOPE:plugin — tests for the cross-release guard around `add`
+// Tests for the cross-release guard around `add`
 package installer
 
 import (

@@ -1,4 +1,4 @@
-// SCOPE:core — conformance guard for `gh` usage in workflows.
+// Conformance guard for `gh` usage in workflows.
 //
 // WHY THIS EXISTS. `gh` infers the repository from the git remote, so a workflow
 // step that calls it needs either a checkout or an explicit `-R`. Without one the

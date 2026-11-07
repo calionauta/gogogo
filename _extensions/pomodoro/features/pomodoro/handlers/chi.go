@@ -1,4 +1,4 @@
-// SCOPE:plugin — the pomodoro recipe's HTTP slice: one page, one write.
+// The pomodoro recipe's HTTP slice: one page, one write.
 package handlers
 
 import (

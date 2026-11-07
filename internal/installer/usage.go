@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: CLI help text (kept out of run.go for the
+// Installer engine: CLI help text (kept out of run.go for the
 // file-sizes gate).
 package installer
 

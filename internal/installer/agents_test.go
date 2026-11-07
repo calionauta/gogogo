@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: the generated AGENTS.md must keep the pin.
+// Installer engine: the generated AGENTS.md must keep the pin.
 package installer
 
 import (

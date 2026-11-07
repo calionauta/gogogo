@@ -1,4 +1,4 @@
-// SCOPE:plugin — the optional decision router in front of the Chat prompt.
+// The optional decision router in front of the Chat prompt.
 // Split from responders.go for the file-size gate: responders.go holds the
 // model leg, this file holds the seam that picks what the prompt leads
 // with and the one place that pick reaches the model.

@@ -1,4 +1,4 @@
-// SCOPE:core — README page index generated from the site manifest.
+// README page index generated from the site manifest.
 //
 // The README's page index duplicates the docs site manifest. It drifted twice
 // before this file existed (it covered 23 of 43 pages, and still claimed to

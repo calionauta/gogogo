@@ -1,4 +1,4 @@
-// SCOPE:core — TechStack render test.
+// TechStack render test.
 package components_test
 
 import (

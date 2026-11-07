@@ -1,4 +1,4 @@
-// SCOPE:feature — Inbox page surfaces at the handler level: the State panel's
+// Inbox page surfaces at the handler level: the State panel's
 // accounting and the shell patches a read/schedule writes outside #inbox.
 package handlers
 

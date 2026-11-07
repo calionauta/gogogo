@@ -1,4 +1,4 @@
-// SCOPE:core — generated route inventory (drift test).
+// Generated route inventory (drift test).
 //
 // docs/api-routes.md is generated from source, not written by hand: the
 // registered routes and the template/script refs the api-routes contract

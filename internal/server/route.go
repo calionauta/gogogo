@@ -1,4 +1,4 @@
-// SCOPE:core — Route-table convention: features own their paths, the root
+// Route-table convention: features own their paths, the root
 // owns placement, and nothing is written twice.
 //
 // Every feature exposes `Routes() chi.Router` with ABSOLUTE patterns: the

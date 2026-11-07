@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: plan preview, receipts, and JSON envelopes
+// Installer engine: plan preview, receipts, and JSON envelopes
 package installer
 
 import (

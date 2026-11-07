@@ -1,4 +1,4 @@
-// SCOPE:core — Vendored SVG path catalog for the Icon component.
+// Vendored SVG path catalog for the Icon component.
 //
 // The bodies are Material Symbols glyphs vendored from Iconify
 // (api.iconify.design/material-symbols/{name}.svg) at the time of the

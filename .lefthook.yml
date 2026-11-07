@@ -46,10 +46,6 @@ pre-commit:
       run: bin/check-install-sh.sh
       glob: "install.sh"
 
-    - name: scope-lint
-      run: go run ./cmd/check-scope
-      glob: "{internal,features}/**/*.go"
-
     # The scripts that decide WHICH gates run (docs-only classifier) and WHICH
     # tests they run (race-shard split). A wrong verdict here is a green build
     # that skipped lint + race + browser + image boot, so the contract tests run

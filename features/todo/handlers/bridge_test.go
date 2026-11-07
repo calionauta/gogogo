@@ -1,4 +1,4 @@
-// SCOPE:feature — todo NATS bridge tests (red-proof for step 5).
+// Todo NATS bridge tests (red-proof for step 5).
 //
 // The bridge carries todo mutations across instances over the shared
 // app.crud.todo.> subjects: publish, apply to Turso on receipt, fan out to

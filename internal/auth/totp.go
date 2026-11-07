@@ -1,4 +1,4 @@
-// SCOPE:core — Owned TOTP (RFC 6238) for second-factor auth
+// Owned TOTP (RFC 6238) for second-factor auth
 //
 // No dependency: TOTP is HMAC-SHA1 plus dynamic truncation plus base32,
 // small enough to own and test against the RFC vectors. pquerna/otp (the

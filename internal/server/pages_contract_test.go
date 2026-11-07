@@ -1,4 +1,4 @@
-// SCOPE:core — Page contracts and structure digests for every route.
+// Page contracts and structure digests for every route.
 //
 // Phase 0 of the UI revamp (see tmp/gogogo-ui-revamp/implementation-plan.md).
 // The revamp rewrites every page template; the existing render tests assert

@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP todo pages (login/logout/todo index)
+// HTTP todo pages (login/logout/todo index)
 //
 // Page endpoints: same paths, redirects and rendered components (the shared
 // LoginPage and Layout/TodoPage templates — no forked markup), with data

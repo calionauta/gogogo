@@ -1,4 +1,4 @@
-// SCOPE:plugin — hydration seam for the app's own panel components.
+// Hydration seam for the app's own panel components.
 package components
 
 import (

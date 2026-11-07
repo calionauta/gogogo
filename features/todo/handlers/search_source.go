@@ -1,4 +1,4 @@
-// SCOPE:feature — the todo feature's half of the search seam: its own rows,
+// The todo feature's half of the search seam: its own rows,
 // and the cheap SQL filter over them. To remove: delete with features/todo/.
 package handlers
 

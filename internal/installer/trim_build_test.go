@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: proves a trimmed tree still builds.
+// Installer engine: proves a trimmed tree still builds.
 //
 // The other installer tests verify the SHAPE of a trim — that markers were
 // found, that the right lines went away. None of them answers the only

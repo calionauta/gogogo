@@ -1,4 +1,4 @@
-// SCOPE:plugin — collaboration (whiteboard depends on this)
+// Collaboration (whiteboard depends on this)
 package collab
 
 import (

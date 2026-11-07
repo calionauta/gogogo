@@ -1,4 +1,4 @@
-// SCOPE:plugin — Spike 5: slots, with declared shapes.
+// Spike 5: slots, with declared shapes.
 //
 // The question: can a recipe render content inside a core page without the core
 // page knowing which recipe it is, and without the recipe touching that page's

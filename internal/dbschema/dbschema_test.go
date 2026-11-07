@@ -1,4 +1,4 @@
-// SCOPE:core — dbschema contract tests. They open through the ncruces
+// Dbschema contract tests. They open through the ncruces
 // `sqlite3` driver on purpose: this package must stay tursogo-free (native
 // targets share it), so its tests prove the schema applies identically on a
 // different driver than the one internal/db opens — including the

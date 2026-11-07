@@ -1,4 +1,4 @@
-// SCOPE:plugin — DagNats onboarding workflow (durable run + stepper fan-out)
+// DagNats onboarding workflow (durable run + stepper fan-out)
 //
 // This package owns the ENGINE side of the onboarding flow: starting the
 // durable run against DagNats, polling it, and fanning progress out to an

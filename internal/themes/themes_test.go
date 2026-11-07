@@ -1,4 +1,4 @@
-// SCOPE:core — Theme catalog contract.
+// Theme catalog contract.
 //
 // The catalog here, the `themes:` list compiled by src/css/input.css and the
 // picker are three views of one fact. The CSS side is the one that silently

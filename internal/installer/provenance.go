@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: trim-provenance reader
+// Installer engine: trim-provenance reader
 package installer
 
 import (

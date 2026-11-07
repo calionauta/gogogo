@@ -1,4 +1,4 @@
-// SCOPE:plugin — Spike 1: the declaration seam.
+// Spike 1: the declaration seam.
 //
 // The question this package answers: can a recipe's DECLARATION alone drive the
 // composition root — routes, nav entries, policy rows, jobs — so that installing

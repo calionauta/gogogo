@@ -1,4 +1,4 @@
-// SCOPE:core — the one place the search plugin's three layers meet the
+// The one place the search plugin's three layers meet the
 // composition root. Split from chi.go for the function-length and
 // file-size gates, mirroring bootOnboarding/bootReview.
 //

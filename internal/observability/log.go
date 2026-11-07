@@ -1,4 +1,4 @@
-// SCOPE:core — Observability core: structured logging (slog)
+// Observability core: structured logging (slog)
 package observability
 
 import (

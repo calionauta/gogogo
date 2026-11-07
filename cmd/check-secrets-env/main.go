@@ -1,4 +1,4 @@
-// SCOPE:core — Secrets-env site guard (secret env reads stay on the rails)
+// Secrets-env site guard (secret env reads stay on the rails)
 //
 // Command check-secrets-env proves secret environment plumbing never
 // bypasses the age-secrets standard: os.Getenv/LookupEnv/Setenv with a

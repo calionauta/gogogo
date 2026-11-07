@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: read-only drift gate over manifest markers
+// Installer engine: read-only drift gate over manifest markers
 package installer
 
 import (

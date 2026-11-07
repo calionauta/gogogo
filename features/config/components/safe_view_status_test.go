@@ -1,4 +1,4 @@
-// SCOPE:feature — the /config status card derives from the runtime config.
+// The /config status card derives from the runtime config.
 package components
 
 import (

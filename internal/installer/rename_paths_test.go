@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: rename moves the paths, not only the text
+// Installer engine: rename moves the paths, not only the text
 package installer
 
 import (

@@ -1,4 +1,4 @@
-// SCOPE:plugin — Spike 4 evidence: install and update are one decision table.
+// Spike 4 evidence: install and update are one decision table.
 //
 // The property under test is the one the whole model rests on: after a user edits
 // a recipe, an update must be DECIDABLE without a merge engine, and it must never

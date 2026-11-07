@@ -1,4 +1,4 @@
-// SCOPE:plugin — the generated list of units that mount themselves.
+// The generated list of units that mount themselves.
 //
 // `Capability.Register` is where a unit opts into building itself at boot. The
 // list in internal/server/units.gen.go is generated from it, and these three

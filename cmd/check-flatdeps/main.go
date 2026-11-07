@@ -1,4 +1,4 @@
-// SCOPE:core — Flat-stack dependency guard (framework-free, one SQLite driver,
+// Flat-stack dependency guard (framework-free, one SQLite driver,
 // no cross-feature domain imports, owned sql.Open sites)
 //
 // Command check-flatdeps proves the flat-stack invariant without booting

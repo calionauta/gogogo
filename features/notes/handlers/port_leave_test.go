@@ -1,4 +1,4 @@
-// SCOPE:feature — Notes presence-leave + caret-ownership contract tests.
+// Notes presence-leave + caret-ownership contract tests.
 //
 // Two reports drive this file, both about a cursor moving without its owner
 // doing anything:

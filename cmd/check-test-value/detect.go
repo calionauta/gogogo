@@ -1,4 +1,4 @@
-// SCOPE:core — test-value detection: helpers that can fail, and the two verdicts.
+// Test-value detection: helpers that can fail, and the two verdicts.
 //
 // Second file of cmd/check-test-value, split by seam: main.go owns the CLI
 // and the directory walk, this file owns the AST classification. The split

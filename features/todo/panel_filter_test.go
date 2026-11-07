@@ -1,4 +1,4 @@
-// SCOPE:feature — the todo panel's filter tolerance (red-proof).
+// The todo panel's filter tolerance (red-proof).
 package todo
 
 import "testing"

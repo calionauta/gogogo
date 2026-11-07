@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: opinionated stack guidance, reads nothing, changes nothing
+// Installer engine: opinionated stack guidance, reads nothing, changes nothing
 package installer
 
 import (

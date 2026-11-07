@@ -1,4 +1,4 @@
-// SCOPE:core — request user-agent captured with the session row.
+// Request user-agent captured with the session row.
 //
 // The account page lists sessions so the owner can spot a device that is not
 // theirs. A UUID alone cannot answer that; the user-agent is the smallest

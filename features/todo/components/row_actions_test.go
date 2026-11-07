@@ -1,4 +1,4 @@
-// SCOPE:feature — a recipe's row action reaches the row with its own id.
+// A recipe's row action reaches the row with its own id.
 package components
 
 import (

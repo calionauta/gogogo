@@ -1,4 +1,4 @@
-// SCOPE:feature — gogpu/ui native window over the existing backend
+// Gogpu/ui native window over the existing backend
 //
 // Command gui is a proof of concept: a native desktop window built with
 // gogpu/ui (pure-Go GPU rendering, zero CGO, no webview, no JavaScript)

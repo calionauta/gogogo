@@ -1,4 +1,4 @@
-// SCOPE:plugin — Spike 2 evidence: the four file states and the declaration checks.
+// Spike 2 evidence: the four file states and the declaration checks.
 //
 // These tests are the spike's artifact. Each one asserts a property the recipe
 // model needs to be true, and several assert that a FAILURE is detected, which is

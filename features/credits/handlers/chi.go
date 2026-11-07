@@ -1,4 +1,4 @@
-// SCOPE:plugin — HTTP credits slice (AI credits + BYOK)
+// HTTP credits slice (AI credits + BYOK)
 //
 // Same JSON endpoints as the framework routes: balance, managed request,
 // BYOK relay, Stripe checkout + webhook. The engine is shared (the Service

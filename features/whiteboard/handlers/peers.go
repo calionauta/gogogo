@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP whiteboard peer bookkeeping (split for size)
+// HTTP whiteboard peer bookkeeping (split for size)
 package handlers
 
 import (

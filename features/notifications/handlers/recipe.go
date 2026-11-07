@@ -1,4 +1,4 @@
-// SCOPE:feature — the inbox declares its surface to the recipe seam.
+// The inbox declares its surface to the recipe seam.
 package handlers
 
 import (

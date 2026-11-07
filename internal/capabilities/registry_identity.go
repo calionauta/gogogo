@@ -1,4 +1,4 @@
-// SCOPE:plugin — Capability registry entries for the account and operator
+// Capability registry entries for the account and operator
 // surfaces.
 //
 // Split from registry.go for the file-size gate: the table grew past 500 lines

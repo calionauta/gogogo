@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: advise data (presets, rules, stack signals)
+// Installer engine: advise data (presets, rules, stack signals)
 package installer
 
 import "strings"

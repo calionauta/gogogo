@@ -1,4 +1,4 @@
-// SCOPE:core — Queue + Retry demo end-to-end red-proof.
+// Queue + Retry demo end-to-end red-proof.
 //
 // The demo once stuck on step 1 forever: the todo stream listened on a
 // standalone hub while the queue workers broadcast on the queue's own

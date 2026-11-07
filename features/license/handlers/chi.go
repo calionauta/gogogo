@@ -1,4 +1,4 @@
-// SCOPE:feature — Activation page for the distribution gate.
+// Activation page for the distribution gate.
 //
 // LICENSE_MODE=license: the buyer pastes the token the owner minted offline.
 // LICENSE_MODE=account: the same token, bound to a user id; activation adopts

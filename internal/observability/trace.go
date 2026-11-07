@@ -1,4 +1,4 @@
-// SCOPE:core — Observability core: tracing stubs (OTel-ready)
+// Observability core: tracing stubs (OTel-ready)
 package observability
 
 import "context"

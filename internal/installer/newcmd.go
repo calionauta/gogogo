@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: `gogogo new` scaffolds one feature.
+// Installer engine: `gogogo new` scaffolds one feature.
 //
 // The template's own answer to "copy the todo slice" was prose: a new session
 // read four directories, guessed the wiring, and learned about the RBAC

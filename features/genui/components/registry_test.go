@@ -1,4 +1,4 @@
-// SCOPE:plugin — test install of the panel registry.
+// Test install of the panel registry.
 //
 // The registry is installed ONCE at boot (a second install is an error, by
 // design: changing the model's vocabulary at runtime is not a thing to allow).

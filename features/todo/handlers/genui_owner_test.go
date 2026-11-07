@@ -1,4 +1,4 @@
-// SCOPE:feature — the todo panel's prompt digest, against a REAL database.
+// The todo panel's prompt digest, against a REAL database.
 //
 // WHY THESE TESTS EXIST. features/genui/components only ever tested DataContext's
 // NEGATIVE cases (no summarizer, empty owner, truncation) — so nothing proved

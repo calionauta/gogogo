@@ -1,4 +1,3 @@
-// SCOPE:core
 package secrets
 
 import (

@@ -1,4 +1,4 @@
-// SCOPE:feature — chat answer parsing tests.
+// Chat answer parsing tests.
 package store
 
 import (

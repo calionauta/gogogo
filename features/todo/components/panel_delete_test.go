@@ -1,4 +1,4 @@
-// SCOPE:feature — the chat panel is the native todo row, not a lookalike.
+// The chat panel is the native todo row, not a lookalike.
 //
 // The panel used to carry its own row markup and its own dialog; both drifted
 // from /todo (no shared badge, no author, no age, no viewer gate, and a

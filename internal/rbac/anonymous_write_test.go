@@ -1,4 +1,4 @@
-// SCOPE:core — every mutating route refuses an anonymous caller.
+// Every mutating route refuses an anonymous caller.
 
 package rbac
 

@@ -1,4 +1,4 @@
-// SCOPE:plugin — Spike 7: the catalog entry, as a format rather than a service.
+// Spike 7: the catalog entry, as a format rather than a service.
 //
 // The catalog is a reviewed set of behaviors, not a directory of everything that
 // exists. This package publishes the artifact the review produces — one YAML per

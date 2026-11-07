@@ -1,4 +1,4 @@
-// SCOPE:feature — Shared-doc permission rule (one home for author/admin).
+// Shared-doc permission rule (one home for author/admin).
 //
 // Identical to the notes slice's rule, and deliberately duplicated rather
 // than shared: notes and whiteboard are separate bundles on this flat

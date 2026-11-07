@@ -1,4 +1,4 @@
-// SCOPE:feature — chat demo store (in-memory)
+// Chat demo store (in-memory)
 package store
 
 import (

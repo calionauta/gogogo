@@ -1,4 +1,4 @@
-// SCOPE:plugin — the schema half of the seam: a recipe's DDL is its own file,
+// The schema half of the seam: a recipe's DDL is its own file,
 // applied through the core ledger, and checked against its declaration.
 //
 // Why this is a second, optional interface instead of a fourth method on

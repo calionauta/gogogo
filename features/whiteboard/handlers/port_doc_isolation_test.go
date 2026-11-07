@@ -1,4 +1,4 @@
-// SCOPE:feature — Whiteboard cross-doc isolation red-proof.
+// Whiteboard cross-doc isolation red-proof.
 //
 // Two tabs on DIFFERENT boards share one SSE hub. A shapes event for
 // docA must never land on docB's stream: without doc scoping every tab

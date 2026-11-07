@@ -1,4 +1,4 @@
-// SCOPE:feature — Shared-doc permission rule (one home for author/admin).
+// Shared-doc permission rule (one home for author/admin).
 //
 // Notes and whiteboards are SHARED: every signed-in user opens every doc,
 // which is what makes them prove live collaboration from two browsers.

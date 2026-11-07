@@ -1,4 +1,4 @@
-// SCOPE:core — Credits engine boot, split from the composition root.
+// Credits engine boot, split from the composition root.
 package server
 
 import (

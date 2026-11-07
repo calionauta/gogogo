@@ -1,4 +1,4 @@
-// SCOPE:plugin — Stripe top-up wiring.
+// Stripe top-up wiring.
 package credits
 
 import (

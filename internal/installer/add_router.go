@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: add router call restoration
+// Installer engine: add router call restoration
 package installer
 
 import (

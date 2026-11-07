@@ -1,4 +1,4 @@
-// SCOPE:feature — the todo unit declares its surface to the recipe seam.
+// The todo unit declares its surface to the recipe seam.
 package handlers
 
 import (

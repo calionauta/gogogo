@@ -1,4 +1,4 @@
-// SCOPE:core — Tests for the docs claim guard.
+// Tests for the docs claim guard.
 package main
 
 import (
@@ -105,21 +105,6 @@ func TestTrimmedPaths(t *testing.T) {
 	}
 	if len(trimmedPaths(root)) != 0 {
 		t.Error("trimmedPaths without a provenance section must be empty")
-	}
-}
-
-// TestStaleScopeDialect keeps the retired two-axis annotation out of prose:
-// docs taught it while `make check-scope` rejects it.
-func TestStaleScopeDialect(t *testing.T) {
-	root := t.TempDir()
-	rel := "doc.md"
-	body := "# doc\n\n- `// SCOPE:layer=feature,removal=core` on new files\n- `// SCOPE:plugin` is fine\n"
-	if err := os.WriteFile(filepath.Join(root, rel), []byte(body), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	got := checkStaleScopeDialect(root, []string{rel})
-	if len(got) != 1 {
-		t.Fatalf("checkStaleScopeDialect = %v, want one offender", got)
 	}
 }
 

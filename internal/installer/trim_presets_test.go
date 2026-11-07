@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: trim-preset sync tests
+// Installer engine: trim-preset sync tests
 package installer
 
 import (

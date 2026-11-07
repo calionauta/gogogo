@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP whiteboard contract tests (red-proof).
+// HTTP whiteboard contract tests (red-proof).
 //
 // Real Turso file, real auth, real Loro DocStore, driven over HTTP.
 // Contracts: paths, statuses, redirects, shared listing, snapshot

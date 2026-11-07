@@ -1,4 +1,4 @@
-// SCOPE:core — Email verification and password-reset lifecycle.
+// Email verification and password-reset lifecycle.
 //
 // Both reuse the single-use, hashed magic_tokens table with a purpose tag,
 // so a login link can never be replayed as a reset link. Delivery is an

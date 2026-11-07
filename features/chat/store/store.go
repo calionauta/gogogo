@@ -1,4 +1,4 @@
-// SCOPE:feature — chat conversation model + answer parsing
+// Chat conversation model + answer parsing
 package store
 
 import (

@@ -1,4 +1,4 @@
-// SCOPE:plugin — the parse front door, split from catalog.go for the
+// The parse front door, split from catalog.go for the
 // 500-line file gate (same split as prompts.go): the registry decides what
 // RENDERS, this file turns a raw model answer into directives against it.
 package components

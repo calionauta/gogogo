@@ -1,4 +1,4 @@
-// SCOPE:plugin — the pomodoro recipe declares its surface to the seam.
+// The pomodoro recipe declares its surface to the seam.
 package handlers
 
 import (

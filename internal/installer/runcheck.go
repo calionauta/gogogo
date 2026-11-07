@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: --run requirement checks (make+air)
+// Installer engine: --run requirement checks (make+air)
 package installer
 
 import (

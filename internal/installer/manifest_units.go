@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: unit ids, capability map, trim manifest
+// Installer engine: unit ids, capability map, trim manifest
 package installer
 
 // Unit ids, the capability map and the per-unit trim manifest. Split out of

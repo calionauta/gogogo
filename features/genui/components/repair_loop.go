@@ -1,4 +1,4 @@
-// SCOPE:plugin — the bounded validate→repair loop behind both AI legs.
+// The bounded validate→repair loop behind both AI legs.
 package components
 
 import (

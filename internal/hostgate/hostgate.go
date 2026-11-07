@@ -1,4 +1,4 @@
-// SCOPE:core — Host gate for heavy Go tests (skip on saturated boxes)
+// Host gate for heavy Go tests (skip on saturated boxes)
 //
 // Some tests ARE the heavy workload: they copy the whole repo into temp
 // dirs and fork `go vet ./...` per copy (see

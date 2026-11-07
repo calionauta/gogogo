@@ -1,4 +1,4 @@
-// SCOPE:core — Auth OAuth subject tests (sub-keying, legacy adoption).
+// Auth OAuth subject tests (sub-keying, legacy adoption).
 
 package auth
 

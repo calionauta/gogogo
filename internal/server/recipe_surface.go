@@ -1,4 +1,4 @@
-// SCOPE:core — the composition root's recipe step: register, migrate, mount.
+// The composition root's recipe step: register, migrate, mount.
 //
 // It lives beside chi.go rather than inside buildChiMux because that function is
 // at the file-size cap, and because the three steps are one decision: the code

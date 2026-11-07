@@ -1,4 +1,4 @@
-// SCOPE:core — bump the pinned Go toolchain across every file that names it.
+// Bump the pinned Go toolchain across every file that names it.
 //
 // Why this exists: the pin lives in every file that names the toolchain —
 // go.mod, cmd/gogogo-mcp/go.mod, bin/install-go-toolchain.sh, both Dockerfiles,

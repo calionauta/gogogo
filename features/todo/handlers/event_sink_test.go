@@ -1,4 +1,4 @@
-// SCOPE:feature — event sink mapping/scoping tests.
+// Event sink mapping/scoping tests.
 package handlers
 
 import (

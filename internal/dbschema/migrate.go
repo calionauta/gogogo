@@ -1,4 +1,4 @@
-// SCOPE:core — driver-free schema + identity: embedded migrations,
+// Driver-free schema + identity: embedded migrations,
 // versions ledger, IDs and timestamps. No driver import here on purpose:
 // native targets (cmd/gui, zero CGO) open via ncruces `sqlite3` and share
 // this package, while internal/db owns the tursogo open. Importing

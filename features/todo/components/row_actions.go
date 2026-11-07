@@ -1,4 +1,4 @@
-// SCOPE:feature — a todo row renders the actions recipes contributed.
+// A todo row renders the actions recipes contributed.
 //
 // The row is shared between /todo and the chat panel, so the substitution of a
 // row id happens in one place: a second implementation would drift the moment

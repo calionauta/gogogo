@@ -1,4 +1,4 @@
-// SCOPE:plugin — recipe install from a reviewed catalog entry.
+// Recipe install from a reviewed catalog entry.
 package installer
 
 import (

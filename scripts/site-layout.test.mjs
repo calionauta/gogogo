@@ -1,4 +1,4 @@
-// SCOPE:feature - Behavioral proof: the docs site never clips its content.
+// Behavioral proof: the docs site never clips its content.
 //
 // Two reported bugs (issue #189). First: pages were "cut off" because
 // `table{min-width:max-content}` refused to wrap any cell, so a cell holding a

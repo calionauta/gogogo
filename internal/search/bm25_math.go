@@ -1,4 +1,4 @@
-// SCOPE:plugin — BM25's per-document math, split for the file gate.
+// BM25's per-document math, split for the file gate.
 package search
 
 import "math"

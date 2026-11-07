@@ -1,4 +1,4 @@
-// SCOPE:feature — Viewer-role UI contract tests (red-proof).
+// Viewer-role UI contract tests (red-proof).
 package handlers
 
 import (

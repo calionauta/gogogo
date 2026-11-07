@@ -1,4 +1,4 @@
-// SCOPE:core — RBAC policy intent: which routes are admin-only, which are public.
+// RBAC policy intent: which routes are admin-only, which are public.
 
 package rbac
 

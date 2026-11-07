@@ -1,4 +1,4 @@
-// SCOPE:core — Flat auth HTTP surface (signup/signin/signout)
+// Flat auth HTTP surface (signup/signin/signout)
 package auth
 
 import (

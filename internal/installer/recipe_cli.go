@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer CLI: the recipe commands (install, update,
+// Installer CLI: the recipe commands (install, update,
 // uninstall, status).
 //
 // Spike 3 built the engine (plan, apply, receipt, drift) and deliberately left

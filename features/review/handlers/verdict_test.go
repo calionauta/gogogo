@@ -1,4 +1,4 @@
-// SCOPE:feature — the verdict-replacement contract (red-proof).
+// The verdict-replacement contract (red-proof).
 //
 // Split from chi_test.go for the file-size gate, and along a real seam: that
 // file covers the handler's wiring (auth, billing, the judge's escalation

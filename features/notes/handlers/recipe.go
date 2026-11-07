@@ -1,4 +1,4 @@
-// SCOPE:feature — the notes unit declares its surface to the recipe seam.
+// The notes unit declares its surface to the recipe seam.
 package handlers
 
 import (

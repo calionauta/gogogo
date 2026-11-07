@@ -1,4 +1,4 @@
-// SCOPE:core - DO NOT REMOVE - Embedded static assets (CSS, JS, etc.).
+// Embedded static assets (CSS, JS, etc.).
 package resources
 
 import (

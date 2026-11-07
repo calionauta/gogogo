@@ -1,4 +1,4 @@
-// SCOPE:feature — chat render tests.
+// Chat render tests.
 package chat_test
 
 import (

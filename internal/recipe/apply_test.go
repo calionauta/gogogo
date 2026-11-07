@@ -1,4 +1,4 @@
-// SCOPE:plugin — Spike 3 evidence: install and remove are mechanical.
+// Spike 3 evidence: install and remove are mechanical.
 //
 // The binary criterion: an install writes the copied tree plus the receipt and
 // nothing else, and a remove deletes only what the user never touched.

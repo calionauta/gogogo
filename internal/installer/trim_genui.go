@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: the genui/chat trim unit (data only)
+// Installer engine: the genui/chat trim unit (data only)
 //
 // Split out of trim_features.go for the file-size gate. genui is the AI
 // bundle: chat imports genui components (no-compile without it), so the two

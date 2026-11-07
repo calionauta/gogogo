@@ -1,4 +1,4 @@
-// SCOPE:plugin — the credits Service implements the
+// The credits Service implements the
 // llm.Biller seam so every Chat/ChatStream call (the internal/llm choke
 // point) is metered. To remove: delete this file + features/credits/.
 //

@@ -1,4 +1,4 @@
-// SCOPE:feature — gogpu/ui view builders for the native window
+// Gogpu/ui view builders for the native window
 //
 // Plain widgets only: Text, TextField, Button, Checkbox, Box. No canvas,
 // no custom drawing — the point of the native window is the backend wiring, and a

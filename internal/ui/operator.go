@@ -1,4 +1,4 @@
-// SCOPE:core — Request-scoped operator flag for the shell.
+// Request-scoped operator flag for the shell.
 //
 // The account menu offers the DagNats console only to an operator, because the
 // console answers 403 to everyone else (admin AND an ADMIN_EMAILS match; the

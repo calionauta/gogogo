@@ -1,4 +1,4 @@
-// SCOPE:core — Icon catalog guards.
+// Icon catalog guards.
 //
 // The catalog is invisible when it is wrong: an unknown name renders an
 // empty <svg>, and a module whose Icon is missing renders a blank rail row.

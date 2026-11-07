@@ -1,4 +1,4 @@
-// SCOPE:feature — Tests for the gui poll loop and sign-out wiring.
+// Tests for the gui poll loop and sign-out wiring.
 package main
 
 import (

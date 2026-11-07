@@ -1,4 +1,4 @@
-// SCOPE:plugin — copying a recipe's DDL where the query generator can see it.
+// Copying a recipe's DDL where the query generator can see it.
 //
 // The engine applies a recipe's migrations from the recipe's own package,
 // namespaced by its id. `sqlc` cannot: it reads directories, and — measured, not

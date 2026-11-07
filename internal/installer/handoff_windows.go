@@ -1,6 +1,6 @@
 //go:build windows
 
-// SCOPE:plugin — installer engine: --run handoff via child (Windows, no exec)
+// Installer engine: --run handoff via child (Windows, no exec)
 package installer
 
 import (

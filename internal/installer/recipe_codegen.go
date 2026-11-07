@@ -1,4 +1,4 @@
-// SCOPE:plugin — install regenerates the tree's generated code after copying.
+// Install regenerates the tree's generated code after copying.
 package installer
 
 import (

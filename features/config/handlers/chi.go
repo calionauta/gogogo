@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP config view (admin-only, secrets masked)
+// HTTP config view (admin-only, secrets masked)
 //
 // Same path, same component (shared Page over BuildPageData): the route is
 // fenced to admins by rbac.RequireAdmin, independent of RBAC_ENABLED. Nothing

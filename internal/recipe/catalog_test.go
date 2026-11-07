@@ -1,4 +1,4 @@
-// SCOPE:plugin — the catalog entry's review rules, red-proofed.
+// The catalog entry's review rules, red-proofed.
 package recipe
 
 import (

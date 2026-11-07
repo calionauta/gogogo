@@ -1,4 +1,4 @@
-// SCOPE:core — the Go toolchain pin, asserted across every file that declares
+// The Go toolchain pin, asserted across every file that declares
 // it. A test, not a doc: the bump in #191 touched these files by hand, and
 // nothing failed when one was missed.
 //

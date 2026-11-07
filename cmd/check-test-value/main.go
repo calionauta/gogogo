@@ -1,4 +1,4 @@
-// SCOPE:core — Test-value guard: every Test must be able to fail, and pin behavior not just err==nil.
+// Test-value guard: every Test must be able to fail, and pin behavior not just err==nil.
 //
 // A test that cannot fail reads as coverage and survives review while hiding
 // the regression it was written for (lived bug: TestTodoRecordsNotBroadcastViaHub

@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: project rename (module path + references)
+// Installer engine: project rename (module path + references)
 package installer
 
 import (

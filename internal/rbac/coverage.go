@@ -1,4 +1,4 @@
-// SCOPE:core — RBAC coverage gate over the composed router.
+// RBAC coverage gate over the composed router.
 //
 // Two inventories answer the same question, and they answer it at different
 // times. The source scan (coverage_test.go) reads `r.Get("/path")` calls before

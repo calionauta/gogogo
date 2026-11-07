@@ -1,4 +1,4 @@
-// SCOPE:core — Minimal SMTP mailer for verification/reset delivery.
+// Minimal SMTP mailer for verification/reset delivery.
 //
 // net/smtp keeps the template dependency-free. It uses STARTTLS when the
 // server advertises it (port 587 style); implicit TLS (465) is intentionally

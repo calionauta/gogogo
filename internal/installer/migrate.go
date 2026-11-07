@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: the migration range as data
+// Installer engine: the migration range as data
 //
 // `gogogo migrate` answers "what changed between the revision this project
 // records and the latest release?", and nothing else. It never edits the tree.

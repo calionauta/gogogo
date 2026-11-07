@@ -1,4 +1,4 @@
-// SCOPE:plugin — Loro CRDT + DocStore + sync workers + presence
+// Loro CRDT + DocStore + sync workers + presence
 package collab
 
 import "encoding/json"

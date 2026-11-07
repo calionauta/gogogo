@@ -1,4 +1,4 @@
-// SCOPE:core — The vendored Cally bundle's version is pinned by test.
+// The vendored Cally bundle's version is pinned by test.
 package resources
 
 import (

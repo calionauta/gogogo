@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: the feature trim units (data only)
+// Installer engine: the feature trim units (data only)
 //
 // Whiteboard, landing, config-view, credits and genui: each wires into the
 // composition root, so their trims edit the shared signature, call site and

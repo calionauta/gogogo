@@ -1,4 +1,4 @@
-// SCOPE:plugin — install/uninstall own a recipe's RBAC rows.
+// Install/uninstall own a recipe's RBAC rows.
 //
 // A recipe mounts routes the policy never saw: policy.csv is written before the
 // recipe exists, and the runtime gate (rbac.RoutePolicyProblems) demands a

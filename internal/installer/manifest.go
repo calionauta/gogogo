@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: trim/add unit mechanics (strips, drops, anchors)
+// Installer engine: trim/add unit mechanics (strips, drops, anchors)
 package installer
 
 import (

@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: the port recipe a bundle carries
+// Installer engine: the port recipe a bundle carries
 package installer
 
 import (

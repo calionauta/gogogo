@@ -1,4 +1,4 @@
-// SCOPE:core — SSE Hub audience targeting (who receives a fan-out).
+// SSE Hub audience targeting (who receives a fan-out).
 //
 // BroadcastToUser (one owner's tabs), BroadcastToAllUsers (every login's
 // streams — shared-row mutations, each re-listing its own visible set),

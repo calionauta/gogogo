@@ -1,4 +1,4 @@
-// SCOPE:core — Shell control contracts (red-proof).
+// Shell control contracts (red-proof).
 //
 // These used to live on Navbar, which is gone: the shell renders the account
 // menu on every page, landing included, so the contract is asserted on the

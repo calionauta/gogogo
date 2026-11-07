@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: flags, plan,
+// Installer engine: flags, plan,
 // apply, prove, and exit codes shared by the CLI and the MCP server.
 package installer
 

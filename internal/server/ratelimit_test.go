@@ -1,4 +1,4 @@
-// SCOPE:core — Per-session request limiter red-proof.
+// Per-session request limiter red-proof.
 package server
 
 import (

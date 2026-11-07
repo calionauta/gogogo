@@ -1,4 +1,4 @@
-// SCOPE:feature — the landing page declares its surface to the recipe seam.
+// The landing page declares its surface to the recipe seam.
 package handlers
 
 import (

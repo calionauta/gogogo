@@ -1,4 +1,4 @@
-// SCOPE:plugin — Spike 4: install and update are one mechanism.
+// Spike 4: install and update are one mechanism.
 //
 // The claim under test: install is just update against an empty tree, and update
 // after user edits is decidable from the receipt alone — no merge engine, no

@@ -1,4 +1,4 @@
-// SCOPE:core — Seeds ui.WithOperator for page navigations.
+// Seeds ui.WithOperator for page navigations.
 //
 // The shell's account menu shows the DagNats console entry only when the
 // console would actually answer: a workflow engine was STARTED in this binary,

@@ -1,4 +1,4 @@
-// SCOPE:core — Auth plugin tests (TOTP vectors, magic-link, OAuth stub).
+// Auth plugin tests (TOTP vectors, magic-link, OAuth stub).
 package auth
 
 import (

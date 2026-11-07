@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP chat worker tests (ported from features/chat/handler_test.go)
+// HTTP chat worker tests (ported from features/chat/handler_test.go)
 //
 // The worker is the same code the legacy-handler era ran; the port keeps the
 // red-proof on the HTTP copy: one Ask persists both sides of the

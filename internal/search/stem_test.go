@@ -1,4 +1,4 @@
-// SCOPE:plugin — the stemmer's contract: folds English morphology, stays
+// The stemmer's contract: folds English morphology, stays
 // idempotent, and does NOT break what the layers already promised (positions
 // and the edit tier).
 package search

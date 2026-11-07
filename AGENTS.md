@@ -38,7 +38,6 @@ Go 1.27 | Templ v0.3.1020 | Datastar v1.0.4 (JS core, vendored) + datastar-go v1
 | `make templ` | Generate Templ |
 | `make datastar-lint` | Lint `.templ` (`-only-errors` keeps intentional attrs) |
 | `make css` / `make css-check` | Rebuild the bundle (DaisyUI + its themes; scans `features/`, `web/`, `internal/`) / verify it is current (`css-all` is kept as an alias for CI and Docker) |
-| `make check-scope` | Assert `// SCOPE:<core|plugin|feature>` on every `internal/`+`features/` file |
 | `make test` | Race tests, parallel across packages (CI runs them — prefer scoped tests locally) |
 | `make check-generated` | Fail if committed `_templ.go` does not match the `.templ` sources |
 | `make check-ci-scripts` | Contract tests for the scripts that decide WHAT CI runs (docs-only classifier, race-shard split) — plain functions over synthetic path lists, milliseconds |
@@ -87,7 +86,7 @@ Keep architecture explicit, thin, and easy for LLMs to evolve. Avoid creating a 
 - **No pass-through layers.** Never wrap a dependency in a thin adapter that only forwards calls — call it directly. Translate types at the boundary only when the external shape genuinely differs from the domain shape.
 - **Examples are the spec.** Living code is more useful to LLMs than long prose. When adding a new seam, mirror an existing concrete example (e.g. the todo vertical slice).
 - **Dual-mode when evolving core paths.** When replacing/swapping a core integration, use a runtime flag to compare behavior with zero regressions. Default to existing behavior.
-- **Core vs plugins.** Mark new removable pieces with `SCOPE:plugin`. `SCOPE:core` changes need care.
+- **Core vs plugins.** A new removable piece gets a capability row with `Kind: plugin`; a core row changes need care.
 - **Constructors build, callers start; stoppable on terminate.** Follow concurrency rules from coding standards.
 - **Fail fast, explicit errors.** Keep contracts obvious; prefer compile-time checks over runtime magic.
 
@@ -97,13 +96,13 @@ Keep architecture explicit, thin, and easy for LLMs to evolve. Avoid creating a 
 - Don't hide dependencies behind globals/env checks deep in code - inject them.
 - Keep seams discoverable (small files, clear names). If an LLM can't copy-paste and adapt it, it's too clever.
 
-## SCOPE
+## Removal class (one source)
 
-Every non-test, non-generated `.go` under `internal/`/`features/` carries `// SCOPE:<core|plugin|feature> — <desc>` (`docs/scope-taxonomy.md`). The directory is the layer; the annotation records only the removal class. **`internal/` is Go's import boundary, not a removal class** — about half of it is plugin (`nats`, `collab`, `search`, `llm`, `datastar`, …), so read the annotation, never the directory. Enforced by `make check-scope` + pre-commit. Trim rule: never delete `core` without asking; `feature`/`plugin` delete freely per the inline description (`docs/features.md`).
+The removal class is `Capability.Kind` on the row in `internal/capabilities` (`docs/scope-taxonomy.md`), and nothing else: no per-file header, no second table. The directory is the layer, never the class — **`internal/` is Go's import boundary, not a removal class** — about half of it is plugin (`nats`, `collab`, `search`, `llm`, `datastar`, …), so read the row, never the directory. A package no row owns fails `internal/capabilities` (coverage walks `internal/` + `features/`), and a header under a row's dirs fails the no-legacy guard. Trim rule: never delete a `core` row without asking; `feature`/`plugin` delete freely (`docs/features.md`).
 
 ## Hooks
 
-Blocking gates live at git level via lefthook (`make setup`; wrappers committed in `.githooks/`). Pre-commit (parallel, glob-filtered): file-sizes · fmt-gofumpt · mod-tidy · govulncheck · ci-deps · install-sh · scope-lint · ci-scripts · class-integrity · daisyui-lint · flatdeps-lint · test-value · docs-claims · secrets-env · rbac-policy (full: shape+coverage, `internal/rbac` + `internal/server`) · dagnats-pin · secrets-scan · skill-frontmatter · datastar-lint · api-routes · mcp-tests · registry-conformance · generated-templ · css-check · no-jsx · golangci-lint · agents-md-staleness · stelow-drift (advisory) · daisyui-drift (advisory) · docs-staleness (advisory). Pre-push (light): govulncheck · deadcode. Post-merge: regen-assets. Agent-level hooks keep only what git cannot (post-build hints). Details: `docs/local-ci.md` — T1 format/build → T2 scoped lint → T3 scoped tests → T3.5 `ci-local-fast` → T4 `ci-local` → T5 `signoff`, then push. Homolog light (no staging env): `make dev` + `make ci-local-fast` + smoke, share via `tailscale serve` — recipe in `docs/local-ci.md`.
+Blocking gates live at git level via lefthook (`make setup`; wrappers committed in `.githooks/`). Pre-commit (parallel, glob-filtered): file-sizes · fmt-gofumpt · mod-tidy · govulncheck · ci-deps · install-sh · ci-scripts · class-integrity · daisyui-lint · flatdeps-lint · test-value · docs-claims · secrets-env · rbac-policy (full: shape+coverage, `internal/rbac` + `internal/server`) · dagnats-pin · secrets-scan · skill-frontmatter · datastar-lint · api-routes · mcp-tests · registry-conformance · generated-templ · css-check · no-jsx · golangci-lint · agents-md-staleness · stelow-drift (advisory) · daisyui-drift (advisory) · docs-staleness (advisory). Pre-push (light): govulncheck · deadcode. Post-merge: regen-assets. Agent-level hooks keep only what git cannot (post-build hints). Details: `docs/local-ci.md` — T1 format/build → T2 scoped lint → T3 scoped tests → T3.5 `ci-local-fast` → T4 `ci-local` → T5 `signoff`, then push. Homolog light (no staging env): `make dev` + `make ci-local-fast` + smoke, share via `tailscale serve` — recipe in `docs/local-ci.md`.
 
 ## Gotchas (details in docs)
 

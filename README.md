@@ -264,18 +264,19 @@ by deleting the package and its one wiring call — see
 
 ## Core / Plugin / Feature
 
-Every non-test `.go` file under `internal/` and `features/` carries a SCOPE
-annotation declaring its removal class. `make check-scope` enforces it in CI and
-in your pre-commit hook.
+Every removable piece of the template is one row in
+`internal/capabilities`, and the row declares its removal class. There is no
+per-file header to keep in sync: a package's class is its owning row's, and a
+package no row owns fails the registry's coverage test.
 
-| Annotation | Meaning | You would |
+| Class | Meaning | You would |
 |---|---|---|
-| `SCOPE:core` 🔴 | The binary does not work without it | Customize, never remove |
-| `SCOPE:plugin` 🟡 | The binary works but loses a capability | Swap, or delete + remove the wiring call |
-| `SCOPE:feature` 🟢 | A demo or add-on | Keep as reference, then remove |
+| `core` 🔴 | The binary does not work without it | Customize, never remove |
+| `plugin` 🟡 | The binary works but loses a capability | Swap, or delete + remove the wiring call |
+| `feature` 🟢 | A demo or add-on | Keep as reference, then remove |
 
-The rule for agents: **never delete a `core` file without asking; never
-keep a `feature` file in production if the domain doesn't need it.**
+The rule for agents: **never delete a `core` row without asking; never
+keep a `feature` row in production if the domain doesn't need it.**
 Full taxonomy and per-package removal table:
 [scope-taxonomy](docs/scope-taxonomy.md).
 

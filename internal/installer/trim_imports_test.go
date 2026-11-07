@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: trim import-coverage test.
+// Installer engine: trim import-coverage test.
 package installer
 
 import (

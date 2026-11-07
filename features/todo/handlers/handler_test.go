@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP todo slice contract tests (red-proof for step 4).
+// HTTP todo slice contract tests (red-proof for step 4).
 //
 // Every test boots a real migrated Turso file, signs a user up through the
 // real auth HTTP surface, and drives the HTTP todo routes over HTTP. The

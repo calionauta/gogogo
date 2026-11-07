@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: add import restoration
+// Installer engine: add import restoration
 //
 // Import restoration: putting back the import lines a trim removed, in
 // the right slot and order, and merging a single import into an existing

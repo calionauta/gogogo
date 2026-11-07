@@ -1,4 +1,4 @@
-// SCOPE:feature — native window live updates (JSON event stream)
+// Native window live updates (JSON event stream)
 package main
 
 import (

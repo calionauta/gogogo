@@ -1,4 +1,4 @@
-// SCOPE:core — Quarantine for tests that are known-flaky, with a deadline.
+// Quarantine for tests that are known-flaky, with a deadline.
 //
 // WHY. A flaky test has three possible fates, and only one of them is honest:
 //

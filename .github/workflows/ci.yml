@@ -306,9 +306,6 @@ jobs:
         # scope prints zero bytes — a blank line reaches `go test` as the
         # current directory. Synthetic universe: no repo, no go list, instant.
         run: bash scripts/ci-shard-packages.test.sh
-      - name: Check-scope (SCOPE annotations)
-        # Fast fail: validate annotations before heavy C toolchain installs
-        run: go run ./cmd/check-scope
       - name: Standalone binaries (dogfood)
         # check-classes is the gate; this proves the shipped CLIs still run on a
         # real tree — the product has users outside this repo.

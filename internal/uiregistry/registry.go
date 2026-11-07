@@ -1,4 +1,4 @@
-// SCOPE:core — the UI registry schema, shared by the gate and the reader.
+// The UI registry schema, shared by the gate and the reader.
 //
 // One schema, two consumers: `make check-classes` validates the registry
 // against the repo, and `go run ./cmd/ui-registry` serves it to an agent that

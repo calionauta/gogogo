@@ -1,4 +1,4 @@
-// SCOPE:feature — the room unit declares its surface to the recipe seam.
+// The room unit declares its surface to the recipe seam.
 package handlers
 
 import (

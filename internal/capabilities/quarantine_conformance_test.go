@@ -1,4 +1,4 @@
-// SCOPE:core — conformance guard for the quarantine registry.
+// Conformance guard for the quarantine registry.
 //
 // The quarantine mechanism (internal/hostgate/quarantine.go) lets a known-flaky
 // test stop gating the build while keeping its reason, its issue link and a

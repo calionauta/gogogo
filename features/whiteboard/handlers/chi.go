@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP whiteboard slice (Loro CRDT canvas)
+// HTTP whiteboard slice (Loro CRDT canvas)
 //
 // Same routes, wire and components as the framework handlers: index/new/
 // board pages, list fragment, per-doc stream, shape updates, presence and

@@ -1,4 +1,4 @@
-// SCOPE:core — presence seam construction and the GoAkt upgrade it routes to.
+// Presence seam construction and the GoAkt upgrade it routes to.
 
 package server
 

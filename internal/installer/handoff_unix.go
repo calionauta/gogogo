@@ -1,6 +1,6 @@
 //go:build !windows
 
-// SCOPE:plugin — installer engine: --run handoff via exec (Unix)
+// Installer engine: --run handoff via exec (Unix)
 package installer
 
 import (

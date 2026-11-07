@@ -1,4 +1,4 @@
-// SCOPE:plugin — Capability registry entries (data only)
+// Capability registry entries (data only)
 //
 // Split from capabilities.go for the file-sizes gate: the type + API live
 // there, the table here. A growing slice moves to its own file.

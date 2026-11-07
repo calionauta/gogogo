@@ -1,4 +1,4 @@
-// SCOPE:feature — notifications: the shell's badge poll endpoint.
+// Notifications: the shell's badge poll endpoint.
 package handlers
 
 import (

@@ -1,4 +1,4 @@
-// SCOPE:plugin — reconcile driver contract tests.
+// Reconcile driver contract tests.
 //
 // Reconcile existed in the library but was never called in production, so
 // drift between reservations and ledger went undetected. These tests pin the

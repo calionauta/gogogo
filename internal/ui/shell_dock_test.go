@@ -1,4 +1,4 @@
-// SCOPE:core — AppDock role contract: the mobile bottom bar must not offer
+// AppDock role contract: the mobile bottom bar must not offer
 // a destination its policy denies.
 package ui
 

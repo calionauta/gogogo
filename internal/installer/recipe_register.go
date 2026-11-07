@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer CLI: the generated recipe registration.
+// Installer CLI: the generated recipe registration.
 //
 // The registration is the one file the composition root learns about installed
 // recipes through. It is generated from .recipes/*.yml, never edited: the

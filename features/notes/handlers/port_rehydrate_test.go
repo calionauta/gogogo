@@ -1,4 +1,4 @@
-// SCOPE:feature — Notes snapshot-rehydrate red-proof.
+// Notes snapshot-rehydrate red-proof.
 //
 // The DocStore cache is bounded: after an evict (or a server restart)
 // the next op for a doc must NOT start from an empty doc, or the

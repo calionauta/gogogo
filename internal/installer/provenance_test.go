@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: trim-provenance tests
+// Installer engine: trim-provenance tests
 package installer
 
 import (

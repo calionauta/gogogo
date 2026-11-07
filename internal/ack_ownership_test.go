@@ -1,4 +1,4 @@
-// SCOPE:core — the ownership rule for enqueueing endpoints.
+// The ownership rule for enqueueing endpoints.
 //
 // An endpoint that enqueues a job answers on its OWN response, while the
 // result arrives on the tab's already-open SSE stream: two connections, no

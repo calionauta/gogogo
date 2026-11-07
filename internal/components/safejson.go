@@ -1,4 +1,4 @@
-// SCOPE:plugin — JSON marshalling helpers for Datastar component attributes
+// JSON marshalling helpers for Datastar component attributes
 package components
 
 import (

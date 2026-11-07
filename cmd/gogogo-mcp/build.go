@@ -1,4 +1,4 @@
-// SCOPE:plugin — MCP tool: desktop/mobile build prerequisites.
+// MCP tool: desktop/mobile build prerequisites.
 //
 // Split from main.go for the file-sizes gate. The text lives in
 // internal/installer, so the CLI help and this tool cannot drift.

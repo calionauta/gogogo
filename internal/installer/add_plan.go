@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: the `add` preview (dry-run plan)
+// Installer engine: the `add` preview (dry-run plan)
 package installer
 
 import (

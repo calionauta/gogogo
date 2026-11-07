@@ -1,4 +1,4 @@
-// SCOPE:core — Tests for the measured Client weight rule and its writer.
+// Tests for the measured Client weight rule and its writer.
 package main
 
 import (

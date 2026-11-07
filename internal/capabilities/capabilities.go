@@ -1,4 +1,4 @@
-// SCOPE:plugin — Capability registry: single source
+// Capability registry: single source
 // of truth for ids, kinds, runtime switches, and owned paths (consumed by
 // cmd/gogogo, docs, and --help).
 package capabilities

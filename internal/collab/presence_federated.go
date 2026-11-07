@@ -1,4 +1,4 @@
-// SCOPE:plugin — Federated document presence (local roster + peer instances).
+// Federated document presence (local roster + peer instances).
 //
 // The hub's doc bridge carries presence FRAMES between instances, which is
 // enough for "I saw a peer join". It is NOT enough for the authoritative

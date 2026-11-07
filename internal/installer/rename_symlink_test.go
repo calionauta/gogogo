@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: rename must survive a fresh clone's symlinks
+// Installer engine: rename must survive a fresh clone's symlinks
 package installer
 
 import (

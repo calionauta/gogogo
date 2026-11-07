@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP chat slice (per-request answer surfaces).
+// HTTP chat slice (per-request answer surfaces).
 //
 // Split from chi.go for the file-size gate, and along a real seam: chi.go
 // owns the routes and the page/stream/ask handlers, this file owns how the

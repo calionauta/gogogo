@@ -1,4 +1,4 @@
-// SCOPE:core — SSE Hub backpressure/drop-reason contract
+// SSE Hub backpressure/drop-reason contract
 package queue
 
 import (

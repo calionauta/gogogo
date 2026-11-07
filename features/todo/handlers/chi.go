@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP todo slice (flat stack)
+// HTTP todo slice (flat stack)
 //
 // Package todo's chi Handler serves the todo surface on the flat stack:
 // chi routing, owned auth sessions, sqlc queries called directly, the same

@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer CLI: `recipe uninstall`.
+// Installer CLI: `recipe uninstall`.
 package installer
 
 import (

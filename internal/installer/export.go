@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: export a unit into a scratch port bundle
+// Installer engine: export a unit into a scratch port bundle
 package installer
 
 import (

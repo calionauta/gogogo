@@ -1,4 +1,4 @@
-// SCOPE:feature — "an unreadable list is not an empty list" contract tests.
+// "an unreadable list is not an empty list" contract tests.
 //
 // Each of these handlers used to swallow a list failure into an empty
 // collection and render it, so a broken store looked exactly like "you have

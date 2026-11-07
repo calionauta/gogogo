@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP room contract tests (red-proof).
+// HTTP room contract tests (red-proof).
 package handlers
 
 import (

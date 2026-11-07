@@ -1,4 +1,4 @@
-// SCOPE:plugin — the sqlc mirror: install writes a recipe's DDL where codegen
+// The sqlc mirror: install writes a recipe's DDL where codegen
 // reads it, status notices when that copy stops describing the tree, and
 // uninstall takes it away with the recipe.
 package installer

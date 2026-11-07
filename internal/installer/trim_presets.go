@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: named trim presets (executable keep-sets)
+// Installer engine: named trim presets (executable keep-sets)
 package installer
 
 import (

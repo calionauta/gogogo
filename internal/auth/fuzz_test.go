@@ -1,4 +1,4 @@
-// SCOPE:core — Fuzz seeds for the pure auth parsers (no DB, no HTTP).
+// Fuzz seeds for the pure auth parsers (no DB, no HTTP).
 package auth
 
 import "testing"

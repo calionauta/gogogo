@@ -1,4 +1,4 @@
-// SCOPE:feature — a native panel's own row actions, answered in place.
+// A native panel's own row actions, answered in place.
 //
 // Split from mutations.go for the file-size gate, and along a real seam:
 // that file owns what a WRITE does (store, fan-out, page patch), this one

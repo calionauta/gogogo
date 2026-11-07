@@ -1,4 +1,4 @@
-// SCOPE:plugin — html_block sanitizer tests (red-proof).
+// Html_block sanitizer tests (red-proof).
 package components
 
 import (

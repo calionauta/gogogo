@@ -1,4 +1,4 @@
-// SCOPE:core — Shared session stream (session state + the shell's cross-page
+// Shared session stream (session state + the shell's cross-page
 // inbox count, no polling)
 package auth
 

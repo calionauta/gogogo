@@ -1,4 +1,4 @@
-// SCOPE:feature — Native-window store over the flat data layer
+// Native-window store over the flat data layer
 //
 // The window's claim is that the domain is transport-agnostic: the same
 // todos the chi handlers read and write are reachable here with no HTTP,

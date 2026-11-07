@@ -1,4 +1,4 @@
-// SCOPE:core — delivery transport wiring (composition root).
+// Delivery transport wiring (composition root).
 //
 // The feature depends on delivery.Sender, never on a provider package; this
 // file is the only place that names one. Config validation refused an

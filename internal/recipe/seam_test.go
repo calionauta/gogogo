@@ -1,4 +1,4 @@
-// SCOPE:plugin — Spike 1 evidence: the declaration seam behaves as claimed.
+// Spike 1 evidence: the declaration seam behaves as claimed.
 //
 // The binary success criterion from the research page: mounting a recipe set must
 // touch nothing but the declaration and the generated registration, and a

@@ -1,4 +1,4 @@
-// SCOPE:feature — chat surface + hydration contracts (red-proof).
+// Chat surface + hydration contracts (red-proof).
 //
 // Per-request answer surfaces ride the ask job; history re-hydrates panels
 // from the store. Each test fails when its behavior is reverted.

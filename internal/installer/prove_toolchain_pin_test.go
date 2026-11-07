@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: the toolchain pin proof
+// Installer engine: the toolchain pin proof
 package installer
 
 import (

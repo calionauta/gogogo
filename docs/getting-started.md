@@ -323,8 +323,8 @@ implementation.
    pass its router to one `MountFeature` call in `buildChiMux`.
 3. Use **goqite** for async work, the **SSE Hub** for user-facing feedback
    (toasts, progress), and **Datastar** for the reactive frontend.
-4. Add a `SCOPE:` annotation so agents know what they can remove —
-   `make check-scope` enforces it.
+4. Add the unit's row in `internal/capabilities` (kind, owned dirs/files) so
+   agents and the installer know what can be removed together.
 5. Add a `Routes()` method on your handler and mount it in `buildChiMux`.
 
 The contract to imitate, in four rules:

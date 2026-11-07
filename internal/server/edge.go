@@ -1,4 +1,4 @@
-// SCOPE:core — HTTP edge middleware: security headers and the opt-in access
+// HTTP edge middleware: security headers and the opt-in access
 // log. Both wrap the whole handler (RBAC included), not the chi router: an
 // authorization 403 and a router 404 must carry the same headers and appear
 // in the same log line as a feature response.

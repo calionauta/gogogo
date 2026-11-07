@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: the DagNats trim unit (data only)
+// Installer engine: the DagNats trim unit (data only)
 //
 // Split from manifest_units.go because it is by far the largest unit: the
 // flat stack embeds onboarding-adjacent wiring in the composition root, so

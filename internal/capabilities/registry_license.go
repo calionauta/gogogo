@@ -1,4 +1,4 @@
-// SCOPE:plugin — Capability registry entries for the license/cloud-config slice.
+// Capability registry entries for the license/cloud-config slice.
 //
 // The desktop distribution gate (LICENSE_MODE=license|account) is core wiring:
 // the token verifier and sync.json reader are load-bearing when the gate is

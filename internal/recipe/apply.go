@@ -1,4 +1,4 @@
-// SCOPE:plugin — Spike 3: install and remove are mechanical, and both are the
+// Spike 3: install and remove are mechanical, and both are the
 // same operation over a plan plus a receipt.
 //
 // The claim under test: installing and removing a recipe touches nothing but the

@@ -1,4 +1,4 @@
-// SCOPE:plugin — a recipe that adds a sidebar entry moves the page digests, so
+// A recipe that adds a sidebar entry moves the page digests, so
 // the installer names the one command that re-blesses them.
 package installer
 

@@ -20,7 +20,7 @@ Closes #NNN (maintainer nod received: yes / no)
 ## Checklist
 
 - [ ] One concern per PR, no drive-by refactors or unrelated files
-- [ ] `// SCOPE:<core|plugin|feature>` on new non-test, non-generated `.go` files (`make check-scope`)
+- [ ] A new removable unit has its row in `internal/capabilities` (kind, owned dirs/files, `Register` when it mounts itself) — the registry is the only place the removal class lives
 - [ ] `make templ && make css` after `.templ` edits; no hand-edited `_templ.go`
 - [ ] No real LLM in tests; ephemeral ports (`127.0.0.1:0`, NATS `-1`); `GOGOGO_NO_BROWSER=1` where applicable
 - [ ] New dependency or native code: passed `docs/dependency-principles.md`, and the one-line trade-off record (chosen / rejected / cost / revisit-if) is in this body

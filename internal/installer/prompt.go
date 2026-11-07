@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: interactive form, numbered menus, keep-set parsing
+// Installer engine: interactive form, numbered menus, keep-set parsing
 package installer
 
 import (

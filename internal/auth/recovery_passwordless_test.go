@@ -1,4 +1,4 @@
-// SCOPE:core — passwordless recovery rotation through the HTTP route.
+// Passwordless recovery rotation through the HTTP route.
 package auth
 
 import (

@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP config view contract tests.
+// HTTP config view contract tests.
 package handlers
 
 import (

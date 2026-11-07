@@ -1,16 +1,15 @@
 # Scope taxonomy
 
-Every non-test, non-generated `.go` file under `internal/` and `features/`
-carries a `SCOPE` annotation in its leading doc comment to tell agents and
-developers what can be safely removed. (Files elsewhere — `cmd/`, `web/`,
-`config/` — have none; the linter only walks `internal/` and
-`features/`, skipping `*_test.go` and `*_templ.go`.) This is the rule that makes
-the template safely trimmable: you never have to guess whether a directory is
-load-bearing.
+Every removable-or-toggleable piece of the template is one row in
+`internal/capabilities`, and the removal class is a field on that row. There is
+no per-file header and no second table: a package's class comes from the row
+that owns it, and a package no row owns fails the registry's coverage test. That
+is the rule that makes the template safely trimmable — you never have to guess
+whether a directory is load-bearing.
 
 ## The three removal classes
 
-The annotation carries a single axis — the removal class — with three values:
+The row carries a single axis — the removal class (`Kind`) — with three values:
 
 | Class | Meaning | You would… |
 |------------|---------|-----------|
@@ -26,8 +25,8 @@ Three clarifications the table alone does not carry:
 - **Plugin does not promise a one-line delete.** `internal/nats`, `internal/llm`
   and `internal/collab` are named in signatures, so removing one is a manual
   refactor that touches its consumers; the class answers *what disappears*, not
-  *how mechanical the trim is*. `SCOPE`-core units are the ones where removal
-  is not coherent at all.
+  *how mechanical the trim is*. A `core` unit is the one where removal is not
+  coherent at all.
 - **The servant wins ties.** A unit that both powers other surfaces and ships a
   page is a plugin when the capability is the servant and the page is its demo.
   `features/genui` is the precedent: the Chat page disappears with it,
@@ -51,47 +50,46 @@ The registry (`internal/capabilities`) is the source of truth; the scaffold
 prompt, the MCP `trim_plan`, and the generated cards all read the same field.
 The rationale and migration path: [Scaffold choice](research/scaffold-choice-2026-10.md).
 
-## The annotation form
+## Where the class lives
 
-Non-test, non-generated `.go` files under `internal/` and `features/` declare
-their removal class in a leading doc comment:
+In the registry, next to the unit's identity:
 
 ```go
-// SCOPE:<core|plugin|feature> — <short description>
+{ID: "review", Kind: KindPlugin, Scaffold: ScaffoldDefault, Dirs: []string{...}},
 ```
 
 The class is one value: `core` = the binary or its shipped gates won't compile
 or boot; `plugin` = binary works but loses a capability; `feature` = pure demo. The **directory is
 the layer** — `internal/` is infrastructure, `features/` is product — so there
-is no separate `layer` axis to keep in sync (a two-axis `layer=…,removal=…` form was considered and rejected for exactly that reason).
+is no separate `layer` axis to keep in sync (a two-axis `layer=…,removal=…` form was considered and rejected for exactly that reason, and so was the per-file header that carried one).
 
 **`internal/` is Go's import boundary, not a removal class.** It keeps a package
 out of the public API; it says nothing about whether the app survives without
 it. Roughly half the packages under `internal/` are plugins — `nats`, `dagnats`,
 `goakt`, `collab`, `search`, `llm`, `datastar`, `components` — each removable
-with the capability it serves (and each `SCOPE` line says so). The other half is
+with the capability it serves (its row says so). The other half is
 core because core wiring names it: `auth`, `db`, `dbschema`, `queue` (the SSE
-Hub), `natswire`, `rbac`, `server`, `secrets`, `observability`. Read the
-annotation, never the directory.
+Hub), `natswire`, `rbac`, `server`, `secrets`, `observability`. Read the row,
+never the directory.
 
-**Enforcement.** The `cmd/check-scope` Go program walks every `.go` file in
-`internal/` and `features/` and asserts the canonical SCOPE line is present in
-the leading doc-comment group. **The single-axis form above is the only
-accepted dialect** — the two-axis `layer=…,removal=…` form is rejected,
-so the annotation is either canonical or an offender (no drift between
-dialects). `make ci-local` runs it via the `check-scope` target, and the
-lefthook pre-commit runs it whenever staged files match `{internal,features}/**/*.go`.
-Migrating an existing file uses `python3 scripts/migrate-scope.py` (idempotent).
+**Enforcement.** The registry is data and its consumers are generated or
+checked: a package under `internal/` or `features/` that no row owns fails
+`internal/capabilities`, a row whose `Dirs`/`Files` do not exist fails too, and
+a unit that mounts itself is reached through the generated
+`internal/server/units.gen.go` (`Capability.Register`), so the composition root
+never names it. A per-file removal-class header coming back fails the no-legacy
+guard — the class is not written twice.
 
 ## Rule of thumb for agents
 
-If you see a `SCOPE` annotation on a file, respect it. **Never delete a
-`core` file without asking. Never keep a `feature` file in production if the
-domain doesn't need it.**
+Look the package up in `internal/capabilities` (or ask `gogogo`/`docs/unit-contracts.md`
+for the row). **Never delete a `core` row without asking. Never keep a
+`feature` row in production if the domain doesn't need it.**
 
-`feature` and `plugin` files are free to delete, after reading the inline
-description — it lists exactly what to remove in `internal/server/chi.go`
-(the flat route composition) and `cmd/web/`.
+`feature` and `plugin` rows are free to delete: the row names the dirs and files
+the unit owns, and a unit that mounts itself (`Register`) has no line in the
+composition root to chase. A unit that does not is removed with its wiring call
+(`BootChi` in `internal/server/chi.go`, `cmd/web/main.go`).
 
 ## Demo-only markup
 
@@ -127,7 +125,7 @@ restore one) automates the common ones; when doing it by hand:
 3. Drop the handler construction and `r.MountFeature(...)` line from
    `internal/server/chi.go` (and its test fixtures).
 4. If it was a plugin, also remove the `start*` call in `cmd/web/main.go`.
-5. Run `make check-scope && go build ./cmd/web` to catch anything left behind.
+5. Run `go build ./cmd/web` (and the registry's tests) to catch anything left behind.
 
 ## Graceful degradation (UI rule)
 
@@ -141,12 +139,12 @@ the field or a `.templ` reader goes missing.
 
 ## What ships as what
 
-The class is written twice — in the file's `SCOPE` line and as `Kind` in
-`internal/capabilities`. **The registry is the source of truth for kinds**;
-a file must not disagree with the unit that owns it, and
-`TestScopeAnnotationsMatchRegistryKind` fails the build when one does (it walks
-recursively, so a subpackage like `features/chat/handlers` is checked against
-its top-level unit too).
+The class is written once, as `Kind` in `internal/capabilities`, and the table
+below is a reading aid, not a second source: a package's class is whatever the
+row that owns it declares, and the registry's coverage test fails when a
+package under `internal/` or `features/` has no owning row (it walks
+recursively, so a subpackage like `features/chat/handlers` is covered by its
+top-level unit's dirs).
 
 | Package | Class | Remove by |
 |---|---|---|
@@ -179,7 +177,7 @@ its top-level unit too).
 | `web/resources/static/offline-outbox.js` + `sw.js` + `config/config.go` (offline-sync) | 🟡 PLUGIN | Manual; `OFFLINE_SYNC_ENABLED=false` disables the page outbox and the NATS CRUD proxy together. On the async axis this is a mode, not one of the seven layers |
 | `features/review/` (Genkit flows) | 🟡 PLUGIN | The flow runtime behind the Review feature; `go mod tidy` drops Genkit + go-jev when the feature goes |
 | `internal/capabilities/`, `internal/installer/` | 🟡 PLUGIN | The installer itself: deleting breaks `cmd/gogogo`, not the web binary |
-| `features/sounds/` | 🟡 PLUGIN | Full checklist in the `SCOPE` doc comment in `features/sounds/sounds.go` |
+| `features/sounds/` | 🟡 PLUGIN | Delete the package + its consumers (the checklist lives in `features/sounds/sounds.go`) |
 | `features/credits/` | 🟡 PLUGIN | Optional ledger (`CREDITS_ENABLED=false` already the default) |
 | `features/onboarding/` | 🟡 PLUGIN | The workflow engine side of the durable run — goes with `internal/dagnats/` |
 | `features/genui/` | 🟡 PLUGIN | The rendering capability behind Chat; one bundle with `features/chat/` — delete both + `internal/server/genui_stubs_test.go` |

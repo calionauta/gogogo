@@ -1,4 +1,4 @@
-// SCOPE:plugin — generated unit contract cards (drift test).
+// Generated unit contract cards (drift test).
 //
 // docs/unit-contracts.md is generated from the registry plus the sources each
 // unit owns, never written by hand. The registry already answers "what class

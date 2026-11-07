@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: add units to existing checkouts (copy, rewire, prove)
+// Installer engine: add units to existing checkouts (copy, rewire, prove)
 package installer
 
 import (

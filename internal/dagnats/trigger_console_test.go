@@ -1,4 +1,4 @@
-// SCOPE:plugin — regression test for the DagNats console's first-trigger
+// Regression test for the DagNats console's first-trigger
 // path (upstream #745, fixed in v0.0.27).
 package dagnats
 

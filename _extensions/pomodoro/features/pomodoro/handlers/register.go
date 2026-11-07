@@ -1,4 +1,4 @@
-// SCOPE:plugin — the pomodoro recipe's boot entry point.
+// The pomodoro recipe's boot entry point.
 //
 // `Register` is the one function the generated registration calls. It builds the
 // handler, hands its provider to the seam and contributes its sidebar entry — and

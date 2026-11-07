@@ -1,4 +1,4 @@
-// SCOPE:plugin — the ownership boundary is checked against the core schema's own
+// The ownership boundary is checked against the core schema's own
 // table set, so it cannot go stale inside this package.
 package recipe
 

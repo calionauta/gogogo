@@ -1,4 +1,4 @@
-// SCOPE:core — Flat-stack boot helpers (demo seed, TOTP key wiring).
+// Flat-stack boot helpers (demo seed, TOTP key wiring).
 package server
 
 import (

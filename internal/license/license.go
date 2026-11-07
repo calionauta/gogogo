@@ -1,4 +1,4 @@
-// SCOPE:core — Offline entitlement tokens (license / account activation).
+// Offline entitlement tokens (license / account activation).
 //
 // One signed token format serves both activation paths described in
 // docs/research/desktop-auth-sync-2026-10.md:

@@ -1,4 +1,4 @@
-// SCOPE:feature — Cloud sync settings and device-token issuance on /account.
+// Cloud sync settings and device-token issuance on /account.
 package handlers
 
 import (

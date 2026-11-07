@@ -1,4 +1,4 @@
-// SCOPE:plugin — the install-side half of the slot rule: a declared slot this
+// The install-side half of the slot rule: a declared slot this
 // build does not render is refused before a file is copied.
 package installer
 

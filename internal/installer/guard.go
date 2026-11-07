@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: server-side safety rails (read-only mode, dir confinement)
+// Installer engine: server-side safety rails (read-only mode, dir confinement)
 package installer
 
 import (

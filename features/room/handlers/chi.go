@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP room slice (GoAkt presence demo)
+// HTTP room slice (GoAkt presence demo)
 //
 // Index/roster pages and JSON, heartbeat/acquire/release/leave/crash
 // mutations, plus the /room/stream SSE feed. State lives in GoAkt grains

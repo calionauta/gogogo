@@ -1,4 +1,4 @@
-// SCOPE:core — session user-agent capture and sanitisation.
+// Session user-agent capture and sanitisation.
 package auth
 
 import (

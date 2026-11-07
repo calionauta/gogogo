@@ -1,4 +1,4 @@
-// SCOPE:core — Session stream contract tests (the banner without polling).
+// Session stream contract tests (the banner without polling).
 //
 // The banner holds ONE stream open and hears only about changes, so these
 // tests pin the three promises the client relies on:

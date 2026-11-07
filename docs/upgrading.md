@@ -213,10 +213,11 @@ read on every run.
 
 `trim`, `add` and `new` act on markers in the tree — the call lines in
 `cmd/web/main.go`, the route lines in `internal/server/chi.go`, the `[]Module`
-the `// SCOPE:` annotations. A release that moves wiring is therefore a
-compatibility event for your installer even when the running app is untouched,
-and the failure is mechanical rather than silent: a strip whose marker is gone
-records a miss in the receipt instead of corrupting the file.
+entry in `internal/ui/modules.go`, and the unit rows in `internal/capabilities`.
+A release that moves wiring is therefore a compatibility event for your
+installer even when the running app is untouched, and the failure is mechanical
+rather than silent: a strip whose marker is gone records a miss in the receipt
+instead of corrupting the file.
 
 ## What upstream will never do
 

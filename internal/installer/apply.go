@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: check gate and apply tail
+// Installer engine: check gate and apply tail
 package installer
 
 import (

@@ -1,4 +1,4 @@
-// SCOPE:feature — Authenticated account security page.
+// Authenticated account security page.
 //
 // One vertical slice for the things a signed-in user owns: email
 // verification, password, TOTP enrollment/recovery, and session revocation.

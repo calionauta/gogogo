@@ -1,4 +1,4 @@
-// SCOPE:feature — Headless render tests for the native views.
+// Headless render tests for the native views.
 package main
 
 import (

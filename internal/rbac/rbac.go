@@ -1,4 +1,4 @@
-// SCOPE:core — RBAC with Casbin (embedded model + policy, or a DB source)
+// RBAC with Casbin (embedded model + policy, or a DB source)
 //
 // The Casbin model (.conf) is compiled into the binary with //go:embed.
 // The default policy (.csv) is embedded too, so a clone carries its own

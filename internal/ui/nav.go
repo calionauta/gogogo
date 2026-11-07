@@ -1,4 +1,4 @@
-// SCOPE:core — Request-scoped extension destinations for the shell's rail.
+// Request-scoped extension destinations for the shell's rail.
 //
 // A recipe contributes navigation through the `nav.sidebar` slot, and the rail
 // is rendered by every page, so the composition root resolves the list once per

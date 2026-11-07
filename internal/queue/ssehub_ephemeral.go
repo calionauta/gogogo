@@ -1,4 +1,4 @@
-// SCOPE:core — SSE Hub ephemeral cross-instance bridge (chat, genui, progress)
+// SSE Hub ephemeral cross-instance bridge (chat, genui, progress)
 package queue
 
 import (

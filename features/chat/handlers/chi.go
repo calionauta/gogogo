@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP chat slice (conversation demo)
+// HTTP chat slice (conversation demo)
 //
 // Same routes, wire and components as the framework handlers: index page,
 // question-to-queue with thinking ack, answer stream, background worker. History

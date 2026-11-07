@@ -1,4 +1,4 @@
-// SCOPE:core — instance identity tests.
+// Instance identity tests.
 package instance
 
 import (

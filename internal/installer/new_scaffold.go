@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: `gogogo new` sources and wiring edits.
+// Installer engine: `gogogo new` sources and wiring edits.
 //
 // The templates are the skeleton the todo slice would give you if it were
 // writable: a chi handler with an auth-gated page and a JSON probe, the page
@@ -147,8 +147,8 @@ func validateGo(rel, src string) error {
 }
 
 // newHandlerTemplate is the handler skeleton. {{name}} and {{var}} are
-// substituted; the file carries its SCOPE line so check-scope is green.
-const newHandlerTemplate = `// SCOPE:feature — {{name}} feature (scaffolded by ` + "`gogogo new`" + `)
+// substituted; the removal class is the capability row, not a file header.
+const newHandlerTemplate = `// {{name}} feature (scaffolded by ` + "`gogogo new`" + `)
 //
 // Two routes: an auth-gated page and a JSON probe. Wiring lives in
 // internal/server/chi.go (import, construction, one MountFeature call) and the
@@ -236,7 +236,7 @@ func (h *Handler) handlePing(w http.ResponseWriter, r *http.Request) {
 // in front of the app cache them immutably instead of revalidating on every
 // navigation. A scaffolded page must not be the only one that pays the
 // round trip.
-const newPageTemplate = `// SCOPE:feature — {{name}} page (scaffolded by ` + "`gogogo new`" + `)
+const newPageTemplate = `// {{name}} page (scaffolded by ` + "`gogogo new`" + `)
 package components
 
 import "{{module}}/internal/ui"

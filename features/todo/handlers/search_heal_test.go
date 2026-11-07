@@ -1,4 +1,4 @@
-// SCOPE:feature — the search-index heal (red-proof).
+// The search-index heal (red-proof).
 //
 // THE BUG THESE TESTS EXIST FOR. Postings are a cache of a Go-side pure
 // function (search.Stem over search.Tokenize), so SQL cannot rebuild them. A

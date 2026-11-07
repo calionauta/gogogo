@@ -1,4 +1,4 @@
-// SCOPE:core — tests for the installer's path-confined IO.
+// Tests for the installer's path-confined IO.
 package installer
 
 import (

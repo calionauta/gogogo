@@ -1,4 +1,4 @@
-// SCOPE:core — the rail's extension group: recipes navigate, the shell renders.
+// The rail's extension group: recipes navigate, the shell renders.
 package ui
 
 import (

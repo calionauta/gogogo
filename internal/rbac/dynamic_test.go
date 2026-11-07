@@ -1,4 +1,4 @@
-// SCOPE:core — Dynamic RBAC tests: ABAC ownership + DB-backed policy.
+// Dynamic RBAC tests: ABAC ownership + DB-backed policy.
 //
 // These pin the two dynamic inputs added in dynamic.go / adapter.go:
 // the ownership clause that reads an Object's attributes, and the

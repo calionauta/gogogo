@@ -1,4 +1,4 @@
-// SCOPE:core — doc-scoped cross-instance bridge contract tests.
+// Doc-scoped cross-instance bridge contract tests.
 package queue_test
 
 import (

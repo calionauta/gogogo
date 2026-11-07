@@ -1,4 +1,4 @@
-// SCOPE:feature — Review loop (Genkit + goai + jev judge).
+// Review loop (Genkit + goai + jev judge).
 //
 // To remove: delete features/review/ + the wiring lines in
 // internal/server/chi.go (BootChi construction + buildChiMux param/mounts)

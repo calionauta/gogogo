@@ -1,4 +1,4 @@
-// SCOPE:feature — signal wire-format contract for the todo feature.
+// Signal wire-format contract for the todo feature.
 package todo
 
 import (

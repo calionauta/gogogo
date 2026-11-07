@@ -1,4 +1,4 @@
-// SCOPE:core — single home for multi-statement transactions: begin,
+// Single home for multi-statement transactions: begin,
 // commit/rollback discipline, busy classification and contention logging.
 // Driver-free (stdlib only): this package is linked by zero-CGO native
 // targets, so nothing here may import tursogo (see dbschema_test.go).

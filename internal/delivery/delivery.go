@@ -1,4 +1,4 @@
-// SCOPE:plugin — delivery transport seam.
+// Delivery transport seam.
 //
 // The inbox is NOT a transport. `in_app` is written by the notifications
 // feature, next to the user row, under the same owner scoping and the same

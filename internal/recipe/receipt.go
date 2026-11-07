@@ -1,4 +1,4 @@
-// SCOPE:plugin — Spike 2: recipe receipt and drift detection.
+// Spike 2: recipe receipt and drift detection.
 //
 // This package answers the one question the recipe model stands or falls on:
 // given a recipe the user has already edited, can the tool report which files

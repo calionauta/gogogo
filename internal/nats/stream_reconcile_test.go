@@ -1,4 +1,4 @@
-// SCOPE:plugin — stream reconciliation on an EXISTING stream (red-proof).
+// Stream reconciliation on an EXISTING stream (red-proof).
 //
 // THE BUG THESE TESTS EXIST FOR. Both stream creators compared the AddStream
 // error to the literal "stream already exists". That message does not exist:

@@ -1,4 +1,4 @@
-// SCOPE:core — AutoScroll render + expression contract test.
+// AutoScroll render + expression contract test.
 package components_test
 
 import (

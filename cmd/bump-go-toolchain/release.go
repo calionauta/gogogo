@@ -1,4 +1,4 @@
-// SCOPE:core — the tool's whole network edge: the release feed and the
+// The tool's whole network edge: the release feed and the
 // per-release tarball.
 //
 // Both live here, behind `online`, so the rest of the tool does not know a

@@ -1,4 +1,4 @@
-// SCOPE:plugin — GoAkt lifecycle (room actor system)
+// GoAkt lifecycle (room actor system)
 package main
 
 import (

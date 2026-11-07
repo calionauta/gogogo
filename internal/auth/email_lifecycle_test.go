@@ -1,4 +1,4 @@
-// SCOPE:core — Email verification/reset and idle-session contracts.
+// Email verification/reset and idle-session contracts.
 package auth
 
 import (

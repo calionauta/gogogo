@@ -1,4 +1,4 @@
-// SCOPE:core — TOTP at-rest encryption tests (seal, key file, fail-closed).
+// TOTP at-rest encryption tests (seal, key file, fail-closed).
 package auth
 
 import (

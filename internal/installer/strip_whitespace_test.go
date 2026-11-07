@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: strip whitespace hygiene
+// Installer engine: strip whitespace hygiene
 package installer
 
 import (

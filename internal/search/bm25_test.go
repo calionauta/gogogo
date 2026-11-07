@@ -1,4 +1,4 @@
-// SCOPE:plugin — BM25's ranking contract on the example corpus.
+// BM25's ranking contract on the example corpus.
 package search
 
 import (

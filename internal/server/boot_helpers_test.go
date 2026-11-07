@@ -1,4 +1,4 @@
-// SCOPE:core — Boot helper tests (admin promotion).
+// Boot helper tests (admin promotion).
 package server
 
 import (

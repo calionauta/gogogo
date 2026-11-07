@@ -1,4 +1,4 @@
-// SCOPE:core — the schema-split gate: DDL and declaration must agree.
+// The schema-split gate: DDL and declaration must agree.
 package server
 
 import (

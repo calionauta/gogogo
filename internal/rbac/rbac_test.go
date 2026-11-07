@@ -1,4 +1,4 @@
-// SCOPE:core — Tests for RBAC with embedded Casbin model/policy
+// Tests for RBAC with embedded Casbin model/policy
 package rbac
 
 import (

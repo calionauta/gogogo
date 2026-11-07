@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: the opt-in diagnostics trim unit.
+// Installer engine: the opt-in diagnostics trim unit.
 //
 // perf is the first ScaffoldOptIn unit: offered by the scaffold, dropped
 // unless the user names it. The trim removes the package, the mount, the menu

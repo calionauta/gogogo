@@ -1,4 +1,4 @@
-// SCOPE:feature — the config view declares its surface to the recipe seam.
+// The config view declares its surface to the recipe seam.
 package handlers
 
 import (

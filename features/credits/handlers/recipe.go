@@ -1,4 +1,4 @@
-// SCOPE:plugin — the credits unit declares its surface to the recipe seam.
+// The credits unit declares its surface to the recipe seam.
 package handlers
 
 import (

@@ -1,4 +1,4 @@
-// SCOPE:feature — notifications: scheduling a reminder.
+// Notifications: scheduling a reminder.
 //
 // The handler schedules and reports; it never waits. The delay belongs to the
 // engine (a DagNats `sleep` step), so a restart between "schedule" and "deliver"

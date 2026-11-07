@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: version ordering tests
+// Installer engine: version ordering tests
 package installer
 
 import "testing"

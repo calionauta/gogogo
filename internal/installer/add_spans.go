@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: add span insertion and anchoring
+// Installer engine: add span insertion and anchoring
 //
 // Span insertion and anchoring: putting a trimmed span back where it came
 // from, by locating the anchor line the strip rule recorded.

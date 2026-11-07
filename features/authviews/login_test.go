@@ -1,4 +1,4 @@
-// SCOPE:feature — Login page disclosure + demo-role contract (red-proof).
+// Login page disclosure + demo-role contract (red-proof).
 package authviews_test
 
 import (

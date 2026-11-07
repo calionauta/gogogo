@@ -1,4 +1,4 @@
-// SCOPE:core — the generated self-mounting unit list actually mounts.
+// The generated self-mounting unit list actually mounts.
 //
 // Two gates in internal/capabilities prove the registry, the generated file and
 // the package signature agree. Neither proves the thing that matters at boot:

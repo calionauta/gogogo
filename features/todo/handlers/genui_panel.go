@@ -1,4 +1,4 @@
-// SCOPE:feature — the todo feature's native panel: one file that makes the
+// The todo feature's native panel: one file that makes the
 // app's own todos answerable from Chat.
 //
 // This is the CONTRACT for becoming a native panel — a feature contributes a

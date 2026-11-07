@@ -1,4 +1,4 @@
-// SCOPE:core — the core schema's table set, as data.
+// The core schema's table set, as data.
 //
 // It lives beside the migrations because the ownership boundary is a fact about
 // the schema, not about the recipe package: a plugin layer that embeds the core's

@@ -1,4 +1,4 @@
-// SCOPE:feature — Tests for the native window's backend wiring
+// Tests for the native window's backend wiring
 package main
 
 import (

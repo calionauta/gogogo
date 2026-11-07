@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: post-scaffold next steps
+// Installer engine: post-scaffold next steps
 package installer
 
 import (

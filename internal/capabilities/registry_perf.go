@@ -1,4 +1,4 @@
-// SCOPE:plugin — Capability registry entry for the opt-in diagnostics unit.
+// Capability registry entry for the opt-in diagnostics unit.
 //
 // Split from registry.go for the file-sizes gate; All appends it below.
 package capabilities

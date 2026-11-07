@@ -1,4 +1,4 @@
-// SCOPE:plugin — the model-markup class vocabulary gate.
+// The model-markup class vocabulary gate.
 package components
 
 import (

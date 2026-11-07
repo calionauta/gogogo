@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: refuse to mix template releases
+// Installer engine: refuse to mix template releases
 package installer
 
 import (

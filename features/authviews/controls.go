@@ -1,4 +1,4 @@
-// SCOPE:core — view helpers for the account affordance in controls.templ.
+// View helpers for the account affordance in controls.templ.
 package authviews
 
 import (

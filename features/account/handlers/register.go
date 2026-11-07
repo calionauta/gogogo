@@ -1,4 +1,4 @@
-// SCOPE:feature — the account slice mounts itself through the recipe seam.
+// The account slice mounts itself through the recipe seam.
 //
 // Why this file exists: the composition root used to build this handler inline.
 // That line is one of the reasons a unit could not be removed — the root knew

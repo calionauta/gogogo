@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: read-only check gate
+// Installer engine: read-only check gate
 package installer
 
 import (

@@ -1,4 +1,4 @@
-// SCOPE:plugin — the codegen half of install: pages and queries are regenerated
+// The codegen half of install: pages and queries are regenerated
 // so the installed recipe compiles, and their output leaves with the recipe.
 package installer
 

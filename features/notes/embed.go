@@ -1,4 +1,4 @@
-// SCOPE:feature — Shared notes (server-owned Loro Text)
+// Shared notes (server-owned Loro Text)
 // Embedded static assets for the notes feature: notes.js (textarea op
 // wiring + SSE stream). Kept as a static file (not inline in the .templ)
 // because datastar-lint rejects templ expressions inside <script> bodies

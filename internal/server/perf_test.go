@@ -1,4 +1,4 @@
-// SCOPE:core — Runtime dashboard fence tests (red-proof).
+// Runtime dashboard fence tests (red-proof).
 package server
 
 import (

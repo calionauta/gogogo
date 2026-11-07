@@ -1,4 +1,4 @@
-// SCOPE:core — DB-backed Casbin policy source (persist.Adapter).
+// DB-backed Casbin policy source (persist.Adapter).
 //
 // With RBAC_POLICY_SOURCE=db the enforcer loads its rules from the
 // casbin_rule table (migration 0009) instead of the embedded policy.csv,

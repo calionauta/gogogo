@@ -1,4 +1,4 @@
-// SCOPE:plugin — Spike 5 evidence: slots carry content without carrying identity.
+// Spike 5 evidence: slots carry content without carrying identity.
 //
 // The kill criterion is the test: a page that renders a slot must never be in a
 // position to ask which recipe contributed. These tests assert that the signature

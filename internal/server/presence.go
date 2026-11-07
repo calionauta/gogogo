@@ -1,4 +1,4 @@
-// SCOPE:core — collaborative presence wiring (seam construction + cross-instance)
+// Collaborative presence wiring (seam construction + cross-instance)
 //
 // One seam for BOTH collaborative features (whiteboard and notes). Split out of
 // chi.go for the file-sizes gate: the seam plus its two cross-instance wires is

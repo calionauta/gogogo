@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: upstream-first AGENTS.md generation
+// Installer engine: upstream-first AGENTS.md generation
 package installer
 
 import (

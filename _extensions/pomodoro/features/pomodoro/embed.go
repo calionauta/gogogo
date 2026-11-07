@@ -1,4 +1,4 @@
-// SCOPE:plugin — the pomodoro recipe's own DDL, embedded in its package.
+// The pomodoro recipe's own DDL, embedded in its package.
 //
 // The files live here, not in internal/dbschema/migrations: a recipe's schema is
 // its own, applied through the shared ledger under the recipe id, and it must

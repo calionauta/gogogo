@@ -1,4 +1,4 @@
-// SCOPE:core — HTTP server construction and listener lifecycle.
+// HTTP server construction and listener lifecycle.
 package server
 
 import (

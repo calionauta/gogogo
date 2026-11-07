@@ -1,4 +1,4 @@
-// SCOPE:plugin — the system-panel registry: what the catalog knows, and the
+// The system-panel registry: what the catalog knows, and the
 // data provider a feature contributes for it.
 //
 // WHY A REGISTRY AND NOT A STATIC MAP. A capability declared `KindFeature` is

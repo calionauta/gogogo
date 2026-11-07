@@ -1,4 +1,4 @@
-// SCOPE:feature — retry-envelope routing contract tests.
+// Retry-envelope routing contract tests.
 //
 // The queue's RetryConfig.Do wraps every handler, so ANY job type emits a
 // retry envelope with operation = job.Type. Only the operations that own a

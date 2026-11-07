@@ -1,4 +1,4 @@
-// SCOPE:feature — Shared-doc contract for notes (author edits, author or
+// Shared-doc contract for notes (author edits, author or
 // admin deletes).
 //
 // The demo pair is the spec: demo1 is admin, demo2 is viewer. Both must

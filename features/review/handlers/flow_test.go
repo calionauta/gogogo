@@ -1,4 +1,4 @@
-// SCOPE:feature — Review flow pure-unit tests (red-proof).
+// Review flow pure-unit tests (red-proof).
 package handlers
 
 import (

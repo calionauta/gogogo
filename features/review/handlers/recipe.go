@@ -1,4 +1,4 @@
-// SCOPE:feature — the review unit declares its surface to the recipe seam.
+// The review unit declares its surface to the recipe seam.
 package handlers
 
 import (

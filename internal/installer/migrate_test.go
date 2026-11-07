@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: migration range tests
+// Installer engine: migration range tests
 package installer
 
 import (

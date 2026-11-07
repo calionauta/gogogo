@@ -1,4 +1,4 @@
-// SCOPE:feature — Collaborative whiteboard (Loro CRDT canvas)
+// Collaborative whiteboard (Loro CRDT canvas)
 // Embedded static assets for the whiteboard feature: rough.min.js (Rough.js
 // hand-drawn canvas rendering) and whiteboard.js (Datastar/SSE canvas wiring).
 package whiteboard

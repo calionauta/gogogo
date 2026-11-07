@@ -1,4 +1,4 @@
-// SCOPE:core — the core table set is data, and this is what keeps it honest.
+// The core table set is data, and this is what keeps it honest.
 //
 // The recipe boundary ("a recipe may never own a core object") is only as good
 // as the list it checks against. A hand-maintained list in another package had

@@ -1,4 +1,4 @@
-// SCOPE:core — The one shell's module registry.
+// The one shell's module registry.
 //
 // Every destination in the app is a Module value. Adding a 9th surface is one
 // entry here, not a layout change (that is criterion C-3 of the revamp brief:

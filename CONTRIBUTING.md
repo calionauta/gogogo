@@ -80,8 +80,9 @@ will be asked for one or closed. This keeps the queue reviewable.
    20-line fix. Small PRs get reviewed; large ones wait.
 3. **Follow the repo's working rules** ([AGENTS.md](AGENTS.md) is normative for
    agents; the same rules apply to you):
-   - `// SCOPE:<core|plugin|feature>` on every new non-test, non-generated `.go`
-     file under `internal/`/`features/` (`make check-scope` enforces it).
+   - A capability row in `internal/capabilities` for a new removable unit
+     (kind, owned dirs/files, `Register` when it mounts itself) — a package no
+     row owns fails the registry's coverage test.
    - `make templ && make css` after `.templ` edits; never hand-edit generated
      `_templ.go` (`make check-generated`).
    - No real LLM in tests — inject a stub (`internal/llm/fakeserver` only

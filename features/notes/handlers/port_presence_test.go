@@ -1,4 +1,4 @@
-// SCOPE:feature — Notes presence + caret handlers port tests
+// Notes presence + caret handlers port tests
 
 package handlers
 

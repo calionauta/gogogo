@@ -1,4 +1,4 @@
-// SCOPE:core - Behavioral test: a new AI answer scrolls itself into view.
+// Behavioral test: a new AI answer scrolls itself into view.
 //
 // Boots the real binary with the keyless simulated LLM, signs a user up
 // (the cookie IS the session), and drives BOTH AI legs through their real

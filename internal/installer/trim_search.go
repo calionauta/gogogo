@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: the search trim unit (data only)
+// Installer engine: the search trim unit (data only)
 //
 // Split from trim_features.go for the file-sizes gate, mirroring
 // trim_dagnats.go. The unit is small, but its rules are the subtlest in the

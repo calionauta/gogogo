@@ -1,4 +1,4 @@
-// SCOPE:feature — acceptance: a write to an unregistered doc id is refused.
+// Acceptance: a write to an unregistered doc id is refused.
 
 package handlers
 

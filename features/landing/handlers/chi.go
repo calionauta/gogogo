@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP landing page (public entry surface)
+// HTTP landing page (public entry surface)
 //
 // Same path, same component (shared Index), no auth gate: guests and
 // signed-in users see the same page inside the shell, with the account email

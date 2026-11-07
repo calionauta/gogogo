@@ -1,4 +1,4 @@
-// SCOPE:feature — native window event-stream client tests (headless).
+// Native window event-stream client tests (headless).
 package main
 
 import (

@@ -1,4 +1,4 @@
-// SCOPE:core — Flat-stack boot tests (red-proof for the serve seam).
+// Flat-stack boot tests (red-proof for the serve seam).
 package server
 
 import (

@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer engine: advise routing (which command runs next)
+// Installer engine: advise routing (which command runs next)
 package installer
 
 import (

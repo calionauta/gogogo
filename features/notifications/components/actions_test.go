@@ -1,4 +1,4 @@
-// SCOPE:feature — Datastar action strings the inbox buttons emit.
+// Datastar action strings the inbox buttons emit.
 package components
 
 import "testing"

@@ -1,4 +1,4 @@
-// SCOPE:core — No periodic server fetch (the poll guard).
+// No periodic server fetch (the poll guard).
 //
 // The stack pushes: every page already owns a stream (its feature stream, or
 // the shared session leader stream on pages without one), and global state

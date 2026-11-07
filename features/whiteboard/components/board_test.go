@@ -1,4 +1,4 @@
-// SCOPE:feature — whiteboard doc-page navigation affordance.
+// Whiteboard doc-page navigation affordance.
 package components_test
 
 import (

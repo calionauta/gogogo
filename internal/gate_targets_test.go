@@ -1,4 +1,4 @@
-// SCOPE:core — the Makefile's targets are a contract, not a convenience list.
+// The Makefile's targets are a contract, not a convenience list.
 //
 // CI calls them, the git hooks call them, and AGENTS.md tells a human to call
 // them — while a MISSING target is invisible: `make <missing>` prints "Nothing

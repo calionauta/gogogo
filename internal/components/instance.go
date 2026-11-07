@@ -1,4 +1,4 @@
-// SCOPE:plugin - Per-instance signal naming for Datastar components that can
+// Per-instance signal naming for Datastar components that can
 // legitimately appear more than once on a page.
 //
 // WHY THIS EXISTS. The vendored Datastar core has exactly ONE global signal

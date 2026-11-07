@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer CLI: `recipe install` and `recipe update`.
+// Installer CLI: `recipe install` and `recipe update`.
 package installer
 
 import (

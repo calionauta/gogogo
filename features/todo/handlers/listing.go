@@ -1,4 +1,4 @@
-// SCOPE:feature — todo listing slice (visibility mapping + identity).
+// Todo listing slice (visibility mapping + identity).
 //
 // listVisible is the single read path every render and mutation shares:
 // visibility-scoped store read, Go-side status/scope filters, and the

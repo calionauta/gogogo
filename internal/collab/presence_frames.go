@@ -1,4 +1,4 @@
-// SCOPE:plugin — presence wire frames shared by every collaborative feature.
+// Presence wire frames shared by every collaborative feature.
 //
 // The count/leave frames are a CLIENT CONTRACT, not feature prose: whiteboard.js
 // and notes.js parse the same `PresenceMsg` shape. Two features emitting their

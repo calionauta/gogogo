@@ -1,4 +1,4 @@
-// SCOPE:feature — chat page signals.
+// Chat page signals.
 package components
 
 import "encoding/json"

@@ -1,4 +1,4 @@
-// SCOPE:plugin — Opt-in operator diagnostics: statsviz at /debug/statsviz and
+// Opt-in operator diagnostics: statsviz at /debug/statsviz and
 // the stdlib pprof index at /debug/pprof.
 //
 // The template ships no always-on profiler: this surface is opt-in

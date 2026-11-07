@@ -1,4 +1,4 @@
-// SCOPE:plugin — JetStream handle shape shared by the wiring
+// JetStream handle shape shared by the wiring
 package nats
 
 import natsio "github.com/nats-io/nats.go"

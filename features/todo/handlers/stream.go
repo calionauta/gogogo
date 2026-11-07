@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP todo SSE stream (record-sync only)
+// HTTP todo SSE stream (record-sync only)
 package handlers
 
 import (

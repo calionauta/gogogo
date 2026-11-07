@@ -1,4 +1,4 @@
-// SCOPE:plugin — a system panel that cannot be filled is replaced by an
+// A system panel that cannot be filled is replaced by an
 // honest placeholder, never dropped and never rendered empty.
 package components
 

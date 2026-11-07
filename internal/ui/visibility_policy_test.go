@@ -1,4 +1,4 @@
-// SCOPE:core — Nav/policy parity: no offered link 403s.
+// Nav/policy parity: no offered link 403s.
 //
 // Every module Visible() returns for a role must be reachable by that role
 // under the compiled RBAC policy. A policy edit that removes a grant (or a

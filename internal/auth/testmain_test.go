@@ -1,4 +1,4 @@
-// SCOPE:core — Auth test cost policy (cheap argon by default).
+// Auth test cost policy (cheap argon by default).
 package auth
 
 import (

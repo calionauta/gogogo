@@ -1,4 +1,4 @@
-// SCOPE:plugin — the wiring contract between installed recipe code and the
+// The wiring contract between installed recipe code and the
 // composition root.
 //
 // Why a separate package: the engine (internal/recipe) must stay importable

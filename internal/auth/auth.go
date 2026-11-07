@@ -1,4 +1,4 @@
-// SCOPE:core — Auth on the flat stack (argon2id + sessions table)
+// Auth on the flat stack (argon2id + sessions table)
 //
 // Package auth owns password identity with zero dependencies beyond the
 // standard library, x/crypto and database/sql: argon2id password hashes,

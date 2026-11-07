@@ -1,4 +1,4 @@
-// SCOPE:feature — the account page declares its surface to the recipe seam.
+// The account page declares its surface to the recipe seam.
 package handlers
 
 import (

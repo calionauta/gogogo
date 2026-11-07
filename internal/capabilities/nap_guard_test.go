@@ -1,4 +1,4 @@
-// SCOPE:core — the "no fixed naps" guard for the Playwright harnesses.
+// The "no fixed naps" guard for the Playwright harnesses.
 //
 // WHY THIS EXISTS. A fixed sleep is the single most common way a browser test
 // becomes flaky: it encodes an assumption about how long a thing takes, which is

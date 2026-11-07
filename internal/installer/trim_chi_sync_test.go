@@ -1,4 +1,4 @@
-// SCOPE:plugin — installer chi.go template sync guard.
+// Installer chi.go template sync guard.
 //
 // The trim/add engine strips and restores chi.go constructions by exact
 // substring (extraDrops substrs / routerCallLines). When chi.go's wiring

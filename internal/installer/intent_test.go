@@ -1,4 +1,4 @@
-// SCOPE:plugin — tests for advise intent routing (which command runs next)
+// Tests for advise intent routing (which command runs next)
 package installer
 
 import (

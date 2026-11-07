@@ -1,4 +1,4 @@
-// SCOPE:feature — Inbox page surfaces: the panel buttons, the state panel and
+// Inbox page surfaces: the panel buttons, the state panel and
 // the operator-only console link.
 package components_test
 
