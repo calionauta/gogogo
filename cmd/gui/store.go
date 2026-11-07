@@ -190,6 +190,43 @@ func (s guiStore) ListNotifications(ctx context.Context, owner string) ([]notifI
 	return out, unread, nil
 }
 
+// docItem is one shared collaborative doc (note or board) the native
+// twin lists. Shared listing: every signed-in user sees every doc; the
+// row carries the author's email.
+type docItem struct {
+	ID     string
+	Author string
+	Title  string
+}
+
+// ListDocs loads shared notes or boards. kind is "notes" or "boards".
+func (s guiStore) ListDocs(ctx context.Context, kind string) ([]docItem, error) {
+	switch kind {
+	case "notes":
+		rows, err := s.q.ListNotes(ctx)
+		if err != nil {
+			return nil, err
+		}
+		out := make([]docItem, 0, len(rows))
+		for _, r := range rows {
+			out = append(out, docItem{ID: r.DocID, Author: r.OwnerEmail, Title: "note"})
+		}
+		return out, nil
+	case "boards":
+		rows, err := s.q.ListBoards(ctx)
+		if err != nil {
+			return nil, err
+		}
+		out := make([]docItem, 0, len(rows))
+		for _, r := range rows {
+			out = append(out, docItem{ID: r.DocID, Author: r.OwnerEmail, Title: "board"})
+		}
+		return out, nil
+	default:
+		return nil, fmt.Errorf("gui: unknown doc kind %q", kind)
+	}
+}
+
 // errNotFound mirrors the store contract's not-found signal so callers
 // can tell "row gone" from "row broken".
 var errNotFound = errors.New("gui: not found")

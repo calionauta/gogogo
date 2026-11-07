@@ -59,6 +59,12 @@ type windowState struct {
 	search string
 	notifs []notifItem
 	unread int
+	notes  []docItem
+	boards []docItem
+	// reviewConfigured mirrors the web rule: the review loop is
+	// real-LLM only, so an unconfigured window says so instead of
+	// offering a run that would fail.
+	reviewConfigured bool
 
 	// sessionCh wakes the event watcher when the session appears or ends, so
 	// it reconnects immediately instead of polling the state.
@@ -124,6 +130,12 @@ type windowSnapshot struct {
 	search   string
 	notifs   []notifItem
 	unread   int
+	notes    []docItem
+	boards   []docItem
+	// reviewConfigured mirrors the web rule: the review loop is
+	// real-LLM only, so an unconfigured window says so instead of
+	// offering a run that would fail.
+	reviewConfigured bool
 }
 
 // visibleItems applies the native search filter (substring, token AND,
@@ -160,16 +172,19 @@ func (s *windowState) snapshot() windowSnapshot {
 	notifs := make([]notifItem, len(s.notifs))
 	copy(notifs, s.notifs)
 	return windowSnapshot{
-		signedIn: s.signedIn,
-		ownerID:  s.ownerID,
-		email:    s.email,
-		authErr:  s.authErr,
-		items:    items,
-		draft:    s.draft,
-		err:      s.err,
-		search:   s.search,
-		notifs:   notifs,
-		unread:   s.unread,
+		signedIn:         s.signedIn,
+		ownerID:          s.ownerID,
+		email:            s.email,
+		authErr:          s.authErr,
+		items:            items,
+		draft:            s.draft,
+		err:              s.err,
+		search:           s.search,
+		notifs:           notifs,
+		unread:           s.unread,
+		notes:            append([]docItem(nil), s.notes...),
+		boards:           append([]docItem(nil), s.boards...),
+		reviewConfigured: s.reviewConfigured,
 	}
 }
 
@@ -297,7 +312,21 @@ func (s *windowState) refresh() {
 	}
 	s.notifs = notifs
 	s.unread = int(unread)
+	notes, nerr2 := st.ListDocs(context.Background(), "notes")
+	boards, berr := st.ListDocs(context.Background(), "boards")
+	if nerr2 == nil {
+		s.notes = notes
+	}
+	if berr == nil {
+		s.boards = boards
+	}
 	s.err = ""
+}
+
+func (s *windowState) setReviewConfigured(v bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.reviewConfigured = v
 }
 
 func (s *windowState) add() {

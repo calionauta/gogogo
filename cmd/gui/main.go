@@ -161,6 +161,7 @@ func run() error {
 	)
 
 	st := newState(guiStore{q: dbgen.New(sqlDB)}, a)
+	st.setReviewConfigured(cfg.GoAI.APIKey != "")
 	tokPath := tokenPath(cfg.DataDir)
 	restoreSession(st, tokPath)
 
