@@ -137,10 +137,10 @@ func TestCommandMatches(t *testing.T) {
 	if err != nil {
 		t.Fatalf("knownSubcommands: %v", err)
 	}
-	if slices.Contains(subs, "trim") {
-		t.Fatal("premise broken: trim became a subcommand — update the rule and the docs")
+	if slices.Contains(subs, "trim") || slices.Contains(subs, "add") || slices.Contains(subs, "check") {
+		t.Fatal("premise broken: a retired subcommand returned — update the rule and the docs")
 	}
-	for _, want := range []string{"add", "new", "advise"} {
+	for _, want := range []string{"new", "advise"} {
 		if !slices.Contains(subs, want) {
 			t.Errorf("subcommand %q missing from the dispatch parser: %v", want, subs)
 		}
