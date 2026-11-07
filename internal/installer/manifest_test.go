@@ -1,11 +1,9 @@
 package installer
 
-// Manifest and plan tests: unit selection, prompt parsing, plan output.
+// Manifest tests: name validation, the export unit index, and the plan
+// shape. The old keep/drop tests died with the trim operation they pinned.
 
 import (
-	"fmt"
-	"io"
-	"os"
 	"strings"
 	"testing"
 
@@ -25,343 +23,30 @@ func TestValidateName(t *testing.T) {
 	}
 }
 
-func TestPlanTrimKeepsAllByDefault(t *testing.T) {
-	keep := parseKeep("", "", "all")
-	if got := planTrim(keep); len(got) != 0 {
-		t.Errorf("planTrim(default+all opt-in) dropped %v, want nothing", dropIDs(got))
-	}
-}
-
-// TestPlanTrimDropsOptInByDefault pins the opposite default: perf is offered
-// but not kept unless named, so a scaffold with no answers drops it.
-func TestPlanTrimDropsOptInByDefault(t *testing.T) {
-	got := dropIDs(planTrim(parseKeep("", "", "")))
-	if len(got) != 1 || got[0] != unitPerf {
-		t.Errorf("planTrim(default) dropped %v, want only perf", got)
-	}
-}
-
-func TestPlanKeepListsSummaries(t *testing.T) {
-	// Deciders reading --format json see what each kept unit IS: the id
-	// lists alone force a second lookup per unit.
-	p := buildPlan("x", "y", ".", parseKeep("", "", "all"), nil, true)
-	if len(p.Keep) != len(manifestUnits) {
-		t.Fatalf("keepUnits = %d, want all %d units", len(p.Keep), len(manifestUnits))
-	}
-	for _, k := range p.Keep {
-		if k.ID == "" || k.Kind == "" || k.Summary == "" {
-			t.Errorf("keepUnits entry incomplete: %+v", k)
-		}
-	}
-	dropped := buildPlan("x", "y", ".", keepAllBut("goakt"), nil, true)
-	for _, k := range dropped.Keep {
-		if k.ID == "goakt" {
-			t.Error("dropped goakt still listed in keepUnits")
-		}
-	}
-}
-
-// keepAllBut returns a keep set with every manifest unit kept except dropped.
-// It keeps test lines short and stays correct when new units are added.
-func keepAllBut(dropped ...string) keepSet {
-	skip := map[string]bool{}
-	for _, d := range dropped {
-		skip[d] = true
-	}
-	var keep []string
+// TestManifestUnitsCoverTheRegistry pins the export index: every manifest
+// unit maps to real registry capabilities, and the scaffold plan lists
+// everything (there is no keep/drop split any more).
+func TestManifestUnitsCoverTheRegistry(t *testing.T) {
+	byID := capabilities.ByID()
+	seen := map[string]bool{}
 	for _, u := range manifestUnits {
-		if !skip[u.id] {
-			keep = append(keep, u.id)
+		if seen[u.id] {
+			t.Errorf("duplicate unit %q", u.id)
+		}
+		seen[u.id] = true
+		for _, capID := range u.caps() {
+			if _, ok := byID[capID]; !ok {
+				t.Errorf("unit %q references unknown capability %q", u.id, capID)
+			}
 		}
 	}
-	joined := strings.Join(keep, ",")
-	return parseKeep(joined, joined, "all")
-}
-
-func TestParseKeepDimensionsIndependent(t *testing.T) {
-	// Convention: empty means keep-all IN THAT DIMENSION. Answering only
-	// the plugins question must not drop every feature.
-	keep := parseKeep("dagnats", "", "")
-	drop := planTrim(keep)
-	ids := map[string]bool{}
-	for _, u := range drop {
-		ids[u.id] = true
+	p := buildPlan("x", "y", ".", true)
+	if len(p.Drop) != 0 {
+		t.Errorf("plan drops %v, want nothing", p.Drop)
 	}
-	if ids["whiteboard"] || ids["landing"] || ids["config-view"] {
-		t.Errorf("empty features answer dropped features: %v", dropIDs(drop))
-	}
-	if !ids["credits"] || !ids["sounds"] {
-		t.Errorf("unlisted plugins must drop: %v", dropIDs(drop))
-	}
-}
-
-func TestParseSelection(t *testing.T) {
-	options := []string{"dagnats", "credits", "sounds"}
-	cases := []struct {
-		input   string
-		wantIDs []string
-		wantAll bool
-		wantErr bool
-	}{
-		{"", nil, true, false},
-		{"none", []string{}, false, false},
-		{"NONE", []string{}, false, false},
-		{"1", []string{"dagnats"}, false, false},
-		{"1,3", []string{"dagnats", "sounds"}, false, false},
-		{"3,1,3", []string{"sounds", "dagnats"}, false, false},
-		{"credits", []string{"credits"}, false, false},
-		{"1,credits", []string{"dagnats", "credits"}, false, false},
-		{" 2 , sounds ", []string{"credits", "sounds"}, false, false},
-		{"0", nil, false, true},
-		{"4", nil, false, true},
-		{"nats", nil, false, true},
-		{"1,nats", nil, false, true},
-		{"abc", nil, false, true},
-	}
-	for _, tc := range cases {
-		ids, all, err := parseSelection(tc.input, options)
-		if tc.wantErr != (err != nil) {
-			t.Errorf("parseSelection(%q) err = %v, wantErr %v", tc.input, err, tc.wantErr)
-			continue
-		}
-		if all != tc.wantAll {
-			t.Errorf("parseSelection(%q) all = %v, want %v", tc.input, all, tc.wantAll)
-		}
-		if fmt.Sprint(ids) != fmt.Sprint(tc.wantIDs) {
-			t.Errorf("parseSelection(%q) = %v, want %v", tc.input, ids, tc.wantIDs)
-		}
-	}
-}
-
-func TestUnitMenusFollowRegistryKinds(t *testing.T) {
-	// Menu numbers are positional: pin the order so humans learn stable
-	// numbers and prompt options never drift from registry kinds.
-	plugins := unitIDsOfKind(capabilities.KindPlugin)
-	wantPlugins := []string{"dagnats", "goakt", "credits", "sounds", "genui", "search"}
-	if fmt.Sprint(plugins) != fmt.Sprint(wantPlugins) {
-		t.Errorf("plugin menu = %v, want %v", plugins, wantPlugins)
-	}
-	features := unitIDsOfKind(capabilities.KindFeature)
-	wantFeatures := []string{"whiteboard", "landing", "config-view", "review"}
-	if fmt.Sprint(features) != fmt.Sprint(wantFeatures) {
-		t.Errorf("feature menu = %v, want %v", features, wantFeatures)
-	}
-}
-
-func TestPromptFormRepairsInvalidAnswer(t *testing.T) { // Humans mistype: an invalid plugins answer re-asks instead of
-	// aborting or silently mis-trimming.
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	fmt.Fprintln(w, "my-app")
-	fmt.Fprintln(w, "myorg")
-	fmt.Fprintln(w, "nats") // invalid: not an installer unit
-	fmt.Fprintln(w, "1")    // repair: first plugin (dagnats)
-	fmt.Fprintln(w, "")     // features: empty = keep all
-	_ = w.Close()
-	pr, pw, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	done := make(chan string, 1)
-	go func() {
-		raw, _ := io.ReadAll(pr)
-		done <- string(raw)
-	}()
-	res := promptForm(r, pw)
-	_ = pw.Close()
-	transcript := <-done
-	if res.plugins != "dagnats" {
-		t.Errorf("plugins = %q, want dagnats", res.plugins)
-	}
-	if res.features != "" {
-		t.Errorf("features = %q, want empty (keep all)", res.features)
-	}
-	if !strings.Contains(transcript, "unknown") || !strings.Contains(transcript, "try again") {
-		t.Errorf("transcript must show the repair loop:\n%s", transcript)
-	}
-}
-
-func TestParseKeepNoneDropsDimension(t *testing.T) {
-	keep := parseKeep("none", "none", "")
-	drop := planTrim(keep)
-	if len(drop) != len(manifestUnits) {
-		t.Errorf("none/none should drop all %d units, dropped %v", len(manifestUnits), dropIDs(drop))
-	}
-}
-
-func TestPlanTrimDropsSkipped(t *testing.T) {
-	keep := parseKeep("landing", "landing", "")
-	drop := planTrim(keep)
-	ids := map[string]bool{}
-	for _, u := range drop {
-		ids[u.id] = true
-	}
-	if ids["landing"] {
-		t.Errorf("landing was kept but appears in drop set")
-	}
-	if !ids["dagnats"] || !ids["whiteboard"] || !ids["credits"] {
-		t.Errorf("expected dagnats/whiteboard/credits in drop set, got %v", dropIDs(drop))
-	}
-}
-
-// TestPlanKeepListsStayKindPure pins issue #207's second defect: answering
-// "keep all plugins" + "no features" seeded BOTH dimensions from every
-// manifest unit, so the plan printed feature ids under "keep plugins" while
-// the trim right below it deleted those same features.
-func TestPlanKeepListsStayKindPure(t *testing.T) {
-	p := buildPlan("gggtest", "nickchomey", "gggtest", parseKeep("", "none", ""), nil, true)
-	if len(p.KeepFeatures) != 0 {
-		t.Errorf("keepFeatures = %v, want empty (the answer was none)", p.KeepFeatures)
-	}
-	if len(p.KeepPlugins) == 0 {
-		t.Fatal("keepPlugins is empty, want every plugin")
-	}
-	kindOf := make(map[string]capabilities.Kind, len(manifestUnits))
-	for _, u := range manifestUnits {
-		kindOf[u.id] = u.meta().kind
-	}
-	for _, id := range p.KeepPlugins {
-		if kindOf[id] != capabilities.KindPlugin {
-			t.Errorf("keepPlugins lists %q, which is a %s", id, kindOf[id])
-		}
-	}
-}
-
-// TestPromptFormAsksOptIn pins the fifth question: empty keeps none, "1"
-// keeps the first opt-in unit (perf). Red-proof: drop askOptIn from
-// promptForm and the answer is lost.
-func TestPromptFormAsksOptIn(t *testing.T) {
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	fmt.Fprintln(w, "my-app")
-	fmt.Fprintln(w, "myorg")
-	fmt.Fprintln(w, "")  // default plugins: all
-	fmt.Fprintln(w, "")  // default features: all
-	fmt.Fprintln(w, "1") // opt-in: first (perf)
-	_ = w.Close()
-	pr, pw, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	done := make(chan string, 1)
-	go func() {
-		raw, _ := io.ReadAll(pr)
-		done <- string(raw)
-	}()
-	res := promptForm(r, pw)
-	_ = pw.Close()
-	<-done
-	if res.optIn != unitPerf {
-		t.Errorf("optIn = %q, want %q", res.optIn, unitPerf)
-	}
-}
-
-// TestPlanKeepsNamedOptIn pins the keep side: naming perf keeps it by
-// default-off semantics, and the plan labels its scaffold class.
-func TestPlanKeepsNamedOptIn(t *testing.T) {
-	p := buildPlan("x", "y", ".", parseKeep("", "", unitPerf), nil, true)
-	if len(p.KeepOptIn) != 1 || p.KeepOptIn[0] != unitPerf {
-		t.Errorf("KeepOptIn = %v, want [%s]", p.KeepOptIn, unitPerf)
-	}
-	found := false
-	for _, k := range p.Keep {
-		if k.ID != unitPerf {
-			continue
-		}
-		found = true
-		if k.Scaffold != string(capabilities.ScaffoldOptIn) {
-			t.Errorf("perf scaffold = %q, want opt-in", k.Scaffold)
-		}
-	}
-	if !found {
-		t.Error("plan did not keep the named opt-in unit")
-	}
-}
-
-// TestManifestUnitsFollowScaffoldStrategy pins the strategy for every unit:
-// a manifest unit is default or opt-in (never core/manual), and every
-// capability the registry offers is reachable from one. A new unit that
-// skips the class, or an offered capability with no unit, fails here.
-func TestManifestUnitsFollowScaffoldStrategy(t *testing.T) {
-	for _, u := range manifestUnits {
-		if got := u.meta().scaffold; got != capabilities.ScaffoldDefault && got != capabilities.ScaffoldOptIn {
-			t.Errorf("unit %q scaffold = %q, want default or opt-in", u.id, got)
-		}
-	}
-	covered := map[string]bool{}
-	for _, u := range manifestUnits {
-		for _, id := range u.caps() {
-			covered[id] = true
-		}
-	}
-	for _, id := range capabilities.OfferedIDs() {
-		if !covered[id] {
-			t.Errorf("offered capability %q is not reachable from any manifest unit", id)
-		}
-	}
-}
-
-// TestPerfTrimIsOneWayAndSaysSo pins the residual risk: perf touches core
-// wiring that `add` cannot restore, and both the unit warning and the plan
-// text say so. If a generic add-line mechanism ever makes it reversible,
-// update this test with the new receipt.
-func TestPerfTrimIsOneWayAndSaysSo(t *testing.T) {
-	var u trimUnit
-	for _, candidate := range manifestUnits {
-		if candidate.id == unitPerf {
-			u = candidate
-		}
-	}
-	if u.id == "" {
-		t.Fatal("perf unit missing from the manifest")
-	}
-	manual := strings.Join(addManualWiring(u), "\n")
-	for _, want := range []string{"perfPageMiddleware", "bootPerf", "Perf(ctx)", "PerfEnabled"} {
-		if !strings.Contains(manual, want) {
-			t.Errorf("add manual wiring does not name %q:\n%s", want, manual)
-		}
-	}
-
-	keep := parseKeep("", "", "")
-	p := buildPlan("x", "y", ".", keep, planTrim(keep), true)
 	var b strings.Builder
 	printPlanText(&b, p)
-	if !strings.Contains(b.String(), "One-way trim") {
-		t.Errorf("plan text does not surface the one-way warning:\n%s", b.String())
-	}
-}
-
-// TestParseKeepAllAlias pins the shorthand humans type: "all" means the same
-// as an empty keep list for default units, and still leaves opt-in dropped
-// unless the opt-in list says otherwise.
-func TestParseKeepAllAlias(t *testing.T) {
-	got := dropIDs(planTrim(parseKeep("all", "all", "")))
-	if len(got) != 1 || got[0] != unitPerf {
-		t.Errorf("parseKeep(all) drops %v, want only perf", got)
-	}
-	if all := dropIDs(planTrim(parseKeep("all", "all", "all"))); len(all) != 0 {
-		t.Errorf("parseKeep(all, all, all) drops %v, want none", all)
-	}
-}
-
-// TestParseSelectionAll pins the interactive shorthand: "all" is accepted at
-// the prompt, not just the flag.
-func TestParseSelectionAll(t *testing.T) {
-	ids, all, err := parseSelection("all", []string{"a", "b"})
-	if err != nil || !all || len(ids) != 0 {
-		t.Errorf("parseSelection(all) = (%v, %v, %v), want (nil, true, nil)", ids, all, err)
-	}
-}
-
-// TestTrimPresetRejectsOptIn closes the preset/keep-list hole: a preset is a
-// complete drop set, so adding an opt-in unit on top of it is contradictory.
-func TestTrimPresetRejectsOptIn(t *testing.T) {
-	opt := options{preset: presetMinimal, optIn: unitPerf}
-	if err := resolvePreset(&opt); err == nil {
-		t.Error("resolvePreset(minimal, opt-in perf) = nil, want conflict")
+	if !strings.Contains(b.String(), "trim:           nothing (full template)") {
+		t.Errorf("plan text must say the trim is gone:\n%s", b.String())
 	}
 }

@@ -41,31 +41,21 @@ var toolCatalog = []toolDef{
 	},
 	{
 		"trim_plan",
-		"Preview scaffolding/trimming a checkout (validates ids, shows consequences). " +
-			"Defaults are kept unless dropped; opt-in units (perf) are dropped unless " +
-			"named in optIn. Changes nothing. Requires a gogogo checkout at `dir` unless it does not " +
-			"exist yet (then it previews the clone) — on an unrelated project it " +
-			"cannot preview anything, so call advise_stack for guidance instead. " +
-			"Decide what to keep with advise_stack first (business-language fit: " +
-			"https://calionauta.github.io/gogogo/docs/use-cases/).",
+		"Preview scaffolding a checkout (validates name and owner, shows the " +
+			"plan envelope). The scaffold ships the whole template — no keep/drop " +
+			"list exists — and changes nothing. Requires a gogogo checkout at `dir` unless it " +
+			"does not exist yet (then it previews the clone) — on an unrelated project " +
+			"it cannot preview anything, so call advise_stack for guidance instead.",
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleTrimPlan) },
 	},
 	{
 		"trim_apply",
-		"Scaffold/trim a checkout (rename, trim, prove with build). Requires " +
+		"Scaffold a checkout (rename, prove with build). Requires " +
 			"confirm:true. Mutates the target tree; only for a gogogo checkout or a " +
 			"path to scaffold into.",
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleTrimApply) },
 	},
-	{
-		"check_tree",
-		"Verify installer markers without changing anything (drift gate). Requires " +
-			"a gogogo checkout at `dir`: it compares the trim manifest against the " +
-			"tree. On a project that is not a gogogo checkout it returns a single " +
-			"'not a gogogo checkout' failure rather than a marker inventory — do not " +
-			"read that as the project being broken.",
-		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleCheckTree) },
-	},
+
 	{
 		"migrate_plan",
 		"Read-only migration list: every release between the project's recorded " +

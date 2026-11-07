@@ -11,7 +11,7 @@ var dashboardUnits = []Capability{
 		Dirs:     []string{"features/dashboard"},
 		Register: "features/dashboard/handlers",
 		Reason: "Host page for dashboard.card: one unit mounts itself " +
-			"through the recipe seam, no installer trim. Remove manually " +
-			"(delete the unit, its two policy rows, its Modules entry).",
+			"through the recipe seam. Remove manually (delete the unit, " +
+			"its two policy rows, its Modules entry).",
 	},
 }

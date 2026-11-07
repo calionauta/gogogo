@@ -48,13 +48,6 @@ func TestTrimApplyRequiresConfirm(t *testing.T) {
 	}
 }
 
-func TestCheckTreeRequiresDir(t *testing.T) {
-	_, _, err := handleCheckTree(context.Background(), nil, dirArgs{})
-	if err == nil {
-		t.Errorf("expected dir-required error")
-	}
-}
-
 func TestAdviseStackNeedsNothing(t *testing.T) { // The guidance tool is read-only: no dir, no confirm, no changes.
 	res, _, err := handleAdvise(context.Background(), nil, adviseArgs{Need: "offline airplane mode"})
 	if err != nil {
@@ -410,29 +403,22 @@ func TestCapabilitiesListExposesScaffold(t *testing.T) {
 		t.Fatalf("capabilities_list: %v", err)
 	}
 	var caps []struct {
-		ID       string `json:"id"`
-		Scaffold string `json:"scaffold"`
-		Offered  *bool  `json:"offered"`
+		ID         string `json:"id"`
+		RuntimeOff string `json:"runtimeOff"`
 	}
 	if jerr := json.Unmarshal([]byte(toolText(t, res)), &caps); jerr != nil {
 		t.Fatalf("capabilities_list is not JSON: %v", jerr)
 	}
 	perf, auth := false, false
 	for _, c := range caps {
-		if c.Offered != nil {
-			t.Errorf("%s still exposes the removed offered field", c.ID)
-		}
 		switch c.ID {
 		case "perf":
 			perf = true
-			if c.Scaffold != "opt-in" {
-				t.Errorf("perf scaffold = %q, want opt-in", c.Scaffold)
+			if c.RuntimeOff == "" {
+				t.Error("perf must keep its PERF_ENABLED runtime switch")
 			}
 		case "auth":
 			auth = true
-			if c.Scaffold != "core" {
-				t.Errorf("auth scaffold = %q, want core", c.Scaffold)
-			}
 		}
 	}
 	if !perf || !auth {

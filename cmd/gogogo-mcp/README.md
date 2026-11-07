@@ -31,9 +31,8 @@ Claude Code (`~/.claude.json`) / Cursor (`~/.cursor/mcp.json`) / BB:
 | `build_prerequisites` | `platform?` | How to build the desktop shell or the Android target: prerequisites, `make desktop`/`make mobile`, the smoke gates, the Android driver swap (tursogo → ncruces) and the mobile limits. Read-only; same text as `gogogo --help` |
 | `sync_prerequisites` | — | What a desktop build needs to sync: a reachable NATS leaf listener (`NATS_LEAFNODE_LISTEN`), `NATS_TOKEN`, `CLOUD_SYNC_URL`, account identity, a private overlay first. Read-only; same text as `gogogo --help` |
 | `advise_stack` | `need?`, `intent?`, `dir?`, `format?` | Opinions + the command ROUTE: use-case → keep/drop, off switches, and the ordered commands for `intent` (update/port/add-unit/new-feature/scaffold). A `dir` that is not a gogogo checkout gets the copy surface + the export route |
-| `trim_plan` | `name`, `owner?`, `dir?`, `plugins?`, `features?`, `optIn?`, `format?` | Validates ids, shows consequences (default vs opt-in). Changes nothing |
-| `trim_apply` | trim_plan params + `confirm: true` | Rename + trim + tidy + build proof. Refuses without `confirm:true` |
-| `check_tree` | `dir` | `CHECK-OK`/`CHECK-FAIL` drift verdict, changes nothing |
+| `trim_plan` | `name`, `owner?`, `dir?`, `format?` | Validates name and owner; shows the plan envelope (full tree). Changes nothing |
+| `trim_apply` | trim_plan params + `confirm: true` | Rename + tidy + build proof. Refuses without `confirm:true` |
 | `version_status` | `dir?`, `format?` | Is the tool — and the project's recorded base — behind the latest release? Read-only, opt-in, never on startup. "Update exists" is a verdict, not an error |
 | `migrate_plan` | `from?`, `to?`, `dir?`, `changelog?`, `files?`, `format?` | Releases between the recorded base and the latest, plus the gates that prove a migrated tree. `files:true` adds the per-file impact (capability + kept/removed). Read-only; nothing is applied |
 | `export_unit` | `unit`, `dir`, `to`, `module?`, `format?` | Read-only PORT BUNDLE for a tree that is not a gogogo checkout: copies the unit's files into `to` + writes `PORTING.md` (routes, imports to rewrite, what to write by hand, proof). Changes nothing in `dir` |

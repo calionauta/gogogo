@@ -1,9 +1,12 @@
 # Getting started
 
 This repository is a **GitHub template**. The recommended path is the guided
-installer — it asks for a project name, clones the template, renames it, and
-trims the plugins/features you skip. Manual `gh repo create` + `make rename`
-still works and is documented below as the fallback.
+installer — it asks for a project name, clones the template and renames it.
+(The old keep/drop trim menus are retired: scaffold now ships the whole
+template; to share a smaller tree, delete the units by hand guided by the
+registry's per-unit `Reason`.)
+Manual `gh repo create` + `make rename` still works and is documented below
+as the fallback.
 
 ## 0. Recommended: the installer
 
@@ -21,36 +24,22 @@ curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh
 - Agents: skip `--run` (it never returns) — the installer prints
   `cd <name> && make dev` for the scripted path.
 
-What it asks (5 questions):
+What it asks (2 questions):
 
 1. **Project name** (`my-app`) — validates like `make rename` does.
 2. **GitHub owner** — for the module path (`github.com/<owner>/<name>`).
-3. **Default plugins** — numbered menu from the registry (`dagnats`,
-   `credits`, `sounds` with one-line summaries). Answer with numbers (`1,3`),
-   ids, or both; empty or `all` keeps every default plugin, `none` drops them
-   all. Unknown answers re-ask instead of mis-trimming.
-4. **Default features** — same numbered-menu shape (`whiteboard`, `landing`,
-   `config-view`). The todo demo is never offered (it is the reference
-   implementation).
-5. **Opt-in units** — units that are offered but **dropped by default**
-   (`perf`: statsviz + pprof). Empty keeps none; `all` keeps every opt-in;
-   numbers/ids keep a subset.
 
-Scaffold classes are one axis and removal classes another: `core` is never
-offered, `default` is kept unless dropped, `opt-in` is dropped unless named,
-and `manual` is not offered at all (the registry `Reason` records the hand
-edit). Realtime (NATS), LLM, and offline sync remain manual/runtime units:
-they disable at runtime via env (`NATS_ENABLED=false`, unset `GOAI_API_KEY`,
-`OFFLINE_SYNC_ENABLED=false`).
+Realtime (NATS), LLM, and offline sync disable at runtime via env
+(`NATS_ENABLED=false`, unset `GOAI_API_KEY`, `OFFLINE_SYNC_ENABLED=false`),
+and every removable unit records its manual removal in the registry `Reason`.
 
-What it does, in order: shows the trim plan with every consequence (never
+What it does, in order: shows the plan with every consequence (never
 silent), and on confirmation clones the template when the directory is
-missing, deletes what you skipped, renames (same rules
-as `scripts/rename-project.py`, which also moves `cmd/gogogo`,
-`cmd/gogogo-mcp` and `skills/gogogo-coding-standards` with the text), writes
-`AGENTS.md`, then proves it with `go tool templ generate` (when `.templ`
-changed) + `go mod tidy` + `go build ./cmd/web` + the toolchain pin test when
-the tree carries it, and prints the exact next commands
+missing, renames it (same rules as `scripts/rename-project.py`, which also
+moves `cmd/gogogo`, `cmd/gogogo-mcp` and
+`skills/gogogo-coding-standards` with the text), writes `AGENTS.md`, then
+proves it with `go mod tidy` + `go build ./cmd/web` + the toolchain pin test
+when the tree carries it, and prints the exact next commands
 (`cd <name> && make dev` — a child process cannot `cd` its parent, which
 is why every scaffolder from `create-vite` to `create-t3-app` prints the
 `cd` instead of doing it).
@@ -114,8 +103,8 @@ What each core/plugin/feature is *for*, in business language, lives in
 [use-cases](use-cases.md) — read it before deciding what to keep.
 
 No `--yes`, nothing written: it reads the capability
-registry and prints use-case presets (keep/drop per preset), every
-capability with its trim flag or runtime off-switch, and the three global
+registry and prints use-case presets (the units each case exercises), every
+capability with its removal note or runtime off-switch, and the three global
 rules (Go-first with the profiled-kernel Zig exception, runtime switches
 before trim, upstream-first).
 

@@ -15,19 +15,18 @@ go run ./cmd/gogogo --name my-app --owner myorg \
 
 ## What it does, in order
 
-1. Shows the trim plan with every consequence (never silent).
+1. Shows the plan with every consequence (never silent).
 2. Clones the template into `--dir` when it is missing (asks, or `--yes`
    to proceed unattended).
-3. Deletes skipped plugins/features with their wiring calls.
-4. Renames it (same rules as `scripts/rename-project.py`: module path first,
+3. Renames it (same rules as `scripts/rename-project.py`: module path first,
    bare name second, Pages host only on `--owner` change, then every path
    whose NAME carries the template name — `cmd/gogogo`, `cmd/gogogo-mcp`,
    `skills/gogogo-coding-standards` and its `.agents/skills` registration —
    because the content pass rewrites every reference to those paths; shields
    `ai-credits`, `datastar-lint`, `pi-leakguard`; skips generated `site/docs/`).
-5. Trims what you skipped (see below), then `go mod tidy`, `make templ`,
-   proof `go build ./cmd/web` + the toolchain pin test when the tree carries
-   it (it names files by path, so it is what catches a half-renamed tree).
+5. `go mod tidy`, proof `go build ./cmd/web` + the toolchain pin test when
+   the tree carries it (it names files by path, so it is what catches a
+   half-renamed tree).
 6. Writes an `AGENTS.md` in the new repo pointing agents back at the upstream
    template before they add a dependency or a feature.
    Generated code follows `skills/gogogo-coding-standards/SKILL.md`
@@ -83,13 +82,12 @@ local-only (no CI). Prerequisites, limits and the emulator recipe:
 `--help` prints the full matrix (units, flags, exit codes). The fast paths:
 
 ```bash
-# Humans: 4 questions, plan printed, confirm [y/N], then `make dev`
+# Humans: 2 questions, plan printed, confirm [y/N], then `make dev`
 # takes this terminal (Ctrl-C stops dev).
 go run github.com/calionauta/gogogo/cmd/gogogo@latest --run
 
 # Agents, step 1 — preview as JSON (changes nothing, exit 0):
 go run ./cmd/gogogo --name my-app --owner myorg \
-  --plugins dagnats,whiteboard --features landing,config-view \
   --no-tui --dry-run --format json --dir ./my-app
 
 # Agents, step 2 — apply. --yes is mandatory without a terminal:
@@ -113,8 +111,7 @@ go run ./cmd/gogogo --name my-app --no-tui --yes --dir ./my-app
   numbers, ids, or both; invalid answers re-ask. Scripted flags take ids
   only — numbers never cross the CLI boundary (positional = fragile).
 - `--format json` field names are stable (`name`, `owner`, `module`, `dir`,
-  `keepPlugins`, `keepFeatures`,
-  `drop[{id, kind, dirs, files, warnings, note, wiringStrips}]`).
+  `keepPlugins`, `keepFeatures`, `keepUnits`, `drop` (the unit lists, stable).
 - Exit codes: 0 ok or plan-only, 1 usage/validation/apply error, 2 the
   post-trim proof build failed (compiler output included — fix the named
   file, don't guess).

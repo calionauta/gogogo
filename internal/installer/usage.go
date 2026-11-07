@@ -19,7 +19,7 @@ func printBuildGuidance(w io.Writer) {
 func PrintUsage(w io.Writer, fs *flag.FlagSet) {
 	fmt.Fprintln(w, `gogogo `+Version+` — scaffold a project from gogogo.
 
-  Interactive (humans: 5 questions, then a plan to confirm):
+  Interactive (humans: 2 questions — name, owner — then a plan to confirm):
 
     go run github.com/calionauta/gogogo/cmd/gogogo@latest --run
 
@@ -30,15 +30,8 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
   Scripted (agents: always pin --yes; preview with --dry-run first):
 
     go run ./cmd/gogogo --name my-app --owner myorg \
-      --plugins dagnats,whiteboard --features landing,config-view \
-      --opt-in perf \
       --no-tui --dry-run --format json --dir ./my-app
     go run ./cmd/gogogo --name my-app --no-tui --yes --dir ./my-app
-
-  Drift gate (maintainers/CI): verify every marker against a pristine
-  checkout without changing anything:
-
-    go run ./cmd/gogogo --check --dir ./my-app
 
   Take a unit INTO an app that is not gogogo — read-only: writes a scratch
   bundle plus PORTING.md, and never touches the target tree:
@@ -106,12 +99,8 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
   Units (id, kind). Kind follows the servant principle, not the directory:
   a plugin serves other capabilities (sounds, credits serve pages);
   a feature is a terminal user surface (todo, whiteboard, landing, config).
-  Scaffold class decides the default: --plugins/--features keep default
-  units (empty or all keeps all, none drops all); --opt-in adds opt-in units
-  (empty keeps none, all adds every one). Not offered here
-  todo (reference implementation), auth (middleware is core), queue (core),
-  nats (runtime: NATS_ENABLED=false), llm (runtime: unset GOAI_API_KEY),
-  offline-sync (runtime: OFFLINE_SYNC_ENABLED=false).`)
+  No unit is offered or dropped at scaffold anymore: every unit ships, and
+  the removal choices live in the registry's per-unit Reason.`)
 	printUsageTail(w, fs)
 }
 

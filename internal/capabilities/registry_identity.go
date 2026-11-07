@@ -11,10 +11,9 @@ package capabilities
 // depend on the sounds plugin for the rail's mute control.
 var identityUnits = []Capability{
 	{
-		ID:       "account",
-		Kind:     KindFeature,
-		Summary:  "authenticated /account security page",
-		Scaffold: ScaffoldManual,
+		ID:      "account",
+		Kind:    KindFeature,
+		Summary: "authenticated /account security page",
 		DependsOn: []string{
 			depSounds,
 		},
@@ -23,16 +22,16 @@ var identityUnits = []Capability{
 		Note:     "Core identity UX; remove manually with the menu link in features/authviews/controls.templ.",
 	},
 	{
-		ID:       "config-view",
-		Kind:     KindFeature,
-		Summary:  "admin-only /config view + user role/session actions",
-		Scaffold: ScaffoldDefault,
+		ID:      "config-view",
+		Kind:    KindFeature,
+		Summary: "admin-only /config view + user role/session actions",
 		DependsOn: []string{
 			depSounds,
 		},
-		Dirs: []string{"features/config"},
+		Dirs:   []string{"features/config"},
+		Reason: "Delete the dir and its routes with the account-menu Config entry.",
 		Warns: []string{
-			"The Config rail and account-menu entries are stripped automatically.",
+			"The Config rail and account-menu entries are removed by hand with the unit.",
 		},
 	},
 }

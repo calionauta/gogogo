@@ -15,12 +15,12 @@ being one.
 | **Todo app + realtime** | SSE Hub record-sync + ephemeral signals | — |
 | **Background jobs + retry** | `goqite` + `retry-go` | — |
 | **AI Suggest** | GoAI | `GOAI_API_KEY` unset |
-| **Chat (conversation)** | Invented visuals (sanitized) + catalog + diagrams + persisted history + the app's own panels | `GOAI_API_KEY` unset (`SIMULATE_LLM` demo answers keyless), or `trim genui` (removes Chat) |
-| **Review loop** | Genkit flows (plugin) + GoAI + jev classifier judge | `GOAI_API_KEY` unset (real-LLM only; page shows a setup hint), or `trim review` |
+| **Chat (conversation)** | Invented visuals (sanitized) + catalog + diagrams + persisted history + the app's own panels | `GOAI_API_KEY` unset (`SIMULATE_LLM` demo answers keyless); delete genui for a smaller tree (its registry Reason walks the delete) |
+| **Review loop** | Genkit flows (plugin) + GoAI + jev classifier judge | `GOAI_API_KEY` unset (real-LLM only; page shows a setup hint); delete review by hand (its registry Reason walks the delete) |
 | **AI credits + BYOK** | [ai-credits](https://github.com/calionauta/ai-credits) | `CREDITS_ENABLED=false` |
-| **Search (one seam, three layers)** | Own layers — no external engine | `trim search` |
-| **Collaborative whiteboard** | Loro CRDT + Rough.js + NATS | `trim whiteboard` (bundle with notes + collab transport), or `COLLAB_SNAPSHOTS=memory` for snapshot-free local mode |
-| **Shared notes** | Loro Text (server-owned) + SSE Hub | `trim whiteboard` (bundle with whiteboard + collab transport) |
+| **Search (one seam, three layers)** | Own layers — no external engine | delete search by hand (its registry Reason) |
+| **Collaborative whiteboard** | Loro CRDT + Rough.js + NATS | delete by hand (bundle with notes + collab transport; see its registry Reason), or `COLLAB_SNAPSHOTS=memory` for snapshot-free local mode |
+| **Shared notes** | Loro Text (server-owned) + SSE Hub | delete by hand (bundle with whiteboard + collab transport) |
 | **Durable workflows** | DagNats over JetStream | `DAGNATS_ENABLED=false` |
 | **Inbox + reminders** | DagNats `sleep` → owner-scoped delivery row | `DAGNATS_ENABLED=false` hides the form; the inbox stays |
 | **Entity actors** | GoAkt grains (room lease + whiteboard presence) | `GOAKT_ENABLED=false` (whiteboard falls back to `PeerSet`) |
@@ -77,7 +77,7 @@ being one.
 
 A feature never imports another feature. Three shared UI leaves are the only
 exception (`features/authviews`, `features/sounds`, `features/genui/components`);
-`cmd/check-flatdeps` fails the gate on anything else, so a trim never breaks a
+`cmd/check-flatdeps` fails the gate on anything else, so a unit delete never breaks a
 neighbour.
 
 The [Todo feature](todo-example.md) is the full reference implementation.

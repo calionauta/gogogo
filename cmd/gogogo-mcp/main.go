@@ -80,15 +80,11 @@ type versionArgs struct {
 }
 
 type trimArgs struct {
-	Name     string `json:"name,omitempty" jsonschema:"new project name, e.g. my-app (required)"`
-	Owner    string `json:"owner,omitempty" jsonschema:"GitHub owner for the module path (default calionauta)"`
-	Dir      string `json:"dir,omitempty" jsonschema:"target checkout directory (default ./<name>)"`
-	Plugins  string `json:"plugins,omitempty" jsonschema:"comma-separated default plugins to KEEP (default all, none drops all)"`
-	Features string `json:"features,omitempty" jsonschema:"comma-separated default features to KEEP (default all, none drops all)"`
-	OptIn    string `json:"optIn,omitempty" jsonschema:"comma-separated opt-in units to ADD (default none, all adds every opt-in)"`
-	Preset   string `json:"preset,omitempty" jsonschema:"named drop set instead of keep lists: minimal|no-ai|no-collab (conflicts with plugins/features)"`
-	Format   string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
-	Confirm  bool   `json:"confirm,omitempty" jsonschema:"trim_apply only: must be true (preview with trim_plan first)"`
+	Name    string `json:"name,omitempty" jsonschema:"new project name, e.g. my-app (required)"`
+	Owner   string `json:"owner,omitempty" jsonschema:"GitHub owner for the module path (default calionauta)"`
+	Dir     string `json:"dir,omitempty" jsonschema:"target checkout directory (default ./<name>)"`
+	Format  string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
+	Confirm bool   `json:"confirm,omitempty" jsonschema:"trim_apply only: must be true (preview with trim_plan first)"`
 }
 
 type migrateArgs struct {
@@ -148,15 +144,7 @@ receipts, and tidy+build proof. Version `+installer.Version+`.`)
 func handleCapabilitiesList(
 	_ context.Context, _ *mcp.CallToolRequest, _ struct{},
 ) (*mcp.CallToolResult, any, error) {
-	type view struct {
-		capabilities.Capability
-		Class capabilities.Scaffold `json:"scaffold"`
-	}
-	views := make([]view, 0, len(capabilities.All))
-	for _, c := range capabilities.All {
-		views = append(views, view{Capability: c, Class: c.Class()})
-	}
-	raw, err := json.MarshalIndent(views, "", "  ")
+	raw, err := json.MarshalIndent(capabilities.All, "", "  ")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -170,18 +158,6 @@ func trimCLIArgs(a trimArgs, extra ...string) []string {
 	}
 	if a.Dir != "" {
 		args = append(args, "--dir", a.Dir)
-	}
-	if a.Plugins != "" {
-		args = append(args, "--plugins", a.Plugins)
-	}
-	if a.Features != "" {
-		args = append(args, "--features", a.Features)
-	}
-	if a.OptIn != "" {
-		args = append(args, "--opt-in", a.OptIn)
-	}
-	if a.Preset != "" {
-		args = append(args, "--preset", a.Preset)
 	}
 	format := a.Format
 	if format == "" {
@@ -207,17 +183,6 @@ func handleTrimApply(
 	}
 	var buf bytes.Buffer
 	err := installer.Run(ctx, append(trimCLIArgs(args), "--yes"), strings.NewReader(""), &buf)
-	return runResult(buf.String(), err)
-}
-
-func handleCheckTree(
-	ctx context.Context, _ *mcp.CallToolRequest, args dirArgs,
-) (*mcp.CallToolResult, any, error) {
-	if args.Dir == "" {
-		return nil, nil, fmt.Errorf("dir is required (absolute path)")
-	}
-	var buf bytes.Buffer
-	err := installer.Run(ctx, []string{"--check", "--dir", args.Dir}, strings.NewReader(""), &buf)
 	return runResult(buf.String(), err)
 }
 

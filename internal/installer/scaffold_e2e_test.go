@@ -102,8 +102,8 @@ func TestPreflightRealTools(t *testing.T) {
 // TestScaffoldRelativeDir is the CLI shape a human actually runs: `gogogo run`
 // defaults --dir to ./<name>, a RELATIVE path, so the whole apply builds
 // CWD-relative paths. Issue #207: a fresh clone then died with
-// "Rel: can't make gggtest/cmd/desktop/main.go relative to <abs>" and the
-// trim's removals silently missed (treeFS refused every path).
+// "Rel: can't make gggtest/cmd/desktop/main.go relative to <abs>" and
+// removals silently missed (treeFS refused every path).
 func TestScaffoldRelativeDir(t *testing.T) {
 	base := t.TempDir()
 	t.Chdir(base)
@@ -115,7 +115,7 @@ func TestScaffoldRelativeDir(t *testing.T) {
 	out := captureStdout(t, func(w *os.File) {
 		err := Run(context.Background(), []string{
 			"--name", "gggtest", "--owner", "nickchomey",
-			"--no-tui", "--yes", "--features", "none",
+			"--no-tui", "--yes",
 		}, devNull(t), w)
 		if err != nil {
 			t.Fatalf("apply with the default relative --dir: %v", err)
@@ -124,8 +124,8 @@ func TestScaffoldRelativeDir(t *testing.T) {
 	if !strings.Contains(out, "build OK") {
 		t.Errorf("proof did not report build OK:\n%s", out)
 	}
-	if _, err := os.Stat(filepath.Join(dir, "features", "landing")); !os.IsNotExist(err) {
-		t.Error("the trim missed features/landing: a relative root skipped every removal")
+	if _, err := os.Stat(filepath.Join(dir, "features", "landing")); err != nil {
+		t.Errorf("the template keeps every unit now: landing missing after scaffold: %v", err)
 	}
 	// writeAgents goes through the same confined treeFS, so a relative root
 	// that only half-works would leave this file missing.
@@ -160,7 +160,7 @@ func TestScaffoldRefusesToolchainMismatch(t *testing.T) {
 
 	err := Run(context.Background(), []string{
 		"--name", "toolchain-gap", "--owner", "e2eorg",
-		"--no-tui", "--yes", "--features", "none", "--dir", dir,
+		"--no-tui", "--yes", "--dir", dir,
 	}, devNull(t), devNull(t))
 	if err == nil {
 		t.Fatal("the apply must refuse a tree this toolchain cannot build")
@@ -168,9 +168,9 @@ func TestScaffoldRefusesToolchainMismatch(t *testing.T) {
 	if !strings.Contains(err.Error(), "needs go1.27.3") {
 		t.Errorf("refusal does not name the requirement:\n%v", err)
 	}
-	// The decisive assertion: the refusal came BEFORE the destructive half.
+	// The decisive assertion: the refusal came BEFORE the rename half.
 	if _, statErr := os.Stat(filepath.Join(dir, "features", "landing")); statErr != nil {
-		t.Error("the trim ran anyway: a refused apply must leave the tree untouched")
+		t.Error("a refused apply must leave the tree untouched")
 	}
 	gomod, readErr := os.ReadFile(filepath.Join(dir, "go.mod"))
 	if readErr != nil {

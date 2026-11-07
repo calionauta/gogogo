@@ -311,9 +311,11 @@ job types were typed enums rather than plain strings — they are not, so this
 is a review item, and the contract test that pins both directions (the three
 owners still light, everything else emits nothing) is what makes it stick.
 
-The trim gate is the third shape and the one with a mechanical answer: a strip
+The trim gate was the third shape and the one with a mechanical answer: a strip
 rule whose marker no longer matches must be a **failure**, never a warning.
-See `internal/installer/trim_build_test.go`.
+Trim itself is retired (scaffold keeps everything), so the failure class now
+only bites the port bundle: a drifted strip marker is caught by the registry
+conformance tests and the export producer's own list.
 
 ## Exception-to-go gate
 

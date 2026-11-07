@@ -12,6 +12,12 @@ import (
 // Unit ids offered by the installer. Most map 1:1 to a capability;
 // whiteboard covers whiteboard+collab+notes (the only honest shape:
 // notes is the second collab consumer, so collab cannot trim alone).
+// Preset name consts. The presets themselves are retired with the trim
+// operation; the names survive only as advise match keywords.
+const (
+	presetMinimal = "minimal"
+)
+
 const (
 	unitDagnats    = "dagnats"
 	unitGoAkt      = "goakt"
@@ -48,6 +54,10 @@ var unitCaps = map[string][]string{
 // tracked sources, not secrets (G306 would prefer 0600).
 const scaffoldFileMode = 0o644
 
+// keepNone is the AGENTS.md marker value for "nothing was removed": a
+// deliberately empty removal list, spelled as a word so it survives editing.
+const keepNone = "none"
+
 // trimUnit is one installer unit: registry capabilities plus the
 // mechanical wiring edits that delete them. All metadata (kind, warns,
 // owned paths) comes from internal/capabilities via meta(); this struct
@@ -80,7 +90,6 @@ type trimUnit struct {
 // and warns union across all caps so the whiteboard bundle reports both.
 type unitMeta struct {
 	kind       capabilities.Kind
-	scaffold   capabilities.Scaffold
 	dirs       []string
 	files      []string
 	warns      []string
@@ -104,7 +113,6 @@ func (u trimUnit) meta() unitMeta {
 		}
 		if i == 0 {
 			m.kind = c.Kind
-			m.scaffold = c.Class()
 			m.note = c.Note
 			m.runtimeOff = c.RuntimeOff
 		}

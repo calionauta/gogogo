@@ -1,6 +1,7 @@
 // Installer engine: the opt-in diagnostics trim unit.
 //
-// perf is the first ScaffoldOptIn unit: offered by the scaffold, dropped
+// perf is the unit the opt-in class used to carry: offered by the old scaffold,
+// dropped
 // unless the user names it. The trim removes the package, the mount, the menu
 // and the dependency; pprof rides the same unit and is stdlib, so nothing
 // replaces it on the drop side.

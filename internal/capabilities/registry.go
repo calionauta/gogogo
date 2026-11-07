@@ -149,7 +149,6 @@ var All = append([]Capability{
 		Kind:       KindPlugin,
 		Summary:    "durable workflows (DagNats over JetStream) + onboarding worker",
 		RuntimeOff: "DAGNATS_ENABLED=false",
-		Scaffold:   ScaffoldDefault,
 		UISignal:   "DagNatsEnabled",
 		Dirs:       []string{"internal/dagnats", "features/onboarding"},
 		Files: []string{
@@ -228,11 +227,10 @@ var All = append([]Capability{
 		Reason:  "Every .templ page renders through it; deletion is manual.",
 	},
 	{
-		ID:       "genui",
-		Kind:     KindPlugin,
-		Summary:  "generative UI: the Chat demo renders LLM answers as Templ directives over the SSE hub",
-		Scaffold: ScaffoldDefault,
-		Dirs:     []string{"features/genui"},
+		ID:      "genui",
+		Kind:    KindPlugin,
+		Summary: "generative UI: the Chat demo renders LLM answers as Templ directives over the SSE hub",
+		Dirs:    []string{"features/genui"},
 		// Owned by no dir: the composition test's model stubs, and the todo
 		// feature's half of the panel seam (all of them would otherwise outlive
 		// the unit and trip the deadcode or import gate).
@@ -291,7 +289,6 @@ var All = append([]Capability{
 		Kind:       KindPlugin,
 		Summary:    "AI credits + BYOK ledger (ai-credits)",
 		RuntimeOff: "CREDITS_ENABLED=false (already the default)",
-		Scaffold:   ScaffoldDefault,
 		Dirs:       []string{"features/credits"},
 		// Owned by no dir: the boot helper is the engine's only
 		// composition-root seam. Deleting it with the unit is what keeps
@@ -305,12 +302,11 @@ var All = append([]Capability{
 			"`go mod tidy` drops stripe-go too.",
 	},
 	{
-		ID:       depSounds,
-		Kind:     KindPlugin,
-		Summary:  "UI sound feedback (cuelume, vendored)",
-		Scaffold: ScaffoldDefault,
-		Dirs:     []string{"features/sounds", "web/resources/static/cuelume"},
-		Files:    []string{"web/resources/static/cuelume.js"},
+		ID:      depSounds,
+		Kind:    KindPlugin,
+		Summary: "UI sound feedback (cuelume, vendored)",
+		Dirs:    []string{"features/sounds", "web/resources/static/cuelume"},
+		Files:   []string{"web/resources/static/cuelume.js"},
 		Warns: []string{
 			"data-cuelume-* attributes stay in the markup but are inert " +
 				"without cuelume.js.",
@@ -320,11 +316,10 @@ var All = append([]Capability{
 		Note: "Call sites are stripped automatically (this used to be manual).",
 	},
 	{
-		ID:       "search",
-		Kind:     KindPlugin,
-		Summary:  "search layers (substring, fuzzy, BM25) behind one seam",
-		Scaffold: ScaffoldDefault,
-		Dirs:     []string{"internal/search"},
+		ID:      "search",
+		Kind:    KindPlugin,
+		Summary: "search layers (substring, fuzzy, BM25) behind one seam",
+		Dirs:    []string{"internal/search"},
 		// Every file that imports internal/search goes here, or trimming
 		// leaves a dangling import: the consumer half of the seam, its test,
 		// the boot heal, and the composition-root wiring. The handler's search
@@ -382,7 +377,6 @@ var All = append([]Capability{
 		ID:        "review",
 		Kind:      KindFeature,
 		Summary:   "review loop demo (writer → critic → classifier judge, streamed verdict)",
-		Scaffold:  ScaffoldDefault,
 		DependsOn: []string{"genkit"},
 		Dirs:      []string{"features/review"},
 		Warns: []string{
@@ -407,7 +401,6 @@ var All = append([]Capability{
 		Kind:       KindPlugin,
 		Summary:    "entity actors (GoAkt: room lease + collaborative presence)",
 		RuntimeOff: "GOAKT_ENABLED=false",
-		Scaffold:   ScaffoldDefault,
 		Dirs:       []string{"internal/goakt", "features/room"},
 		Files: []string{
 			// Owned by no dir: the engine boot in the web entry point.
@@ -430,31 +423,33 @@ var All = append([]Capability{
 			"mainStrips.",
 	},
 	{
-		ID:       "room",
-		Kind:     KindFeature,
-		Summary:  "room presence demo (one grain per room, crash hook included)",
-		Scaffold: ScaffoldDefault,
-		Dirs:     []string{"features/room"},
+		ID:      "room",
+		Kind:    KindFeature,
+		Summary: "room presence demo (one grain per room, crash hook included)",
+		Dirs:    []string{"features/room"},
+		Reason:  "Delete the dir, the routes it mounts through the seam, and the Room entry in internal/ui/modules.go.",
 		Warns: []string{
-			"The Room sidebar entry is stripped automatically.",
+			"The Room sidebar entry is removed by hand with the unit.",
 		},
 	},
 	{
-		ID:       "whiteboard",
-		Kind:     KindFeature,
-		Summary:  "collaborative canvas (Loro + Rough.js + presence)",
-		Scaffold: ScaffoldDefault,
+		ID:      "whiteboard",
+		Kind:    KindFeature,
+		Summary: "collaborative canvas (Loro + Rough.js + presence)",
 		DependsOn: []string{
 			depCollab,
 			depSounds,
 		},
 		Dirs: []string{"features/whiteboard"},
 		// The presence wiring is whiteboard+notes infrastructure: with both
-		// trimmed there is no seam to build, no roster to federate, and no
+		// gone there is no seam to build, no roster to federate, and no
 		// collab import left in the server package.
 		Files: []string{"internal/server/presence.go"},
+		Reason: "Delete the dir plus internal/server/presence.go and the " +
+			"Whiteboard entry in internal/ui/modules.go (notes falls " +
+			"back to the in-process PeerSet presence seam).",
 		Warns: []string{
-			"The Whiteboard sidebar entry is stripped automatically.",
+			"The Whiteboard sidebar entry is removed by hand with the unit.",
 			"ci-local smoke: export SMOKE_FEATURES without whiteboard " +
 				"(e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the trimmed route.",
 		},
@@ -475,14 +470,14 @@ var All = append([]Capability{
 			"this entry.",
 	},
 	{
-		ID:       "landing",
-		Kind:     KindFeature,
-		Summary:  "public entry page on GET / (inside the shared shell)",
-		Scaffold: ScaffoldDefault,
+		ID:      "landing",
+		Kind:    KindFeature,
+		Summary: "public entry page on GET / (inside the shared shell)",
 		DependsOn: []string{
 			depSounds,
 		},
-		Dirs: []string{"features/landing"},
+		Dirs:   []string{"features/landing"},
+		Reason: "Delete the dir, its / route, and retarget the shell brand to /todo.",
 		Warns: []string{
 			"GET / will 404 (landing owned the only root route); " +
 				"the shell brand is retargeted to /todo, which is kept.",

@@ -273,3 +273,18 @@ func joinRoot(root, rel string) (string, error) {
 	}
 	return absP, nil
 }
+
+// looksLikeTemplate probes whether root is a gogogo checkout. Used by the
+// port and recipe paths to refuse a foreign tree with one actionable line
+// instead of per-unit noise.
+func looksLikeTemplate(root string) bool {
+	for _, probe := range []string{
+		filepath.Join("cmd", "web", "main.go"),
+		filepath.Join("internal", "installer", "run.go"),
+	} {
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(probe))); err == nil {
+			return true
+		}
+	}
+	return false
+}

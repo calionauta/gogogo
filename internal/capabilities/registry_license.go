@@ -24,11 +24,10 @@ var licenseUnits = []Capability{
 			"never phones home; LICENSE_MODE=none leaves it out of the chain.",
 	},
 	{
-		ID:       "license-activation",
-		Kind:     KindFeature,
-		Summary:  "standalone /activate page for a license or account token",
-		Scaffold: ScaffoldManual,
-		Dirs:     []string{"features/license"},
+		ID:      "license-activation",
+		Kind:    KindFeature,
+		Summary: "standalone /activate page for a license or account token",
+		Dirs:    []string{"features/license"},
 		Reason: "Activation page; the gate is runtime-off with LICENSE_MODE=none. " +
 			"Removal is manual (drop the route and the page).",
 	},

@@ -11,7 +11,6 @@ var perfUnits = []Capability{
 		Kind:       KindPlugin,
 		Summary:    "opt-in operator diagnostics: statsviz dashboard + stdlib pprof",
 		RuntimeOff: "PERF_ENABLED=false (default off in production)",
-		Scaffold:   ScaffoldOptIn,
 		Dirs:       []string{"internal/perf"},
 		Files: []string{
 			"internal/server/perf.go",

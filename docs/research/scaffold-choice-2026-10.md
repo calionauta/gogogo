@@ -22,17 +22,17 @@ Entry points and the data they read, from `ripwire`, `cymbal` and `xerj`:
 | MCP | `cmd/gogogo-mcp` → `toolCatalog` (`trim_plan`, `trim_apply`, `capabilities_list`, `advise_stack`, `add_unit`) | the same engine, JSON schemas |
 | Interactive form | `internal/installer/prompt.go` `promptForm` → `askKeep` | project, owner, **plugins**, **features** |
 | Unit list | `internal/installer/manifest.go` `manifestUnits` = `buildManifestUnits()` (`manifest_units.go`) | the units the prompt, plan and trim actually use |
-| Unit mechanics | `manifest_units.go` `trimUnit` (`mainStrips`, `extraStrips`, `extraDrops`, `replaces`, `goModDrops`) | what a trim deletes and which lines it strips |
+| Unit mechanics | `manifest_units.go` `trimUnit` — kept as the export index `mainStrips`, `extraStrips`, `extraDrops`, `replaces`, `goModDrops` | the wiring lines a port bundle carries (scaffold no longer strips) |
 | Registry | `internal/capabilities/registry.go` `All`, `capabilities.go` `OfferedIDs` | kind, summary, `Offered`, `RuntimeOff`, `Reason` |
-| Plan/preview | `internal/installer/plan.go` `scaffoldPlan`, `buildPlan`, `printPlanText` | kept/dropped units, warnings, strips |
+| Plan/preview | `internal/installer/plan.go` `scaffoldPlan`, `buildPlan`, `printPlanText` | the full tree, warnings |
 | Inverse | — (retired) | restore a trimmed unit — the `add` command is deleted; `export` is the port tool now |
-| Drift gate | `internal/installer/check.go` (`gogogo --check`) | markers still match the tree |
+| Drift gate | — (retired with `gogogo --check`) | marker-drift checking is gone; registry conformance + build gates carry it |
 | Docs | `docs/unit-contracts.md` (generated), `docs/getting-started.md`, `docs/features.md`, `docs/scope-taxonomy.md`, `site/index.html` | what a reader believes the scaffold offers |
 
-The prompt is narrower than the registry: `askKeep` iterates `manifestUnits` and
-filters by `Kind`; it never reads `Capability.Offered`. The plan and apply use the
-same `manifestUnits`. `OfferedIDs` exists to keep the registry and the installer
-in sync (`TestOfferedSetMatchesInstaller`), so `Offered` is a mirror of the
+The prompt is retired with the trim: scaffold keeps every unit, and no
+`askKeep`-regime exists. The plan and apply use the
+registry directly; the export index is the port tool's list, and
+registry conformance is checked by tests, not by an `Offered` mirror of the
 installer, not the source of truth.
 
 ## The gap
