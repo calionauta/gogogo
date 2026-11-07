@@ -24,6 +24,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -232,6 +233,7 @@ func TestNoDeadMarkupAttributes(t *testing.T) {
 // information that a gate already walks — the copy that drifts.
 func TestNoFileHeaderRemovalClass(t *testing.T) {
 	root := repoRoot(t)
+	vendored := vendoredDocsiteFiles(t, root)
 	var violations []string
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -247,7 +249,7 @@ func TestNoFileHeaderRemovalClass(t *testing.T) {
 		if relErr != nil {
 			return relErr
 		}
-		if historyFiles(rel) {
+		if historyFiles(rel) || vendored[rel] {
 			return nil
 		}
 		// Source and prose only: a stray build artifact (a checked-in binary)
@@ -273,6 +275,27 @@ func TestNoFileHeaderRemovalClass(t *testing.T) {
 			"the class lives on the capability row (internal/capabilities); delete the header",
 			strings.Join(violations, "\n  "))
 	}
+}
+
+// vendoredDocsiteFiles reads the pinned docsite set from the drift script that
+// enforces it. Those bytes belong to calionauta/docsite and are copied verbatim:
+// a header that survives upstream is not ours to rewrite, and editing one fails
+// the drift job (it did, once, which is why this exists).
+func vendoredDocsiteFiles(t *testing.T, root string) map[string]bool {
+	t.Helper()
+	script, err := readFileString(filepath.Join(root, "scripts", "check-docsite-drift.sh"))
+	if err != nil {
+		t.Fatalf("read drift script: %v", err)
+	}
+	rel := regexp.MustCompile(`\$root/(\S+?)"`).FindAllStringSubmatch(script, -1)
+	if len(rel) == 0 {
+		t.Fatal("the drift script names no vendored file: the parse below is stale")
+	}
+	set := make(map[string]bool, len(rel))
+	for _, m := range rel {
+		set[m[1]] = true
+	}
+	return set
 }
 
 // readFileString reads a file as text, returning an error the caller ignores
