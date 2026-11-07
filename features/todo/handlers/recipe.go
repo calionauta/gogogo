@@ -52,7 +52,10 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 	return recipe.Declaration{
 		Tables: []string{"ext_todo_todos"},
 		Actions: []recipe.InvokeAction{
-			{Verb: "create", Route: recipe.Route{Method: post, Pattern: todosAPI}},
+			{
+				Verb: "create", Route: recipe.Route{Method: post, Pattern: todosAPI},
+				Params: []string{"title", "idem_key", "visibility"},
+			},
 		},
 		Routes: []recipe.Route{
 			{Method: get, Pattern: todosAPI},

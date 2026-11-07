@@ -34,6 +34,10 @@ type Capability struct {
 	// handlers. It mirrors the Declaration by name only — routes stay in
 	// the Declaration, and the server gate asserts the two agree.
 	Actions []string `json:"actions,omitempty"`
+	// ActionParams mirrors the closed param sets per verb, so discovery
+	// shows what an agent may forward without reading the handler.
+	// Gated against the Declaration the same way Actions is.
+	ActionParams map[string][]string `json:"actionParams,omitempty"`
 	// UISignal names the todo.Signals bool field that hides this
 	// capability's UI ("" when the capability has no gated UI). The
 	// conformance test asserts the field exists and at least one .templ

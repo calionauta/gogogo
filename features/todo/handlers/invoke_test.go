@@ -24,7 +24,7 @@ func TestInvokeTodoCreateHeadless(t *testing.T) {
 
 	reg := &recipe.Registry{}
 	reg.Add(f.h.Recipe())
-	route, err := recipe.ResolveAction(reg, "todo", "create")
+	action, route, err := recipe.ResolveInvokeAction(reg, "todo", "create")
 	if err != nil {
 		t.Fatalf("resolve create: %v", err)
 	}
@@ -34,7 +34,7 @@ func TestInvokeTodoCreateHeadless(t *testing.T) {
 		`SELECT COUNT(*) FROM ext_todo_todos`).Scan(&before); qerr != nil {
 		t.Fatalf("count before: %v", qerr)
 	}
-	code, _, err := recipe.Invoke(context.Background(), f.r, auth.CookieName, cookie.Value, route,
+	code, _, err := recipe.Invoke(context.Background(), f.r, auth.CookieName, cookie.Value, action, route,
 		url.Values{"title": {"Headless todo"}})
 	if err != nil {
 		t.Fatalf("invoke: %v", err)
@@ -59,11 +59,11 @@ func TestInvokeTodoWithoutSessionFailsBeforeStore(t *testing.T) {
 	f := newHandlersFixture(t)
 	reg := &recipe.Registry{}
 	reg.Add(f.h.Recipe())
-	route, err := recipe.ResolveAction(reg, "todo", "create")
+	action, route, err := recipe.ResolveInvokeAction(reg, "todo", "create")
 	if err != nil {
 		t.Fatalf("resolve create: %v", err)
 	}
-	code, _, err := recipe.Invoke(context.Background(), f.r, auth.CookieName, "", route,
+	code, _, err := recipe.Invoke(context.Background(), f.r, auth.CookieName, "", action, route,
 		url.Values{"title": {"Anon todo"}})
 	if err == nil {
 		t.Fatal("anonymous invoke must error")

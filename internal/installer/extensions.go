@@ -31,22 +31,23 @@ const (
 )
 
 type extensionDescriptor struct {
-	ID         string   `json:"id"`
-	Kind       string   `json:"kind"`
-	Summary    string   `json:"summary"`
-	Origin     string   `json:"origin"`
-	Installed  bool     `json:"installed"`
-	Removed    bool     `json:"removed,omitempty"`
-	Register   string   `json:"register,omitempty"`
-	DependsOn  []string `json:"dependsOn,omitempty"`
-	Dependents []string `json:"dependents,omitempty"`
-	State      string   `json:"state"`
-	Routes     []string `json:"routes,omitempty"`
-	Tables     []string `json:"tables,omitempty"`
-	Jobs       []string `json:"jobs,omitempty"`
-	Slots      []string `json:"slots,omitempty"`
-	Invoke     []string `json:"invoke,omitempty"`
-	Actions    []string `json:"actions,omitempty"`
+	ID           string              `json:"id"`
+	Kind         string              `json:"kind"`
+	Summary      string              `json:"summary"`
+	Origin       string              `json:"origin"`
+	Installed    bool                `json:"installed"`
+	Removed      bool                `json:"removed,omitempty"`
+	Register     string              `json:"register,omitempty"`
+	DependsOn    []string            `json:"dependsOn,omitempty"`
+	Dependents   []string            `json:"dependents,omitempty"`
+	State        string              `json:"state"`
+	Routes       []string            `json:"routes,omitempty"`
+	Tables       []string            `json:"tables,omitempty"`
+	Jobs         []string            `json:"jobs,omitempty"`
+	Slots        []string            `json:"slots,omitempty"`
+	Invoke       []string            `json:"invoke,omitempty"`
+	InvokeParams map[string][]string `json:"invokeParams,omitempty"`
+	Actions      []string            `json:"actions,omitempty"`
 }
 
 func descriptorState(installed, removed bool, origin string) string {
@@ -73,8 +74,12 @@ func applyReceiptSurface(desc *extensionDescriptor, r recipe.Receipt) {
 	// receipt never blanks the registry mirror of the in-tree unit.
 	if len(r.Declaration.Actions) > 0 {
 		desc.Invoke = desc.Invoke[:0]
+		desc.InvokeParams = map[string][]string{}
 		for _, a := range r.Declaration.Actions {
 			desc.Invoke = append(desc.Invoke, a.Verb)
+			if len(a.Params) > 0 {
+				desc.InvokeParams[a.Verb] = append([]string(nil), a.Params...)
+			}
 		}
 	}
 }
@@ -117,6 +122,12 @@ func extensionDescriptors(dir string) ([]extensionDescriptor, error) {
 				desc.Removed = true
 			}
 			applyReceiptSurface(&desc, r)
+		}
+		// Built-in units publish params through the registry mirror;
+		// receipt installations publish theirs through the receipt.
+		desc.InvokeParams = map[string][]string{}
+		for verb, ps := range cap.ActionParams {
+			desc.InvokeParams[verb] = append([]string(nil), ps...)
 		}
 		desc.State = descriptorState(desc.Installed, desc.Removed, desc.Origin)
 		out = append(out, desc)
@@ -241,6 +252,9 @@ func printDescribe(stdout io.Writer, e extensionDescriptor) {
 	if len(e.Invoke) > 0 {
 		fmt.Fprintf(stdout, "  invoke: %v\n", e.Invoke)
 	}
+	if len(e.InvokeParams) > 0 {
+		fmt.Fprintf(stdout, "  invokeParams: %v\n", e.InvokeParams)
+	}
 	fmt.Fprintf(stdout, "  lifecycle: %v\n", e.Actions)
 }
 
@@ -350,7 +364,8 @@ func invokeCall(
 		return &ExitError{code: 1, msg: "extension invoke: " + err.Error()}
 	}
 	if resp.StatusCode >= http.StatusMultipleChoices {
-		return &ExitError{code: 1, msg: "extension invoke: server answered " + resp.Status}
+		return &ExitError{code: 1, msg: "extension invoke: server answered " +
+			resp.Status + ": " + strings.TrimSpace(string(body))}
 	}
 	if format == planFormatJSON {
 		return json.NewEncoder(stdout).Encode(map[string]any{"status": resp.StatusCode, "body": string(body)})

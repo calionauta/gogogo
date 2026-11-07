@@ -362,7 +362,10 @@ var All = append([]Capability{
 		Summary: "Todo MVC demo (reference implementation)",
 		Dirs:    []string{"features/todo"},
 		Actions: []string{"create"},
-		Reason:  "Reference implementation — remove manually later per docs/scope-taxonomy.md.",
+		ActionParams: map[string][]string{
+			"create": {"title", "idem_key", "visibility"},
+		},
+		Reason: "Reference implementation — remove manually later per docs/scope-taxonomy.md.",
 	},
 	{
 		ID:        "chat",

@@ -79,7 +79,47 @@ func assertDeclarationsMatchMounts(t *testing.T, mux *Router, reg *recipe.Regist
 				t.Errorf("recipe %q registry actions = %v, want %v (mirror the Declaration)", owner, row.Actions, wantVerbs)
 			}
 		}
+		// Same two-way check on the closed param sets: an agent must read
+		// the allowed fields without opening the handler.
+		wantParams := map[string][]string{}
+		for _, a := range p.Declaration().Actions {
+			if len(a.Params) > 0 {
+				wantParams[a.Verb] = slices.Clone(a.Params)
+			}
+		}
+		if len(row.ActionParams) != 0 || len(wantParams) != 0 {
+			if missing, extra := diffParamKeys(row.ActionParams, wantParams); missing != "" {
+				t.Errorf("recipe %q registry param set for %q is missing %v",
+					owner, missing, row.ActionParams[missing])
+			} else if extra != "" {
+				t.Errorf("recipe %q registry advertises params for %q the Declaration does not declare", owner, extra)
+			}
+		}
 	}
+}
+
+// diffParamKeys compares a registry mirror against a declaration's
+// param sets: it returns the first verb whose set differs, or "".
+func diffParamKeys(got, want map[string][]string) (string, string) {
+	for verb, wparams := range want {
+		gparams, ok := got[verb]
+		if !ok {
+			return verb, "missing"
+		}
+		wp := slices.Clone(wparams)
+		gp := slices.Clone(gparams)
+		slices.Sort(wp)
+		slices.Sort(gp)
+		if !slices.Equal(wp, gp) {
+			return verb, "mismatch"
+		}
+	}
+	for verb := range got {
+		if _, ok := want[verb]; !ok {
+			return verb, "extra"
+		}
+	}
+	return "", ""
 }
 
 // assertRecipeWiring runs both phase-2 gates over the real composed tree: the

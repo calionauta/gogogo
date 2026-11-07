@@ -55,7 +55,7 @@ func extInvokeHandler(reg *recipe.Registry, invokeOut func() http.Handler) http.
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
-		route, rerr := recipe.ResolveAction(reg, req.ID, req.Verb)
+		action, route, rerr := recipe.ResolveInvokeAction(reg, req.ID, req.Verb)
 		if rerr != nil {
 			http.Error(w, rerr.Error(), http.StatusBadRequest)
 			return
@@ -64,7 +64,8 @@ func extInvokeHandler(reg *recipe.Registry, invokeOut func() http.Handler) http.
 		for k, v := range req.Params {
 			form.Set(k, v)
 		}
-		status, out, ierr := recipe.Invoke(r.Context(), invokeOut(), auth.CookieName, cookie.Value, route, form)
+		status, out, ierr := recipe.Invoke(
+			r.Context(), invokeOut(), auth.CookieName, cookie.Value, action, route, form)
 		if ierr != nil {
 			http.Error(w, ierr.Error(), status)
 			return

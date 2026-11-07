@@ -143,6 +143,25 @@ you submit:
   costs every operator tens of megabytes of binary; the same recipe using only the
   standard library costs almost nothing. Declare it, because it is invisible in your diff.
 
+## Actions: which routes need a headless verb
+
+A user who builds on gogogo does not open your UI to work — an agent does,
+headless, through `gogogo extension invoke` / MCP `extension_invoke`.
+Every mutating route (POST/PUT/PATCH/DELETE) and read route (GET) your
+recipe declares must either:
+
+- appear as an `InvokeAction` (closed verb, declared route, closed
+  `Params` set) so the call can be discovered and executed headless, or
+- be explicitly omitted: auth endpoints (login, signup, logout),
+  streaming routes (`/stream`, `/events` — they never complete headless),
+  parameterized routes (`{id}` — refused until the headless id is
+  typed), and destructive-only endpoints you do not want agents to run.
+
+The gate enforces both directions: an action whose route is not declared
+is uncallable, and a receipt whose verbs drift from the code is a
+failure. A mutating route with no verb is *invisible* to headless
+users — that is the gap, not a style choice.
+
 ## The install contract
 
 An installable recipe directory carries a manifest beside the tree it copies:
@@ -160,6 +179,8 @@ declaration:
   routes:
     - {method: GET, pattern: /pomodoro}
   tables: [ext_pomodoro_session]
+  actions:
+    - {verb: start, route: {method: POST, pattern: /pomodoro/start}, params: [secs]}
 ```
 
 `register` names the copied package that exports the one function the composition

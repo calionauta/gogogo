@@ -60,6 +60,9 @@ func TestExtensionDescriptorsAdvertiseBuiltinVerbs(t *testing.T) {
 		if !slices.Contains(e.Invoke, "create") {
 			t.Fatalf("todo invoke verbs missing: %v", e.Invoke)
 		}
+		if !slices.Contains(e.InvokeParams["create"], "title") {
+			t.Fatalf("todo create params missing: %v", e.InvokeParams)
+		}
 		return
 	}
 	t.Fatal("todo descriptor not found")
@@ -81,7 +84,7 @@ declaration:
   routes: [{method: GET, pattern: /api/probe}, {method: POST, pattern: /api/probe}]
   jobs: ["ext:probe:run"]
   slots: []
-  actions: [{verb: create, route: {method: POST, pattern: /api/probe}}]
+  actions: [{verb: create, route: {method: POST, pattern: /api/probe}, params: [title]}]
 `
 	if err := os.WriteFile(filepath.Join(dir, ".recipes", "probe.yml"), []byte(yml), 0o600); err != nil {
 		t.Fatal(err)
@@ -105,6 +108,9 @@ declaration:
 		}
 		if !slices.Contains(e.Invoke, "create") {
 			t.Errorf("probe invoke verbs missing: %v", e.Invoke)
+		}
+		if !slices.Contains(e.InvokeParams["create"], "title") {
+			t.Errorf("probe create params missing: %v", e.InvokeParams)
 		}
 		return
 	}

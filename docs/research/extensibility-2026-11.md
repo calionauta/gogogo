@@ -1916,10 +1916,17 @@ invoke → row in `ext_todo_todos`), and `extension describe` advertising the
 wrapped handler, so each target route is policy-checked for the caller's
 role), `gogogo extension invoke` (loopback-only SSRF guard, `--param`
 k=v forwarded, verb validated locally for receipt-installs) and MCP
-`extension_invoke` — both Proved end-to-end. What remains open for
-invocation next: a param schema per action (typed fields, unknown-param
-refusal) and parameterized routes (`{id}` toggle/delete) — the bridge
-refuses both loudly today rather than guessing.
+`extension_invoke` — both Proved end-to-end. Param schema followed
+(2026-11-07): `Actions[].Params` is a closed set of top-level form
+fields; unknown keys are refused loud naming the allowed set (no
+typed coercion — handlers parse values at the boundary), GET reads
+are invocable, `/stream` + `/events` are refused explicitly (they
+would hang an invoke), and the server gate fails on mirror drift
+between `Capability.ActionParams` and the Declaration. What remains
+open for invocation next: parameterized routes (`{id}` toggle/delete),
+machine identity (API tokens with the same Role subject) for clients
+beyond the operator loopback, and the remote client behind those —
+the bridge refuses the first two loudly today rather than guessing.
 
 The next user-visible task starts from the discovery the phase-4 work
 enabled: every built-in capability can now supply a self-mounting
