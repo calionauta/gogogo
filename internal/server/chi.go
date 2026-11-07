@@ -68,8 +68,7 @@ type ChiStack struct {
 	sqlDB          *sql.DB
 	mux            http.Handler
 	cancelConsumer context.CancelFunc
-	// shutdown runs on stop, after the HTTP server drains: queue close,
-	// actor halt. Same cleanup reachable through Serve's stop func.
+	// shutdown runs on stop, after the HTTP server drains (same cleanup as Serve's stop func).
 	shutdown []func()
 
 	appName string
@@ -178,8 +177,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	queries := demoQueries(cfg, a, sqlDB)
 	bootCtx, cancelConsumer := context.WithCancel(context.Background())
 	startRetention(bootCtx, queries)
-	// bootCtx now owns the retention ticker and the engines below
-	// (DagNats, GoAkt, credits); cancellation at shutdown stops all of them.
+	// bootCtx owns the retention ticker and engines below; cancellation stops them.
 
 	// Chi-owned queue: feature workers run here so they never compete
 	// with the other stack's workers for the same jobs. Its hub is the
@@ -291,6 +289,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		closePerf(perfH)
 		return bootFail(cancelConsumer, sqlDB, "rbac", rerr)
 	}
+	mux.invokeOut = handler // invoke re-serves THROUGH this handler (see extinvoke.go)
 	// The edge wrappers sit above RBAC on purpose: a 403 and a router 404
 	// carry the same headers, and the access log sees both. The rate limiter
 	// sits just inside them so a 429 gets the same headers.
@@ -492,6 +491,7 @@ func buildChiMux(
 	// is a 405 from the tree.
 	r.Claim("core", "POST", cspReportPath)
 	r.Post(cspReportPath, cspReportHandler)
+	mountExtInvoke(r)
 	r.Claim("core", "GET", "/health")
 	r.Claim("core", "HEAD", "/health")
 	r.Get("/health", healthHandler(todoH))

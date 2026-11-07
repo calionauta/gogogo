@@ -67,8 +67,9 @@ JSON-config clients take the Claude Code block verbatim.
 | `recipe_update` | Yes (`confirm:true`) | Update one installed recipe from a directory or catalog entry (dry-run previews) |
 | `recipe_uninstall` | Yes (`confirm:true`) | Remove one installed recipe by id; deletes only pristine files and keeps edited files |
 | `recipe_status` | No | Read-only recipe drift report: pristine vs edited files, generated/schema/policy state |
-| `extension_list` | No | Extension discovery: built-in capabilities plus user-installed recipes, with origin/lifecycle |
-| `extension_describe` | No | Describe one extension by id |
+| `extension_list` | No | Extension discovery: built-in capabilities plus user-installed recipes, with origin/lifecycle and invocable verbs |
+| `extension_describe` | No | Describe one extension by id (including its invocable verbs) |
+| `extension_invoke` | Yes | Invoke one declared mutating verb against a running server (loopback only) under the operator session token |
 | `build_prerequisites` | No | How to build the desktop shell or the Android target: prerequisites, `make desktop`/`make mobile`, the smoke gates, the Android driver swap (tursogo → ncruces) and the mobile limits. `platform` is `desktop` or `mobile`; empty returns both. Same text as `gogogo --help` |
 | `sync_prerequisites` | No | Desktop↔server sync prerequisites: a reachable NATS leaf listener, `NATS_TOKEN`, `CLOUD_SYNC_URL`, account identity, and a private overlay before public exposure |
 

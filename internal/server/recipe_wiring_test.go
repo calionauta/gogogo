@@ -4,11 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/calionauta/gogogo/internal/capabilities"
 	"github.com/calionauta/gogogo/internal/db"
 	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/recipe"
@@ -43,6 +45,38 @@ func assertDeclarationsMatchMounts(t *testing.T, mux *Router, reg *recipe.Regist
 		for key := range mounted {
 			if !declared[key] {
 				t.Errorf("recipe %q mounts %s %s without declaring it", owner, key.method, key.pattern)
+			}
+		}
+		// The action table rides the same gate: every verb must resolve to
+		// a route this provider declares (ActionProblems) and that route
+		// must be the mounted one (the mounted set above). Either failure
+		// means an agent could call a verb the tree cannot honour.
+		for _, problem := range recipe.ActionProblems(p.Declaration()) {
+			t.Errorf("recipe %q: %s", owner, problem)
+		}
+		for _, a := range p.Declaration().Actions {
+			if !mounted[routeKey{method: a.Route.Method, pattern: a.Route.Pattern}] {
+				t.Errorf("recipe %q action %q targets %s %s, which it does not mount",
+					owner, a.Verb, a.Route.Method, a.Route.Pattern)
+			}
+		}
+		// The registry's Actions mirror these verbs by name so
+		// checkout-level discovery can advertise them without linking
+		// feature handlers. The composed provider is the authority; the
+		// row must match it, or discovery lies about what is invocable.
+		wantVerbs := []string{}
+		for _, a := range p.Declaration().Actions {
+			wantVerbs = append(wantVerbs, a.Verb)
+		}
+		slices.Sort(wantVerbs)
+		row, found := capabilities.ByID()[owner]
+		if !found {
+			t.Errorf("recipe %q has no capabilities row to advertise its verbs", owner)
+		} else if len(row.Actions) != 0 || len(wantVerbs) != 0 {
+			got := slices.Clone(row.Actions)
+			slices.Sort(got)
+			if !slices.Equal(got, wantVerbs) {
+				t.Errorf("recipe %q registry actions = %v, want %v (mirror the Declaration)", owner, row.Actions, wantVerbs)
 			}
 		}
 	}

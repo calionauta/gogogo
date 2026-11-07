@@ -79,6 +79,11 @@ type Router struct {
 	// recipes is the installed recipe set the root mounted, kept so a gate can
 	// compare each declaration against what actually reached the tree.
 	recipes *recipe.Registry
+	// invokeOut is the RBAC-wrapped outer handler the headless invoke
+	// endpoint re-serves through. Set by the boot after applyRBAC — nil
+	// while the composed tree is still being built, like every other
+	// boot-phase error it cannot answer requests yet.
+	invokeOut http.Handler
 	// inbox is the notifications slice the root built inside the composition,
 	// kept because the shell middleware and the session stream share its bus.
 	inbox    *notificationshandlers.Handler

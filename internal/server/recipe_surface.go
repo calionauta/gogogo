@@ -7,6 +7,7 @@
 package server
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 
@@ -87,6 +88,37 @@ func applyRecipeMigrations(sqlDB *sql.DB, reg *recipe.Registry) error {
 	}
 	if err := dbschema.MigrateWith(sqlDB, sets...); err != nil {
 		return fmt.Errorf("recipe migrations: %w", err)
+	}
+	if err := dropAdoptedTodoSeed(sqlDB, sets); err != nil {
+		return fmt.Errorf("recipe migrations: %w", err)
+	}
+	return nil
+}
+
+// dropAdoptedTodoSeed finishes the todo ownership bridge-now that the
+// migration set has landed. `todos` is the append-only historical seed, not
+// the runtime table — runtime code reads `ext_todo_todos` — so dropping
+// it is safe only after the todo migration set has applied and the owned
+// table exists. It is idempotent: a fresh core-only schema recreates the
+// empty seed on the next core migration, and this helper would remove it
+// again after the set is applied.
+func dropAdoptedTodoSeed(sqlDB *sql.DB, sets []dbschema.MigrationSet) error {
+	for _, set := range sets {
+		if set.ID != "todo" {
+			continue
+		}
+		var count int
+		err := sqlDB.QueryRowContext(context.Background(),
+			"SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'ext_todo_todos'").
+			Scan(&count)
+		if err != nil {
+			return err
+		}
+		if count == 0 {
+			return nil
+		}
+		_, err = sqlDB.ExecContext(context.Background(), "DROP TABLE IF EXISTS todos")
+		return err
 	}
 	return nil
 }

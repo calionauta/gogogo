@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -127,5 +129,36 @@ func TestExtensionListDescribesBuiltIns(t *testing.T) {
 	}
 	if text := toolText(t, describe); !strings.Contains(text, "dashboard") || !strings.Contains(text, "feature") {
 		t.Errorf("describe output misses id/kind: %s", text)
+	}
+}
+
+func TestExtensionInvokeForwardsToLoopback(t *testing.T) {
+	var gotPath string
+	var gotCookie string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		if c, err := r.Cookie("gogogo_auth"); err == nil {
+			gotCookie = c.Value
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("invoked ok"))
+	}))
+	defer srv.Close()
+
+	res, _, err := handleExtensionInvoke(context.Background(), nil, extensionInvokeArgs{
+		ID: "todo", Verb: "create", Server: srv.URL, Session: "tok-7",
+		Params: map[string]string{"title": "Via MCP"}, Dir: filepath.Join("..", ".."), Format: "json",
+	})
+	if err != nil {
+		t.Fatalf("extension invoke: %v", err)
+	}
+	if text := toolText(t, res); !strings.Contains(text, "invoked ok") {
+		t.Errorf("invoke output missing server body: %s", text)
+	}
+	if gotPath != "/api/ext/invoke" {
+		t.Errorf("path = %s, want /api/ext/invoke", gotPath)
+	}
+	if gotCookie != "tok-7" {
+		t.Errorf("cookie = %q, want tok-7", gotCookie)
 	}
 }

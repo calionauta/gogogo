@@ -361,6 +361,7 @@ var All = append([]Capability{
 		Kind:    KindFeature,
 		Summary: "Todo MVC demo (reference implementation)",
 		Dirs:    []string{"features/todo"},
+		Actions: []string{"create"},
 		Reason:  "Reference implementation — remove manually later per docs/scope-taxonomy.md.",
 	},
 	{

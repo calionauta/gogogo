@@ -74,10 +74,11 @@ type Receipt struct {
 
 // Declaration is what the code claims. The drift check compares it to the code.
 type Declaration struct {
-	Tables []string `yaml:"tables,omitempty"`
-	Routes []Route  `yaml:"routes,omitempty"`
-	Jobs   []string `yaml:"jobs,omitempty"`
-	Slots  []string `yaml:"slots,omitempty"`
+	Tables  []string       `yaml:"tables,omitempty"`
+	Routes  []Route        `yaml:"routes,omitempty"`
+	Jobs    []string       `yaml:"jobs,omitempty"`
+	Slots   []string       `yaml:"slots,omitempty"`
+	Actions []InvokeAction `yaml:"actions,omitempty"`
 }
 
 // Route is a declared HTTP surface. The pattern is absolute, matching the
@@ -239,6 +240,10 @@ func checkDeclaration(root string, r Receipt) []string {
 				fmt.Sprintf("declared table %q has no SQL in the recipe's own files", table))
 		}
 	}
+	// The action table is the invocable surface: every verb must target a
+	// route this same declaration claims. Pure data, checked alongside the
+	// other declaration halves so a drifted table is refused at boot.
+	problems = append(problems, actionProblems(r.Declaration)...)
 	return problems
 }
 

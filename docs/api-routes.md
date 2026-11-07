@@ -5,7 +5,7 @@
 > Coverage is enforced by TestTemplAPIURLsHaveRoutes (every ref below
 > must match a registered route); this file is the inventory it proves.
 
-## Registered routes (69)
+## Registered routes (70)
 
 Every `/api/*` literal in non-test, non-generated Go sources.
 
@@ -42,6 +42,7 @@ Every `/api/*` literal in non-test, non-generated Go sources.
 - `/api/credits`
 - `/api/credits/checkout`
 - `/api/credits/stripe-webhook`
+- `/api/ext/invoke`
 - `/api/notes/fragment`
 - `/api/notes/{docID}`
 - `/api/notes/{docID}/caret`

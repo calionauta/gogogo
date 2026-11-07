@@ -41,8 +41,9 @@ Claude Code (`~/.claude.json`) / Cursor (`~/.cursor/mcp.json`) / BB:
 | `recipe_update` | `src`, `dir`, `confirm`, `dryRun?`, `entry?`, `format?` | Update one installed extension from a directory or a catalog entry. `dryRun:true` previews; refuses without an existing receipt |
 | `recipe_uninstall` | `id`, `dir`, `confirm`, `format?` | Remove one installed extension by id. Removes only pristine files, marks the receipt removed, and updates registration/policy/schema surfaces |
 | `recipe_status` | `dir`, `id?`, `format?` | Read-only recipe drift report: pristine vs edited files, generated/schema/policy status |
-| `extension_list` | `dir?`, `format?` | Discover extensions: built-in capabilities plus user-installed recipes, with origin, kind, installed/removed state and available lifecycle verbs |
-| `extension_describe` | `id`, `dir?`, `format?` | Describe one extension by id: kind, origin, summary, registration surface, dependencies and available lifecycle verbs |
+| `extension_list` | `dir?`, `format?` | Discover extensions: built-in capabilities plus user-installed recipes, with origin, kind, installed/removed state, dependencies, declared surface, invocable verbs and available lifecycle verbs |
+| `extension_describe` | `id`, `dir?`, `format?` | Describe one extension by id: kind, origin, summary, registration surface, dependencies, declared surface, invocable verbs and available lifecycle verbs |
+| `extension_invoke` | `id`, `verb`, `server`, `session`, `params?`, `dir?`, `format?` | Invoke one declared mutating verb against a running server (loopback only): the verb runs through the server's own session and policy stack under the operator token. Mutates state — confirm the verb via extension_describe first |
 
 Formats default to `json` on this transport (humans get text on the CLI).
 Mutating tools return the same envelopes the CLI prints, including

@@ -7,8 +7,9 @@
 -- table the todo unit's own: it creates the prefixed table in its final shape
 -- (the post-0010 shape, with visibility) and carries every row across, so a
 -- fresh database and an upgraded one end with the same schema and the same
--- data. The core "todos" table stays behind as the empty seed; all sqlc
--- queries read -- and only they may read -- ext_todo_todos.
+-- data. Once the set has applied, the composition root drops the now-
+-- redundant core "todos" seed (see recipe_surface.go); all sqlc queries
+-- read -- and only they may read -- ext_todo_todos.
 --
 -- The INSERT ... SELECT is data, not schema: sqlc ignores it when it reads this
 -- directory as schema, and the recipe validator's verb table targets the

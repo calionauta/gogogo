@@ -29,10 +29,10 @@ func (p recipeProvider) ID() string { return RecipeID }
 // namespace), and the declaration <-> DDL gate in internal/server checks both
 // directions — this is the first in-tree table-owning conversion, proving an
 // in-tree unit can own DDL the same way an installed recipe does. The legacy
-// core `todos` table stays as the empty seed (append-only history): its rows
-// are carried into the owned table by the migration itself, and every sqlc
-// query reads only the owned table (features/todo/migrations/0001_init.sql
-// documents the bridge).
+// core `todos` seed is dropped after the set applies (see
+// internal/server/recipe_surface.go): this migration carries the rows into
+// the owned table, every sqlc query reads only the owned table, and the
+// legacy append-only copy does not linger.
 //
 // The auth pages ride this router (they are the demo's entry surface), so they
 // are declared with the rest: the claim table attributes routes by who mounts
@@ -51,6 +51,9 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 	)
 	return recipe.Declaration{
 		Tables: []string{"ext_todo_todos"},
+		Actions: []recipe.InvokeAction{
+			{Verb: "create", Route: recipe.Route{Method: post, Pattern: todosAPI}},
+		},
 		Routes: []recipe.Route{
 			{Method: get, Pattern: todosAPI},
 			{Method: get, Pattern: "/api/todos/search"},

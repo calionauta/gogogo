@@ -2,11 +2,20 @@
 package installer
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
+	"net"
+	"net/http"
+	"net/url"
+	"os"
+	"slices"
 	"sort"
+	"strings"
+	"time"
 
 	"github.com/calionauta/gogogo/internal/capabilities"
 	"github.com/calionauta/gogogo/internal/recipe"
@@ -22,15 +31,52 @@ const (
 )
 
 type extensionDescriptor struct {
-	ID        string   `json:"id"`
-	Kind      string   `json:"kind"`
-	Summary   string   `json:"summary"`
-	Origin    string   `json:"origin"`
-	Installed bool     `json:"installed"`
-	Removed   bool     `json:"removed,omitempty"`
-	Register  string   `json:"register,omitempty"`
-	DependsOn []string `json:"dependsOn,omitempty"`
-	Actions   []string `json:"actions,omitempty"`
+	ID         string   `json:"id"`
+	Kind       string   `json:"kind"`
+	Summary    string   `json:"summary"`
+	Origin     string   `json:"origin"`
+	Installed  bool     `json:"installed"`
+	Removed    bool     `json:"removed,omitempty"`
+	Register   string   `json:"register,omitempty"`
+	DependsOn  []string `json:"dependsOn,omitempty"`
+	Dependents []string `json:"dependents,omitempty"`
+	State      string   `json:"state"`
+	Routes     []string `json:"routes,omitempty"`
+	Tables     []string `json:"tables,omitempty"`
+	Jobs       []string `json:"jobs,omitempty"`
+	Slots      []string `json:"slots,omitempty"`
+	Invoke     []string `json:"invoke,omitempty"`
+	Actions    []string `json:"actions,omitempty"`
+}
+
+func descriptorState(installed, removed bool, origin string) string {
+	if removed {
+		return "removed"
+	}
+	if installed {
+		return "installed"
+	}
+	if origin == "capability" {
+		return "builtin"
+	}
+	return "unknown"
+}
+
+func applyReceiptSurface(desc *extensionDescriptor, r recipe.Receipt) {
+	desc.Tables = append([]string(nil), r.Declaration.Tables...)
+	desc.Jobs = append([]string(nil), r.Declaration.Jobs...)
+	desc.Slots = append([]string(nil), r.Declaration.Slots...)
+	for _, rt := range r.Declaration.Routes {
+		desc.Routes = append(desc.Routes, rt.Method+" "+rt.Pattern)
+	}
+	// The installed variant's verbs win when it declares any; an empty
+	// receipt never blanks the registry mirror of the in-tree unit.
+	if len(r.Declaration.Actions) > 0 {
+		desc.Invoke = desc.Invoke[:0]
+		for _, a := range r.Declaration.Actions {
+			desc.Invoke = append(desc.Invoke, a.Verb)
+		}
+	}
 }
 
 func extensionDescriptors(dir string) ([]extensionDescriptor, error) {
@@ -48,20 +94,31 @@ func extensionDescriptors(dir string) ([]extensionDescriptor, error) {
 	}
 	out := make([]extensionDescriptor, 0, len(capabilities.All)+len(receiptIDs))
 	seen := map[string]bool{}
+	dependents := map[string][]string{}
+	for _, cap := range capabilities.All {
+		for _, dep := range cap.DependsOn {
+			dependents[dep] = append(dependents[dep], cap.ID)
+		}
+	}
 	for _, cap := range capabilities.All {
 		seen[cap.ID] = true
 		desc := extensionDescriptor{
 			ID: cap.ID, Kind: string(cap.Kind), Summary: cap.Summary,
 			Origin: "capability", Installed: receiptSet[cap.ID],
 			Register: cap.Register, DependsOn: append([]string(nil), cap.DependsOn...),
-			Actions: []string{extExportAction, extRecipeInstall, extRecipeStatus, extRecipeUninstall},
+			Dependents: append([]string(nil), dependents[cap.ID]...),
+			Invoke:     append([]string(nil), cap.Actions...),
+			Actions:    []string{extExportAction, extRecipeInstall, extRecipeStatus, extRecipeUninstall},
 		}
 		if _, ok := receiptSet[cap.ID]; ok {
 			desc.Origin = "capability+recipe"
-			if r := receiptMap[cap.ID]; r.Removed != "" {
+			r := receiptMap[cap.ID]
+			if r.Removed != "" {
 				desc.Removed = true
 			}
+			applyReceiptSurface(&desc, r)
 		}
+		desc.State = descriptorState(desc.Installed, desc.Removed, desc.Origin)
 		out = append(out, desc)
 	}
 	for id := range receiptSet {
@@ -74,23 +131,27 @@ func extensionDescriptors(dir string) ([]extensionDescriptor, error) {
 			Origin: "recipe", Installed: true, Register: r.Register,
 			Removed: r.Removed != "", Actions: []string{extRecipeInstall, extRecipeUpdate, extRecipeStatus, extRecipeUninstall},
 		}
+		applyReceiptSurface(&desc, r)
+		desc.State = descriptorState(desc.Installed, desc.Removed, desc.Origin)
 		out = append(out, desc)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	return out, nil
 }
 
-func runExtension(args []string, stdout io.Writer) error {
+func runExtension(ctx context.Context, args []string, stdout io.Writer) error {
 	if len(args) == 0 {
-		return &ExitError{code: 1, msg: "extension needs a subcommand: list | describe"}
+		return &ExitError{code: 1, msg: "extension needs a subcommand: list | describe | invoke"}
 	}
 	switch args[0] {
 	case "list":
 		return runExtensionList(args[1:], stdout)
 	case "describe", "show":
 		return runExtensionShow(args[1:], stdout)
+	case "invoke":
+		return runExtensionInvoke(ctx, args[1:], stdout)
 	default:
-		return &ExitError{code: 1, msg: fmt.Sprintf("unknown extension subcommand %q (want list|describe)", args[0])}
+		return &ExitError{code: 1, msg: fmt.Sprintf("unknown extension subcommand %q (want list|describe|invoke)", args[0])}
 	}
 }
 
@@ -138,20 +199,195 @@ func runExtensionShow(args []string, stdout io.Writer) error {
 		return err
 	}
 	for _, e := range exts {
-		if e.ID == ids[0] {
-			if *format == planFormatJSON {
-				return json.NewEncoder(stdout).Encode(e)
-			}
-			fmt.Fprintf(stdout, "%s\n  kind: %s\n  origin: %s\n  summary: %s\n", e.ID, e.Kind, e.Origin, e.Summary)
-			if e.Register != "" {
-				fmt.Fprintf(stdout, "  register: %s\n", e.Register)
-			}
-			if len(e.DependsOn) > 0 {
-				fmt.Fprintf(stdout, "  depends on: %v\n", e.DependsOn)
-			}
-			fmt.Fprintf(stdout, "  lifecycle: %v\n", e.Actions)
-			return nil
+		if e.ID != ids[0] {
+			continue
 		}
+		if *format == planFormatJSON {
+			return json.NewEncoder(stdout).Encode(e)
+		}
+		printDescribe(stdout, e)
+		return nil
 	}
 	return &ExitError{code: 1, msg: "extension " + ids[0] + " not found"}
+}
+
+// printDescribe renders one descriptor as text. Extracted so
+// runExtensionShow stays under the complexity gate and the nestif gate.
+func printDescribe(stdout io.Writer, e extensionDescriptor) {
+	fmt.Fprintf(stdout, "%s\n  kind: %s\n  origin: %s\n  state: %s\n",
+		e.ID, e.Kind, e.Origin, e.State)
+	fmt.Fprintf(stdout, "  summary: %s\n", e.Summary)
+	if e.Register != "" {
+		fmt.Fprintf(stdout, "  register: %s\n", e.Register)
+	}
+	if len(e.DependsOn) > 0 {
+		fmt.Fprintf(stdout, "  depends on: %v\n", e.DependsOn)
+	}
+	if len(e.Dependents) > 0 {
+		fmt.Fprintf(stdout, "  dependents: %v\n", e.Dependents)
+	}
+	if len(e.Routes) > 0 {
+		fmt.Fprintf(stdout, "  routes: %v\n", e.Routes)
+	}
+	if len(e.Tables) > 0 {
+		fmt.Fprintf(stdout, "  tables: %v\n", e.Tables)
+	}
+	if len(e.Jobs) > 0 {
+		fmt.Fprintf(stdout, "  jobs: %v\n", e.Jobs)
+	}
+	if len(e.Slots) > 0 {
+		fmt.Fprintf(stdout, "  slots: %v\n", e.Slots)
+	}
+	if len(e.Invoke) > 0 {
+		fmt.Fprintf(stdout, "  invoke: %v\n", e.Invoke)
+	}
+	fmt.Fprintf(stdout, "  lifecycle: %v\n", e.Actions)
+}
+
+type invokeParams []string
+
+func (p *invokeParams) String() string { return strings.Join(*p, ",") }
+
+func (p *invokeParams) Set(v string) error {
+	*p = append(*p, v)
+	return nil
+}
+
+// runExtensionInvoke runs one declared verb against the operator-supplied
+// session on a running server: `extension invoke <id> <verb> --server
+// <loopback-url> --session <token> --param k=v ...`. The server URL is
+// operator config (flag or env), restricted to loopback for the headless
+// client — a remote URL is a different trust decision and a future phase.
+// The id is validated against the checkout's capabilities + receipts
+// (unknown id fails before any dial); the verb is validated against the
+// receipt's Actions when those are visible, otherwise the server's
+// registry is the source of truth and decides.
+func runExtensionInvoke(ctx context.Context, args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("extension invoke", flag.ContinueOnError)
+	dir := fs.String("dir", ".", "target checkout directory")
+	server := fs.String("server", strEnv("GOGOGO_SERVER"), "running server base URL (loopback only)")
+	session := fs.String("session", strEnv("GOGOGO_SESSION"), "operator session token (or GOGOGO_SESSION)")
+	var params invokeParams
+	fs.Var(&params, "param", "form field k=v (repeatable)")
+	format := fs.String("format", planFormatText, "output format: text|json")
+	fs.SetOutput(io.Discard)
+	if err := fs.Parse(args); err != nil {
+		return &ExitError{code: 1, msg: "extension invoke: " + err.Error()}
+	}
+	ids := fs.Args()
+	if len(ids) != 2 {
+		return &ExitError{code: 1, msg: "extension invoke needs exactly an extension id and a verb"}
+	}
+	if *session == "" {
+		return &ExitError{code: 1, msg: "extension invoke needs a session (--session or GOGOGO_SESSION)"}
+	}
+	if _, err := invokeTarget(*dir, ids[0], ids[1]); err != nil {
+		return err
+	}
+	endpoint, err := invokeURL(*server)
+	if err != nil {
+		return err
+	}
+	payload, err := json.Marshal(map[string]any{
+		"id":     ids[0],
+		"verb":   ids[1],
+		"params": stringMap(params),
+	})
+	if err != nil {
+		return &ExitError{code: 1, msg: "extension invoke: " + err.Error()}
+	}
+	return invokeCall(ctx, endpoint, *session, payload, *format, stdout)
+}
+
+// invokeTarget resolves the checkout-side descriptor and validates the
+// verb the same way the run measures: receipt-visible actions are
+// checked locally; server-side registries (built-ins) are authoritative
+// and checked by the server.
+func invokeTarget(dir, id, verb string) (*extensionDescriptor, error) {
+	exts, err := extensionDescriptors(dir)
+	if err != nil {
+		return nil, err
+	}
+	for i := range exts {
+		if exts[i].ID != id {
+			continue
+		}
+		target := &exts[i]
+		if len(target.Invoke) > 0 && !slices.Contains(target.Invoke, verb) {
+			return nil, &ExitError{code: 1, msg: "extension " + id + " declares no invocable action " + verb}
+		}
+		return target, nil
+	}
+	return nil, &ExitError{code: 1, msg: "extension " + id + " not found"}
+}
+
+// invokeCall sends the payload to the validated loopback endpoint and
+// renders the answer. Extracted from runExtensionInvoke for the
+// complexity gate.
+func invokeCall(
+	ctx context.Context, endpoint, session string, payload []byte, format string, stdout io.Writer,
+) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
+	if err != nil {
+		return &ExitError{code: 1, msg: "extension invoke: " + err.Error()}
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{
+		Name:     "gogogo_auth",
+		Value:    session,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	})
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return &ExitError{code: 1, msg: "extension invoke: " + err.Error()}
+	}
+	defer func() { _ = resp.Body.Close() }()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return &ExitError{code: 1, msg: "extension invoke: " + err.Error()}
+	}
+	if resp.StatusCode >= http.StatusMultipleChoices {
+		return &ExitError{code: 1, msg: "extension invoke: server answered " + resp.Status}
+	}
+	if format == planFormatJSON {
+		return json.NewEncoder(stdout).Encode(map[string]any{"status": resp.StatusCode, "body": string(body)})
+	}
+	_, err = fmt.Fprintln(stdout, string(body))
+	return err
+}
+
+func strEnv(key string) string { return os.Getenv(key) }
+
+// invokeURL validates the operator's server URL for the headless client:
+// http/https only, loopback host only. Anything else is refused before
+// any dial — the SSRF guard for v1.
+func invokeURL(raw string) (string, error) {
+	if raw == "" {
+		return "", &ExitError{code: 1, msg: "extension invoke needs --server (or GOGOGO_SERVER)"}
+	}
+	u, err := url.Parse(raw)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+		return "", &ExitError{code: 1, msg: "extension invoke: --server must be http/https"}
+	}
+	host := u.Hostname()
+	if host != "localhost" && net.ParseIP(host) == nil {
+		return "", &ExitError{code: 1, msg: "extension invoke: --server must be loopback (v1)"}
+	}
+	if ip := net.ParseIP(host); ip != nil && !ip.IsLoopback() {
+		return "", &ExitError{code: 1, msg: "extension invoke: --server must be loopback (v1)"}
+	}
+	u.Path = strings.TrimSuffix(u.Path, "/") + "/api/ext/invoke"
+	return u.String(), nil
+}
+
+func stringMap(p invokeParams) map[string]string {
+	out := map[string]string{}
+	for _, kv := range p {
+		k, v, _ := strings.Cut(kv, "=")
+		out[k] = v
+	}
+	return out
 }

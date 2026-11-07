@@ -20,7 +20,6 @@ import (
 	landinghandlers "github.com/calionauta/gogogo/features/landing/handlers"
 	noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"
 	reviewhandlers "github.com/calionauta/gogogo/features/review/handlers"
-	roomhandlers "github.com/calionauta/gogogo/features/room/handlers"
 	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 	wbhandlers "github.com/calionauta/gogogo/features/whiteboard/handlers"
 	"github.com/calionauta/gogogo/internal/auth"
@@ -248,47 +247,8 @@ func TestBuildChiMuxRoomDisabledPinsRouteAbsence(t *testing.T) {
 }
 
 func TestBuildChiMux(t *testing.T) {
-	sqlDB, err := db.OpenAt(t.TempDir() + "/mux.db")
-	if err != nil {
-		t.Fatalf("db open: %v", err)
-	}
-	t.Cleanup(func() { sqlDB.Close() })
-	if err := dbschema.Migrate(sqlDB); err != nil {
-		t.Fatalf("db migrate: %v", err)
-	}
-	a, aerr := auth.New(dbgen.New(sqlDB), false)
-	if aerr != nil {
-		t.Fatalf("auth new: %v", aerr)
-	}
-	todoH := todohandlers.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub())
-	cfg := config.Load()
-	// Retained: combined trims drop every cfg consumer below, which would not
-	// compile. Same rule as the bootCtx retain in chi.go.
-	_ = cfg
-	persister, perr := collab.NewTursoPersister(dbgen.New(sqlDB))
-	if perr != nil {
-		t.Fatalf("persister: %v", perr)
-	}
-	docs := collab.NewDocStore()
-	reviewH := newReviewHandlerForTest(cfg, a)
-
-	// SQLDB is what the recipe step migrates: without it a recipe that ships DDL
-	// cannot apply its schema, and the composition below would be built with the
-	// recipe step failed and every seam-mounted route (todo's /login among them)
-	// silently missing.
-	mux := buildChiMux(a, register.Deps{
-		Cfg: cfg, Auth: a, Queries: dbgen.New(sqlDB),
-		Hub: queue.NewSSEHub(), SQLDB: sqlDB,
-	}, todoH,
-		landinghandlers.NewHandler(cfg, a),
-		confighandlers.NewHandler(cfg, a, dbgen.New(sqlDB)),
-		wbhandlers.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister, docs, cfg),
-		noteshandlers.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister, docs, cfg),
-		roomhandlers.NewHandler(cfg, a, fakeRooms{}, queue.NewSSEHub()),
-		chathandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(),
-			stubResponder{raw: "{}"}),
-		reviewH,
-		creditshandlers.NewHandler(a, nil))
+	f := buildMuxFixture(t)
+	mux := f.mux
 	body := `{"email":"mux@example.com","password":"Correct-horse-99!"}`
 	req := httptest.NewRequestWithContext(context.Background(),
 		http.MethodPost, "/api/auth/signup/credential", strings.NewReader(body))
@@ -345,7 +305,7 @@ func TestBuildChiMux(t *testing.T) {
 	}
 	assertMuxTail(t, mux)
 	assertPolicyCoverage(t, mux)
-	assertRecipeWiring(t, mux, sqlDB)
+	assertRecipeWiring(t, mux, f.sqlDB)
 	// A failed recipe step is kept on the router for BootChi to fail on; a test
 	// that only inspects responses would see the missing mounts and nothing else.
 	if mux.recipeErr != nil {

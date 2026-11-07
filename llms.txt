@@ -10,10 +10,12 @@
 - ARCHITECTURE.md — module layout and seams
 - skills/gogogo-coding-standards/SKILL.md — Go + template rules (read when editing .go; on a .templ edit also read the UI skill below for the Datastar/backend gate)
 - skills/gogogo-ui/SKILL.md — template UI rules over the vendored DaisyUI vocabulary (read before any .templ/CSS edit, with docs/ui-themes.md)
+- skills/gogogo-recipe-authoring/SKILL.md — extension authoring contract (read before creating a feature, installing/editing a recipe, filling a slot, or declaring routes/tables/jobs)
 
 ## By task
 
 - New feature or product plan: docs/overview.md, docs/features.md
+- Creating a feature or extension (recipe contract — what a recipe may own, what it must never touch, slots, update path): skills/gogogo-recipe-authoring/SKILL.md
 - Adding a dependency, or writing something a library could do (write-vs-rent,
   the ordered procedure, the four human-gated cases): docs/dependency-principles.md
 - Search layers (substring / fuzzy / BM25), the runtime picker, the trim story: docs/search.md

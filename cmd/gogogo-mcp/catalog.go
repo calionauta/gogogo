@@ -122,6 +122,13 @@ var toolCatalog = []toolDef{
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleExtensionDescribe) },
 	},
 	{
+		"extension_invoke",
+		"Invoke one declared mutating verb of an extension against a running server (loopback only): " +
+			"runs the verb through the server's own session and policy stack with the operator token. " +
+			"Mutates state: confirm the id/verb first via extension_describe.",
+		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleExtensionInvoke) },
+	},
+	{
 		"advise_stack",
 		"Opinions, not changes: which units to keep for a use-case, how each " +
 			"switches off, and the exact command ROUTE for the goal. " +

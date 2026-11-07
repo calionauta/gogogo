@@ -28,6 +28,12 @@ type Capability struct {
 	RuntimeOff string   `json:"runtimeOff,omitempty"`
 	Reason     string   `json:"reason,omitempty"`
 	DependsOn  []string `json:"dependsOn,omitempty"`
+	// Actions lists the invocable verb names the unit's Provider declares
+	// (recipe.Declaration.Actions). Why it is data here: discovery is a
+	// checkout-level read (installer + MCP) that must not link feature
+	// handlers. It mirrors the Declaration by name only — routes stay in
+	// the Declaration, and the server gate asserts the two agree.
+	Actions []string `json:"actions,omitempty"`
 	// UISignal names the todo.Signals bool field that hides this
 	// capability's UI ("" when the capability has no gated UI). The
 	// conformance test asserts the field exists and at least one .templ

@@ -941,7 +941,7 @@ rules the evidence supports: id and v-semver, source repo+ref, one sha256 per fi
 `minCore`, the **dependency-closure declaration** (absent and empty are different claims — the
 pointer exists so "I need nothing" cannot be mistaken for "I did not say"), the three review
 fields, `ext_<id>` tables with core tables refused, `ext:<id>:` jobs, and known slot ids. Each
-rule has a mutation its subtest catches. The consumer landed the same day: `gogogo recipe install --entry <entry.yml> <contents-dir>`
+rule has a mutation its subtest catches. The consumer landed at the same time: `gogogo recipe install --entry <entry.yml> <contents-dir>`
 verifies that every reviewed file is present and hashes to the reviewed bytes, refuses files
 the entry did not review, and only then installs through the same receipt path — the review is
 about bytes, not about a name. What is deliberately not built: hosting and download. The entry
@@ -1466,7 +1466,7 @@ withheld from the spike because a name is a product decision; once named, the wo
 - `recipe status [id]` is read-only: pristine, modified (the user's), deleted, plus the
   declaration problems.
 
-**Registration is generated, as of the same day.** The seam's `Provider` is a handler
+**Registration is generated now.** The seam's `Provider` is a handler
 method, so mounting installed code needs its constructor and dependencies; the contract is
 one exported function per recipe package:
 
@@ -1885,16 +1885,41 @@ All three landed on `feat/recipe-extensions-spike` (PR 363) and are now DONE:
    (`features/todo/migrations/0001_init.sql`), applied through the core
    ledger under the `todo` namespace by the same `Registry` an installed
    recipe uses; the declaration↔DDL gate checks both directions. The
-   append-only core `todos` table stays as the empty seed — the migration
-   carries every row across, so fresh and upgraded databases converge, and a
-   test proves the carry — while sqlc reads the committed mirror and every
+   append-only core `todos` table is dropped after the set lands — the
+   migration carries every row across, so fresh and upgraded databases
+   converge; a test proves the carry — while sqlc reads the committed mirror
+   and every
    query names the owned table.
 
 What remains open after this: out-of-tree distribution tiers (build item 5)
 and whatever the entry's open questions list below decide. Nothing else in
-the phases list is pending.
+the phases list is pending. Built-in invocable verbs (todo `create`) ARE
+enumerable by checkout-level discovery: `Capability.Actions` mirrors the
+Declaration verbs by name (routes stay in the Declaration; an
+`assertRecipeWiring` gate fails the build on any mirror drift), and the
+live endpoint — which has the server's `Registry` — serves them for
+`ext_invoke`. Note on `UpstreamDeps` (catalog): it is the
+module closure of a build (Spike 7: 57.5% of the binary), hash-verified at
+install; it is not a graph between units and is vacuous for the in-module
+tier. Unit dependencies live in `Capability.DependsOn` and read through
+`extension describe` (`depends on` / `dependents`).
 
-### Next task — headless extension discovery (not a per-feature MCP tool)
+### Next task — headless extension discovery (not a per-feature MCP tool) — **DONE (2026-11-07)**
+
+Invocation slice (2026-11-07): `Declaration.InvokeAction` (verb → declared
+route, gated two-way), `recipe.ResolveAction` + `recipe.Invoke` (in-process
+bridge reusing the session cookie via `OpenSession`; empty token is 401
+before the handler), `todo`'s `create` verb (proved headless: resolve →
+invoke → row in `ext_todo_todos`), and `extension describe` advertising the
+`invoke` verbs alongside lifecycle. Live dispatch (same session):
+`POST /api/ext/invoke` (policy row `user` + RBAC re-serve through the
+wrapped handler, so each target route is policy-checked for the caller's
+role), `gogogo extension invoke` (loopback-only SSRF guard, `--param`
+k=v forwarded, verb validated locally for receipt-installs) and MCP
+`extension_invoke` — both Proved end-to-end. What remains open for
+invocation next: a param schema per action (typed fields, unknown-param
+refusal) and parameterized routes (`{id}` toggle/delete) — the bridge
+refuses both loudly today rather than guessing.
 
 The next user-visible task starts from the discovery the phase-4 work
 enabled: every built-in capability can now supply a self-mounting

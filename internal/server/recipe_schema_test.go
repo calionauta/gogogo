@@ -83,6 +83,73 @@ func TestRecipeMigrationsLandThroughTheRoot(t *testing.T) {
 	}
 }
 
+func TestRecipeMigrationsDropAdoptedTodoSeed(t *testing.T) {
+	sqlDB := openSchemaTestDB(t)
+	owner, legacyID, now := dbschema.NewID(), dbschema.NewID(), dbschema.Now()
+	if _, err := sqlDB.ExecContext(context.Background(),
+		`INSERT INTO users (id, email, password_hash, name, created, updated)
+		 VALUES (?, ?, ?, ?, ?, ?)`, owner, "legacy@example.com", "hash", "Legacy", now, now); err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+	if _, err := sqlDB.ExecContext(context.Background(),
+		`INSERT INTO todos (id, owner, title, completed, idem_key, visibility, created, updated)
+		 VALUES (?, ?, ?, 0, '', 'public', ?, ?)`, legacyID, owner, "legacy row", now, now); err != nil {
+		t.Fatalf("seed legacy row: %v", err)
+	}
+	reg := &recipe.Registry{}
+	reg.Add(todoAdoptionProvider{})
+	if err := applyRecipeMigrations(sqlDB, reg); err != nil {
+		t.Fatalf("apply recipe migrations: %v", err)
+	}
+	if !tableInSchema(t, sqlDB, "ext_todo_todos") {
+		t.Fatal("the owned table did not land")
+	}
+	var title string
+	if err := sqlDB.QueryRowContext(context.Background(),
+		`SELECT title FROM ext_todo_todos WHERE id = ?`, legacyID).Scan(&title); err != nil {
+		t.Fatalf("legacy row did not cross into the owned table: %v", err)
+	}
+	if title != "legacy row" {
+		t.Fatalf("carried row changed in transit: %q", title)
+	}
+	if tableInSchema(t, sqlDB, "todos") {
+		t.Fatal("the legacy seed must drop once the todo set has applied")
+	}
+	if err := applyRecipeMigrations(sqlDB, reg); err != nil {
+		t.Fatalf("second apply after drop must stay a no-op: %v", err)
+	}
+}
+
+type todoAdoptionProvider struct{}
+
+func (todoAdoptionProvider) ID() string { return "todo" }
+
+func (todoAdoptionProvider) Declaration() recipe.Declaration {
+	return recipe.Declaration{Tables: []string{"ext_todo_todos"}}
+}
+
+func (todoAdoptionProvider) Routes() chi.Router { return nil }
+
+func (todoAdoptionProvider) Migrations() fs.FS {
+	return fstest.MapFS{
+		"0001_init.sql": &fstest.MapFile{Data: []byte(`CREATE TABLE ext_todo_todos (
+    id         TEXT PRIMARY KEY,
+    owner      TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    title      TEXT NOT NULL,
+    completed  INTEGER NOT NULL DEFAULT 0,
+    idem_key   TEXT NOT NULL DEFAULT '',
+    created    TEXT NOT NULL,
+    updated    TEXT NOT NULL,
+    visibility TEXT NOT NULL DEFAULT 'private' CHECK (visibility IN ('private', 'public'))
+);
+CREATE INDEX ext_todo_todos_owner_created ON ext_todo_todos (owner, created DESC);
+CREATE UNIQUE INDEX ext_todo_todos_idem_key_unique ON ext_todo_todos (owner, idem_key) WHERE idem_key <> '';
+CREATE INDEX ext_todo_todos_visibility ON ext_todo_todos (visibility);
+INSERT INTO ext_todo_todos (id, owner, title, completed, idem_key, created, updated, visibility)
+SELECT id, owner, title, completed, idem_key, created, updated, visibility FROM todos;`)},
+	}
+}
+
 // TestRecipeMigrationsWithoutAStoreFailLoud keeps the wiring honest: a set the
 // root cannot apply is an error, never a silent skip.
 func TestRecipeMigrationsWithoutAStoreFailLoud(t *testing.T) {
