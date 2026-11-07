@@ -29,7 +29,14 @@ type Handler struct {
 	cfg  *config.Config
 	defs []string
 	runs RunFetcher
+	// recipesRoot is where .recipes/*.yml lives. Default "." (repo root);
+	// tests or a shipped binary override via SetRecipesRoot when the
+	// receipts live elsewhere. Empty means default.
+	recipesRoot string
 }
+
+// SetRecipesRoot overrides the receipts directory (default ".").
+func (h *Handler) SetRecipesRoot(root string) { h.recipesRoot = root }
 
 // SetWorkflowDefs wires the durable workflow JSONs the DagNats source
 // draws from. Nil (engine trimmed/disabled) is the empty-workflows case.
@@ -77,7 +84,11 @@ func (h *Handler) handlePanorama(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]string{errorKey: authRequired})
 		return
 	}
-	recipes, err := graphservice.LoadInstalledRecipes(".")
+	root := h.recipesRoot
+	if root == "" {
+		root = "."
+	}
+	recipes, err := graphservice.LoadInstalledRecipes(root)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(map[string]string{errorKey: "graph load failed"})

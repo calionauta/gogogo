@@ -36,8 +36,12 @@
   });
 
   function project(n) {
-    return [canvas.width / 2 + state.offX + n.x * state.scale,
-            canvas.height / 2 + state.offY + n.y * state.scale];
+    // CSS-pixel space: pointer offsets and pan deltas are CSS px, and
+    // the ctx is scaled by DPR. Using canvas.width (device px) here
+    // would double-scale on hidpi and break picking.
+    const rect = canvas.getBoundingClientRect();
+    return [rect.width / 2 + state.offX + n.x * state.scale,
+            rect.height / 2 + state.offY + n.y * state.scale];
   }
 
   function draw() {
