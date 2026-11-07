@@ -1856,24 +1856,43 @@ Every route-owning unit in this repo now mounts through the seam: `review`, `cre
 `config-view`, `room`, `todo`, `notes`, `whiteboard`, `landing`, `account`, `notifications`. The
 composition root is the only place left that registers a router directly, and that is by design.
 
-Next, in order:
+**Closed (2026-11-07) — the three pendências the maintained block left open.**
+All three landed on `feat/recipe-extensions-spike` (PR 363) and are now DONE:
 
-1. **Phase 4 is decided, not pending: `add` stays, so the anchors stay.** Retiring them needs the
-   precondition the phase itself names — removal stops being anchored once ownership is data
-   (receipts for in-tree units). Until then, `trim` is the only working removal path for a unit
-   that ships in-tree, and `add` is the only way back from it; deleting `add` first would leave
-   removal one-way, which is strictly worse than the drift the anchors cost. The trigger to
-   revisit is written in the phase section: the first in-tree unit that ships as a receipt.
-2. **One slot left, and it needs a page rather than plumbing.** `dashboard.card` has no dashboard
-   to land in, and inventing one to host a card is the page-first mistake the shapes exist to
-   prevent. `nav.sidebar` and `record.row-actions` shipped (2026-11-04) because both had a real
-   host — the rail and the todo row. The gap closed as a gate, not as a page (2026-11-06): the
-   shape stays declared, the contribution is refused until a host exists.
-3. **The first table-owning conversion is the probe that closes the schema split, and it is now
-   unblocked.** `todo` remains the intended unit. Moving one of its tables to a prefixed recipe
-   migration is what proves an *in-tree* unit can own DDL through the ledger; the reference recipe
-   (`_extensions/pomodoro`) proves a *copied* one can, end to end, which is the fixture the
-   install-and-generate path was missing but not the conversion itself.
+1. **Phase 4 — `add` and its anchors are deleted, and the trim operation is retired
+   too.** The precondition phase 4 named — the first in-tree unit that ships as a
+   receipt — fired with the todo conversion below (item 3): todo owns
+   `ext_todo_todos` through the seam, so one-way removal won over
+   anchor-patching that cannot see a moved core. the add command is deleted
+   (including the MCP `add_unit` tool, the anchor tables, the span/rebase
+   machinery, the drift gate and the release-mix guard); the scaffold does
+   not trim (`--plugins/--features/--opt-in/--preset`, the interactive
+   keep-menus, presets, and `--check` are gone, the JSON envelope keeps its
+   shape with every unit kept), and the capabilities `Scaffold` axis died with
+   it — `Class()`/`OfferedIDs()` are gone and every non-core unit now carries a
+   manual-removal `Reason`. Honest caveat: `export`'s PORTING bundle still
+   reads the strip data through one table, renamed only for its new role as
+   a port index — nothing else applies it to a tree again.
+2. **`dashboard.card` has a real host.** `features/dashboard` is a
+   self-mounting page (capability `Register` + generated registration): a
+   signed-in summary above the card grid the slot renders. The slot flips
+   from unhosted to offered (`HostDashboardPage`), so the register/install/
+   catalog refusal gates accept it now. The page-first objection was
+   answered not by inventing a card host page, but by a real product page
+   (summary + cards) whose faithfully-drawn grid is the slot.
+3. **First table-owning conversion — done, and it is `todo`.**
+   `ext_todo_todos` is created only by the todo unit's own embedded DDL
+   (`features/todo/migrations/0001_init.sql`), applied through the core
+   ledger under the `todo` namespace by the same `Registry` an installed
+   recipe uses; the declaration↔DDL gate checks both directions. The
+   append-only core `todos` table stays as the empty seed — the migration
+   carries every row across, so fresh and upgraded databases converge, and a
+   test proves the carry — while sqlc reads the committed mirror and every
+   query names the owned table.
+
+What remains open after this: out-of-tree distribution tiers (build item 5)
+and whatever the entry's open questions list below decide. Nothing else in
+the phases list is pending.
 
 ### Build, in this order
 
