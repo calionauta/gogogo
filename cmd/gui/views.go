@@ -70,7 +70,10 @@ func buildRoot(d uiDeps) widget.Widget {
 	// registers one appears here with no edit to this file, and one that
 	// does not stays web-only. Build runs on the UI thread over a fresh
 	// Document each frame, so web and native can drift only if the domain drifts.
-	children := []widget.Widget{todoView(d, snap), inboxView(snap)}
+	children := []widget.Widget{
+		todoView(d, snap), inboxView(snap), notesSection(snap),
+		boardsSection(snap), chatSection(snap), reviewSection(snap),
+	}
 	recipes, err := graphservice.LoadInstalledRecipes(".")
 	if err != nil {
 		recipes = nil
@@ -249,6 +252,57 @@ func inboxView(snap windowSnapshot) widget.Widget {
 	}
 	all := append([]widget.Widget{header}, rows...)
 	return primitives.VBox(all...).Padding(contentPadding).Gap(stackGap).Background(contentBg)
+}
+
+// section is the shared container every twin renders in: title + rows.
+// One helper so notes/boards/chat/review cannot drift in padding or gap.
+func section(title string, rows []widget.Widget) widget.Widget {
+	header := primitives.Text(title).FontSize(titleFontSize).Bold().Color(inkText)
+	all := append([]widget.Widget{header}, rows...)
+	return primitives.VBox(all...).Padding(contentPadding).Gap(stackGap).Background(contentBg)
+}
+
+func notesSection(snap windowSnapshot) widget.Widget {
+	rows := make([]widget.Widget, 0, len(snap.notes))
+	for _, n := range snap.notes {
+		rows = append(rows, primitives.Text(n.ID+" · "+n.Author).FontSize(errorFontSize).Color(inkText))
+	}
+	if len(rows) == 0 {
+		rows = append(rows, primitives.Text("No notes yet.").FontSize(errorFontSize).Color(inkText))
+	}
+	return section("Notes", rows)
+}
+
+func boardsSection(snap windowSnapshot) widget.Widget {
+	rows := make([]widget.Widget, 0, len(snap.boards))
+	for _, b := range snap.boards {
+		rows = append(rows, primitives.Text(b.ID+" · "+b.Author).FontSize(errorFontSize).Color(inkText))
+	}
+	if len(rows) == 0 {
+		rows = append(rows, primitives.Text("No boards yet.").FontSize(errorFontSize).Color(inkText))
+	}
+	return section("Whiteboard", rows)
+}
+
+// chatSection is honest about the seam: chat history is volatile
+// (MemStore, lost on restart) and the native window shares no store with
+// the web process, so the twin shows the state instead of inventing rows.
+func chatSection(_ windowSnapshot) widget.Widget {
+	rows := []widget.Widget{
+		primitives.Text("Chat history is volatile — web-only in v1.").FontSize(errorFontSize).Color(inkText),
+	}
+	return section("Chat", rows)
+}
+
+// reviewSection mirrors the web gate: real-LLM only.
+func reviewSection(snap windowSnapshot) widget.Widget {
+	status := "not configured (GOAI_API_KEY unset)"
+	if snap.reviewConfigured {
+		status = "configured — run on the web (streaming judge)"
+	}
+	return section("Review", []widget.Widget{
+		primitives.Text(status).FontSize(errorFontSize).Color(inkText),
+	})
 }
 
 func itoa(n int) string {
