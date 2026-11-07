@@ -1894,6 +1894,26 @@ What remains open after this: out-of-tree distribution tiers (build item 5)
 and whatever the entry's open questions list below decide. Nothing else in
 the phases list is pending.
 
+### Next task — headless extension discovery (not a per-feature MCP tool)
+
+The next user-visible task starts from the discovery the phase-4 work
+enabled: every built-in capability can now supply a self-mounting
+`Register`, and every portable recipe carries a declaration (routes/tables/
+jobs/slots). The worthwhile automation for agents is a **single discovery
+surface**, not one MCP tool per feature and not one extra CLI verb per
+feature:
+
+- `gogogo extension list` / `gogogo extension describe <id>` and the matching
+  MCP tools enumerate built-in capabilities plus `.recipes/` entries with
+  origin, kind, installed/removed state, registration surface, dependencies,
+  and the existing lifecycle verbs.
+- The existing `recipe install/update/status/uninstall` (CLI) and
+  `recipe_install`, `recipe_update`, `recipe_uninstall`, `recipe_status`
+  (MCP) cover lifecycle for both installed recipes and catalog entries.
+- A separate action-invocation phase is deliberately not folded in yet:
+  executable actions need an auth/policy bridge for live routes, separate
+  from package lifecycle. Do not invent it inside discovery.
+
 ### Build, in this order
 
 1. **~~Wire the recipe engine into the composition root.~~ DONE (2026-11-03).** The converted
@@ -1902,8 +1922,8 @@ the phases list is pending.
    generated registration that mounts it.
 2. **~~Give the shell two slots.~~ `settings.section` DONE (2026-11-03), `nav.sidebar` DONE
    (2026-11-04).** Both live in a real page: the settings section in `/config`, the extension
-   destinations in the shell rail. `dashboard.card` still has no dashboard to land in and
-   `record.row-actions` waits on entity ownership.
+   destinations in the shell rail. `dashboard.card` also ships a host since
+   2026-11-07 (`features/dashboard`); `record.row-actions` waits on entity ownership.
 3. **~~Choose the command name and wire the dispatch.~~ DONE (2026-11-03).** The name is
    `gogogo recipe <verb>`, and all four verbs ship: `install` (from a directory or a reviewed
    entry), `update`, `uninstall`, `status`.

@@ -111,6 +111,17 @@ var toolCatalog = []toolDef{
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeStatus) },
 	},
 	{
+		"extension_list",
+		"Read-only extension discovery: every built-in capability plus every user-installed recipe, with " +
+			"origin, kind, installed/removed state and the available lifecycle verbs. Changes nothing.",
+		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleExtensionList) },
+	},
+	{
+		"extension_describe",
+		"Describe one extension by id: kind, origin, summary, registration surface, dependencies and available lifecycle verbs. Changes nothing.",
+		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleExtensionDescribe) },
+	},
+	{
 		"advise_stack",
 		"Opinions, not changes: which units to keep for a use-case, how each " +
 			"switches off, and the exact command ROUTE for the goal. " +

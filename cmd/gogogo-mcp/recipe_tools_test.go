@@ -105,3 +105,27 @@ func TestRecipeStatusReadsAnEmptyCheckout(t *testing.T) {
 		t.Errorf("empty checkout status changed meaning: %s", text)
 	}
 }
+
+func TestExtensionListDescribesBuiltIns(t *testing.T) {
+	res, _, err := handleExtensionList(context.Background(), nil, extensionArgs{
+		Dir: filepath.Join("..", ".."), Format: "json",
+	})
+	if err != nil {
+		t.Fatalf("extension list: %v", err)
+	}
+	text := toolText(t, res)
+	for _, want := range []string{`"todo"`, `"kind":"feature"`, `"origin":"capability"`} {
+		if !strings.Contains(text, want) {
+			t.Errorf("extension list missing %s: %s", want, text[:1000])
+		}
+	}
+	describe, _, err := handleExtensionDescribe(context.Background(), nil, extensionDescribeArgs{
+		ID: "dashboard", Dir: filepath.Join("..", ".."), Format: "json",
+	})
+	if err != nil {
+		t.Fatalf("extension describe: %v", err)
+	}
+	if text := toolText(t, describe); !strings.Contains(text, "dashboard") || !strings.Contains(text, "feature") {
+		t.Errorf("describe output misses id/kind: %s", text)
+	}
+}

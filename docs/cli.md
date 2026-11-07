@@ -17,6 +17,8 @@ curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh
 | `gogogo --dry-run --format json` | No | The scaffold plan as one JSON document |
 | `gogogo --yes` | Yes | Scaffold: clone when missing, rename, prove the build |
 | `gogogo export <unit> --dir <pristine> --to <scratch>` | No | Port bundle for a tree that is NOT a gogogo checkout: copies the unit's owned files into `<scratch>` and writes `PORTING.md` (routes it registers, imports to rewrite, what you write by hand, the proof). Nothing in `--dir` changes, nothing outside `--to` |
+| `gogogo extension list [--dir <proj>] [--format json]` | No | Discover extensions: built-in capabilities plus user-installed recipes, with origin, kind, installed/removed state, and the available lifecycle verbs |
+| `gogogo extension describe <id> [--dir <proj>] [--format json]` | No | Describe one extension by id: kind, origin, summary, registration surface, dependencies, and available lifecycle verbs |
 | `gogogo recipe install <dir> --dir <proj> [--yes] [--entry <catalog.yml>]` | Yes (`--yes`) | Install a packaged extension into a gogogo checkout (copy, receipt, generated registration, schema/policy/codegen and proof). Without `--yes` prints the plan and changes nothing |
 | `gogogo recipe update <dir> --dir <proj> [--yes] [--entry <catalog.yml>]` | Yes (`--yes`) | Update one installed extension from a directory or a catalog entry. Without `--yes` prints the plan and changes nothing |
 | `gogogo recipe status [--dir <proj>] [id]` | No | Read-only extension drift report: pristine vs edited files, generated/schema/policy state (one id or all installed) |

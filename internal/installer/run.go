@@ -136,6 +136,8 @@ func runSubcommand(ctx context.Context, args []string, stdin io.Reader, stdout i
 		return true, runExport(args[1:], stdout)
 	case "recipe":
 		return true, runRecipe(args[1:], stdout)
+	case "extension":
+		return true, runExtension(args[1:], stdout)
 	}
 	return false, nil
 }

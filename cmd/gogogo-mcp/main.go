@@ -114,6 +114,17 @@ type recipeArgs struct {
 	DryRun  bool   `json:"dryRun,omitempty" jsonschema:"print the plan and stop; changes nothing"`
 }
 
+type extensionArgs struct {
+	Dir    string `json:"dir,omitempty" jsonschema:"template checkout directory (default current directory)"`
+	Format string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
+}
+
+type extensionDescribeArgs struct {
+	ID     string `json:"id,omitempty" jsonschema:"extension id (built-in capability id or installed recipe id)"`
+	Dir    string `json:"dir,omitempty" jsonschema:"template checkout directory (default current directory)"`
+	Format string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
+}
+
 // exportArgs is the port-bundle tool: it writes ONLY into `to` (a scratch
 // directory) and never touches `dir`, so it needs no confirm gate — the
 // destructive-tool rule protects the tree the caller cares about.
@@ -359,6 +370,43 @@ func handleRecipeStatus(
 	}
 	var buf bytes.Buffer
 	err = installer.Run(ctx, cli, strings.NewReader(""), &buf)
+	return runResult(buf.String(), err)
+}
+
+func handleExtensionList(
+	ctx context.Context, _ *mcp.CallToolRequest, args extensionArgs,
+) (*mcp.CallToolResult, any, error) {
+	format := args.Format
+	if format == "" {
+		format = defaultFormat
+	}
+	cli := []string{"extension", "list", "--dir", args.Dir, "--format", format}
+	if args.Dir == "" {
+		cli = []string{"extension", "list", "--format", format}
+	}
+	var buf bytes.Buffer
+	err := installer.Run(ctx, cli, strings.NewReader(""), &buf)
+	return runResult(buf.String(), err)
+}
+
+func handleExtensionDescribe(
+	ctx context.Context, _ *mcp.CallToolRequest, args extensionDescribeArgs,
+) (*mcp.CallToolResult, any, error) {
+	format := args.Format
+	if format == "" {
+		format = defaultFormat
+	}
+	cli := []string{"extension", "describe", "--format", format}
+	dir := args.Dir
+	if dir == "" {
+		dir = "."
+	}
+	cli = append(cli, "--dir", dir)
+	if args.ID != "" {
+		cli = append(cli, args.ID)
+	}
+	var buf bytes.Buffer
+	err := installer.Run(ctx, cli, strings.NewReader(""), &buf)
 	return runResult(buf.String(), err)
 }
 

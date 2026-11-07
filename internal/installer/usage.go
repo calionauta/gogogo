@@ -60,6 +60,11 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
 
     go run ./cmd/gogogo recipe status --dir ./my-app
 
+  Discover extensions headlessly (CLI and MCP read the same registry + receipts):
+
+    go run ./cmd/gogogo extension list --dir ./my-app --format json
+    go run ./cmd/gogogo extension describe pomodoro --dir ./my-app --format json
+
   Opinions, not changes (for LLMs deciding what to use — reads nothing, changes nothing):
 
     go run ./cmd/gogogo advise --need "offline-first todo with AI" --format json
