@@ -64,11 +64,11 @@ func TestCatalogEntryRules(t *testing.T) {
 		}, "must be prefixed ext_pomodoro"},
 		{"unprefixed job", func(e *CatalogEntry) { e.Jobs = []string{"tick"} }, "must be prefixed ext:pomodoro"},
 		{"unknown slot", func(e *CatalogEntry) { e.Slots = []string{"footer"} }, "not offered by this build"},
-		// A shape with no host page is the review-side half of the same rule: a
-		// reviewed recipe must not claim content nothing draws.
-		{"slot with no host page", func(e *CatalogEntry) {
-			e.Slots = []string{"dashboard.card"}
-		}, "not hosted by this build"},
+		// The review-side half of the no-host rule no longer has a case in
+		// this build: every shaped slot has a host page now (dashboard.card
+		// is hosted by features/dashboard), so "not hosted" cannot be
+		// produced by a declaration naming a real slot. The unknown-slot
+		// case above is the refusal that remains.
 		{"empty worksWith", func(e *CatalogEntry) { e.WorksWith = []string{""} }, "worksWith holds an empty set name"},
 	}
 	for _, tc := range tests {

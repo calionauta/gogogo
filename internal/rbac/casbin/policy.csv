@@ -83,6 +83,7 @@ p, anonymous, /api/session/stream, GET
 p, user, /_ui/demo, .*
 p, user, /todo, .*
 p, user, /todo/*, .*
+p, user, /dashboard, .*
 p, user, /api/todos, .*
 p, user, /api/todos/*, .*
 p, user, /account, .*
@@ -123,6 +124,7 @@ p, user, /health, (GET|HEAD)
 p, user, /, GET
 p, user, /api/auth/*, .*
 p, viewer, /_ui/demo, .*
+p, viewer, /dashboard, .*
 p, viewer, /todo, .*
 p, viewer, /todo/*, .*
 p, viewer, /account, .*

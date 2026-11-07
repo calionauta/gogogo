@@ -496,5 +496,5 @@ var All = append([]Capability{
 		),
 		licenseUnits...,
 	),
-	perfUnits...,
+	append(perfUnits, dashboardUnits...)...,
 )...)

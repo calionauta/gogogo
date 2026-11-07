@@ -74,11 +74,12 @@ func ShapeFor(s SlotID) (Shape, bool) {
 //
 // ShapeFor and HostFor answer different questions on purpose. ShapeFor is the
 // design contract: how much room a filler gets. HostFor is the build's truth:
-// which page actually draws the slot. Keeping them apart is what lets
-// `dashboard.card` hold the shape a dashboard page will need, while a
-// contribution to it is refused today — a fragment accepted where nothing draws
-// it is dropped, and a dropped contribution is indistinguishable from a feature
-// that was never built.
+// which page actually draws the slot. Keeping them apart let `dashboard.card`
+// hold the shape a dashboard page would need while a contribution to it was
+// refused — a fragment accepted where nothing draws it is dropped, and a
+// dropped contribution is indistinguishable from a feature that was never
+// built. The dashboard page now exists (features/dashboard), so the slot is
+// hosted and offered.
 type Host string
 
 const (
@@ -88,6 +89,8 @@ const (
 	HostSettingsPage Host = "the settings page (/config)"
 	// HostTodoRow is the todo row's action list.
 	HostTodoRow Host = "the todo row (features/todo)"
+	// HostDashboardPage is the dashboard page's card grid.
+	HostDashboardPage Host = "the dashboard page (/dashboard)"
 )
 
 // hosts is the closed table of what this build renders. Every entry names the
@@ -96,6 +99,7 @@ var hosts = map[SlotID]Host{
 	SlotNavSidebar:       HostShellRail,
 	SlotSettingsSection:  HostSettingsPage,
 	SlotRecordRowActions: HostTodoRow,
+	SlotDashboardCard:    HostDashboardPage,
 }
 
 // HostFor returns the page that renders s in this build.

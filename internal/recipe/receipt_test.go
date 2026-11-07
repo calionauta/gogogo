@@ -230,10 +230,12 @@ func TestDriftReportsADeclaredSlotNothingContributes(t *testing.T) {
 	}
 }
 
-// TestDriftReportsASlotNoPageRenders covers the receipt written by a hand or by
-// an older tool: install refuses it, and status has to report it too, or a
-// project carries a claim nothing will ever draw.
-func TestDriftReportsASlotNoPageRenders(t *testing.T) {
+// TestDriftAcceptsAHostedDashboardCard flips the old refusal reporting: the
+// dashboard page exists now, so a receipt declaring it drifts against nothing
+// and Check has no problem to report. The unhosted direction is closed by
+// registration's refuseSlot, which the shape-only case still exercises via
+// an unknown slot name below.
+func TestDriftAcceptsAHostedDashboardCard(t *testing.T) {
 	files := map[string]string{
 		"features/pomodoro/register.go": "package pomodoro\n\nvar slot = recipe.SlotDashboardCard\n",
 	}
@@ -242,8 +244,8 @@ func TestDriftReportsASlotNoPageRenders(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(d.Problems) != 1 || !strings.Contains(d.Problems[0], "not hosted") {
-		t.Fatalf("an unhosted slot must be reported, got %v", d.Problems)
+	if len(d.Problems) != 0 {
+		t.Fatalf("a hosted slot must drift against nothing, got %v", d.Problems)
 	}
 }
 

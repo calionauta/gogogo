@@ -4,6 +4,7 @@ package server
 
 import (
 	accounthandlers "github.com/calionauta/gogogo/features/account/handlers"
+	dashboardhandlers "github.com/calionauta/gogogo/features/dashboard/handlers"
 
 	"github.com/calionauta/gogogo/internal/recipe"
 	"github.com/calionauta/gogogo/internal/recipe/register"
@@ -14,6 +15,7 @@ import (
 // naming its package in the registry — the file that already owns its identity.
 var bundledUnits = []register.Func{
 	accounthandlers.Register,
+	dashboardhandlers.Register,
 }
 
 // registerBundledUnits is the one generated call the composition root makes for

@@ -61,31 +61,27 @@ func TestSlotRefusesASlotTheShellDoesNotOffer(t *testing.T) {
 	}
 }
 
-// TestSlotRefusesAShapeWithNoHostPage is the gap this gate closes: a slot can be
-// declared and still have no page that draws it. `dashboard.card` has its shape
-// (a cell) and no dashboard in this build, so accepting the fragment would drop
-// it — and a dropped contribution is indistinguishable from a feature nobody
-// built, which is the failure mode the slot contract exists to prevent.
-func TestSlotRefusesAShapeWithNoHostPage(t *testing.T) {
+// TestSlotAcceptsTheHostedDashboardCard flips the old refusal: a shape-only
+// slot with no page was refused rather than dropped. The dashboard page
+// exists now (features/dashboard), so the contribution is accepted and
+// rendered — refusing it would be the wrong failure, blocking a slot a real
+// page draws.
+func TestSlotAcceptsTheHostedDashboardCard(t *testing.T) {
 	reg := NewSlotRegistry()
-	err := reg.Add(Contribution{Fragments: map[SlotID]Fragment{SlotDashboardCard: frag("X")}})
-	if err == nil {
-		t.Fatal("a slot with no host page must be refused, not accepted and dropped")
+	if aerr := reg.Add(Contribution{Fragments: map[SlotID]Fragment{SlotDashboardCard: frag("X")}}); aerr != nil {
+		t.Fatalf("a hosted slot must be accepted, got %v", aerr)
 	}
-	if !strings.Contains(err.Error(), "not hosted") {
-		t.Fatalf("the error must say the slot has no host, got %v", err)
-	}
-	if got := reg.Fragments(SlotDashboardCard); len(got) != 0 {
-		t.Fatalf("a refused contribution must not reach the registry, got %v", got)
+	if got := reg.Fragments(SlotDashboardCard); len(got) != 1 {
+		t.Fatalf("the hosted contribution must reach the registry, got %v", got)
 	}
 }
 
 // TestEveryHostedSlotIsOffered pins the two tables together: a host without an
 // offer would be a page rendering a slot nobody may fill, and an offer without a
-// host is the silent drop above. `dashboard.card` is asserted to have no host on
-// purpose — the day a dashboard page exists, this test is where the offer flips.
+// host is the silent drop above. The dashboard page exists now
+// (features/dashboard), so `dashboard.card` holds a host and is offered.
 func TestEveryHostedSlotIsOffered(t *testing.T) {
-	for _, slot := range []SlotID{SlotSettingsSection, SlotNavSidebar, SlotRecordRowActions} {
+	for _, slot := range []SlotID{SlotSettingsSection, SlotNavSidebar, SlotRecordRowActions, SlotDashboardCard} {
 		host, ok := HostFor(slot)
 		if !ok || host == "" {
 			t.Errorf("slot %q must name the page that renders it", slot)
@@ -93,12 +89,6 @@ func TestEveryHostedSlotIsOffered(t *testing.T) {
 		if !Offered(slot) {
 			t.Errorf("slot %q has a host, so it must be offered", slot)
 		}
-	}
-	if host, ok := HostFor(SlotDashboardCard); ok {
-		t.Fatalf("dashboard.card reports host %q: this build has no dashboard page, so it must stay unoffered", host)
-	}
-	if Offered(SlotDashboardCard) {
-		t.Fatal("dashboard.card must not be offered while no page renders it")
 	}
 }
 

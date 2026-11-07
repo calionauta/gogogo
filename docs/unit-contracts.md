@@ -12,9 +12,9 @@ of the file you are about to touch.
 
 ## Registry at a glance
 
-- **Units:** 44 — 15 core · 18 plugin · 11 feature
+- **Units:** 45 — 15 core · 18 plugin · 12 feature
 - **Offered capabilities:** 12 — 11 default · 1 opt-in (bundled capabilities share one installer unit)
-- **Manual removal:** 17 (core units are never offered)
+- **Manual removal:** 18 (core units are never offered)
 - **Source of truth:** `internal/capabilities/registry.go`; this doc is
   regenerated from it, so the counts above cannot drift.
 
@@ -381,6 +381,17 @@ admin-only /config view + user role/session actions
 - **Depends on:** sounds
 - **Trim:** offered to the installer (a scaffold's keep lists/presets drop it)
 - **Warning:** The Config rail and account-menu entries are stripped automatically.
+
+## `dashboard` — feature
+
+signed-in summary page; the dashboard.card slot host
+
+- **Owned:** `features/dashboard`
+- **Routes:** `/dashboard`
+- **Store calls:** `dbgen.CountUnreadInApp`, `dbgen.ListTodosByOwner`
+- **Scaffold:** `manual`
+- **Trim:** manual (no installer unit)
+- **Why that class:** Host page for dashboard.card: one unit mounts itself through the recipe seam, no installer trim. Remove manually (delete the unit, its two policy rows, its Modules entry).
 
 ## `landing` — feature
 
