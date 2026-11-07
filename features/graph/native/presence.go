@@ -16,7 +16,7 @@ func init() {
 // PresenceView renders the room hub + members as a ranked list.
 func PresenceView(doc graphservice.Document) widget.Widget {
 	if doc.Source != "presence" && doc.Source != "presence:unavailable" {
-		return primitives.Text("").FontSize(bodySize)
+		return primitives.Box()
 	}
 	children := make([]widget.Widget, 0, 2+len(doc.Nodes))
 	children = append(children,

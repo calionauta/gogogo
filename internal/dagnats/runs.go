@@ -59,7 +59,10 @@ func (c *Client) ListRuns(ctx context.Context, workflow string, limit int) ([]Ru
 		return nil, fmt.Errorf("dagnats: list runs: %w", err)
 	}
 	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
+	body, rerr := io.ReadAll(resp.Body)
+	if rerr != nil {
+		return nil, fmt.Errorf("dagnats: read runs: %w", rerr)
+	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("dagnats: list runs: status %d: %s", resp.StatusCode, string(body))
 	}
@@ -68,30 +71,4 @@ func (c *Client) ListRuns(ctx context.Context, workflow string, limit int) ([]Ru
 		return nil, fmt.Errorf("dagnats: decode runs: %w", err)
 	}
 	return runs, nil
-}
-
-// GetRunSummary returns one run with per-step statuses, for overlaying a
-// single run's steps onto its def. Superseded by ListRuns for the graph
-// (which wants every recent run at once), but kept for callers that already
-// hold a run id.
-func (c *Client) GetRunSummary(ctx context.Context, runID string) (RunSummary, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
-		c.baseURL+"/runs/"+runID, nil)
-	if err != nil {
-		return RunSummary{}, fmt.Errorf("dagnats: build get run: %w", err)
-	}
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return RunSummary{}, fmt.Errorf("dagnats: get run: %w", err)
-	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK {
-		return RunSummary{}, fmt.Errorf("dagnats: get run: status %d: %s", resp.StatusCode, string(body))
-	}
-	var run RunSummary
-	if err := json.Unmarshal(body, &run); err != nil {
-		return RunSummary{}, fmt.Errorf("dagnats: decode run: %w", err)
-	}
-	return run, nil
 }
