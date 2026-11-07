@@ -69,7 +69,7 @@ func runNew(ctx context.Context, args []string, stdin io.Reader, stdout io.Write
 	if err != nil {
 		return err
 	}
-	// JSON apply mirrors `gogogo add`: the plan is what --dry-run prints,
+	// JSON apply mirrors the scaffold flow: the plan is what --dry-run prints,
 	// and an apply emits exactly one envelope (no plan + progress + result
 	// mixed into one stream a client cannot parse).
 	jsonApply := opt.format == planFormatJSON && !opt.dryRun
@@ -146,7 +146,8 @@ func parseNewArgs(args []string, stdout io.Writer) (newOptions, error) {
 		fs.PrintDefaults()
 	}
 	// The stdlib parser stops at the first positional, so pull the name out
-	// first and parse the rest (same contract as `gogogo add`). The literal
+	// first and parse the rest (same positional-first rule the other
+	// subcommands follow). The literal
 	// "feature" is accepted because the command reads better as
 	// `gogogo new feature reports`; both spellings are the same command.
 	words := make([]string, 0, len(args))

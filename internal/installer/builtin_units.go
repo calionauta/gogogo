@@ -140,8 +140,8 @@ func (u builtinUnit) caps() []string {
 // When endIsClosingBrace is set, endMarker is ignored: the strip runs from
 // the startMarker line through the next line that equals endBrace exactly
 // (used for `if ... {` blocks whose closing brace has stable indentation).
-// addBefore/addAfter optionally pin where `gogogo add` re-inserts the
-// extracted span. Empty means the path default in addSpans.
+// addBefore/addAfter optionally pin where the port copy should
+// re-emit this span. Empty means the path default in export_wiring.go.
 type stripRule struct {
 	startMarker        string
 	endMarker          string

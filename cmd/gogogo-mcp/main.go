@@ -298,10 +298,12 @@ func recipeCLIArgs(subcommand string, args recipeArgs) ([]string, error) {
 		cli = append(cli, args.ID, "--dir", args.Dir)
 	}
 	if !args.DryRun {
-		if subcommand != "status" && !args.Confirm {
-			return nil, fmt.Errorf("refusing without confirm:true (or dryRun:true to preview)")
+		if subcommand != "status" {
+			if !args.Confirm {
+				return nil, fmt.Errorf("refusing without confirm:true (or dryRun:true to preview)")
+			}
+			cli = append(cli, "--yes")
 		}
-		cli = append(cli, "--yes")
 	} else if subcommand != "status" {
 		// `recipe uninstall` has no --dry-run; preview through status. Only
 		// install/update can honor a dry run.

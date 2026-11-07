@@ -23,8 +23,9 @@ func renderPortRecipe(b exportBundle) string {
 		fmt.Fprintf(&sb, "Snapshot of release **v%s** — if upstream moved on, re-export rather "+
 			"than reading a newer recipe against older files.\n\n", b.Release)
 	}
-	sb.WriteString("`gogogo add` refuses a tree it did not scaffold, because it rewrites its " +
-		"own router and capability registry. So the wiring is yours to write. The generic " +
+	sb.WriteString("The in-tree extension commands (`new`, `recipe install`) refuse a tree they " +
+		"did not scaffold, because they rewrite its router and capability " +
+		"registry. So the wiring is yours to write. The generic " +
 		"checklist lives in the template's `docs/porting-into-an-existing-app.md`.\n\n")
 	fmt.Fprintf(&sb, "Bundle units: %s.\n\n", strings.Join(b.Units, ", "))
 
