@@ -4,11 +4,6 @@
 // trimming the engine never breaks this file.
 package graph
 
-import (
-	"sort"
-	"strings"
-)
-
 // Run is one recent execution of a workflow, in graph terms.
 type Run struct {
 	ID        string
@@ -44,14 +39,12 @@ func OverlayRuns(defs []WorkflowDef, runs []Run) Document {
 			if meta == "" {
 				meta = s.Type
 			}
-			status := ""
-			if run != nil {
-				if st, ok := run.Steps[s.ID]; ok && st.Status != "" {
-					status = st.Status
-					if st.Error != "" {
-						meta = first(meta, "") + " — " + st.Error
-					}
+			status := stepStatus(run, s.ID)
+			if st, ok := runStep(run, s.ID); ok && st.Error != "" {
+				if meta != "" {
+					meta += " — "
 				}
+				meta += st.Error
 			}
 			doc.Nodes = append(doc.Nodes, Node{ID: id, Label: s.ID, Kind: "dagnats", Status: status, Meta: meta})
 		}
@@ -90,22 +83,20 @@ func shortID(id string) string {
 	if len(id) <= shortIDLen {
 		return id
 	}
-	return strings.TrimSpace(id[:12])
+	return id[:shortIDLen]
 }
 
-func first(s, fallback string) string {
-	if s != "" {
-		return s
+func runStep(run *Run, id string) (StepStatus, bool) {
+	if run == nil {
+		return StepStatus{}, false
 	}
-	return fallback
+	st, ok := run.Steps[id]
+	return st, ok
 }
 
-// SortRuns orders runs newest-first for stable handler output.
-func SortRuns(runs []Run) {
-	sort.Slice(runs, func(i, j int) bool {
-		if runs[i].CreatedAt != runs[j].CreatedAt {
-			return runs[i].CreatedAt > runs[j].CreatedAt
-		}
-		return runs[i].ID > runs[j].ID
-	})
+func stepStatus(run *Run, id string) string {
+	if st, ok := runStep(run, id); ok {
+		return st.Status
+	}
+	return ""
 }

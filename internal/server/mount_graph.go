@@ -27,7 +27,7 @@ func mountGraph(m *Router, a *auth.Auth, cfg *config.Config) {
 type runFetcher struct{ c *appdagnats.Client }
 
 func clientFor(cfg *config.Config) *appdagnats.Client {
-	return appdagnats.NewClient("http://" + cfg.DagNats.HTTPAddr)
+	return appdagnats.NewClient(cfg.DagNats.HTTPAddr)
 }
 
 func (f runFetcher) ListRuns(ctx context.Context, workflow string, limit int) ([]graphservice.Run, error) {

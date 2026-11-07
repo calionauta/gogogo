@@ -152,3 +152,15 @@ func TestHandlerDagNatsDegradesWhenEngineDown(t *testing.T) {
 		t.Fatal("defs-only document must still carry the DAG")
 	}
 }
+
+func TestHandlerRecipesRootOverride(t *testing.T) {
+	h := &Handler{auth: &auth.Auth{}}
+	h.SetRecipesRoot("/nonexistent-root-xyz")
+	// Unauthenticated still 401s regardless of root override.
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/graph/panorama", nil)
+	rec := httptest.NewRecorder()
+	h.Routes().ServeHTTP(rec, req)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", rec.Code)
+	}
+}

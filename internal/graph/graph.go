@@ -137,35 +137,11 @@ func ParseWorkflow(data []byte) (WorkflowDef, error) {
 	return def, nil
 }
 
-// Workflows builds the live source: one node per step, one edge per
-// depends_on, namespaced per workflow so two flows never collide. Layout
-// is the same deterministic scatter as Panorama.
+// Workflows builds the static source (defs only). It is the OverlayRuns
+// special case without runs — one code path for both shapes, so the canvas
+// never drifts between "live off" and "live on".
 func Workflows(defs []WorkflowDef) Document {
-	doc := Document{Source: DagNatsSource}
-	for _, wf := range defs {
-		wid := wf.Name
-		seen := map[string]bool{}
-		for _, s := range wf.Steps {
-			id := wid + ":" + s.ID
-			label := s.ID
-			meta := s.Task
-			if meta == "" {
-				meta = s.Type
-			}
-			doc.Nodes = append(doc.Nodes, Node{ID: id, Label: label, Kind: "dagnats", Meta: meta})
-			seen[id] = true
-			_ = seen
-		}
-		for _, s := range wf.Steps {
-			for _, dep := range s.Depends {
-				from := wid + ":" + s.ID
-				to := wid + ":" + dep
-				doc.Edges = append(doc.Edges, Edge{From: from, To: to, Kind: DependsKind})
-			}
-		}
-	}
-	layout(&doc)
-	return doc
+	return OverlayRuns(defs, nil)
 }
 
 // LoadInstalledRecipes reads <root>/.recipes/*.yml. Missing dir = no recipes
@@ -196,7 +172,10 @@ func LoadInstalledRecipes(root string) ([]Recipe, error) {
 // middle, feature outer; recipes mid). Deterministic: same input, same
 // positions — so the canvas never needs a physics step.
 func layout(doc *Document) {
-	rings := map[string]float64{"core": 1.0, "plugin": 2.0, "feature": 3.0, RecipeKind: 1.6, "table": 2.4}
+	rings := map[string]float64{
+		"core": 1.0, "plugin": 2.0, "feature": 3.0, RecipeKind: 1.6,
+		"table": 2.4, "dagnats": 2.5, "run": 1.2,
+	}
 	counters := map[string]int{}
 	for i := range doc.Nodes {
 		kind := doc.Nodes[i].Kind
