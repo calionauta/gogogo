@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/google/uuid"
@@ -52,9 +53,12 @@ type windowState struct {
 	authErr  string
 
 	// list phase
-	items []todo.Todo
-	draft string
-	err   string
+	items  []todo.Todo
+	draft  string
+	err    string
+	search string
+	notifs []notifItem
+	unread int
 
 	// sessionCh wakes the event watcher when the session appears or ends, so
 	// it reconnects immediately instead of polling the state.
@@ -117,6 +121,35 @@ type windowSnapshot struct {
 	items    []todo.Todo
 	draft    string
 	err      string
+	search   string
+	notifs   []notifItem
+	unread   int
+}
+
+// visibleItems applies the native search filter (substring, token AND,
+// case-insensitive — the same narrowing the web search applies before
+// ranking). Empty query is the identity.
+func visibleItems(items []todo.Todo, query string) []todo.Todo {
+	q := strings.ToLower(strings.TrimSpace(query))
+	if q == "" {
+		return items
+	}
+	tokens := strings.Fields(q)
+	out := make([]todo.Todo, 0, len(items))
+	for _, it := range items {
+		title := strings.ToLower(it.Title)
+		ok := true
+		for _, tok := range tokens {
+			if !strings.Contains(title, tok) {
+				ok = false
+				break
+			}
+		}
+		if ok {
+			out = append(out, it)
+		}
+	}
+	return out
 }
 
 func (s *windowState) snapshot() windowSnapshot {
@@ -124,6 +157,8 @@ func (s *windowState) snapshot() windowSnapshot {
 	defer s.mu.Unlock()
 	items := make([]todo.Todo, len(s.items))
 	copy(items, s.items)
+	notifs := make([]notifItem, len(s.notifs))
+	copy(notifs, s.notifs)
 	return windowSnapshot{
 		signedIn: s.signedIn,
 		ownerID:  s.ownerID,
@@ -132,7 +167,16 @@ func (s *windowState) snapshot() windowSnapshot {
 		items:    items,
 		draft:    s.draft,
 		err:      s.err,
+		search:   s.search,
+		notifs:   notifs,
+		unread:   s.unread,
 	}
+}
+
+func (s *windowState) setSearch(v string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.search = v
 }
 
 func (s *windowState) setEmail(v string) {
@@ -230,6 +274,7 @@ func (s *windowState) refresh() {
 	s.mu.Unlock()
 
 	items, err := st.List(context.Background(), ownerID, "")
+	notifs, unread, nerr := st.ListNotifications(context.Background(), ownerID)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	// A sign-out racing this refresh must win: if the owner changed
@@ -243,6 +288,15 @@ func (s *windowState) refresh() {
 		return
 	}
 	s.items = items
+	if nerr != nil {
+		// Inbox is secondary: a notifications read failure must not
+		// blank the todo list or the unread badge path.
+		s.notifs = nil
+		s.unread = 0
+		return
+	}
+	s.notifs = notifs
+	s.unread = int(unread)
 	s.err = ""
 }
 

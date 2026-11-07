@@ -19,7 +19,9 @@ import (
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 
+	_ "github.com/calionauta/gogogo/features/graph/native"
 	"github.com/calionauta/gogogo/features/todo"
+	graphservice "github.com/calionauta/gogogo/internal/graph"
 )
 
 // UI metrics: every widget size in one place so a visual pass touches
@@ -62,7 +64,22 @@ func buildRoot(d uiDeps) widget.Widget {
 	if !snap.signedIn {
 		return loginView(d, snap)
 	}
-	return todoView(d, snap)
+	// Signed-in root is todo on top and every registered native surface
+	// below it: the same Documents the web canvases draw, rendered as
+	// native lists. Providers come from graph.Providers() — a recipe that
+	// registers one appears here with no edit to this file, and one that
+	// does not stays web-only. Build runs on the UI thread over a fresh
+	// Document each frame, so web and native can drift only if the domain drifts.
+	children := []widget.Widget{todoView(d, snap), inboxView(snap)}
+	recipes, err := graphservice.LoadInstalledRecipes(".")
+	if err != nil {
+		recipes = nil
+	}
+	doc := graphservice.Panorama(recipes)
+	for _, p := range graphservice.Providers() {
+		children = append(children, p.Build(doc))
+	}
+	return primitives.VBox(children...).Gap(stackGap)
 }
 
 func loginView(d uiDeps, snap windowSnapshot) widget.Widget {
@@ -124,6 +141,7 @@ func todoView(d uiDeps, snap windowSnapshot) widget.Widget {
 	s := d.s
 
 	draftSig := state.NewSignal(snap.draft)
+	searchSig := state.NewSignal(snap.search)
 
 	header := primitives.HBox(
 		primitives.Text("Todos").FontSize(titleFontSize).Bold().
@@ -136,6 +154,15 @@ func todoView(d uiDeps, snap windowSnapshot) widget.Widget {
 			}),
 		),
 	).Gap(stackGap)
+
+	searchField := textfield.New(
+		textfield.Placeholder("Search todos…"),
+		textfield.ValueSignal(searchSig),
+		textfield.OnChange(func(v string) {
+			s.setSearch(v)
+			d.refreshUI()
+		}),
+	)
 
 	composer := primitives.HBox(
 		textfield.New(
@@ -160,13 +187,14 @@ func todoView(d uiDeps, snap windowSnapshot) widget.Widget {
 		),
 	).Gap(rowGap)
 
-	rows := make([]widget.Widget, 0, len(snap.items))
-	for _, it := range snap.items {
+	vis := visibleItems(snap.items, snap.search)
+	rows := make([]widget.Widget, 0, len(vis))
+	for _, it := range vis {
 		rows = append(rows, todoRow(d, it))
 	}
 	list := primitives.VBox(rows...).Gap(rowGap)
 
-	content := []widget.Widget{header, composer, list}
+	content := []widget.Widget{header, composer, searchField, list}
 	if snap.err != "" {
 		content = append(content, errorView(snap.err))
 	}
@@ -200,6 +228,39 @@ func todoRow(d uiDeps, it todo.Todo) widget.Widget {
 			}),
 		),
 	).Gap(rowGap)
+}
+
+// inboxView renders the read-only inbox twin: unread count in the header,
+// then one row per delivery (subject + body). Marking read stays on the web
+// in v1 — the native window answers what is waiting, not what it acked.
+func inboxView(snap windowSnapshot) widget.Widget {
+	header := primitives.Text("Inbox · " + itoa(snap.unread) + " unread").FontSize(titleFontSize).Bold().Color(inkText)
+	if len(snap.notifs) == 0 {
+		empty := primitives.Text("No notifications.").FontSize(errorFontSize).Color(inkText)
+		return primitives.VBox(header, empty).Padding(contentPadding).Gap(stackGap).Background(contentBg)
+	}
+	rows := make([]widget.Widget, 0, len(snap.notifs))
+	for _, n := range snap.notifs {
+		title := n.Subject
+		if n.Unread {
+			title = "• " + title
+		}
+		rows = append(rows, primitives.Text(title+" — "+n.Body).FontSize(errorFontSize).Color(inkText))
+	}
+	all := append([]widget.Widget{header}, rows...)
+	return primitives.VBox(all...).Padding(contentPadding).Gap(stackGap).Background(contentBg)
+}
+
+func itoa(n int) string {
+	if n == 0 {
+		return "0"
+	}
+	digits := []byte{}
+	for n > 0 {
+		digits = append([]byte{byte('0' + n%10)}, digits...)
+		n /= 10
+	}
+	return string(digits)
 }
 
 func errorView(msg string) widget.Widget {

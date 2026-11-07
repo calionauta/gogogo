@@ -159,6 +159,7 @@ var All = append([]Capability{
 			// which import nothing from the engine, so it needs no entry.
 			"internal/nats/single_nats_test.go",
 			"cmd/web/dagnats.go",
+			"internal/server/mount_graph.go",
 			// The reminder worker's payload/port tests reference symbols the
 			// engine owns, so they go with it or the trimmed tree fails vet.
 			"cmd/web/dagnats_reminder_test.go",
@@ -495,5 +496,5 @@ var All = append([]Capability{
 		),
 		licenseUnits...,
 	),
-	append(append(perfUnits, dashboardUnits...), i18nUnit)...,
+	append(append(append(perfUnits, dashboardUnits...), i18nUnit), graphUnits...)...,
 )...)

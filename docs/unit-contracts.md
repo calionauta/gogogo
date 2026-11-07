@@ -12,8 +12,8 @@ of the file you are about to touch.
 
 ## Registry at a glance
 
-- **Units:** 46 — 15 core · 19 plugin · 12 feature
-- **Manual removal:** 31 (core units are never removed)
+- **Units:** 47 — 15 core · 19 plugin · 13 feature
+- **Manual removal:** 32 (core units are never removed)
 - **Source of truth:** `internal/capabilities/registry.go`; this doc is
   regenerated from it, so the counts above cannot drift.
 
@@ -173,7 +173,7 @@ AI credits + BYOK ledger (ai-credits)
 
 durable workflows (DagNats over JetStream) + onboarding worker
 
-- **Owned:** `internal/dagnats`, `features/onboarding`, `internal/nats/single_nats_test.go`, `cmd/web/dagnats.go`, `cmd/web/dagnats_reminder_test.go`, `cmd/web/start_nats_test.go`
+- **Owned:** `internal/dagnats`, `features/onboarding`, `internal/nats/single_nats_test.go`, `cmd/web/dagnats.go`, `internal/server/mount_graph.go`, `cmd/web/dagnats_reminder_test.go`, `cmd/web/start_nats_test.go`
 - **Routes:** `/api/onboarding/start`
 - **Runtime off:** `DAGNATS_ENABLED=false`
 - **UI signal:** `todo.Signals.DagNatsEnabled`
@@ -328,6 +328,14 @@ signed-in summary page; the dashboard.card slot host
 - **Routes:** `/dashboard`
 - **Store calls:** `dbgen.CountUnreadInApp`, `dbgen.ListTodosByOwner`
 - **Why that class:** Host page for dashboard.card: one unit mounts itself through the recipe seam. Remove manually (delete the unit, its two policy rows, its Modules entry).
+
+## `graph` — feature
+
+panorama graph (capabilities + recipes)
+
+- **Owned:** `features/graph`, `internal/graph`
+- **Routes:** `/api/graph/dagnats`, `/api/graph/panorama`, `/api/graph/ping`, `/graph`
+- **Why that class:** Delete dirs + MountFeature line.
 
 ## `landing` — feature
 

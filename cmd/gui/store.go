@@ -156,6 +156,40 @@ func (s guiStore) Delete(ctx context.Context, owner, id string) error {
 	return nil
 }
 
+// notifItem is the inbox slice the native window renders. Read-only:
+// marking read is a web action in v1 (the same row the inbox stream
+// patches); the native twin answers "what is waiting for me".
+type notifItem struct {
+	ID      string
+	Subject string
+	Body    string
+	Created string
+	Unread  bool
+}
+
+// ListNotifications loads the owner's in_app inbox rows, newest first —
+// the same query and limit the web page renders.
+func (s guiStore) ListNotifications(ctx context.Context, owner string) ([]notifItem, int64, error) {
+	rows, err := s.q.ListNotificationsForOwner(ctx, dbgen.ListNotificationsForOwnerParams{
+		Owner: owner, Limit: 50,
+	})
+	if err != nil {
+		return nil, 0, fmt.Errorf("gui: list notifications: %w", err)
+	}
+	unread, err := s.q.CountUnreadInApp(ctx, owner)
+	if err != nil {
+		return nil, 0, fmt.Errorf("gui: count unread: %w", err)
+	}
+	out := make([]notifItem, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, notifItem{
+			ID: row.ID, Subject: row.Subject, Body: row.Body,
+			Created: row.Created, Unread: !row.ReadAt.Valid,
+		})
+	}
+	return out, unread, nil
+}
+
 // errNotFound mirrors the store contract's not-found signal so callers
 // can tell "row gone" from "row broken".
 var errNotFound = errors.New("gui: not found")
