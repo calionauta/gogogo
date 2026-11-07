@@ -162,6 +162,15 @@ is uncallable, and a receipt whose verbs drift from the code is a
 failure. A mutating route with no verb is *invisible* to headless
 users — that is the gap, not a style choice.
 
+### When the deferred pieces become necessary
+
+| Piece | Trigger to build it | Signal that does **not** trigger it |
+|---|---|---|
+| **Parameterized routes (`{id}`)** | A concrete verb needs a real id headless (e.g. `todo toggle 42`) and you can name the encoding. | Guessing id from path, or a `.templ` row action already covering the UI case. |
+| **Typed param values** | A handler genuinely needs non-string input (int/bool/list) that form parsing mishandles. | Wanting JSON-schema aesthetics; names-only is enough until then. |
+| **Machine identity (API token)** | An external client must act headless without a browser login. Reuse the `Role` subject verbatim. | "I'll need auth later" with no external consumer yet. One auth pillar only. |
+| **Remote client (non-loopback)** | An operator must drive a deployed server from another host. | Adding a public URL before the machine-identity policy exists. Loopback is the v1 trust boundary. |
+
 ## The install contract
 
 An installable recipe directory carries a manifest beside the tree it copies:
