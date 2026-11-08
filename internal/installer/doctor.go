@@ -110,14 +110,15 @@ func runAllChecks(only ...string) (doctorReport, int) {
 		{"tool.lefthook", "lefthook", "make setup (core.hooksPath=.githooks)", "*"},
 		{"tool.sqlc", "sqlc", "go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest", "*"},
 		{"tool.docker", "docker", "brew install docker (cross/desktop)", "*"},
-		{"tool.zig", "zig", "brew install zig (wails-cross / MyGo lite)", "*"},
 	} {
 		add(checkBinary(t.id, t.name, t.fix, t.min))
 	}
+	// zig is opt-in (wails-cross / MyGo lite) — missing is warn, not fail
+	add(checkBinaryWarn("tool.zig", "zig", "brew install zig (wails-cross / MyGo lite)", "*"))
 	// Desktop/mobile (warn only)
 	switch runtime.GOOS {
 	case "darwin":
-		add(checkBinary("desktop.sdk", "xcode", "xcode-select --install", "*"))
+		add(checkXcodeSDK())
 	case "linux":
 		add(checkPkg("desktop.gtk", "libgtk-4-dev", "sudo apt install libgtk-4-dev libwebkitgtk-6.0-dev"))
 	case "winGOOS":
@@ -175,6 +176,41 @@ func checkBinary(id, name, fix, min string) doctorCheck {
 		}
 	}
 	return doctorCheck{ID: id, Name: name, Status: "pass", Version: ver, Required: min}
+}
+
+func checkBinaryWarn(id, name, fix, min string) doctorCheck {
+	path, err := lookPath(name)
+	if err != nil || path == "" {
+		return doctorCheck{ID: id, Name: name, Status: "warn", Required: min, Fix: fix}
+	}
+	// zig answers to `zig version`, not --version; probe both
+	out, err2 := exec.Command(name, "version").CombinedOutput()
+	ver := strings.TrimSpace(string(out))
+	if err2 != nil || ver == "" {
+		out, _ = exec.Command(name, "--version").CombinedOutput()
+		ver = strings.TrimSpace(string(out))
+		if i := strings.Index(ver, "\n"); i >= 0 {
+			ver = ver[:i]
+		}
+	}
+	if ver == "" {
+		ver = path
+	}
+	return doctorCheck{ID: id, Name: name, Status: "pass", Version: ver, Required: min}
+}
+
+func checkXcodeSDK() doctorCheck {
+	out, err := exec.Command("xcode-select", "-p").CombinedOutput()
+	if err != nil {
+		return doctorCheck{ID: "desktop.sdk", Name: "xcode", Status: "warn", Required: "*", Fix: "xcode-select --install"}
+	}
+	path := strings.TrimSpace(string(out))
+	if path == "" {
+		return doctorCheck{ID: "desktop.sdk", Name: "xcode", Status: "warn", Required: "*", Fix: "xcode-select --install"}
+	}
+	ver, _ := exec.Command("xcrun", "--show-sdk-path").CombinedOutput()
+	_ = ver
+	return doctorCheck{ID: "desktop.sdk", Name: "xcode", Status: "pass", Version: path, Required: "*"}
 }
 
 func checkPkg(id, name, fix string) doctorCheck {

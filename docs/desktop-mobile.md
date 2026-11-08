@@ -384,6 +384,94 @@ locally, so rows converge only when the account id matches on both sides.
 which is the supported way to reach that state; a purely local account never
 joins the server's rows.
 
+## Desktop authentication strategy (own backend vs federated)
+
+### When login lives inside the desktop app
+
+The desktop shell already authenticates inside itself — and that is correct for
+**first-party auth** of the gogogo backend. The shell boots the flat stack
+(`StartChi`) on loopback and the webview loads `http://127.0.0.1:<port>/`. The
+session cookie is `gogogo_auth` (`HttpOnly + SameSite=Lax`, `Secure` cleared by
+`desktopConfig` because WKWebView drops a `Secure` cookie over `http`). Routes
+`/login`, `/signup`, `POST /api/auth/signup/credential`, `POST /api/auth/signin/credential`
+are served by the same process, so no credential ever leaves the machine to a
+third party. The phishing risk that bans WebView login for OAuth does not apply:
+the app is not intercepting someone else's identity — it is the identity
+provider.
+
+First-run bootstrap (`bootstrapSignup`) opens signup only while `users` is empty,
+so a fresh profile is not a locked door; the next boot closes it again.
+
+Keep this. Do not add a second "desktop login feature" that duplicates
+`/login`. One backend, one session, two frontends (web + desktop) that share
+it.
+
+### When auth must open the system browser
+
+For **federated OAuth** (Google, GitHub, etc. via `internal/auth/oauth.go`),
+the rule for desktop in 2026 is **RFC 8252 — OAuth 2.0 for Native Apps**:
+
+> Open the authorization URL in the **system browser**, never in an embedded
+> `WKWebView`. The app must never see the user's password or second factor.
+
+Reasons, all 2026-verified:
+
+- An embedded WebView is controlled by the app: it can capture credentials
+  and cookies — the shape of phishing. Google rejects `disallowed_useragent`
+  for OAuth in embedded user-agents.
+- The system browser gives SSO (the user is already logged in) and keeps the
+  session in the browser's jar, not the app's.
+- The desktop must therefore use **Authorization Code + PKCE (S256)** and a
+  **loopback redirect** (`http://127.0.0.1:<port>/callback`, opened only for
+  the sign-in duration, per [Google for Developers](https://developers.google.com/identity/protocols/oauth2/native-app)
+  and [RFC 8252 §7.3]).
+
+What this means for gogogo:
+
+- Existing `/api/auth/oauth/{provider}` handlers (`OAuthStart` → redirect,
+  `OAuthCallback` → `code` exchange + `Set-Cookie gogogo_auth` + `303 /todo`)
+  already do the right thing **when run in a browser**. In the desktop shell,
+  do **not** load that redirect inside the Wails/MyGo webview.
+- Instead, the desktop triggers the flow with `openBrowser(...)` (system
+  default), not the webview: `GET /api/auth/oauth/google` in the system
+  browser sets the `oauthBindCookie` and `302`s to Google; Google redirects
+  back to `APP_URL` (or the loopback callback in loopback mode), the callback
+  exchanges `code`+`code_verifier` (S256), creates/links the local user, sets
+  `gogogo_auth` and redirects to `/todo` in the **system browser**.
+- Back in the desktop, the shell polls `GET /api/auth/me` on the loopback
+  stack (or receives a `BrowserWindow` notification) and reloads `/todo` once
+  the cookie exists. No password ever passes through the desktop webview for
+  federated providers.
+
+Sketch (loopback-only, one ephemeral listener):
+
+```go
+// desktop: isOAuthProviderEnabled(provider) ?
+start := newLoopbackListener("127.0.0.1:0") // next free port, this process only
+defer start.Close()
+openBrowser("http://127.0.0.1:"+port+"/api/auth/oauth/"+provider) // system browser
+// callback on start: state/nonce check, Exchange with PKCE verifier,
+// openSession(user), Set-Cookie gogogo_auth (Secure=false over loopback),
+// 303 /todo (or mini "You can close this window" page)
+```
+
+Rules that carry over from `OAuthStart`/`OAuthCallback`:
+
+- `state` + `nonce` (anti-CSRF/replay), `code_challenge_method=S256` —
+  single-use, short-lived.
+- Callback rejects `Sec-Fetch-Site: cross-site` (403) and verifies `state`
+  against `oauthBindCookie` with constant-time compare.
+- Desktop never logs `client_secret` or tokens; local success is just the
+  presence of the `gogogo_auth` cookie on the next poll.
+
+Rule of thumb for new features:
+
+| scenario | where credentials are typed | cookie home |
+|---|---|---|
+| Own email+password (`/api/auth/signup`, `/signin`) | Desktop webview (loopback) | `gogogo_auth` in that webview (today) |
+| Google / GitHub OAuth | **System browser only** | Exchange at loopback, then `gogogo_auth` in desktop webview |
+| Device pairing (RFC 8628, future) | System browser for approval | Local row adopts server `user.id`, token in OS keychain |
+
 ## Native window (gogpu/ui)
 
 `cmd/gui` is a **second frontend over the same backend** (Turso +
