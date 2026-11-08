@@ -36,6 +36,13 @@ func TestBundledUnitsMountThroughTheSeam(t *testing.T) {
 		t.Fatalf("auth new: %v", aerr)
 	}
 
+	// room Register starts a GoAkt host; with GoAkt disabled (the test
+	// default) it registers nothing, same as production. Enable it so the
+	// bundled list mounts room too — a unit that mounts itself must mount
+	// when its engine is on.
+	if !cfg.GoAkt.Enabled {
+		cfg.GoAkt.Enabled = true
+	}
 	reg := &recipe.Registry{}
 	registerBundledUnits(reg, register.Deps{Cfg: cfg, Auth: a, Queries: q, SQLDB: sqlDB})
 

@@ -23,7 +23,6 @@ import (
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
-	appgoakt "github.com/calionauta/gogogo/internal/goakt"
 	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/queue"
 	"github.com/calionauta/gogogo/internal/recipe/register"
@@ -156,19 +155,6 @@ func (j *cookieJar) Cookies(_ *url.URL) []*http.Cookie {
 	return j.cookies
 }
 
-// fakeRooms is the deterministic grain stand-in for mux tests.
-type fakeRooms struct{}
-
-func (fakeRooms) Roster(_ context.Context, _ string) (appgoakt.Roster, error) {
-	return appgoakt.Roster{}, nil
-}
-
-func (fakeRooms) Acquire(_ context.Context, _, _ string) (appgoakt.AcquireResult, error) {
-	return appgoakt.AcquireResult{}, nil
-}
-
-func (fakeRooms) Tell(_ context.Context, _ string, _ any) error { return nil }
-
 // chiQForTest opens an isolated queue (no workers needed for routing).
 func chiQForTest(t *testing.T) *queue.Queue {
 	t.Helper()
@@ -219,7 +205,6 @@ func TestBuildChiMuxRoomDisabledPinsRouteAbsence(t *testing.T) {
 		todohandlers.NewHandler(q, a, hub),
 		wbhandlers.NewHandler(q, a, hub, persister, docs, cfg),
 		noteshandlers.NewHandler(q, a, hub, persister, docs, cfg),
-		nil, // roomHandler: engine disabled
 		chathandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(),
 			stubResponder{raw: "{}"}),
 	)

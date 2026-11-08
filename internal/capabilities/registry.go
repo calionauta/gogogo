@@ -424,11 +424,12 @@ var All = append([]Capability{
 			"mainStrips.",
 	},
 	{
-		ID:      "room",
-		Kind:    KindFeature,
-		Summary: "room presence demo (one grain per room, crash hook included)",
-		Dirs:    []string{"features/room"},
-		Reason:  "Delete the dir, the routes it mounts through the seam, and the Room entry in internal/ui/modules.go.",
+		ID:       "room",
+		Kind:     KindFeature,
+		Summary:  "room presence demo (one grain per room, crash hook included)",
+		Dirs:     []string{"features/room"},
+		Register: "features/room/handlers",
+		Reason:   "Delete the dir, the routes it mounts through the seam, and the Room entry in internal/ui/modules.go.",
 		Warns: []string{
 			"The Room sidebar entry is removed by hand with the unit.",
 		},

@@ -35,7 +35,6 @@ import (
 	noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"
 	notificationshandlers "github.com/calionauta/gogogo/features/notifications/handlers"
 	"github.com/calionauta/gogogo/features/onboarding"
-	roomhandlers "github.com/calionauta/gogogo/features/room/handlers"
 	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 	"github.com/calionauta/gogogo/features/whiteboard"
 	wbhandlers "github.com/calionauta/gogogo/features/whiteboard/handlers"
@@ -81,38 +80,6 @@ type ChiStack struct {
 	// presence is the roster seam both collaborative features share (created
 	// at boot, federated by AttachPresenceFederation). Nil = features trimmed.
 	presence *collab.FederatedPresence
-}
-
-// bootRoomActor starts the GoAkt actor system and returns the room grains
-// handler plus the host (nil, nil when disabled or when the engine failed
-// to start: /room then degrades to 502s, same as the previous stack with
-// its engine down — never to a failed boot). The shutdown hook is
-// registered by the caller so the Background timeout in stopRoomActor
-// lives outside a function carrying the boot ctx (that is what the
-// contextcheck rule wants, and it keeps the hook's lifetime independent).
-func bootRoomActor(
-	ctx context.Context, cfg *config.Config, a *auth.Auth, hub *queue.SSEHub,
-) (*roomhandlers.Handler, *appgoakt.Host) {
-	if !cfg.GoAkt.Enabled {
-		return nil, nil
-	}
-	host := appgoakt.New()
-	if herr := host.Start(ctx); herr != nil {
-		slog.Warn("server: goakt failed to start, room demo disabled", "error", herr)
-		return nil, nil
-	}
-	appgoakt.SetDefault(host)
-	return roomhandlers.NewHandler(cfg, a, host, hub), host
-}
-
-// stopRoomActor is the shutdown hook for the GoAkt host. Its timeout
-// starts from Background on purpose: the hook runs during stop(), while
-// the boot context may already be cancelled, and a cancelled parent would
-// make host.Stop fail instantly instead of draining grains.
-func stopRoomActor(host *appgoakt.Host) {
-	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
-	defer cancel()
-	_ = host.Stop(ctx)
 }
 
 // bootOnboarding wires the DagNats onboarding slice onto the chi stack:
@@ -207,11 +174,10 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	onboardingH, onbShutdown := bootOnboarding(cfg, a, todoH, hub)
 	shutdown = append(shutdown, onbShutdown...)
 
-	roomH, roomHost := bootRoomActor(bootCtx, cfg, a, hub)
-	if roomHost != nil {
-		rh := roomHost
-		shutdown = append(shutdown, func() { stopRoomActor(rh) })
-	}
+	// roomHost is read by the graph mount and the presence upgrade from
+	// the process default (room Register set it at boot); nil when the
+	// room recipe registered nothing (GoAkt off or host start failed).
+	roomHost := appgoakt.Default()
 
 	// One slot registry for the boot: the AI panel renders the SAME row.
 	slots := recipe.NewSlotRegistry()
@@ -253,7 +219,6 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		todoH,
 		wbH,
 		notesH,
-		roomH,
 		chatH,
 	)
 	if mux.recipeErr != nil {
@@ -417,7 +382,6 @@ func buildChiMux(
 	a *auth.Auth, deps register.Deps, todoH *todohandlers.Handler,
 	wbH *wbhandlers.Handler,
 	notesH *noteshandlers.Handler,
-	roomH *roomhandlers.Handler,
 	chatH *chathandlers.Handler,
 ) *Router {
 	r := NewRouter()
@@ -434,9 +398,8 @@ func buildChiMux(
 	MountPath(r, "/api/session/stream", a.SessionStreamHandler())
 
 	r.MountFeature("chat", chatH.Routes())
-	// Installed recipes mount through the seam; a trim drops the line with its import.
+	// Installed recipes mount through the seam.
 	r.recipes = &recipe.Registry{}
-	r.recipes.Add(roomH.Recipe())
 	r.recipes.Add(todoH.Recipe())
 	r.recipes.Add(notesH.Recipe())
 	r.recipes.Add(wbH.Recipe())
