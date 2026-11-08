@@ -40,6 +40,10 @@ type Deps struct {
 	RealLLM *llm.Client
 	// SimulatedLLM is the keyless fake the demo paths serve through.
 	SimulatedLLM *llm.Client
+	// OnShutdown appends a hook the composition root runs at stop (ledger
+	// close, actor host stop). Nil in callers with no shutdown — Register
+	// must tolerate nil, same nil-safe rule as Slots.
+	OnShutdown func(func())
 	// SQLDB is the store the composition root migrates. A recipe that owns
 	// tables reads it here; the recipe's migration set is applied by the root
 	// (recipe.Migrator), never by the recipe itself.

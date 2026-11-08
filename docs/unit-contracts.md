@@ -170,7 +170,7 @@ shared UI helpers (Toast + OfflineBanner)
 
 AI credits + BYOK ledger (ai-credits)
 
-- **Owned:** `features/credits`, `internal/server/boot_credits.go`
+- **Owned:** `features/credits`
 - **Routes:** `/api/ai/request`, `/api/byok/*`, `/api/credits`, `/api/credits/checkout`, `/api/credits/stripe-webhook`
 - **Runtime off:** `CREDITS_ENABLED=false (already the default)`
 - **Note:** If Stripe top-ups were the only stripe-go user, `go mod tidy` drops stripe-go too.

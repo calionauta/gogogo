@@ -5,6 +5,7 @@ package server
 import (
 	accounthandlers "github.com/calionauta/gogogo/features/account/handlers"
 	confighandlers "github.com/calionauta/gogogo/features/config/handlers"
+	creditshandlers "github.com/calionauta/gogogo/features/credits/handlers"
 	dashboardhandlers "github.com/calionauta/gogogo/features/dashboard/handlers"
 	landinghandlers "github.com/calionauta/gogogo/features/landing/handlers"
 	reviewhandlers "github.com/calionauta/gogogo/features/review/handlers"
@@ -19,6 +20,7 @@ import (
 var bundledUnits = []register.Func{
 	accounthandlers.Register,
 	confighandlers.Register,
+	creditshandlers.Register,
 	dashboardhandlers.Register,
 	landinghandlers.Register,
 	reviewhandlers.Register,

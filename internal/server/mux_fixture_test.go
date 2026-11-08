@@ -13,7 +13,6 @@ import (
 	"github.com/calionauta/gogogo/config"
 	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
 	chatstore "github.com/calionauta/gogogo/features/chat/store"
-	creditshandlers "github.com/calionauta/gogogo/features/credits/handlers"
 	noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"
 	roomhandlers "github.com/calionauta/gogogo/features/room/handlers"
 	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
@@ -71,7 +70,7 @@ func buildMuxFixture(t *testing.T) *muxFixture {
 		roomhandlers.NewHandler(cfg, a, fakeRooms{}, queue.NewSSEHub()),
 		chathandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(),
 			stubResponder{raw: "{}"}),
-		creditshandlers.NewHandler(a, nil))
+	)
 	if mux.recipeErr != nil {
 		t.Fatalf("recipe boot: %v", mux.recipeErr)
 	}

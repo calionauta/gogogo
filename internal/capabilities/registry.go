@@ -288,10 +288,7 @@ var All = append([]Capability{
 		Summary:    "AI credits + BYOK ledger (ai-credits)",
 		RuntimeOff: "CREDITS_ENABLED=false (already the default)",
 		Dirs:       []string{"features/credits"},
-		// Owned by no dir: the boot helper is the engine's only
-		// composition-root seam. Deleting it with the unit is what keeps
-		// the trimmed tree free of unused imports.
-		Files: []string{"internal/server/boot_credits.go"},
+		Register:   "features/credits/handlers",
 		Warns: []string{
 			"Todo AI Suggest becomes unmetered (still works with " +
 				"GOAI_API_KEY, no ledger).",

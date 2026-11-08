@@ -31,7 +31,6 @@ import (
 
 	"github.com/calionauta/gogogo/config"
 	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
-	creditshandlers "github.com/calionauta/gogogo/features/credits/handlers"
 	"github.com/calionauta/gogogo/features/notes"
 	noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"
 	notificationshandlers "github.com/calionauta/gogogo/features/notifications/handlers"
@@ -138,7 +137,7 @@ func bootOnboarding(
 // AttachJetStream runs. js-free by design — the engine owns the NATS, so
 // JetStream is attached after boot, never passed into it.
 //
-//nolint:funlen,gocyclo // composition root: one line per feature, and the installer
+//nolint:funlen // composition root: one line per feature, and the installer
 func BootChi(cfg *config.Config) (*ChiStack, error) {
 	if verr := cfg.ValidateModes(); verr != nil {
 		return nil, verr
@@ -198,8 +197,11 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	}
 
 	// Shutdown hooks stop independent things: stepper, actor, queue,
-	// ledger. The order is arbitrary.
+	// ledger. The order is arbitrary. onShutdown is handed to Deps so
+	// self-mounting units (credits ledger, room host) register theirs
+	// without the root knowing their types.
 	shutdown := []func(){chiQ.Close}
+	onShutdown := func(f func()) { shutdown = append(shutdown, f) }
 
 	// Onboarding wires before the actor boot so its hook lands first.
 	onboardingH, onbShutdown := bootOnboarding(cfg, a, todoH, hub)
@@ -207,7 +209,8 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 
 	roomH, roomHost := bootRoomActor(bootCtx, cfg, a, hub)
 	if roomHost != nil {
-		shutdown = append(shutdown, func() { stopRoomActor(roomHost) })
+		rh := roomHost
+		shutdown = append(shutdown, func() { stopRoomActor(rh) })
 	}
 
 	// One slot registry for the boot: the AI panel renders the SAME row.
@@ -222,11 +225,6 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		return nil, err
 	}
 	chiQ.StartWorkers()
-
-	creditsH, shutdown, err := bootCredits(bootCtx, cfg, shutdown, sqlDB, cancelConsumer, a)
-	if err != nil {
-		return nil, err
-	}
 
 	persister, docs, perr := bootCollab(cfg, queries)
 	if perr != nil {
@@ -249,14 +247,14 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	mux := buildChiMux(a,
 		register.Deps{
 			Cfg: cfg, Auth: a, Queries: queries, Hub: hub, Queue: chiQ,
-			RealLLM: realLLM, SimulatedLLM: simulatedLLM, Slots: slots, SQLDB: sqlDB,
+			RealLLM: realLLM, SimulatedLLM: simulatedLLM,
+			OnShutdown: onShutdown, Slots: slots, SQLDB: sqlDB,
 		},
 		todoH,
 		wbH,
 		notesH,
 		roomH,
 		chatH,
-		creditsH,
 	)
 	if mux.recipeErr != nil {
 		return bootFail(cancelConsumer, sqlDB, "recipes", mux.recipeErr)
@@ -421,7 +419,6 @@ func buildChiMux(
 	notesH *noteshandlers.Handler,
 	roomH *roomhandlers.Handler,
 	chatH *chathandlers.Handler,
-	creditsH *creditshandlers.Handler,
 ) *Router {
 	r := NewRouter()
 	// A panic in a handler answers 500 instead of dropping the connection and
@@ -439,7 +436,6 @@ func buildChiMux(
 	r.MountFeature("chat", chatH.Routes())
 	// Installed recipes mount through the seam; a trim drops the line with its import.
 	r.recipes = &recipe.Registry{}
-	r.recipes.Add(creditsH.Recipe())
 	r.recipes.Add(roomH.Recipe())
 	r.recipes.Add(todoH.Recipe())
 	r.recipes.Add(notesH.Recipe())
