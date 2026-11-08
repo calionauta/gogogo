@@ -17,7 +17,6 @@ import (
 	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
 	chatstore "github.com/calionauta/gogogo/features/chat/store"
 	comp "github.com/calionauta/gogogo/features/genui/components"
-	reviewhandlers "github.com/calionauta/gogogo/features/review/handlers"
 	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/collab"
@@ -340,27 +339,6 @@ func wireTOTPKey(a *auth.Auth, cfg *config.Config) error {
 		return fmt.Errorf("server: chi auth: %w", err)
 	}
 	return nil
-}
-
-// bootReview wires the Genkit review-loop slice: one shared Genkit
-// instance, the gogogo/llm model action over the real LLM client (metered
-// exactly like todo suggest when a Biller is set), and the jev-compatible
-// judge from JEV_* env. Lives here (not chi.go) for the file-size gate;
-// the review trim strips this whole block (see the installer unit).
-func bootReview(
-	cfg *config.Config, a *auth.Auth, realLLM *llm.Client,
-) *reviewhandlers.Handler {
-	g := reviewhandlers.NewGenkit()
-	runner := &reviewhandlers.Runner{
-		G:            g,
-		Model:        reviewhandlers.DefineReviewModel(g, realLLM),
-		Judge:        reviewhandlers.NewJudgeClient(cfg),
-		Threshold:    cfg.Review.ConfidenceThreshold,
-		JudgeTimeout: cfg.Review.Timeout,
-	}
-	h := reviewhandlers.NewHandler(cfg, a, runner, realLLM)
-	h.RegisterFlows()
-	return h
 }
 
 // startCrudConsumer runs the JetStream CRUD consumer for cross-instance

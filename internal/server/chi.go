@@ -36,7 +36,6 @@ import (
 	noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"
 	notificationshandlers "github.com/calionauta/gogogo/features/notifications/handlers"
 	"github.com/calionauta/gogogo/features/onboarding"
-	reviewhandlers "github.com/calionauta/gogogo/features/review/handlers"
 	roomhandlers "github.com/calionauta/gogogo/features/room/handlers"
 	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 	"github.com/calionauta/gogogo/features/whiteboard"
@@ -222,7 +221,6 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		cancelConsumer()
 		return nil, err
 	}
-	reviewH := bootReview(cfg, a, realLLM)
 	chiQ.StartWorkers()
 
 	creditsH, shutdown, err := bootCredits(bootCtx, cfg, shutdown, sqlDB, cancelConsumer, a)
@@ -249,13 +247,15 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	notesH.SetPresence(federated)
 	// One argument per line: a trim drops its features' lines, nothing else.
 	mux := buildChiMux(a,
-		register.Deps{Cfg: cfg, Auth: a, Queries: queries, Hub: hub, Queue: chiQ, Slots: slots, SQLDB: sqlDB},
+		register.Deps{
+			Cfg: cfg, Auth: a, Queries: queries, Hub: hub, Queue: chiQ,
+			RealLLM: realLLM, SimulatedLLM: simulatedLLM, Slots: slots, SQLDB: sqlDB,
+		},
 		todoH,
 		wbH,
 		notesH,
 		roomH,
 		chatH,
-		reviewH,
 		creditsH,
 	)
 	if mux.recipeErr != nil {
@@ -421,7 +421,6 @@ func buildChiMux(
 	notesH *noteshandlers.Handler,
 	roomH *roomhandlers.Handler,
 	chatH *chathandlers.Handler,
-	reviewH *reviewhandlers.Handler,
 	creditsH *creditshandlers.Handler,
 ) *Router {
 	r := NewRouter()
@@ -440,7 +439,6 @@ func buildChiMux(
 	r.MountFeature("chat", chatH.Routes())
 	// Installed recipes mount through the seam; a trim drops the line with its import.
 	r.recipes = &recipe.Registry{}
-	r.recipes.Add(reviewH.Recipe())
 	r.recipes.Add(creditsH.Recipe())
 	r.recipes.Add(roomH.Recipe())
 	r.recipes.Add(todoH.Recipe())

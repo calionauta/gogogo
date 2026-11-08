@@ -17,7 +17,6 @@ import (
 	chatstore "github.com/calionauta/gogogo/features/chat/store"
 	creditshandlers "github.com/calionauta/gogogo/features/credits/handlers"
 	noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"
-	reviewhandlers "github.com/calionauta/gogogo/features/review/handlers"
 	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 	wbhandlers "github.com/calionauta/gogogo/features/whiteboard/handlers"
 	"github.com/calionauta/gogogo/internal/auth"
@@ -182,19 +181,10 @@ func chiQForTest(t *testing.T) *queue.Queue {
 	return q
 }
 
-// newReviewHandlerForTest builds the review handler with an unconfigured
-// LLM (no network on construction): routing-only, like chiQForTest. The
-// review trim strips this helper plus both call sites below.
-func newReviewHandlerForTest(cfg *config.Config, a *auth.Auth) *reviewhandlers.Handler {
-	g := reviewhandlers.NewGenkit()
-	client := llm.New("")
-	return reviewhandlers.NewHandler(cfg, a, &reviewhandlers.Runner{
-		G:            g,
-		Model:        reviewhandlers.DefineReviewModel(g, client),
-		Judge:        reviewhandlers.NewJudgeClient(cfg),
-		Threshold:    cfg.Review.ConfidenceThreshold,
-		JudgeTimeout: cfg.Review.Timeout,
-	}, client)
+// newReviewHandlerForTestLLM builds the unconfigured LLM the review
+// Register needs in the mux fixtures: no network on construction.
+func newReviewHandlerForTestLLM() *llm.Client {
+	return llm.New("")
 }
 
 // TestBuildChiMuxRoomDisabledPinsRouteAbsence is the port of the router
@@ -225,14 +215,14 @@ func TestBuildChiMuxRoomDisabledPinsRouteAbsence(t *testing.T) {
 	}
 	docs := collab.NewDocStore()
 	hub := queue.NewSSEHub()
-	reviewH := newReviewHandlerForTest(cfg, a)
-	mux := buildChiMux(a, register.Deps{Cfg: cfg, Auth: a, Queries: q, Hub: hub}, todohandlers.NewHandler(q, a, hub),
+	mux := buildChiMux(
+		a, register.Deps{Cfg: cfg, Auth: a, Queries: q, Hub: hub, RealLLM: newReviewHandlerForTestLLM()},
+		todohandlers.NewHandler(q, a, hub),
 		wbhandlers.NewHandler(q, a, hub, persister, docs, cfg),
 		noteshandlers.NewHandler(q, a, hub, persister, docs, cfg),
 		nil, // roomHandler: engine disabled
 		chathandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(),
 			stubResponder{raw: "{}"}),
-		reviewH,
 		creditshandlers.NewHandler(a, nil))
 
 	rec := httptest.NewRecorder()

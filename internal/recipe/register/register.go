@@ -17,6 +17,7 @@ import (
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/internal/auth"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/queue"
 	"github.com/calionauta/gogogo/internal/recipe"
 )
@@ -33,6 +34,12 @@ type Deps struct {
 	// register on, and the chat queue the AI slice posts through. Nil in
 	// callers that offer no queue — Register must tolerate nil.
 	Queue *queue.Queue
+	// RealLLM is the provider client the todo slice's suggest, the chat
+	// model leg, the review model action and the credits ledger meter.
+	// Nil when GOAI_API_KEY is unset — Register must tolerate nil.
+	RealLLM *llm.Client
+	// SimulatedLLM is the keyless fake the demo paths serve through.
+	SimulatedLLM *llm.Client
 	// SQLDB is the store the composition root migrates. A recipe that owns
 	// tables reads it here; the recipe's migration set is applied by the root
 	// (recipe.Migrator), never by the recipe itself.

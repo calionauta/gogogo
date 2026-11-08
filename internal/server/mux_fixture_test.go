@@ -57,7 +57,6 @@ func buildMuxFixture(t *testing.T) *muxFixture {
 		t.Fatalf("persister: %v", perr)
 	}
 	docs := collab.NewDocStore()
-	reviewH := newReviewHandlerForTest(cfg, a)
 	// SQLDB is what the recipe step migrates: without it a recipe that ships
 	// DDL cannot apply its schema, and the composition below would be built
 	// with the recipe step failed and every seam-mounted route (todo's
@@ -65,13 +64,13 @@ func buildMuxFixture(t *testing.T) *muxFixture {
 	mux := buildChiMux(a, register.Deps{
 		Cfg: cfg, Auth: a, Queries: dbgen.New(sqlDB),
 		Hub: queue.NewSSEHub(), SQLDB: sqlDB,
+		RealLLM: newReviewHandlerForTestLLM(),
 	}, todoH,
 		wbhandlers.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister, docs, cfg),
 		noteshandlers.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister, docs, cfg),
 		roomhandlers.NewHandler(cfg, a, fakeRooms{}, queue.NewSSEHub()),
 		chathandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(),
 			stubResponder{raw: "{}"}),
-		reviewH,
 		creditshandlers.NewHandler(a, nil))
 	if mux.recipeErr != nil {
 		t.Fatalf("recipe boot: %v", mux.recipeErr)

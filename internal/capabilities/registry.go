@@ -382,6 +382,7 @@ var All = append([]Capability{
 		Summary:   "review loop demo (writer → critic → classifier judge, streamed verdict)",
 		DependsOn: []string{"genkit"},
 		Dirs:      []string{"features/review"},
+		Register:  "features/review/handlers",
 		Warns: []string{
 			"The Review sidebar entry is stripped automatically.",
 			"ci-local smoke: export SMOKE_FEATURES without review " +
