@@ -479,8 +479,9 @@ var All = append([]Capability{
 		DependsOn: []string{
 			depSounds,
 		},
-		Dirs:   []string{"features/landing"},
-		Reason: "Delete the dir, its / route, and retarget the shell brand to /todo.",
+		Dirs:     []string{"features/landing"},
+		Register: "features/landing/handlers",
+		Reason:   "Delete the dir, its / route, and retarget the shell brand to /todo.",
 		Warns: []string{
 			"GET / will 404 (landing owned the only root route); " +
 				"the shell brand is retargeted to /todo, which is kept.",

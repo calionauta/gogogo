@@ -31,9 +31,7 @@ import (
 
 	"github.com/calionauta/gogogo/config"
 	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
-	confighandlers "github.com/calionauta/gogogo/features/config/handlers"
 	creditshandlers "github.com/calionauta/gogogo/features/credits/handlers"
-	landinghandlers "github.com/calionauta/gogogo/features/landing/handlers"
 	"github.com/calionauta/gogogo/features/notes"
 	noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"
 	notificationshandlers "github.com/calionauta/gogogo/features/notifications/handlers"
@@ -250,9 +248,9 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	wbH.SetPresence(federated)
 	notesH.SetPresence(federated)
 	// One argument per line: a trim drops its features' lines, nothing else.
-	mux := buildChiMux(a, register.Deps{Cfg: cfg, Auth: a, Queries: queries, Hub: hub, Slots: slots, SQLDB: sqlDB}, todoH,
-		landinghandlers.NewHandler(cfg, a),
-		confighandlers.NewHandler(cfg, a, queries),
+	mux := buildChiMux(a,
+		register.Deps{Cfg: cfg, Auth: a, Queries: queries, Hub: hub, Queue: chiQ, Slots: slots, SQLDB: sqlDB},
+		todoH,
 		wbH,
 		notesH,
 		roomH,
@@ -419,8 +417,6 @@ func mountOnboarding(r *Router, onboardingH *onboarding.Handler) {
 // on the same page every unmatched URL already has.
 func buildChiMux(
 	a *auth.Auth, deps register.Deps, todoH *todohandlers.Handler,
-	landingH *landinghandlers.Handler,
-	configH *confighandlers.Handler,
 	wbH *wbhandlers.Handler,
 	notesH *noteshandlers.Handler,
 	roomH *roomhandlers.Handler,
@@ -432,10 +428,6 @@ func buildChiMux(
 	// A panic in a handler answers 500 instead of dropping the connection and
 	// taking an SSE stream down with it.
 	r.Use(recoveryMiddleware)
-	// The landing page is also the not-found surface: an unknown path is a
-	// route the tree does not have, and the landing page is what a browser
-	// (and its smoke tests) expect there.
-	r.NotFound(landingH.Routes().ServeHTTP)
 
 	// Auth is a flat feature like every other surface: its router owns the
 	// absolute paths, the methods (405 at the router) and the OAuth provider
@@ -450,20 +442,16 @@ func buildChiMux(
 	r.recipes = &recipe.Registry{}
 	r.recipes.Add(reviewH.Recipe())
 	r.recipes.Add(creditsH.Recipe())
-	r.recipes.Add(configH.Recipe())
 	r.recipes.Add(roomH.Recipe())
 	r.recipes.Add(todoH.Recipe())
 	r.recipes.Add(notesH.Recipe())
 	r.recipes.Add(wbH.Recipe())
-	r.recipes.Add(landingH.Recipe())
 	// Units that mount themselves (Capability.Register) are registered by the
 	// generated list in units.gen.go, not constructed here.
 	bootInbox(r, deps)
 	// Installed recipes register through the generated file, then their own
 	// migrations run, then they mount: one step, in that order (recipe_surface.go).
 	r.recipeErr = bootRecipes(r, deps)
-	// settings.section: recipes contribute content, this page renders it.
-	configH.SetSlots(deps.Slots)
 	// record.row-actions: copied once, when the registry is complete.
 	todoH.RowActions = todohandlers.RowActionsFrom(deps.Slots)
 

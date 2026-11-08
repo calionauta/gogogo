@@ -29,6 +29,10 @@ type Deps struct {
 	Auth    *auth.Auth
 	Queries *dbgen.Queries
 	Hub     *queue.SSEHub
+	// Queue is the goqite work queue the todo slice's suggest/retry handlers
+	// register on, and the chat queue the AI slice posts through. Nil in
+	// callers that offer no queue — Register must tolerate nil.
+	Queue *queue.Queue
 	// SQLDB is the store the composition root migrates. A recipe that owns
 	// tables reads it here; the recipe's migration set is applied by the root
 	// (recipe.Migrator), never by the recipe itself.
