@@ -147,6 +147,7 @@ func applyRecipePlan(root string, manifest recipeManifest, prev recipe.Receipt,
 	}
 	next := recipe.ReceiptAfter(prev, plan)
 	next.ID = manifest.ID
+	next.Version = manifest.Version
 	next.Upstream = manifest.Upstream
 	next.Declaration = manifest.Declaration
 	next.Register = manifest.Register
@@ -245,6 +246,7 @@ func parseRecipeInstallArgs(args []string) (recipeInstallArgs, error) {
 // recipeInstallReport is the machine shape of one install (or a plan-only run).
 type recipeInstallReport struct {
 	ID          string   `json:"id"`
+	Version     string   `json:"version,omitempty"`
 	Applied     bool     `json:"applied"`
 	Write       int      `json:"write"`
 	FastForward int      `json:"fastForward"`
@@ -279,7 +281,7 @@ func printRecipeInstallJSONWith(w io.Writer, m recipeManifest, plan recipe.PlanR
 ) error {
 	write, ff, keep, obsolete := plan.Counts()
 	rep := recipeInstallReport{
-		ID: m.ID, Applied: applied,
+		ID: m.ID, Version: m.Version, Applied: applied,
 		Write: write, FastForward: ff, Keep: keep, Obsolete: obsolete,
 		Conflicts: plan.Conflicts, Written: res.Written, Removed: res.Removed,
 		Skipped: res.Skipped, Problems: problems,
@@ -418,6 +420,7 @@ func loadCatalogSource(entryPath, contentsDir string) (recipeSource, error) {
 	}
 	out.manifest = recipeManifest{
 		ID:       entry.ID,
+		Version:  entry.Version,
 		Upstream: entry.Source,
 		Declaration: recipe.Declaration{
 			Routes: entry.Routes,

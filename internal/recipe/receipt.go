@@ -52,6 +52,7 @@ type Upstream struct {
 // the code claims to do.
 type Receipt struct {
 	ID       string   `yaml:"id"`
+	Version  string   `yaml:"version,omitempty"`
 	Upstream Upstream `yaml:"upstream"`
 	// Files maps installed path → hex sha256 of the PRISTINE upstream content.
 	// This is the third leg of any three-way merge; without it "what did I

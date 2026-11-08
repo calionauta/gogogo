@@ -32,6 +32,7 @@ const (
 
 type extensionDescriptor struct {
 	ID           string              `json:"id"`
+	Version      string              `json:"version,omitempty"`
 	Kind         string              `json:"kind"`
 	Summary      string              `json:"summary"`
 	Origin       string              `json:"origin"`
@@ -64,6 +65,7 @@ func descriptorState(installed, removed bool, origin string) string {
 }
 
 func applyReceiptSurface(desc *extensionDescriptor, r recipe.Receipt) {
+	desc.Version = r.Version
 	desc.Tables = append([]string(nil), r.Declaration.Tables...)
 	desc.Jobs = append([]string(nil), r.Declaration.Jobs...)
 	desc.Slots = append([]string(nil), r.Declaration.Slots...)
@@ -228,6 +230,9 @@ func printDescribe(stdout io.Writer, e extensionDescriptor) {
 	fmt.Fprintf(stdout, "%s\n  kind: %s\n  origin: %s\n  state: %s\n",
 		e.ID, e.Kind, e.Origin, e.State)
 	fmt.Fprintf(stdout, "  summary: %s\n", e.Summary)
+	if e.Version != "" {
+		fmt.Fprintf(stdout, "  version: %s\n", e.Version)
+	}
 	if e.Register != "" {
 		fmt.Fprintf(stdout, "  register: %s\n", e.Register)
 	}

@@ -109,6 +109,7 @@ type recipeArgs struct {
 	Entry   string `json:"entry,omitempty" jsonschema:"optional catalog entry (.yml); src is then the pristine contents directory"`
 	ID      string `json:"id,omitempty" jsonschema:"installed recipe id (for status/uninstall)"`
 	Dir     string `json:"dir,omitempty" jsonschema:"target checkout directory (required)"`
+	Catalog string `json:"catalog,omitempty" jsonschema:"optional catalog directory for status/outdated (default: <dir>/catalog)"`
 	Format  string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
 	Confirm bool   `json:"confirm,omitempty" jsonschema:"must be true for install/update/uninstall (preview with dryRun first)"`
 	DryRun  bool   `json:"dryRun,omitempty" jsonschema:"print the plan and stop; changes nothing"`
@@ -302,6 +303,17 @@ func recipeCLIArgs(subcommand string, args recipeArgs) ([]string, error) {
 			cli = append(cli, args.ID)
 		}
 		cli = append(cli, "--dir", args.Dir, "--format", format)
+		if args.Catalog != "" {
+			cli = append(cli, "--catalog", args.Catalog)
+		}
+	case "outdated":
+		if args.ID != "" {
+			cli = append(cli, args.ID)
+		}
+		cli = append(cli, "--dir", args.Dir, "--format", format)
+		if args.Catalog != "" {
+			cli = append(cli, "--catalog", args.Catalog)
+		}
 	case "uninstall":
 		if args.ID == "" {
 			return nil, fmt.Errorf("id is required")
@@ -309,13 +321,13 @@ func recipeCLIArgs(subcommand string, args recipeArgs) ([]string, error) {
 		cli = append(cli, args.ID, "--dir", args.Dir)
 	}
 	if !args.DryRun {
-		if subcommand != "status" {
+		if subcommand != "status" && subcommand != "outdated" {
 			if !args.Confirm {
 				return nil, fmt.Errorf("refusing without confirm:true (or dryRun:true to preview)")
 			}
 			cli = append(cli, "--yes")
 		}
-	} else if subcommand != "status" {
+	} else if subcommand != "status" && subcommand != "outdated" {
 		// `recipe uninstall` has no --dry-run; preview through status. Only
 		// install/update can honor a dry run.
 		if subcommand == "uninstall" {
@@ -371,6 +383,23 @@ func handleRecipeStatus(
 	var buf bytes.Buffer
 	err = installer.Run(ctx, cli, strings.NewReader(""), &buf)
 	return runResult(buf.String(), err)
+}
+
+func handleRecipeOutdated(
+	ctx context.Context, _ *mcp.CallToolRequest, args recipeArgs,
+) (*mcp.CallToolResult, any, error) {
+	cli, err := recipeCLIArgs("outdated", args)
+	if err != nil {
+		return nil, nil, err
+	}
+	var buf bytes.Buffer
+	err = installer.Run(ctx, cli, strings.NewReader(""), &buf)
+	// Exit 3 is the verdict ("an update exists"), not a failed call — the
+	// same rule `version_status` follows, for the same reason.
+	if err != nil && installer.ExitCode(err) != 3 {
+		return runResult(buf.String(), err)
+	}
+	return textResult(buf.String()), nil, nil
 }
 
 func handleExtensionList(

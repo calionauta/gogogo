@@ -39,7 +39,11 @@ var recipeIDPattern = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
 // recipeManifest is the installable half of a recipe: everything the receipt
 // needs except the file hashes, which are measured from the bytes copied.
 type recipeManifest struct {
-	ID          string             `yaml:"id"`
+	ID string `yaml:"id"`
+	// Version is the author's version claim, vMAJOR.MINOR.PATCH. Optional:
+	// without it the receipt records no version and `recipe outdated`
+	// honestly reports unknown instead of guessing.
+	Version     string             `yaml:"version,omitempty"`
 	Upstream    recipe.Upstream    `yaml:"upstream"`
 	Declaration recipe.Declaration `yaml:"declaration"`
 	// Register is the repo-relative package exporting `Register`. Empty is a
@@ -57,7 +61,7 @@ type recipeManifest struct {
 func runRecipe(args []string, stdout io.Writer) error {
 	if len(args) == 0 {
 		return &ExitError{code: 1, msg: "recipe needs a subcommand: " +
-			"`recipe install <dir>`, `recipe status [id]` or `recipe uninstall <id>`"}
+			"`recipe install <dir>`, `recipe status [id]`, `recipe outdated [id]` or `recipe uninstall <id>`"}
 	}
 	switch args[0] {
 	case "install":
@@ -66,11 +70,13 @@ func runRecipe(args []string, stdout io.Writer) error {
 		return runRecipeInstall(args[1:], stdout, true)
 	case "status":
 		return runRecipeStatus(args[1:], stdout)
+	case "outdated":
+		return runRecipeOutdated(args[1:], stdout)
 	case "uninstall":
 		return runRecipeUninstall(args[1:], stdout)
 	}
 	return &ExitError{code: 1, msg: fmt.Sprintf(
-		"unknown recipe subcommand %q (want install|status|uninstall)", args[0])}
+		"unknown recipe subcommand %q (want install|status|outdated|uninstall)", args[0])}
 }
 
 // loadRecipeSource reads and validates a recipe directory: the manifest first
@@ -94,6 +100,10 @@ func loadRecipeSource(src string) (recipeManifest, map[string]string, error) {
 	if !recipeIDPattern.MatchString(m.ID) {
 		return m, nil, &ExitError{code: 1, msg: fmt.Sprintf(
 			"recipe install: id %q must be lowercase letters/digits/dashes and start with a letter", m.ID)}
+	}
+	if m.Version != "" && !recipe.IsValidVersion(m.Version) {
+		return m, nil, &ExitError{code: 1, msg: fmt.Sprintf(
+			"recipe install: version %q must be vMAJOR.MINOR.PATCH (e.g. v1.2.0)", m.Version)}
 	}
 	if m.Register != "" {
 		if verr := validateRegisterPath(m.Register); verr != nil {
@@ -216,6 +226,9 @@ func printRecipeInstalled(w io.Writer, m recipeManifest, res recipe.ApplyResult,
 		fmt.Fprintf(w, ", %d obsolete file(s) removed", len(res.Removed))
 	}
 	fmt.Fprintln(w)
+	if m.Version != "" {
+		fmt.Fprintf(w, "  version: %s\n", m.Version)
+	}
 	if m.Upstream.Repo != "" {
 		fmt.Fprintf(w, "  baseline: %s", m.Upstream.Repo)
 		if m.Upstream.Ref != "" {

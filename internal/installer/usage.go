@@ -60,6 +60,12 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
 
     go run ./cmd/gogogo recipe status --dir ./my-app
 
+  Freshness of an installed recipe — version verdict against the reviewed
+  catalog (catalog/<id>/<version>.yaml; --catalog names another directory).
+  Exit 3 means an outdated recipe exists (a verdict, not an error):
+
+    go run ./cmd/gogogo recipe outdated --dir ./my-app
+
   Discover extensions headlessly (CLI and MCP read the same registry + receipts):
 
     go run ./cmd/gogogo extension list --dir ./my-app --format json
@@ -132,6 +138,6 @@ func printUsageTail(w io.Writer, fs *flag.FlagSet) {
   {plan, receipt{units[{id, dirsRemoved, filesRemoved,
   stripsApplied, stripsMissed}]}, buildOk, buildError,
   next{dir, dev, app, todo, login, admin, workflows}}.
-   Exit codes: 0 ok/plan-only, 1 usage or apply error, 2 proof build failed,
-   3 an update exists (--check-update only).`)
+  Exit codes: 0 ok/plan-only, 1 usage or apply error, 2 proof build failed,
+  3 an update exists (--check-update and recipe outdated only).`)
 }

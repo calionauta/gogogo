@@ -12,6 +12,11 @@
 # and the id the generated registration and the policy block both key on.
 id: pomodoro
 
+# version is the author's version claim, vMAJOR.MINOR.PATCH. Install records
+# it in the receipt, and `recipe outdated` compares it with the latest
+# reviewed catalog entry. Omit it and outdated honestly reports unknown.
+version: v0.1.0
+
 # module is the module path the imports below were written against; install
 # rewrites it to the target tree's own module.
 module: github.com/calionauta/gogogo

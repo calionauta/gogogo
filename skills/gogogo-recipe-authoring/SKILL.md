@@ -170,6 +170,7 @@ An installable recipe directory carries a manifest beside the tree it copies:
 # .recipe.yml — the installable half. The receipt (.recipes/<id>.yml) is
 # written by the installer; this file is what you author.
 id: pomodoro
+version: v1.0.0
 upstream:
   repo: github.com/calionauta/gogogo
   ref: v0.56.0
@@ -182,6 +183,11 @@ declaration:
   actions:
     - {verb: start, route: {method: POST, pattern: /pomodoro/start}, params: [secs]}
 ```
+
+`version` is the author's version claim (`vMAJOR.MINOR.PATCH`). Install
+records it in the receipt, and `recipe outdated` compares it with the latest
+reviewed catalog entry (`catalog/<id>/<version>.yaml`) — omitting it means
+the freshness check honestly reports unknown.
 
 `register` names the copied package that exports the one function the composition
 root knows:
@@ -245,6 +251,7 @@ diff before you run it.
       naming both owners — read the message, it tells you both)
 - [ ] Slot content renders inside the owner's frame, with the declared shape
 - [ ] `features/todo` was consulted before inventing a structure
+- [ ] `version: vX.Y.Z` declared in `.recipe.yml` (`recipe outdated` compares it against the reviewed catalog entry — without it the freshness check honestly reports unknown)
 - [ ] Your deliberate edits are committed, and the recipe README says why you diverged
 - [ ] The build is green, including the gates the project already enforces
 

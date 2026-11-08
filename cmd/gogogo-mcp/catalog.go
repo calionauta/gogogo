@@ -111,6 +111,11 @@ var toolCatalog = []toolDef{
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeStatus) },
 	},
 	{
+		"recipe_outdated",
+		"Read-only recipe version check: compares each installed recipe's recorded version against the latest catalog version (catalog/<id>/<version>.yaml, default <dir>/catalog). A recipe behind the latest is a verdict, not an error; receipts without a version or recipes without a catalog entry report unknown.",
+		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeOutdated) },
+	},
+	{
 		"extension_list",
 		"Read-only extension discovery: every built-in capability plus every user-installed recipe, with " +
 			"origin, kind, installed/removed state and the available lifecycle verbs. Changes nothing.",
