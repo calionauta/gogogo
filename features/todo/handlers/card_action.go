@@ -45,26 +45,8 @@ func formTarget(r *http.Request) string {
 	return target
 }
 
-// validIdemKey bounds a client-supplied deduplication token.
-//
-// Shape, not format: a UUID is 36 chars, a `plan-<ts>-<rand>` fallback a little
-// more, and both are [A-Za-z0-9_-]. Requiring a strict UUID would reject the
-// fallback older clients send (the card action's own
-// `crypto.randomUUID`-or-timestamp expression), and rejecting a legitimate
-// client over a deduplication token is a worse failure than the size bound it
-// would buy.
-func validIdemKey(key string) bool {
-	if key == "" || len(key) > 128 {
-		return false
-	}
-	for _, r := range key {
-		ok := r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-' || r == '_'
-		if !ok {
-			return false
-		}
-	}
-	return true
-}
+// validIdemKey lives in features/todo/service (single home); the handler
+// surfaces service.ErrInvalidIdemKey as a 400 or an in-place card failure.
 
 // validTargetID mirrors the instance-id rule (letters, digits, - and _; not
 // starting with a digit; bounded length). Spelled here rather than imported

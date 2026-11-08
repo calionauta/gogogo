@@ -26,11 +26,11 @@ import (
 
 	"github.com/calionauta/gogogo/features/todo"
 	"github.com/calionauta/gogogo/features/todo/components"
+	"github.com/calionauta/gogogo/features/todo/service"
 	"github.com/calionauta/gogogo/internal/auth"
 	ic "github.com/calionauta/gogogo/internal/components"
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
-	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/instance"
 	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/natswire"
@@ -181,6 +181,13 @@ func NewHandler(q *dbgen.Queries, a *auth.Auth, hub *queue.SSEHub) *Handler {
 	}
 }
 
+// svc builds the domain service over the handler's current deps.
+// Built fresh each call so SetDatabase/SetSearch/SetOnboarding wiring
+// after NewHandler is picked up without extra plumbing.
+func (h *Handler) svc() *service.Service {
+	return service.New(h.Q, h.Index, h.DB, h.bus, h.Onboarding)
+}
+
 // CreateTodoForOnboarding programmatically creates a todo for the DagNats
 // onboarding worker (no-op when DAGNATS_ENABLED=false). owner MUST be
 // non-empty — the store scopes every row by owner, and an empty one would
@@ -190,17 +197,7 @@ func NewHandler(q *dbgen.Queries, a *auth.Auth, hub *queue.SSEHub) *Handler {
 // request path: the worker is not an HTTP caller, so there is no form to
 // parse, no SSE to patch, and no session to resolve.
 func (h *Handler) CreateTodoForOnboarding(ctx context.Context, title, owner string) error {
-	if owner == "" {
-		return errors.New("todo: onboarding create requires an owner")
-	}
-	now := dbschema.Now()
-	if err := createTodoIndexed(ctx, h.Q, h.Index, h.DB, dbgen.CreateTodoParams{
-		ID: dbschema.NewID(), Owner: owner, Title: title,
-		Completed: false, IdemKey: "", Visibility: todo.VisibilityPrivate, Created: now, Updated: now,
-	}); err != nil {
-		return fmt.Errorf("onboarding create %q: %w", title, err)
-	}
-	return nil
+	return h.svc().CreateForOnboarding(ctx, title, owner)
 }
 
 // Routes returns the chi router with the todo pages and data endpoints.
@@ -349,31 +346,10 @@ type recordEvent struct {
 	Done  bool   `json:"done"`
 }
 
-// publish fans one domain fact out to every adapter: the local hub, the
-// in-process subscribers, and (when wired) the cross-instance wire. One call
-// site per mutation, so the transports cannot drift apart again.
-func (h *Handler) publish(ctx context.Context, r *http.Request, ev todo.Event) {
-	ev.OriginClient = originClient(r)
-	h.bus.Publish(ctx, ev)
-}
-
-// originClient is the tab that triggered the mutation, excluded from the
-// hub fan-out (it already got the synchronous patch).
+// publish covers the cross-instance wire (see event_sink.go). The
+// domain service (features/todo/service) publishes through todo.Bus;
+// handlers keep only recordEvent constants and bridge wiring here.
 //
-// Offline replays are the exception: a replayed request runs in the
-// background, long after the originating interaction, and its response is a
-// bare "replayed" acknowledgment — no synchronous patch. Excluding the
-// queued clientID would leave the queuing tab with only its optimistic row
-// forever, so a replay fans out to every stream, originator included.
-func originClient(r *http.Request) string {
-	if r.Header.Get("X-Offline-Replay") == "1" {
-		return ""
-	}
-	if id := r.URL.Query().Get("clientID"); id != "" {
-		return id
-	}
-	return r.Header.Get("X-Client-ID")
-}
 
 // take no context; disconnects surface as write errors, checked per call.
 //

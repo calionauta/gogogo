@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/calionauta/gogogo/features/todo/components"
 
@@ -15,9 +16,9 @@ import (
 	sdk "github.com/starfederation/datastar-go/datastar"
 
 	"github.com/calionauta/gogogo/features/todo"
+	"github.com/calionauta/gogogo/features/todo/service"
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
-	"github.com/calionauta/gogogo/internal/dbschema"
 )
 
 // createVisibility reads the create form's Shared checkbox: checked posts
@@ -60,72 +61,36 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	idemKey := r.FormValue("idem_key")
 	if idemKey == "" {
 		idemKey = uuid.New().String()
-	} else if !validIdemKey(idemKey) {
-		// The key is CLIENT-SUPPLIED and stored in a TEXT column, so an
-		// unbounded value is a cheap way to write arbitrarily large rows (the
-		// unique index keeps them distinct, so repeats do not collide). Any
-		// honest client sends a UUID; the two bounds below admit that and every
-		// browser-generated variant while refusing the abuse.
-		if target != "" {
-			h.answerCardFailure(w, r, target, "That request could not be read. Try again.")
-			return
-		}
-		writeText(w, http.StatusBadRequest, "invalid idem_key")
-		return
 	}
 
-	// Idempotent replay: a retried create with the same dedupe token
-	// returns the original row instead of a duplicate.
+	// Idempotent replay, indexed create, onboarding resume and Bus
+	// fan-out live in the domain service (shared with cmd/gui).
 	ctx := r.Context()
-	createdID := ""
-	dedupe, derr := h.Q.GetTodoByIdemKey(ctx, dbgen.GetTodoByIdemKeyParams{
-		Owner: owner, IdemKey: idemKey,
-	})
-	switch {
-	case derr == nil:
-		createdID = dedupe.ID // replay: the original row stands.
-	case !errors.Is(derr, sql.ErrNoRows):
-		h.fail(r.Context(), w, "todo: dedupe lookup failed", derr, "save failed")
-		return
-	default:
-		now := dbschema.Now()
-		newID := dbschema.NewID()
-		if cerr := createTodoIndexed(ctx, h.Q, h.Index, h.DB, dbgen.CreateTodoParams{
-			ID: newID, Owner: owner, Title: title,
-			Completed: false, IdemKey: idemKey, Visibility: visibility,
-			Created: now, Updated: now,
-		}); cerr != nil {
-			// A concurrent create may win the race on the partial unique
-			// index: re-read instead of 500ing a row that now exists.
-			if existing, rerr := h.Q.GetTodoByIdemKey(ctx, dbgen.GetTodoByIdemKeyParams{
-				Owner: owner, IdemKey: idemKey,
-			}); rerr == nil {
-				createdID = existing.ID
-			} else {
-				h.fail(r.Context(), w, "todo: save failed", cerr, "save failed")
+	if _, cerr := h.svc().Create(ctx, owner, title, visibility, idemKey); cerr != nil {
+		switch {
+		case errors.Is(cerr, service.ErrTitleRequired):
+			if target != "" {
+				h.answerCardFailure(w, r, target, "A todo needs a title.")
 				return
 			}
-		} else {
-			createdID = newID
+			writeText(w, http.StatusBadRequest, "title required")
+		case errors.Is(cerr, service.ErrInvalidIdemKey):
+			if target != "" {
+				h.answerCardFailure(w, r, target, "That request could not be read. Try again.")
+				return
+			}
+			writeText(w, http.StatusBadRequest, "invalid idem_key")
+		default:
+			for _, marker := range []string{"dedupe lookup", "save"} {
+				if strings.Contains(cerr.Error(), marker) {
+					h.fail(r.Context(), w, "todo: "+marker+" failed", cerr, "save failed")
+					return
+				}
+			}
+			h.fail(r.Context(), w, "todo: save failed", cerr, "save failed")
 		}
+		return
 	}
-
-	// Resume the durable onboarding workflow: the first todo a user with a
-	// pending run creates is the signal the blocked WaitForSignal step is
-	// waiting for. Nil (engine disabled) is a no-op.
-	if h.Onboarding != nil {
-		h.Onboarding.ResumeOnboarding(owner)
-	}
-
-	// Fan-out precedes the replay short-circuit below: a replayed request
-	// answers "replayed" with no SSE body, so the hub broadcast (plus the
-	// JetStream op) is the only path live tabs learn of the change through.
-	// The previous stack fanned out at the record-write layer, independent
-	// of the HTTP response; this stack fans out here, so it must not sit
-	// behind the early return.
-	h.publish(r.Context(), r, todo.Event{
-		Kind: todo.Created, ID: createdID, Title: title, Owner: owner, Visibility: visibility,
-	})
 
 	if r.Header.Get("X-Offline-Replay") == "1" {
 		writeText(w, http.StatusOK, "replayed")
@@ -249,74 +214,35 @@ func (h *Handler) handleToggle(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	ctx := r.Context()
 	// trim-genui:panel:start (toggle target)
-	// A panel row posts its own slot id as _target: the answer re-renders
-	// that panel in place (see panel_action.go) instead of the page list
-	// the host page does not have.
 	target := formTarget(r) // trim-genui:panel:end
-	// Visibility-scoped read: own rows plus public rows. A private row of
-	// another user reads as "not found" — indistinguishable from missing,
-	// so existence never leaks across tenants.
-	row, err := h.Q.GetTodoVisible(ctx, dbgen.GetTodoVisibleParams{ID: id, Owner: owner})
-	if err != nil {
-		// trim-genui:panel:start (toggle read)
-		if h.answerPanelReadErr(w, r, owner, target, id, "toggle", err) {
-			return
-		} // trim-genui:panel:end
-		if errors.Is(err, sql.ErrNoRows) {
+	opKey := idempotencyKey(r)
+	_, applied, terr := h.svc().Toggle(ctx, owner, id, opKey)
+	if terr != nil {
+		switch {
+		case errors.Is(terr, service.ErrNotFound):
+			// trim-genui:panel:start (toggle read)
+			if h.answerPanelReadErr(w, r, owner, target, id, "toggle", terr) {
+				return
+			} // trim-genui:panel:end
 			writeText(w, http.StatusNotFound, "not found")
-			return
+		default:
+			// trim-genui:panel:start (toggle save)
+			if h.answerPanelWriteErr(w, r, target,
+				"todo: toggle save failed", terr, "Couldn't save that change.") {
+				return
+			} // trim-genui:panel:end
+			h.fail(r.Context(), w, "todo: toggle save failed", terr, "toggle failed")
 		}
-		h.fail(r.Context(), w, "todo: toggle read failed", fmt.Errorf("id %s: %w", id, err), "toggle failed")
-		return
-	}
-	current, err := toVisibleOne(row)
-	if err != nil {
-		h.fail(r.Context(), w, "todo: toggle map failed", fmt.Errorf("id %s: %w", id, err), "toggle failed")
-		return
-	}
-	now := dbschema.Now()
-	// The toggle is a read-then-flip, so it is NOT idempotent: a replayed
-	// intent (the outbox resends after a lost response) would flip the row
-	// straight back. applyOnce claims the intent's key in the same
-	// transaction as the update, so the second delivery is a no-op.
-	applied, serr := h.applyOnce(r, owner, func(ctx context.Context, q *dbgen.Queries) error {
-		return q.SetTodoCompletedByID(ctx, dbgen.SetTodoCompletedByIDParams{
-			Completed: !current.Completed, Updated: now, ID: id,
-		})
-	})
-	if serr != nil {
-		// trim-genui:panel:start (toggle save)
-		serr = fmt.Errorf("id %s: %w", id, serr)
-		if h.answerPanelWriteErr(w, r, target,
-			"todo: toggle save failed", serr, "Couldn't save that change.") {
-			return
-		} // trim-genui:panel:end
-		h.fail(r.Context(), w, "todo: toggle save failed", serr, "toggle failed")
 		return
 	}
 	if !applied {
-		// The first delivery already applied this intent and published its
-		// record event. A second patch or broadcast would duplicate both.
 		writeText(w, http.StatusOK, "replayed")
 		return
 	}
-
-	// Fan-out before the replay short-circuit (see handleCreate): the
-	// "replayed" acknowledgment carries no patch, so the broadcast is the
-	// only path live tabs learn of the toggle through.
-	visibility := todo.VisibilityPrivate
-	if current.IsShared() {
-		visibility = todo.VisibilityPublic
-	}
-	h.publish(r.Context(), r, todo.Event{
-		Kind: todo.Updated, ID: id, Done: !current.Completed, Owner: owner, Visibility: visibility,
-	})
-
 	if r.Header.Get("X-Offline-Replay") == "1" {
 		writeText(w, http.StatusOK, "replayed")
 		return
 	}
-
 	// trim-genui:panel:start (toggle outcome)
 	h.answerToggleOutcome(ctx, w, r, owner, target) // trim-genui:panel:end
 }
@@ -367,69 +293,35 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	id := chi.URLParam(r, "id")
 	ctx := r.Context()
-	// trim-genui:panel:start (delete target)
-	// A panel row posts its own slot id as _target (see panel_action.go):
-	// errors and the outcome all land on that slot, never on the page list
-	// the host page does not have.
 	target := formTarget(r) // trim-genui:panel:end
-	row, err := h.Q.GetTodoVisible(ctx, dbgen.GetTodoVisibleParams{ID: id, Owner: owner})
-	if err != nil {
-		// trim-genui:panel:start (delete read)
-		if h.answerPanelReadErr(w, r, owner, target, id, "delete", err) {
-			return
-		} // trim-genui:panel:end
-		if errors.Is(err, sql.ErrNoRows) {
-			writeText(w, http.StatusNotFound, "not found")
-			return
-		}
-		h.fail(r.Context(), w, "todo: delete read failed", fmt.Errorf("id %s: %w", id, err), "delete failed")
-		return
-	}
-	item, err := toVisibleOne(row)
-	if err != nil {
-		h.fail(r.Context(), w, "todo: delete map failed", fmt.Errorf("id %s: %w", id, err), "delete failed")
-		return
-	}
-	// Delete rule (mirrors canDeleteRow, enforced here — the modal affordance
-	// is display-only): viewer never deletes, even their own row; owner
-	// deletes own; admin deletes any visible row.
 	_, role := h.roleOf(r)
-	if !canDeleteRow(role, owner, item) {
-		// trim-genui:panel:start (delete forbidden)
-		if h.answerPanelWriteErr(w, r, target,
-			"todo: panel delete forbidden", fmt.Errorf("role %s id %s", role, id), "You can't delete this todo.") {
-			return
-		} // trim-genui:panel:end
-		writeText(w, http.StatusForbidden, "viewer role cannot delete")
+	item, derr := h.svc().Delete(ctx, owner, role, id)
+	if derr != nil {
+		switch {
+		case errors.Is(derr, service.ErrNotFound):
+			if h.answerPanelReadErr(w, r, owner, target, id, "delete", derr) {
+				return
+			}
+			writeText(w, http.StatusNotFound, "not found")
+		case errors.Is(derr, service.ErrForbidden):
+			if h.answerPanelWriteErr(w, r, target,
+				"todo: panel delete forbidden", derr, "You can't delete this todo.") {
+				return
+			}
+			writeText(w, http.StatusForbidden, "viewer role cannot delete")
+		default:
+			if h.answerPanelWriteErr(w, r, target,
+				"todo: delete failed", derr, "Couldn't delete that todo.") {
+				return
+			}
+			h.fail(r.Context(), w, "todo: delete failed", derr, "delete failed")
+		}
 		return
 	}
-	if derr := deleteTodoIndexed(ctx, h.Q, h.Index, h.DB, owner, item.ID); derr != nil {
-		// trim-genui:panel:start (delete write)
-		derr = fmt.Errorf("id %s: %w", id, derr)
-		if h.answerPanelWriteErr(w, r, target,
-			"todo: delete failed", derr, "Couldn't delete that todo.") {
-			return
-		} // trim-genui:panel:end
-		h.fail(r.Context(), w, "todo: delete failed", derr, "delete failed")
-		return
-	}
-
-	// Fan-out before the replay short-circuit (see handleCreate): the
-	// "replayed" acknowledgment carries no patch, so the broadcast is the
-	// only path live tabs learn of the delete through.
-	visibility := todo.VisibilityPrivate
-	if item.IsShared() {
-		visibility = todo.VisibilityPublic
-	}
-	h.publish(r.Context(), r, todo.Event{
-		Kind: todo.Deleted, ID: item.ID, Owner: owner, Visibility: visibility,
-	})
-
 	if r.Header.Get("X-Offline-Replay") == "1" {
 		writeText(w, http.StatusOK, "replayed")
 		return
 	}
-
 	// trim-genui:panel:start (delete outcome)
 	h.answerDeleteOutcome(ctx, w, r, owner, role, target, item.Title) // trim-genui:panel:end
 }
@@ -444,21 +336,11 @@ func (h *Handler) handleClearCompleted(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
-	count, err := clearCompletedIndexed(ctx, h.Q, h.Index, h.DB, owner)
+	count, err := h.svc().ClearCompleted(ctx, owner)
 	if err != nil {
 		h.fail(r.Context(), w, "todo: clear completed failed", err, "clear failed")
 		return
 	}
-
-	// Fan-out before the replay short-circuit (see handleCreate): the
-	// "replayed" acknowledgment carries no patch, so the broadcast is the
-	// only path live tabs learn of the clear through. Clearing deletes only
-	// the requester's own completed rows, so the audience stays owner-scoped
-	// even when shared rows exist.
-	h.publish(r.Context(), r, todo.Event{
-		Kind: todo.Cleared, Owner: owner, Visibility: todo.VisibilityPrivate,
-	})
-
 	if r.Header.Get("X-Offline-Replay") == "1" {
 		writeText(w, http.StatusOK, "replayed")
 		return

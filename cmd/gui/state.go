@@ -382,11 +382,9 @@ func (s *windowState) toggle(id string) {
 		s.mu.Unlock()
 		return
 	}
-	// Negation base is the LOCAL snapshot, not a fresh store read:
-	// two frontends racing the same row is last-write-wins (pinned by
-	// TestNativeCrossStateVisibilityAndLastWriteWins). The web tier
-	// instead Get-then-Updates (fresh base) — same outcome class,
-	// different read. Do not "fix" one side without the other.
+	// The service reads fresh from the store (same as web): two
+	// frontends racing a row resolve last-write-wins on the current DB
+	// value, never on a stale local snapshot.
 	var completed bool
 	for _, it := range s.items {
 		if it.ID == id {

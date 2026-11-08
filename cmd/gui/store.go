@@ -1,13 +1,13 @@
-// Native-window store over the flat data layer
+// Native-window store over the flat domain service.
 //
-// The window's claim is that the domain is transport-agnostic: the same
-// todos the chi handlers read and write are reachable here with no HTTP,
-// no cookie, no router. An EntityStore used to prove that over embedded
-// records; the flat proof runs the same sqlc queries the chi slice runs
-// (features/todo/handlers), against the same Turso file. The thin guiStore
-// wrapper exists so windowState keeps the store-shaped seam its tests
-// drive — copying the three queries beats importing the handler (the
-// flat-deps gate forbids a features/todo/handlers → cmd/gui edge anyway).
+// guiStore is now a thin adapter over features/todo/service (the same
+// service the chi handlers call): list/create/toggle/delete go through
+// the transport-free domain rules — idempotent create, fresh-read
+// toggle, canDeleteRow, onboarding resume, Bus publish — instead of
+// re-implementing the sqlc queries here. Notifications and docs reads
+// stay local (they are not yet in the service); everything else shares
+// the single implementation. The flat-deps note in the old header no
+// longer applies: this package imports service, not handlers.
 package main
 
 import (
@@ -17,26 +17,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/todo"
+	"github.com/calionauta/gogogo/features/todo/service"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
 )
 
-// guiDirPerm is the mode for the database parent dir created on first boot
-// (mirrors internal/db: group/other read+execute for sidecar inspection,
-// the file itself keeps the process umask).
 const guiDirPerm = 0o755
 
-// openGUIStore opens the app database file through the ncruces `sqlite3`
-// driver (pure Go, zero CGO) with the same pragmas the web stack carries:
-// busy_timeout + WAL + foreign_keys ride the DSN so every pooled
-// connection gets them (docs/code-quality.md rule). It must stay on this
-// driver: internal/db opens through tursogo, and importing that package
-// links purego whose fakecgo collides with goffi's at CGO_ENABLED=0 link
-// time (see cmd/gui/main.go).
 func openGUIStore(cfg *config.Config) (*sql.DB, error) {
 	path := cfg.Turso.DBPath
 	if path == "" {
@@ -58,63 +48,41 @@ func openGUIStore(cfg *config.Config) (*sql.DB, error) {
 	return sqlDB, nil
 }
 
-// guiStore is the cmd/gui slice of the flat persistence layer: owner-scoped
-// list, idempotent create, completed flip, delete.
+// guiStore adapts service.Service to the shape windowState tests drive.
+// The service owns domain rules; this owns only the frontend's argument
+// shaping (owner-scoped, single-owner role "" for self rows).
 type guiStore struct {
-	q *dbgen.Queries
+	svc *service.Service
+	q   *dbgen.Queries
+	db  *sql.DB
 }
 
-// List loads the owner's todos, filter "" (all), "active", "completed",
-// newest first (the query orders; the filter is applied in Go, same as
-// the chi slice).
+func newGUIStore(q *dbgen.Queries, db *sql.DB, bus *todo.Bus, onboarding service.OnboardingResumer) guiStore {
+	return guiStore{svc: service.New(q, nil, db, bus, onboarding), q: q, db: db}
+}
+
+func (s guiStore) svcOr() *service.Service {
+	if s.svc != nil {
+		return s.svc
+	}
+	return service.New(s.q, nil, s.db, nil, nil)
+}
+
+// List loads the owner's todos via the domain service.
 func (s guiStore) List(ctx context.Context, owner, filter string) ([]todo.Todo, error) {
-	rows, err := s.q.ListTodosByOwner(ctx, owner)
+	items, err := s.svcOr().ListOwned(ctx, owner, filter)
 	if err != nil {
 		return nil, fmt.Errorf("gui: list: %w", err)
 	}
-	out := make([]todo.Todo, 0, len(rows))
-	for _, row := range rows {
-		item, terr := toTodo(row)
-		if terr != nil {
-			return nil, terr
-		}
-		switch filter {
-		case "", "all":
-			out = append(out, item)
-		case "active":
-			if !item.Completed {
-				out = append(out, item)
-			}
-		case "completed":
-			if item.Completed {
-				out = append(out, item)
-			}
-		}
-	}
-	return out, nil
+	return items, nil
 }
 
-// Create writes a new todo scoped to owner. idemKey is the offline-replay
-// dedup token (this window is online-only, but the web path's create is
-// idempotent on it and sharing the call keeps them identical): a replayed
-// create returns the original row instead of a duplicate.
+// Create writes a new todo via the domain service: idempotent, indexed,
+// onboarding-resumed and Bus-published, exactly like the web path.
 func (s guiStore) Create(ctx context.Context, title, owner, idemKey string) (todo.Todo, error) {
-	existing, err := s.q.GetTodoByIdemKey(ctx, dbgen.GetTodoByIdemKeyParams{
-		Owner: owner, IdemKey: idemKey,
-	})
-	switch {
-	case err == nil:
-		return toTodo(existing)
-	case !errors.Is(err, sql.ErrNoRows):
-		return todo.Todo{}, fmt.Errorf("gui: dedupe lookup: %w", err)
-	}
-	now := dbschema.Now()
-	id := dbschema.NewID()
-	if _, cerr := s.q.CreateTodo(ctx, dbgen.CreateTodoParams{
-		ID: id, Owner: owner, Title: title,
-		Completed: false, IdemKey: idemKey, Visibility: "private", Created: now, Updated: now,
-	}); cerr != nil {
-		return todo.Todo{}, fmt.Errorf("gui: create: %w", cerr)
+	id, err := s.svcOr().Create(ctx, owner, title, todo.VisibilityPrivate, idemKey)
+	if err != nil {
+		return todo.Todo{}, fmt.Errorf("gui: create: %w", err)
 	}
 	row, gerr := s.q.GetTodo(ctx, dbgen.GetTodoParams{ID: id, Owner: owner})
 	if gerr != nil {
@@ -123,34 +91,40 @@ func (s guiStore) Create(ctx context.Context, title, owner, idemKey string) (tod
 	return toTodo(row)
 }
 
-// SetCompleted flips one todo owned by owner. The caller supplies the
-// target state (last-write-wins on two frontends racing the row, same
-// contract the web tier has).
+// SetCompleted flips one todo. The service reads fresh from the store
+// (same as web) — the old GUI snapshot base is gone, so two frontends
+// racing a row are last-write-wins on the current DB value, not on a
+// stale local copy.
 func (s guiStore) SetCompleted(ctx context.Context, owner, id string, completed bool) error {
-	if _, err := s.q.GetTodo(ctx, dbgen.GetTodoParams{ID: id, Owner: owner}); err != nil {
+	// Service.Toggle flips from a fresh read; we want "set to completed"
+	// not "flip". Read current, then toggle only if it differs by using
+	// the service flip path: fetch current, then flip matches desired.
+	row, err := s.q.GetTodoVisible(ctx, dbgen.GetTodoVisibleParams{ID: id, Owner: owner})
+	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return errNotFound
 		}
 		return fmt.Errorf("gui: toggle read: %w", err)
 	}
-	if err := s.q.SetTodoCompleted(ctx, dbgen.SetTodoCompletedParams{
-		Completed: completed, Updated: dbschema.Now(), ID: id, Owner: owner,
-	}); err != nil {
-		return fmt.Errorf("gui: toggle write: %w", err)
+	cur, err := service.ToVisibleOne(row)
+	if err != nil {
+		return err
 	}
-	return nil
+	if cur.Completed == completed {
+		return nil
+	}
+	_, _, err = s.svcOr().Toggle(ctx, owner, id, "")
+	return err
 }
 
-// Delete removes one todo owned by owner. Idempotent on retry: a second
-// delete on a missing id reports not-found.
+// Delete removes one todo via the domain service (role "" = owner self;
+// a non-owner viewer's own-row rule is enforced by CanDeleteRow).
 func (s guiStore) Delete(ctx context.Context, owner, id string) error {
-	if _, err := s.q.GetTodo(ctx, dbgen.GetTodoParams{ID: id, Owner: owner}); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errNotFound
-		}
-		return fmt.Errorf("gui: delete read: %w", err)
+	_, err := s.svcOr().Delete(ctx, owner, "", id)
+	if errors.Is(err, service.ErrNotFound) {
+		return errNotFound
 	}
-	if err := s.q.DeleteTodo(ctx, dbgen.DeleteTodoParams{ID: id, Owner: owner}); err != nil {
+	if err != nil {
 		return fmt.Errorf("gui: delete: %w", err)
 	}
 	return nil
@@ -191,8 +165,7 @@ func (s guiStore) ListNotifications(ctx context.Context, owner string) ([]notifI
 }
 
 // docItem is one shared collaborative doc (note or board) the native
-// twin lists. Shared listing: every signed-in user sees every doc; the
-// row carries the author's email.
+// twin lists.
 type docItem struct {
 	ID     string
 	Author string
@@ -255,23 +228,7 @@ func (s guiStore) CreateDoc(ctx context.Context, kind, owner string) (docItem, e
 // can tell "row gone" from "row broken".
 var errNotFound = errors.New("gui: not found")
 
-// toTodo converts a sqlc row to the domain model. Copied from the chi
-// slice (same conversion, same TimeFormat) rather than shared: the
-// flat-deps gate keeps packages from reaching sideways for helpers.
+// toTodo converts a sqlc row to the domain model via the domain service.
 func toTodo(row dbgen.ExtTodoTodo) (todo.Todo, error) {
-	created, err := time.Parse(dbschema.TimeFormat, row.Created)
-	if err != nil {
-		return todo.Todo{}, fmt.Errorf("todo %s created %q: %w", row.ID, row.Created, err)
-	}
-	updated, err := time.Parse(dbschema.TimeFormat, row.Updated)
-	if err != nil {
-		return todo.Todo{}, fmt.Errorf("todo %s updated %q: %w", row.ID, row.Updated, err)
-	}
-	return todo.Todo{
-		ID:        row.ID,
-		Title:     row.Title,
-		Completed: row.Completed,
-		CreatedAt: created,
-		UpdatedAt: updated,
-	}, nil
+	return service.ToTodo(row)
 }

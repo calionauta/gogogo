@@ -9,13 +9,11 @@ package handlers
 
 import (
 	"context"
-	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/calionauta/gogogo/features/todo"
+	"github.com/calionauta/gogogo/features/todo/service"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
-	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/rbac"
 )
 
@@ -35,15 +33,10 @@ func (h *Handler) roleOf(r *http.Request) (owner string, role string) {
 // restriction applies to shared rows, never to your own private todos);
 // otherwise viewer never, admin on any visible row. Callers have already
 // proven the row visible to the requester (GetTodoVisible), so this
-// only decides the destructive act — never the listing.
+// only decides the destructive act — never the listing. Delegates to
+// the domain service (single home).
 func canDeleteRow(role, requester string, item todo.Todo) bool {
-	if requester != "" && requester == item.Owner {
-		return true
-	}
-	if rbac.IsViewer(role) {
-		return false
-	}
-	return role == rbac.RoleAdmin
+	return service.CanDeleteRow(role, requester, item)
 }
 
 // viewerOwner resolves the viewer flag for stream paths, which know the
@@ -61,105 +54,22 @@ func (h *Handler) viewerOwner(ctx context.Context, owner string) bool {
 	return rbac.IsViewer(u.Role)
 }
 
-// toTodo maps a sqlc row onto the wire model. Timestamps are caller-written
-// RFC3339 (dbschema.TimeFormat); a row that does not parse is data corruption,
-// flagged as a 500 rather than rendered half-empty.
-func toTodo(row dbgen.ExtTodoTodo) (todo.Todo, error) {
-	created, err := time.Parse(dbschema.TimeFormat, row.Created)
-	if err != nil {
-		return todo.Todo{}, fmt.Errorf("todo %s created %q: %w", row.ID, row.Created, err)
-	}
-	updated, err := time.Parse(dbschema.TimeFormat, row.Updated)
-	if err != nil {
-		return todo.Todo{}, fmt.Errorf("todo %s updated %q: %w", row.ID, row.Updated, err)
-	}
-	return todo.Todo{
-		ID:         row.ID,
-		Title:      row.Title,
-		Completed:  row.Completed,
-		CreatedAt:  created,
-		UpdatedAt:  updated,
-		Owner:      row.Owner,
-		Visibility: row.Visibility,
-	}, nil
-}
-
-// toVisibleTodo maps a visibility-scoped join row (todo + author email)
-// onto the wire model. Same corruption contract as toTodo.
-func toVisibleTodo(row dbgen.ListVisibleTodosRow) (todo.Todo, error) {
-	item, err := toTodo(dbgen.ExtTodoTodo{
-		ID: row.ID, Owner: row.Owner, Title: row.Title,
-		Completed: row.Completed, IdemKey: row.IdemKey,
-		Visibility: row.Visibility, Created: row.Created, Updated: row.Updated,
-	})
-	if err != nil {
-		return todo.Todo{}, err
-	}
-	item.OwnerEmail = row.OwnerEmail
-	return item, nil
-}
+// toTodo maps a sqlc row onto the wire model. Delegates to the domain
+// service (single home).
+func toTodo(row dbgen.ExtTodoTodo) (todo.Todo, error) { return service.ToTodo(row) }
 
 // toVisibleOne maps the single-row join (GetTodoVisible) the same way.
+// Delegates to the domain service.
 func toVisibleOne(row dbgen.GetTodoVisibleRow) (todo.Todo, error) {
-	item, err := toTodo(dbgen.ExtTodoTodo{
-		ID: row.ID, Owner: row.Owner, Title: row.Title,
-		Completed: row.Completed, IdemKey: row.IdemKey,
-		Visibility: row.Visibility, Created: row.Created, Updated: row.Updated,
-	})
-	if err != nil {
-		return todo.Todo{}, err
-	}
-	item.OwnerEmail = row.OwnerEmail
-	return item, nil
+	return service.ToVisibleOne(row)
 }
 
 // listVisible loads the rows one login may see — own rows plus every
 // 'public' row — then applies the status filter ("all" | "active" |
 // "completed") and the scope slice ("all" | "mine" | "shared") in Go.
-// Unknown values read as "all". Private rows of other users never leave
-// the store: the WHERE clause scopes before Go ever sees them.
-//
-// role is the requester's session role: each returned row is stamped with
-// IsMine/CanDelete, so templates render affordances without re-deriving
-// the rule (single home: canDeleteRow).
+// Delegates to the domain service (single home).
 func (h *Handler) listVisible(ctx context.Context, owner, role, filter, scope string) ([]todo.Todo, error) {
-	rows, err := h.Q.ListVisibleTodos(ctx, owner)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]todo.Todo, 0, len(rows))
-	for _, row := range rows {
-		item, err := toVisibleTodo(row)
-		if err != nil {
-			return nil, err
-		}
-		if owner != "" {
-			switch scope {
-			case "mine":
-				if item.Owner != owner {
-					continue
-				}
-			case "shared":
-				if item.Owner == owner || !item.IsShared() {
-					continue
-				}
-			}
-		}
-		switch filter {
-		case "active":
-			if item.Completed {
-				continue
-			}
-		case "completed":
-			if !item.Completed {
-				continue
-			}
-		}
-		item.IsMine = owner != "" && item.Owner == owner
-		item.CanDelete = canDeleteRow(role, owner, item)
-		out = append(out, item)
-	}
-	return out, nil
+	return h.svc().ListVisible(ctx, owner, role, filter, scope)
 }
 
 func filterOf(r *http.Request) string {
