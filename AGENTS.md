@@ -35,7 +35,7 @@ Go 1.27 | Templ v0.3.1020 | Datastar v1.0.4 (JS core, vendored) + datastar-go v1
 |---------|-------------|
 | `make dev` | Air live reload |
 | `make build` | Unified build, no lint/tests |
-| `make desktop` / `make gui` / `make mobile` | Native targets (Wails shell, gogpu/ui window, Android APK) — built **locally, never in CI**; `make run-desktop` / `make run-gui` build then open; mobile installs with `adb` (`docs/desktop-mobile.md`) |
+| `make desktop` / `make gui` / `make mobile` / `make mygo` | Native targets (Wails shell, gogpu/ui window, Android APK, MyGo shell) — built **locally, never in CI**; `make run-desktop` / `make run-gui` / `make run-mygo` build then open; mobile installs with `adb` (`docs/desktop-mobile.md`) |
 | `make templ` | Generate Templ |
 | `make datastar-lint` | Lint `.templ` (`-only-errors` keeps intentional attrs) |
 | `make css` / `make css-check` | Rebuild the bundle (DaisyUI + its themes; scans `features/`, `web/`, `internal/`) / verify it is current (`css-all` is kept as an alias for CI and Docker) |
@@ -89,7 +89,7 @@ Keep architecture explicit, thin, and easy for LLMs to evolve. Avoid creating a 
 - **No pass-through layers.** Never wrap a dependency in a thin adapter that only forwards calls — call it directly. Translate types at the boundary only when the external shape genuinely differs from the domain shape.
 - **Examples are the spec.** Living code is more useful to LLMs than long prose. When adding a new seam, mirror an existing concrete example (e.g. the todo vertical slice).
 - **Dual-mode when evolving core paths.** When replacing/swapping a core integration, use a runtime flag to compare behavior with zero regressions. Default to existing behavior.
-- **Core vs plugins.** A new removable piece gets a capability row with `Kind: plugin`; a core row changes need care.
+- **Core / Servant / Recipe.** `Capability.Kind` is the single source: `core` (binary doesn't work without it, includes the recipe engine), `plugin` (site name: **Servant** — wired library, binary works but loses a capability), `feature` (site name: **Recipe** — copied slice you own and edit, same as a `feature`). A new removable piece gets a capability row with `Kind: plugin`; a core row changes need care. Prose/site/docs use only Core/Servant/Recipe; `plugin`/`feature` appear only as `Kind` values.
 - **Constructors build, callers start; stoppable on terminate.** Follow concurrency rules from coding standards.
 - **Fail fast, explicit errors.** Keep contracts obvious; prefer compile-time checks over runtime magic.
 
@@ -101,7 +101,7 @@ Keep architecture explicit, thin, and easy for LLMs to evolve. Avoid creating a 
 
 ## Removal class (one source)
 
-The removal class is `Capability.Kind` on the row in `internal/capabilities` (`docs/scope-taxonomy.md`), and nothing else: no per-file header, no second table. The directory is the layer, never the class — **`internal/` is Go's import boundary, not a removal class** — about half of it is plugin (`nats`, `collab`, `search`, `llm`, `datastar`, …), so read the row, never the directory. A package no row owns fails `internal/capabilities` (coverage walks `internal/` + `features/`), and a header under a row's dirs fails the no-legacy guard. Trim rule: never delete a `core` row without asking; `feature`/`plugin` delete freely (`docs/features.md`).
+The removal class is `Capability.Kind` on the row in `internal/capabilities` (`docs/scope-taxonomy.md`), and nothing else: no per-file header, no second table. The directory is the layer, never the class — **`internal/` is Go's import boundary, not a removal class** — about half of it is servant (`Kind: plugin`: `nats`, `collab`, `search`, `llm`, `datastar`, …), the product slices in `features/` are recipes (`Kind: feature`), so read the row, never the directory. A package no row owns fails `internal/capabilities` (coverage walks `internal/` + `features/`), and a header under a row's dirs fails the no-legacy guard. Trim rule: never delete a `core` row without asking; `feature`/`plugin` delete freely (`docs/features.md`).
 
 ## Hooks
 

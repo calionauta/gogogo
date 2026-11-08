@@ -39,6 +39,10 @@ build is local, and the commands below are the whole recipe.
 make desktop            # → build/desktop/gogogo-desktop
 make desktop-smoke      # THE GATE: build, open the window, prove it loaded
 make run-desktop        # build, then open the window
+# MyGo peer shell — plain go build, no mygo CLI needed (packaging only)
+make mygo               # → build/mygo/gogogo-mygo (loopback webview over StartChi)
+make mygo-smoke         # THE GATE: build, open the window, prove it loaded
+make run-mygo           # build, then open the MyGo window
 # or, with the output under build/ and cross targets available:
 ./scripts/desktop-build.sh              # native (host OS/arch)
 ./scripts/desktop-build.sh cross-windows
@@ -52,7 +56,9 @@ that observes the window: it launches with a temp database, waits for the
 webview's own `GET /` and `/static/app.min.css` in the flat stack's access log,
 then checks first-run signup and the single-instance lock. Run it before pushing
 any `cmd/desktop` change. `SKIP_BUILD=1` reuses the binary; `KEEP=1` keeps the
-temp dir.
+temp dir. `make mygo` is the compile gate for the MyGo shell (vet + build, no
+window needed); the E2E proof (cookie + SSE, `ENVIRONMENT=dev` + isolated DB)
+lives in [MyGo: the spike and the shell](research/mygo-2026-11.md).
 
 The Wails v3 shell is an ordinary Go program importing `pkg/application`, so
 the CLI is not required to compile it. `make desktop` runs
@@ -479,9 +485,9 @@ removing a native shell, and must not assume the answer:
 
 | operator choice | what to build | what to drop / keep |
 |---|---|---|
-| **PWA only** (no Wails, no gogpu/ui, no MyGo) | Web + PWA manifest (`/static/manifest.webmanifest`), service worker, offline outbox | Drop `cmd/desktop`, `cmd/gui`, `cmd/mobile` (see Dropping note) |
+| **PWA only** (no Wails, no gogpu/ui, no MyGo) | Web + PWA manifest (`/static/manifest.webmanifest`), service worker, offline outbox | Drop `cmd/desktop`, `cmd/gui`, `cmd/mobile`, `cmd/mygo` (see Dropping note) |
 | **Wails default** (today) | Web + Wails loopback shell on `127.0.0.1` | Keep `cmd/desktop`; `cmd/gui` opt-in native mirror |
-| **MyGo alternative** (opt-in, not default) | Same web via MyGo loopback window + `Bind(store)` native view | Keep web; MyGo is peer shell, not replacement for Templ/DaisyUI |
+| **MyGo alternative** (opt-in, ships `cmd/mygo`) | Same web via MyGo loopback window (`make mygo` → `build/mygo/gogogo-mygo`); native `ui.View` + `Bind` is the follow-up in [MyGo research](research/mygo-2026-11.md) | Keep web; MyGo is peer shell, not replacement for Templ/DaisyUI |
 
 Ask exactly this, in the operator's language:
 
@@ -560,6 +566,45 @@ service.
 **To remove:** delete `cmd/gui/`, drop the `gui`, `gui-build`, `gui-test`,
 `run-gui` and `lint-gui` Makefile targets. No script change needed — it is
 already excluded from web CI.
+
+## MyGo shell (peer shell over the flat stack)
+
+`cmd/mygo` is a **third peer shell**, beside `cmd/desktop` (Wails) and
+`cmd/gui` (gogpu/ui). It boots the same flat stack (`StartChi`) on an
+ephemeral loopback port and opens a MyGo webview window on
+`desktopboot.WebviewURL` — same Templ/Datastar frontend, same
+`gogogo_auth` (`SecureCookies=false` over loopback), same SSE. It is
+deliberately **not** the native `ui.View` shell: the spike proved the
+webview E2E (`ENVIRONMENT=dev` + isolated DB → cookie persists,
+`GET /api/todos` 200, SSE patch), while native view + `Bind(store)` over
+`Service` is the tracked follow-up. Full evidence, automation limits
+(web windows have no element tree — use `eval`/`screenshot`), and the
+driver matrix (tursogo `CGO=1` loopback vs `ncruces` `CGO=0` native):
+[MyGo: the spike and the shell](research/mygo-2026-11.md).
+
+```bash
+make mygo      # headless gate: go vet ./cmd/mygo/ + build → build/mygo/gogogo-mygo
+make mygo-smoke # proves the window loaded the app (webview + signup + single-instance)
+make run-mygo  # build, then open the window (needs a display)
+```
+
+Like `cmd/desktop` it is excluded from `web-packages.sh` (web CI) and
+**built by no CI job**. `make mygo-smoke` is the window gate (webview +
+signup + single-instance); `make mygo` is the compile gate. Packaging
+(`mygo.json` → `.app`/`.dmg`) rides the opt-in `mygo` CLI
+(`go tool github.com/egoist/mygo/cmd/mygo`, `doctor` check `tool.mygo`
+is warn-only); `make mygo` is plain `go build` and needs no CLI.
+
+Single-instance is `mygo.App.RequestSingleInstanceLock()` before boot
+(app-wide by name+identifier, not DB-scoped like Wails): a second launch
+exits cleanly and hands its args to the first instance via
+`OnSecondInstance`. Two profiles (different `TURSO_DB_PATH`) share one
+lock in v1.
+
+**To remove:** delete `cmd/mygo/`, drop the `mygo`, `mygo-test`,
+`mygo-build`, `run-mygo` and `mygo-smoke` Makefile targets, `go mod tidy` drops
+`egoist/mygo`. `go build ./cmd/web` must stay green (proven: `cmd/web`
+never imports the shell).
 
 ## Dropping the Wails shell (opt-out)
 

@@ -1,5 +1,14 @@
 # Scope taxonomy
 
+> **Removal vs distribution.** This page answers *what disappears if I
+> delete this* — the removal class (`Kind`) on the registry row. It is **not**
+> the distribution model. The recipe model (copy + declaration + receipt,
+> [Extensibility](research/extensibility-2026-11.md), authoring contract
+> [`skills/gogogo-recipe-authoring`](../skills/gogogo-recipe-authoring/SKILL.md))
+> answers *how code is installed and owned*. The three classes below are
+> the removal taxonomy; the site presents them as **Core / Servants /
+> Recipes**.
+
 Every removable-or-toggleable piece of the template is one row in
 `internal/capabilities`, and the removal class is a field on that row. There is
 no per-file header and no second table: a package's class comes from the row
@@ -11,11 +20,11 @@ whether a directory is load-bearing.
 
 The row carries a single axis — the removal class (`Kind`) — with three values:
 
-| Class | Meaning | You would… |
+| Class (site name) | Meaning | You would… |
 |------------|---------|-----------|
-| `core` 🔴 | The web binary **or its gates** do not work without it. Some have a runtime opt-out via env vars. | Customize, never remove. |
-| `plugin` 🟡 | Binary works but loses a capability. A plugin serves other capabilities (jobs, metering, sounds) — no page disappears, but something stops working. | Swap for another implementation, or delete the package + wiring call (e.g. `BootChi` in `internal/server/chi.go`, `cmd/web/main.go`). |
-| `feature` 🟢 | A demo/add-on. A feature is a terminal user surface — a page or journey disappears (todo, whiteboard, landing, config). | Keep as a reference while building your own, then remove. |
+| `core` 🔴 (Core) | The web binary **or its gates** do not work without it. Some have a runtime opt-out via env vars. Includes the recipe engine (`internal/recipe`). | Customize, never remove. |
+| `plugin` 🟡 (Servant) | Binary works but loses a capability. A servant serves other capabilities (jobs, metering, sounds) — no page disappears, but something stops working. | Swap for another implementation, or delete the package + wiring call (e.g. `BootChi` in `internal/server/chi.go`, `cmd/web/main.go`). |
+| `feature` 🟢 (Recipe) | A demo/add-on and a **recipe**: a terminal user surface — a page or journey disappears (todo, whiteboard, landing, config). In-tree recipes mount through the same seam installed recipes use (`recipes.gen.go` / `units.gen.go`). | Keep as a reference while building your own, then remove, or uninstall the receipt. |
 
 Three clarifications the table alone does not carry:
 
@@ -33,33 +42,25 @@ Three clarifications the table alone does not carry:
   but the unit exists to render answers for chat, todo panels and review, so it
   is classified plugin (and bundled with `features/chat` for trimming).
 
-## The scaffold class
+## Installer scope (scaffold prompt retired)
 
-Removal class answers *what disappears*; scaffold class answers *what the
-installer asks*. The two are independent: a plugin can be `default`, `opt-in`
-or `manual`.
-
-| Class | Prompt | Trim unit | Example |
-|-------|--------|-----------|---------|
-| `core` | never | never | `auth`, `server` |
-| `default` | asked, kept by default | required | `dagnats`, `credits` |
-| `opt-in` | asked, dropped by default | required | `perf` |
-| `manual` | not asked; `Reason` explains the hand edit | not required | `nats`, `llm` |
-
-The registry (`internal/capabilities`) is the source of truth; the scaffold
-prompt, the MCP `trim_plan`, and the generated cards all read the same field.
-The rationale and migration path: [Scaffold choice](research/scaffold-choice-2026-10.md).
+Removal class answers *what disappears*. The former scaffold prompt
+(`default`/`opt-in`/`manual`, see [Scaffold choice](research/scaffold-choice-2026-10.md))
+is **retired**: recipes are installed from the catalog / local directories
+(`gogogo recipe install`), not chosen at scaffold time. Every non-core unit
+now carries a manual-removal `Reason` in the registry — that text is the
+installer surface (`gogogo extension describe` / MCP `capabilities_list`).
 
 ## Where the class lives
 
 In the registry, next to the unit's identity:
 
 ```go
-{ID: "review", Kind: KindPlugin, Scaffold: ScaffoldDefault, Dirs: []string{...}},
+{ID: "review", Kind: KindFeature, Dirs: []string{...}},
 ```
 
 The class is one value: `core` = the binary or its shipped gates won't compile
-or boot; `plugin` = binary works but loses a capability; `feature` = pure demo. The **directory is
+or boot; `plugin` = binary works but loses a capability (presentational name: servant); `feature` = pure demo / recipe. The **directory is
 the layer** — `internal/` is infrastructure, `features/` is product — so there
 is no separate `layer` axis to keep in sync (a two-axis `layer=…,removal=…` form was considered and rejected for exactly that reason, and so was the per-file header that carried one).
 
@@ -201,12 +202,12 @@ directory can host more than one unit (for example `features/review/` holds
 the `review` feature and the `genkit` plugin).
 
 - **Core:** `appconfig`, `auth`, `crudwire`, `database`, `demo-seed`,
-  `hostgate`, `instance`, `observability`, `queue`, `rbac`, `secrets`,
-  `server`, `shell`.
-- **Plugin:** `app`, `capabilities`, `collab`, `components`, `credits`,
-  `dagnats`, `datastar`, `genkit`, `genui`, `goakt`, `llm`, `nats`,
-  `offline-sync`, `search`, `sounds`.
-- **Feature:** `account`, `chat`, `config-view`, `landing`, `notes`, `review`,
+  `hostgate`, `instance`, `observability`, `queue`, `rbac`, `recipe`, `secrets`,
+  `server`, `shell` (plus `cloudcfg`, `license` — see registry).
+- **Plugin (site: Servant):** `app`, `capabilities`, `collab`, `components`, `credits`,
+  `dagnats`, `datastar`, `delivery`, `desktopboot`, `genkit`, `genui`, `goakt`, `i18n`, `llm`, `nats`,
+  `offline-sync`, `perf`, `search`, `sounds`.
+- **Feature (site: Recipe):** `account`, `chat`, `config-view`, `dashboard`, `graph`, `landing`, `notes`, `notifications`, `review`,
   `room`, `todo`, `whiteboard`.
 
 ## Cross-package test dependencies

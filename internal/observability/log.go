@@ -67,7 +67,7 @@ func From(ctx context.Context) *slog.Logger {
 	return L()
 }
 
-// Component attrs to classify by gogogo layers: core/plugin/feature + part
+// Component attrs to classify by gogogo layers: core/servant/recipe (Kind core/plugin/feature) + part
 func WithComponent(part, layer string) []any {
 	return []any{"component", part, "layer", layer}
 }

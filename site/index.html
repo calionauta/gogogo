@@ -85,14 +85,14 @@
   <p class="lede">The tip is the agent interface; the mass below is the stack that makes it safe to touch. Scroll to descend, or jump to a level.</p>
   <nav class="chips" aria-label="Jump to a level">
     <a href="#layer-contact" data-chip="contact" aria-current="true"><span>01</span> Agent interface</a>
-    <a href="#layer-features" data-chip="features"><span>02</span> Features</a>
-    <a href="#layer-plugins" data-chip="plugins"><span>03</span> Plugins</a>
+    <a href="#layer-recipes" data-chip="recipes"><span>02</span> Recipes</a>
+    <a href="#layer-servants" data-chip="servants"><span>03</span> Servants</a>
     <a href="#layer-core" data-chip="core"><span>04</span> Core</a>
     <a href="#layer-tests" data-chip="tests"><span>05</span> Tests</a>
     <a href="#layer-gates" data-chip="gates"><span>06</span> Gates</a>
     <a href="#layer-go" data-chip="go"><span>07</span> Go</a>
   </nav>
-  <p class="scope-legend"><span class="legend-label">Scope</span> <span class="badge b-agent">Agent</span> <span class="badge b-feature">Feature</span> <span class="badge b-plugin">Plugin</span> <span class="badge b-core">Core</span> <span class="badge b-proof">Proof</span> <span class="badge b-gate">Gate</span> <span class="badge b-substrate">Substrate</span></p>
+  <p class="scope-legend"><span class="legend-label">Scope</span> <span class="badge b-agent">Agent</span> <span class="badge b-recipe">Recipe</span> <span class="badge b-servant">Servant</span> <span class="badge b-core">Core</span> <span class="badge b-proof">Proof</span> <span class="badge b-gate">Gate</span> <span class="badge b-substrate">Substrate</span></p>
 </header>
 
 <section class="descent" id="descent" aria-label="The seven levels">
@@ -112,12 +112,12 @@
           </a>
           <div class="core-surface" aria-hidden="true"></div>
 
-          <a class="band band-features" href="#layer-features" data-layer="features" style="--w:100%">
-            <span class="band-line"><span class="band-num">02</span><span class="band-name">Features</span></span>
+          <a class="band band-recipes" href="#layer-recipes" data-layer="recipes" style="--w:100%">
+            <span class="band-line"><span class="band-num">02</span><span class="band-name">Recipes</span></span>
             <span class="band-chips"><span>todo</span><span>notes</span><span>board</span></span>
           </a>
-          <a class="band band-plugins" href="#layer-plugins" data-layer="plugins" style="--w:93%">
-            <span class="band-line"><span class="band-num">03</span><span class="band-name">Plugins</span></span>
+          <a class="band band-servants" href="#layer-servants" data-layer="servants" style="--w:93%">
+            <span class="band-line"><span class="band-num">03</span><span class="band-name">Servants</span></span>
             <span class="band-chips"><span>nats</span><span>dagnats</span><span>goakt</span></span>
           </a>
           <a class="band band-core" href="#layer-core" data-layer="core" style="--w:86%">
@@ -175,6 +175,7 @@
               <ul class="agent-list">
                 <li><code>gogogo-coding-standards</code><span>Go + template rules, concurrency, testing, Datastar.</span></li>
                 <li><code>gogogo-ui</code><span>DaisyUI vocabulary, shell, themes, compositions.</span></li>
+                <li><code>gogogo-recipe-authoring</code><span>Copy-and-evolve recipe contract, slots, update path.</span></li>
                 <li><code>daisyui</code><span>Vendored component vocabulary.</span></li>
                 <li><code>stelow-workflow-coding-standards</code><span>Universal principles, vendored.</span></li>
               </ul>
@@ -182,25 +183,26 @@
             <div class="agent-panel panel-cli">
               <ul class="agent-list">
                 <li><code>--run</code><span>Scaffold a repo and run it, one command.</span></li>
+                <li><code>doctor --json</code><span>Read-only preflight; JSON for agents/CI.</span></li>
+                <li><code>generate --check</code><span>Deterministic codegen gate (templ+sqlc+css+docs).</span></li>
+                <li><code>recipe install</code><span>Copy a recipe in: code + declaration + receipt.</span></li>
+                <li><code>extension list</code><span>What is installed, built-in, or removed.</span></li>
                 <li><code>advise</code><span>Which lib or language fits the use case.</span></li>
                 <li><code>--dry-run</code><span>Preview the plan as JSON, zero changes.</span></li>
-                <li><code>--yes</code><span>Scaffold, trim, prove it builds.</span></li>
-                <li><code>add</code><span>Bring a trimmed unit back.</span></li>
-                <li><code>--check</code><span>Verify markers, catch drift.</span></li>
-                <li><code>export</code><span>Port bundle for a non-gogogo tree.</span></li>
+                <li><code>--yes</code><span>Scaffold, prove it builds.</span></li>
                 <li><code>new feature</code><span>Scaffold one feature in your project.</span></li>
                 <li><code>migrate</code><span>Every release since your base, plus gates.</span></li>
                 <li><code>--check-update</code><span>Is an update out? Exit 3 means yes.</span></li>
+                <li><code>export</code><span>Port bundle for a non-gogogo tree.</span></li>
               </ul>
             </div>
             <div class="agent-panel panel-mcp">
               <ul class="agent-list">
                 <li><code>advise_stack</code><span>Same guidance as advise, over MCP.</span></li>
                 <li><code>capabilities_list</code><span>The full unit registry.</span></li>
-                <li><code>trim_plan</code><span>Preview a trim, changes nothing.</span></li>
-                <li><code>trim_apply</code><span>Scaffold, needs <code>confirm:true</code>.</span></li>
+                <li><code>recipe_status</code><span>Receipt drift: pristine / modified / deleted.</span></li>
+                <li><code>extension_invoke</code><span>Headless verb on a declared route.</span></li>
                 <li><code>check_tree</code><span>Drift verdict per unit.</span></li>
-                <li><code>add_unit</code><span>Restore a unit, needs <code>confirm:true</code>.</span></li>
                 <li><code>version_status</code><span>Is the tool or the project behind?</span></li>
                 <li><code>migrate_plan</code><span>Releases between your base and latest.</span></li>
                 <li><code>export_unit</code><span>Port bundle, writes only <code>to</code>.</span></li>
@@ -212,17 +214,17 @@
       </div>
 
       <div class="chapter-foot">
-        <p class="foot-line"><span class="label">Inside</span> <code>skills/gogogo-coding-standards</code> <code>cmd/gogogo</code> <code>cmd/gogogo-mcp</code></p>
-        <p class="foot-line"><span class="label">Proof</span> <code>gogogo --check</code></p>
+        <p class="foot-line"><span class="label">Inside</span> <code>skills/gogogo-coding-standards</code> <code>skills/gogogo-recipe-authoring</code> <code>cmd/gogogo</code> <code>cmd/gogogo-mcp</code></p>
+        <p class="foot-line"><span class="label">Proof</span> <code>gogogo doctor --json</code> · <code>gogogo generate --check</code></p>
         <p class="foot-line remove"><span class="label">Remove it</span> The binary keeps running; the agent loses its map.</p>
-        <p class="foot-line doc"><a href="./docs/cli/">CLI reference</a> · <a href="./docs/mcp/">MCP setup</a> · <a href="./docs/getting-started/">Getting started</a></p>
+        <p class="foot-line doc"><a href="./docs/cli/">CLI reference</a> · <a href="./docs/mcp/">MCP setup</a> · <a href="./docs/getting-started/">Getting started</a> · <a href="./docs/doctor-generate/">Doctor / generate</a></p>
       </div>
     </article>
 
-    <article class="chapter" id="layer-features" data-layer="features" data-name="Features" data-scope="feature" data-line="Whole pages you can delete.">
-      <div class="chapter-head"><span class="chapter-num">02</span><span class="chapter-meta">feature</span></div>
-      <h2>Features</h2>
-      <p class="chapter-lede">The feature units. Each is a vertical slice with its own handler, template and proof. Todo is the reference; the rest are demos. Keep the one you are learning from; remove the rest in a single commit.</p>
+    <article class="chapter" id="layer-recipes" data-layer="recipes" data-name="Recipes" data-scope="recipe" data-line="Copied slices you own and edit.">
+      <div class="chapter-head"><span class="chapter-num">02</span><span class="chapter-meta">recipe</span></div>
+      <h2>Recipes</h2>
+      <p class="chapter-lede">A recipe is not a package you depend on: it is a working slice — pages, handlers, components, tables, a queue job, a policy row — copied into your repo with a receipt recording where it came from, intended to be edited. You own the code the moment it is written. The declaration (routes, tables, jobs, slots) is engine-applied; your edits survive via pristine hashes and `git merge`, never overwrite. Reference slice: <code>features/todo</code> (in-tree, always installed). Minimal installable example: <code>_extensions/pomodoro</code> (not installed by default — <code>gogogo recipe install ./_extensions/pomodoro --yes</code>, then <code>/pomodoro</code>).</p>
 
       <div class="viz tiles">
         <!--FEATURES:START-->
@@ -287,7 +289,7 @@
           <span class="tile-top"><span class="tile-dot live"></span> Landing<span class="tile-arrow" aria-hidden="true">↗</span></span>
           <span class="tile-ui generic-ui"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M7 6.5h.01M10 6.5h.01"/></svg></span>
           <span class="tile-desc">public entry page on GET / (inside the shared shell)</span>
-          <span class="tile-note">this page is a feature</span>
+          <span class="tile-note">this page is a recipe</span>
         </a>
         <a class="tile" href="./docs/features/">
           <span class="tile-top"><span class="tile-dot live"></span> Config<span class="tile-arrow" aria-hidden="true">↗</span></span>
@@ -304,6 +306,18 @@
         <!--FEATURES:END-->
       </div>
 
+      <div class="viz slots" id="slots">
+        <p class="plan-group">Slots — what a recipe fills, never what it owns</p>
+        <p class="plan-note">The page owns the frame; the recipe supplies content. Only a slot with a host page in this build can be filled — offering one without a host is refused at registration, install, and review.</p>
+        <div class="slot-table">
+          <p><code>settings.section</code><span>Form section in <code>/config</code> + its own save endpoint.</span></p>
+          <p><code>nav.sidebar</code><span>Destination in the shell rail (label + href, never a fragment).</span></p>
+          <p><code>record.row-actions</code><span>Declarative row actions on the todo row (label, verb, href — not a component).</span></p>
+          <p><code>dashboard.card</code><span>One grid cell on <code>/dashboard</code> (title + content; the grid stays the page's).</span></p>
+        </div>
+        <p class="trim-note">A recipe never owns a core table/column, never adds a step inside a core handler, never renders a page's frame. Schema is declared and engine-applied; code is copied.</p>
+      </div>
+
       <!--WEIGHTS:START-->
         <div class="weights">
         <p class="weights-title">Client weight <span>measured, not estimated</span></p>
@@ -316,23 +330,23 @@
         <!--WEIGHTS:END-->
 
       <div class="chapter-foot">
-        <p class="foot-line"><span class="label">Inside</span> units · <code>features/todo</code> <code>features/notes</code> <code>features/whiteboard</code> <code>features/chat</code> <code>features/review</code> <code>features/room</code> <code>features/landing</code> <code>features/config</code> <code>features/account</code></p>
-        <p class="foot-line"><span class="label">Proof</span> <code>rm -rf features/notes</code> plus its wiring call</p>
-        <p class="foot-line remove"><span class="label">Remove it</span> The route disappears. Nothing below moves.</p>
-        <p class="foot-line doc"><a href="./docs/features/">Feature catalog</a> · <a href="./docs/scope-taxonomy/">Scope taxonomy</a> · <a href="./docs/unit-contracts/">Unit contracts</a></p>
+        <p class="foot-line"><span class="label">Inside</span> recipes · <code>features/todo</code> <code>features/notes</code> <code>features/whiteboard</code> <code>features/chat</code> <code>features/review</code> <code>features/room</code> <code>features/landing</code> <code>features/config</code> <code>features/account</code> <code>features/dashboard</code></p>
+        <p class="foot-line"><span class="label">Proof</span> <code>gogogo recipe install</code> · <code>gogogo recipe status</code> (drift) · <code>gogogo extension list</code></p>
+        <p class="foot-line remove"><span class="label">Remove it</span> Uninstall unwires; receipt stays so data still has an owner. The route disappears; nothing below moves.</p>
+        <p class="foot-line doc"><a href="./docs/features/">Feature catalog</a> · <a href="./docs/scope-taxonomy/">Scope taxonomy</a> · <a href="./docs/research/extensibility/">Recipes &amp; extensions</a> · <a href="./docs/unit-contracts/">Unit contracts</a></p>
       </div>
     </article>
 
-    <article class="chapter" id="layer-plugins" data-layer="plugins" data-name="Plugins" data-scope="plugin" data-line="Capabilities with a switch.">
-      <div class="chapter-head"><span class="chapter-num">03</span><span class="chapter-meta">plugin</span></div>
-      <h2>Plugins</h2>
-      <p class="chapter-lede">Every plugin unit. The first group is the common opt-outs; the rest are the ones you meet later. One environment variable or one trim turns each off; the binary keeps working.</p>
+    <article class="chapter" id="layer-servants" data-layer="servants" data-name="Servants" data-scope="servant" data-line="Wired libraries with a runtime switch.">
+      <div class="chapter-head"><span class="chapter-num">03</span><span class="chapter-meta">servant</span></div>
+      <h2>Servants</h2>
+      <p class="chapter-lede">The wired libraries behind the recipes: NATS, DagNats, GoAkt, the LLM client, Loro collab, search. They serve other capabilities — nothing user-facing disappears when one is off, but something stops working. Each has a runtime switch; the binary keeps building without it. They are not installable recipes: the catalog does not sell them, and their closure is most of the binary.</p>
 
       <div class="viz trim" id="trim">
         <!--PLUGINS:START-->
         <div class="trim-head">
-          <span class="trim-title">Trim plan</span>
-          <span class="trim-count" id="trim-count" aria-live="polite">20 of 20 kept</span>
+          <span class="trim-title">Switches — runtime opt-outs</span>
+          <span class="trim-count" id="trim-count" aria-live="polite">19 of 19 kept</span>
         </div>
         <p class="plan-group">Common opt-outs</p>
         <label class="plan-row">
@@ -445,26 +459,20 @@
           <span class="plan-env">PERF_ENABLED=false (default off in production)</span>
         </label>
         <label class="plan-row">
-          <input type="checkbox" checked data-cap="recipe">
-          <span class="plan-box" aria-hidden="true"></span>
-          <span class="plan-main"><span class="plan-name">recipe</span><span class="plan-desc">recipe engine: declaration seam, receipt and drift check for installable extensions</span></span>
-          <span class="plan-env">manual</span>
-        </label>
-        <label class="plan-row">
           <input type="checkbox" checked data-cap="sounds">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">Sounds</span><span class="plan-desc">UI sound feedback (cuelume, vendored)</span></span>
           <span class="plan-env">manual</span>
         </label>
-        <p class="trim-summary" id="trim-summary" aria-live="polite">Every plugin unit on. The binary still builds.</p>
-        <p class="trim-note">Every plugin unit from the unit contracts. A preview, not a live switch; the real switch is the env var or the trim.</p>
+        <p class="trim-summary" id="trim-summary" aria-live="polite">Every servant on. The binary still builds.</p>
+        <p class="trim-note">Every servant from the unit contracts (Kind plugin). A preview, not a live switch; the real switch is the env var. Servants are wired libraries, not installable recipes — see Recipes.</p>
         <!--PLUGINS:END-->
       </div>
 
       <div class="chapter-foot">
-        <p class="foot-line"><span class="label">Inside</span> units · <code>internal/nats</code> <code>internal/dagnats</code> <code>internal/goakt</code> <code>internal/llm</code> <code>internal/collab</code> <code>internal/datastar</code> <code>internal/components</code> <code>internal/search</code> <code>internal/capabilities</code> <code>internal/installer</code> <code>features/app</code> <code>features/credits</code> <code>features/genui</code> <code>features/sounds</code></p>
+        <p class="foot-line"><span class="label">Inside</span> servants · <code>internal/nats</code> <code>internal/dagnats</code> <code>internal/goakt</code> <code>internal/llm</code> <code>internal/collab</code> <code>internal/datastar</code> <code>internal/components</code> <code>internal/search</code> <code>internal/capabilities</code> <code>internal/installer</code> <code>features/app</code> <code>features/credits</code> <code>features/genui</code> <code>features/sounds</code></p>
         <p class="foot-line"><span class="label">Proof</span> <code>DAGNATS_ENABLED=false go run ./cmd/web</code></p>
-        <p class="foot-line remove"><span class="label">Remove it</span> The binary still works. One capability is gone.</p>
+        <p class="foot-line remove"><span class="label">Remove it</span> The binary still builds. One wired capability is off (untouched recipes keep working).</p>
         <p class="foot-line doc"><a href="./docs/configuration/">Configuration</a> · <a href="./docs/scope-taxonomy/">Scope taxonomy</a> · <a href="./docs/unit-contracts/">Unit contracts</a></p>
       </div>
     </article>
@@ -472,7 +480,7 @@
     <article class="chapter" id="layer-core" data-layer="core" data-name="Core" data-scope="core" data-line="The load-bearing walls.">
       <div class="chapter-head"><span class="chapter-num">04</span><span class="chapter-meta">core</span></div>
       <h2>Core</h2>
-      <p class="chapter-lede">The core units. The anchors — database, auth, server, queue — plus the bricks. Customize them as much as you want; remove one and the binary stops building.</p>
+      <p class="chapter-lede">The core units: boot, config, database, auth, RBAC, the shell, observability, and the recipe engine itself. The anchors — database, auth, server, queue — plus the bricks. Customize them as much as you want; remove one and the binary stops building (or the recipe seam goes with it).</p>
 
       <div class="viz core-viz" id="core-viz">
         <!--CORE:START-->
@@ -512,6 +520,7 @@
           <div class="brick"><span class="brick-name">license</span><span class="brick-desc">offline entitlement tokens (Ed25519 license/account activation)</span><span class="brick-path">license</span></div>
           <div class="brick"><span class="brick-name">Observability</span><span class="brick-desc">core observability (slog + tracing)</span><span class="brick-path">observability</span></div>
           <div class="brick"><span class="brick-name">RBAC</span><span class="brick-desc">RBAC with Casbin (embedded model + policy, enforced at the mux)</span><span class="brick-path">rbac</span></div>
+          <div class="brick"><span class="brick-name">recipe</span><span class="brick-desc">recipe engine: declaration seam, receipt and drift check for installable extensions</span><span class="brick-path">recipe</span></div>
           <div class="brick"><span class="brick-name">Secrets</span><span class="brick-desc">age-decrypted env loader</span><span class="brick-path">secrets</span></div>
           <div class="brick"><span class="brick-name">Shell</span><span class="brick-desc">one app shell (sidebar + module header + work area), the theme catalog, and the DaisyUI asset block every page renders</span><span class="brick-path">ui</span></div>
         </div>

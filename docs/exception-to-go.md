@@ -34,7 +34,8 @@ and none should be added without a concrete use case that passes the
 
 ## What "native" means
 
-`native` is **not** a fourth SCOPE layer next to core / plugin / feature
+`native` is **not** a fourth SCOPE layer next to core / servant / recipe
+(`Kind` core / plugin / feature — site names Core / Servant / Recipe)
 (see [Scope taxonomy](scope-taxonomy.md)). It is an **exceptional
 implementation boundary**: a small piece of functionality, owned by a normal
 Go package, whose inner kernel happens to be implemented in a systems

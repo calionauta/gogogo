@@ -59,7 +59,7 @@ manifest, then `make docs-index`; `make check-docs` fails when this block drifts
 - [unit-contracts](docs/unit-contracts.md) — Generated card per capability: routes it registers, generated queries it calls, runtime switch, and what removing it takes.
 - [no-auth-no-db-recipe](docs/no-auth-no-db-recipe.md) — Recipe for stripping auth and the database out of a clone that needs neither.
 - [use-cases](docs/use-cases.md) — What each core, plugin, and feature is for, in business language.
-- [scope-taxonomy](docs/scope-taxonomy.md) — Core / Plugin / Feature: the rule for deciding what is safe to delete.
+- [scope-taxonomy](docs/scope-taxonomy.md) — Core / Servant / Recipe: the rule for deciding what is safe to delete — the removal taxonomy, not the distribution model.
 - [porting-into-an-existing-app](docs/porting-into-an-existing-app.md) — Taking one unit into an app that already exists: export, copy, rewire, prove — and the four things no recipe can know.
 - [db-concurrency](docs/db-concurrency.md) — Turso single-writer stance, the probed MVCC path, and revisit triggers.
 - [configuration](docs/configuration.md) — Every environment variable and runtime constant.
@@ -106,6 +106,7 @@ manifest, then `make docs-index`; `make check-docs` fails when this block drifts
 - [android-spike](docs/research/android-spike-2026-10.md) — The Android spike build log: commands, driver matrix, libc shims, system-bar insets, screenshots, disk usage and cleanup.
 - [scaffold-choice](docs/research/scaffold-choice-2026-10.md) — Why the scaffold prompt offers only the installer units, the three lists that disagree, and the Scaffold class that makes every capability an explicit keep-or-drop.
 - [extensibility](docs/research/extensibility-2026-11.md) — Core plus installable extensions evaluated for 2026: why buildmode=plugin is out, why anchor-patching cannot carry N authors, what compile-time registration costs, and the ordered spikes that can kill the idea.
+- [mygo](docs/research/mygo-2026-11.md) — MyGo peer shell over the flat stack: webview cookie + SSE proof, loopback vs native view, driver matrix, and the cmd/mygo build recipe.
 - [i18n](docs/research/i18n-2026-11.md) — UI internationalization: own the seam on the text package, rent CLDR depth only on a trigger. The libraries evaluated, mitigations for their gaps, and the phased, deletable plan.
 
 **Ship**
@@ -143,8 +144,8 @@ deploys would target the template's server directory.
 
 ```bash
 # 1. Scaffold with the installer: one command installs (binaries +
-#    Go toolchain when missing), asks name/owner/plugins/features, renames,
-#    trims what you skip, writes AGENTS.md, then `make dev` takes this
+#    Go toolchain when missing), asks name/owner, renames,
+#    writes AGENTS.md, then `make dev` takes this
 #    terminal — Ctrl-C stops dev. Needs curl + git, nothing else.
 curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh | sh -s -- --run
 
@@ -241,14 +242,14 @@ Every capability is always compiled. Each has a documented opt-out.
 
 | Capability | Opt-out |
 |---|---|
-| Todo app + live record-sync, stacked toasts, sound feedback | delete `features/todo/` |
+| Todo app + live record-sync, stacked toasts, sound feedback | delete `features/todo/` (or uninstall its receipt) |
 | Queue + retry with exponential backoff, SSE `lastRetry` signal | — (core) |
 | AI Suggest via GoAI, or keyless simulated LLM for the demo | no `GOAI_API_KEY` and `SIMULATE_LLM=false` |
-| Chat: model renders catalog UI + invented visuals + diagrams via SSE, persisted per owner | `trim genui` (removes Chat), or no `GOAI_API_KEY` and `SIMULATE_LLM=false` (demo answers keyless) |
-| Review loop: writer → critic → classifier judge, streamed verdict | `trim review`, or no `GOAI_API_KEY` (real-LLM only; page shows a setup hint) |
-| Search layers for feature rows (substring in SQL, fuzzy tiers, BM25 over its own postings) | `trim search` (a consumer keeps the SQL substring layer) |
+| Chat: model renders catalog UI + invented visuals + diagrams via SSE, persisted per owner | delete `features/genui/` + `features/chat/` (manual removal per scope-taxonomy), or no `GOAI_API_KEY` and `SIMULATE_LLM=false` (demo answers keyless) |
+| Review loop: writer → critic → classifier judge, streamed verdict | delete `features/review/` by hand, or no `GOAI_API_KEY` (real-LLM only; page shows a setup hint) |
+| Search layers for feature rows (substring in SQL, fuzzy tiers, BM25 over its own postings) | delete `internal/search/` by hand (a consumer keeps the SQL substring layer) |
 | AI credits + BYOK relay + Stripe top-ups | `CREDITS_ENABLED=false` |
-| Collaborative whiteboard (CRDT + presence + offline outbox) | `trim whiteboard` (bundle with notes + collab transport), or `COLLAB_SNAPSHOTS=memory` |
+| Collaborative whiteboard (CRDT + presence + offline outbox) | delete `features/whiteboard/` + `internal/collab/` (bundled with notes), or `COLLAB_SNAPSHOTS=memory` |
 | Room presence demo (GoAkt grains: roster + presenter lock) | delete `features/room/` |
 | Shared notes (server-owned Loro Text, live peer text) | delete `features/notes/` |
 | Durable `WelcomeOnboarding` workflow | `DAGNATS_ENABLED=false` |
@@ -256,32 +257,35 @@ Every capability is always compiled. Each has a documented opt-out.
 | Single-store persistence (Turso Database via sqlc) | — (core) |
 | Multi-instance realtime | `NATS_ENABLED=false` |
 | Public landing page + auth-gated config view | delete `features/landing/`, `features/config/` |
-| Wails v3 desktop/mobile + native window | delete `cmd/desktop/`, `cmd/gui/` |
+| Wails v3 desktop/mobile + native window + MyGo shell | delete `cmd/desktop/`, `cmd/gui/`, `cmd/mygo/` |
 
-Infrastructure opts out with an env var. The installer automates the common
-deletions — named presets included: `go run ./cmd/gogogo --preset minimal`
-(core + todo + auth), `no-ai`, `no-collab` — see
-[cmd/gogogo/README.md](cmd/gogogo/README.md). Product features also opt out
-by deleting the package and its one wiring call — see
+Infrastructure opts out with an env var. Installable recipes ride
+`gogogo recipe install` — see [cmd/gogogo/README.md](cmd/gogogo/README.md).
+Product recipes also opt out by uninstalling the receipt — see
 [features](docs/features.md).
 
-## Core / Plugin / Feature
+## Core / Servant / Recipe
 
 Every removable piece of the template is one row in
 `internal/capabilities`, and the row declares its removal class. There is no
 per-file header to keep in sync: a package's class is its owning row's, and a
 package no row owns fails the registry's coverage test.
 
-| Class | Meaning | You would |
-|---|---|---|
-| `core` 🔴 | The binary does not work without it | Customize, never remove |
-| `plugin` 🟡 | The binary works but loses a capability | Swap, or delete + remove the wiring call |
-| `feature` 🟢 | A demo or add-on | Keep as reference, then remove |
+| Class (`Kind`) | Site name | Meaning | You would |
+|---|---|---|---|
+| `core` 🔴 | Core | The binary does not work without it (includes the recipe engine) | Customize, never remove |
+| `plugin` 🟡 | Servant | The binary works but loses a capability (wired library: nats, llm, collab…) | Turn off with its env var, or swap/delete + remove the wiring call |
+| `feature` 🟢 | Recipe | A copied slice you own and edit (todo, notes, landing…), with a receipt + declaration (routes/tables/jobs/slots) | Keep as reference, then uninstall or edit in place |
 
 The rule for agents: **never delete a `core` row without asking; never
 keep a `feature` row in production if the domain doesn't need it.**
 Full taxonomy and per-package removal table:
-[scope-taxonomy](docs/scope-taxonomy.md).
+[scope-taxonomy](docs/scope-taxonomy.md). Recipes:
+[extensibility](docs/research/extensibility-2026-11.md) +
+[`gogogo-recipe-authoring`](skills/gogogo-recipe-authoring/SKILL.md).
+Reference slice: `features/todo` (in-tree, always installed). Minimal
+installable example: `_extensions/pomodoro` (not installed by default —
+`gogogo recipe install ./_extensions/pomodoro --yes`, then `/pomodoro`).
 
 ## For AI agents
 
@@ -293,11 +297,13 @@ the same code path with the same receipts and proof):
   `site/llms.txt` (index) + `site/llms-full.txt` (complete texts).
 - Installer CLI — `go run ./cmd/gogogo advise --need "..."` for opinions
   (reads nothing, changes nothing; `--intent` turns the opinion into the
-  ordered commands for a goal), `--preset minimal|no-ai|no-collab` or
-  `--plugins/--features` keep lists + `--dry-run` to preview,
-  to take one into a tree that is not gogogo (read-only bundle + porting
-  checklist), `gogogo new feature <name>` to scaffold one feature with wiring +
-  gates + proof. Full reference: [cmd/gogogo/README.md](cmd/gogogo/README.md).
+  ordered commands for a goal), `gogogo doctor --json` for read-only
+  preflight + `gogogo generate --check` for the deterministic codegen gate,
+  `gogogo recipe install` / `gogogo extension list` for recipes,
+  `gogogo export` to take one into a tree that is not gogogo (read-only
+  bundle + porting checklist), `gogogo new feature <name>` to scaffold one
+  feature with wiring + gates + proof. Full reference:
+  [cmd/gogogo/README.md](cmd/gogogo/README.md).
 - MCP server — `cmd/gogogo-mcp` (separate module, stdio): the same engine as
   export, new feature. The served surface, with parameters, is the table in
   [cmd/gogogo-mcp/README.md](cmd/gogogo-mcp/README.md); that module's test
@@ -339,8 +345,10 @@ preview second, mutation last. Full guides live in their own section:
 | Path | Use when | Entry point |
 |---|---|---|
 | `advise` | deciding what to keep (use-case → keep/drop + off-switches + Go/Zig rule). Changes nothing | `go run ./cmd/gogogo advise --need "..." --format json` |
-| trim `--dry-run` | previewing the scaffold as one JSON document | `--no-tui --dry-run --format json` (add `--yes` to apply) |
-| MCP server | tool calls instead of shell (`advise_stack`, `capabilities_list`, `trim_plan`, `trim_apply`, `check_tree`, `version_status`, `migrate_plan`, `export_unit`, `new_feature`) | `cmd/gogogo-mcp` (own module, stdio) + one JSON block in the client config |
+| `doctor --json` | preflight before work (read-only; JSON for agents/CI) | `go run ./cmd/gogogo doctor --json` |
+| `generate --check` | CI gate on deterministic codegen (templ+sqlc+css+docs) | `go run ./cmd/gogogo generate --check` |
+| `recipe install` / `extension list` | install or discover a copied recipe (code + declaration + receipt) | `go run ./cmd/gogogo recipe install ./_extensions/pomodoro --yes` / `gogogo extension list --format json` |
+| MCP server | tool calls instead of shell (`advise_stack`, `capabilities_list`, `recipe_status`, `extension_invoke`, `check_tree`, `version_status`, `migrate_plan`, `export_unit`, `new_feature`) | `cmd/gogogo-mcp` (own module, stdio) + one JSON block in the client config |
 
 Destructive paths refuse without explicit confirmation (`--yes` /
 `confirm:true`). Strategy and the foreign-codebase boundary:
@@ -354,12 +362,13 @@ at.
 
 | Goal | Command | Changes anything? |
 |---|---|---|
-| Create | `gogogo --dry-run` then `--yes` (interactive, or `--preset`/`--plugins`/`--features`) | Yes — the new directory |
+| Create | `gogogo --dry-run` then `--yes` (interactive; scaffold ships every capability, recipes install on demand) | Yes — the new directory |
 | Evolve: your own slice | `gogogo new feature <name> --dir .` | Yes — inside your tree |
+| Install a recipe | `gogogo recipe install <dir> --dir . --yes` | Yes — copied tree + `.recipes/<id>.yml` + generated registration |
 | Update: is there anything? | `gogogo --check-update --dir .` | No. **Exit 3 means yes** |
 | Update: what changed? | `gogogo migrate --dir .` | No — a list you apply |
 | Update: which files apply to me? | `gogogo migrate --dir . --files` | No — labels each upstream file with its capability and whether you kept its unit |
-| Customize | edit freely, then `gogogo --check --dir .` | No — reports whether a marker moved; your edits win |
+| Customize | edit freely, then `gogogo recipe status --dir .` | No — reports pristine/modified/deleted; your edits win |
 | Take a unit into a non-gogogo app | `gogogo export <unit> --to <scratch>` + [porting checklist](docs/porting-into-an-existing-app.md) | Only the scratch directory, and the bundle is stamped with the release it came from |
 
 Agents get the same answers as an ordered route: `advise --intent

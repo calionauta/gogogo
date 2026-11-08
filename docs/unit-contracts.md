@@ -12,8 +12,8 @@ of the file you are about to touch.
 
 ## Registry at a glance
 
-- **Units:** 48 — 15 core · 20 plugin · 13 feature
-- **Manual removal:** 33 (core units are never removed)
+- **Units:** 48 — 16 core · 19 plugin · 13 feature
+- **Manual removal:** 32 (core units are never removed)
 - **Source of truth:** `internal/capabilities/registry.go`; this doc is
   regenerated from it, so the counts above cannot drift.
 
@@ -104,6 +104,13 @@ RBAC with Casbin (embedded model + policy, enforced at the mux)
 - **Owned:** `internal/rbac`
 - **Store calls:** `dbgen.CountCasbinRules`, `dbgen.DeleteAllCasbinRules`, `dbgen.DeleteCasbinRule`, `dbgen.DeleteCasbinRuleByID`, `dbgen.InsertCasbinRule`, `dbgen.ListCasbinRules`
 - **Note:** Wired middleware, not a dormant package: BootChi builds one enforcer and wraps the whole mux (pass-through when RBAC_ENABLED=false, enforced denies with 403 + warn log when true). Roles come from users.role (migration 0008, ADMIN_EMAILS promotes existing rows at boot). /config is admin-only in the handler too (rbac.RequireAdmin), so RBAC_ENABLED=false does not expose it; the console adds an ADMIN_EMAILS allowlist. The policy test pins every mux route for user-or-admin.
+
+## `recipe` — core
+
+recipe engine: declaration seam, receipt and drift check for installable extensions
+
+- **Owned:** `internal/recipe`
+- **Note:** Core: the composition root mounts every route-owning unit through recipe.Registry, and an installed recipe's generated registration calls it too, so deleting the package breaks the web build as well as cmd/gogogo. docs/research/extensibility-2026-11.md records why it stays.
 
 ## `secrets` — core
 
@@ -271,13 +278,6 @@ opt-in operator diagnostics: statsviz dashboard + stdlib pprof
 - **Runtime off:** `PERF_ENABLED=false (default off in production)`
 - **Note:** Fenced like /console: session + admin + an ADMIN_EMAILS match. statsviz is net/http only (no second HTTP stack); pprof is stdlib. The installer drops the dependency with the unit.
 - **Warning:** One-way trim: removal is a hand edit and re-adding is manual.
-
-## `recipe` — plugin
-
-recipe engine: declaration seam, receipt and drift check for installable extensions
-
-- **Owned:** `internal/recipe`
-- **Note:** Manual removal, and no longer free: the composition root mounts every route-owning unit through recipe.Registry, and an installed recipe's generated registration calls it too, so deleting the package breaks the web build as well as cmd/gogogo. docs/research/extensibility-2026-11.md records why it stays.
 
 ## `search` — plugin
 

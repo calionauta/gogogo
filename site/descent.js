@@ -120,7 +120,7 @@
     gate.addEventListener("blur", reset);
   });
 
-  /* Plugins: the checkboxes change a plan, not the product. */
+  /* Servants: the checkboxes change a plan, not the product. */
   const planInputs = Array.from(document.querySelectorAll(".plan-row input"));
   const trimCount = document.getElementById("trim-count");
   const trimSummary = document.getElementById("trim-summary");

@@ -36,9 +36,12 @@ Check in this order, and stop at the first hit:
 
 1. **The official catalog** — install it instead of writing it. One command, and you get
    a receipt you can update.
-2. **The reference slice** — `features/todo` is the living example every recipe is derived
-   from: handler shape, page shape, signals, policy rows, the receipt. Copy it rather than
-   inventing a structure.
+2. **The reference slice** — `features/todo` is the living in-tree example every recipe
+   is derived from: handler shape, page shape, signals, policy rows, the receipt.
+   Copy it rather than inventing a structure. (`_extensions/pomodoro` is the worked
+   out-of-tree example — a minimal installable recipe with one table, one migration,
+   one page, one write and one sidebar entry — but it is **not** installed by default
+   and is not a substitute for reading the `todo` slice.)
 3. **The scaffold** — `go run ./cmd/gogogo new feature <name>` writes a handler, a page,
    the wiring, the capability entry, the policy rows, then proves the build. Use it as the
    starting point; a hand-rolled slice will miss a gate.

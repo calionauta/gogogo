@@ -381,7 +381,7 @@ What is left to improve is not the shape but the notes: a release that changes
 structure needs its mapping written down, which is documentation work, not a
 reason to grow a framework.
 
-## Why plugins live in-repo (not in plugin repos)
+## Why servants live in-repo (not in plugin repos)
 
 The split follows consumers, not size. Auth methods, TOTP, magic links and
 the CRUD wire ship *with the template* — every generated project carries
@@ -399,7 +399,7 @@ independently-consumed code lives apart.
 
 **Plugin is a removal class, not a hosting location.** Genkit, GoAkt, DagNats,
 NATS and the rest are third-party packages that the template *wires* — each is
-registered in `internal/capabilities` with `SCOPE:plugin`, so the installer can
+registered in `internal/capabilities` with `Kind: plugin` (site name: servant), so the installer can
 trim the unit and `go mod tidy` drops the dependency. A plugin is "removable
 without touching core"; it says nothing about where the code is hosted. See
 [Scope taxonomy](scope-taxonomy.md).

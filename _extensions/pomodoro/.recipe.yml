@@ -1,8 +1,11 @@
-# Pomodoro — the reference recipe.
+# Pomodoro — a minimal, installable example recipe.
 #
 # It is deliberately small and deliberately complete: one table, one migration,
 # one query file, one page, one write endpoint, one sidebar entry. Everything a
 # recipe may own is here once, so the shape can be copied instead of invented.
+# It is NOT installed by default and NOT the reference slice — features/todo is.
+# (Todo is the living in-tree reference; pomodoro proves the out-of-tree
+# install flow: copy + declaration + receipt + slots.)
 #
 # Install it from the repo root:
 #
@@ -28,7 +31,7 @@ register: features/pomodoro/handlers
 
 upstream:
   repo: github.com/calionauta/gogogo
-  ref: feat/recipe-extensions-spike
+  ref: master
   path: _extensions/pomodoro
 
 # declaration is the append-only half: what the code claims, checked against the

@@ -49,17 +49,14 @@ Non-interactive (CI/scripted) — preview first, then pin `--yes`:
 
 ```bash
 go run ./cmd/gogogo --name my-app --owner myorg \
-  --plugins dagnats,credits,sounds --features whiteboard,landing,config-view \
-  --opt-in perf \
   --no-tui --dry-run --format json --dir ./my-app
 go run ./cmd/gogogo --name my-app --owner myorg \
-  --plugins dagnats,credits,sounds --features whiteboard,landing,config-view \
-  --opt-in perf \
   --no-tui --yes --dir ./my-app
 ```
 
-IDs must match `cmd/gogogo --help` (unknown ids fail fast instead of
-silently keeping everything). Use `none` to drop a whole dimension.
+Scaffold ships every capability. Recipes install on demand
+(`gogogo recipe install <dir> --dir ./my-app --yes`); servants opt out at
+runtime with their env vars (`NATS_ENABLED=false`, etc.).
 
 `--no-tui` without `--yes` prints the plan and stops — the installer never
 deletes on an assumption. Exit codes: 0 ok/plan-only, 1 usage error,
@@ -99,7 +96,7 @@ go run github.com/calionauta/gogogo/cmd/gogogo@latest advise --need "offline-fir
 go run github.com/calionauta/gogogo/cmd/gogogo@latest advise --need "realtime whiteboard" --format json
 ```
 
-What each core/plugin/feature is *for*, in business language, lives in
+What each core/servant/recipe is *for*, in business language, lives in
 [use-cases](use-cases.md) — read it before deciding what to keep.
 
 No `--yes`, nothing written: it reads the capability

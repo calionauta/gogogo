@@ -17,14 +17,14 @@ var All = append([]Capability{
 	},
 	{
 		ID:      "recipe",
-		Kind:    KindPlugin,
+		Kind:    KindCore,
 		Summary: "recipe engine: declaration seam, receipt and drift check for installable extensions",
 		Dirs:    []string{"internal/recipe"},
-		Note: "Manual removal, and no longer free: the composition root mounts " +
-			"every route-owning unit through recipe.Registry, and an installed " +
-			"recipe's generated registration calls it too, so deleting the " +
-			"package breaks the web build as well as cmd/gogogo. " +
-			"docs/research/extensibility-2026-11.md records why it stays.",
+		Note: "Core: the composition root mounts every route-owning unit " +
+			"through recipe.Registry, and an installed recipe's generated " +
+			"registration calls it too, so deleting the package breaks the " +
+			"web build as well as cmd/gogogo. docs/research/extensibility-2026-11.md " +
+			"records why it stays.",
 	},
 	{
 		ID:      "queue",

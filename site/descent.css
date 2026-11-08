@@ -482,8 +482,8 @@ code {
 .band:not([data-active]):hover { filter: brightness(1.04); }
 
 .band-contact { --tint: #e2edf5; }
-.band-features { --tint: #cfe0ec; }
-.band-plugins { --tint: #b9d0e0; }
+.band-recipes { --tint: #cfe0ec; }
+.band-servants { --tint: #b9d0e0; }
 .band-core { --tint: #a3bfd4; }
 .band-tests {
   --tint: #8dabc4;
@@ -1707,8 +1707,8 @@ html:not(.js) .try-remove { display: none; }
 }
 
 .b-agent { color: var(--ink); }
-.b-feature { color: #3f7a54; border-color: rgba(63, 122, 84, .3); }
-.b-plugin { color: #8a5a10; border-color: rgba(138, 90, 16, .35); }
+.b-recipe { color: #3f7a54; border-color: rgba(63, 122, 84, .3); }
+.b-servant { color: #8a5a10; border-color: rgba(138, 90, 16, .35); }
 .b-core { color: var(--accent); border-color: rgba(185, 61, 32, .3); }
 .b-proof { color: #356a8a; border-color: rgba(53, 106, 138, .3); }
 .b-gate { color: #6b4a8a; border-color: rgba(107, 74, 138, .3); }

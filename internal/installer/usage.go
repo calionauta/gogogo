@@ -8,11 +8,13 @@ import (
 	"io"
 )
 
-// printBuildGuidance keeps the three shared guidance blocks out of the
+// printBuildGuidance keeps the shared guidance blocks out of the
 // already-long PrintUsage body (funlen).
 func printBuildGuidance(w io.Writer) {
 	fmt.Fprintln(w, "\n"+SyncPrerequisites)
 	fmt.Fprintln(w, "\n"+DesktopPrerequisites)
+	fmt.Fprintln(w, "\n"+GuiPrerequisites)
+	fmt.Fprintln(w, "\n"+MygoPrerequisites)
 	fmt.Fprintln(w, "\n"+MobilePrerequisites)
 }
 
@@ -119,11 +121,10 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
        With --run it skips the printing and becomes dev itself: execs
        make dev in the new checkout (humans only; agents must not).
 
-  Capabilities (id, kind). Kind follows the servant principle, not the
-  directory: a plugin serves other capabilities (sounds, credits serve pages);
-  a feature is a terminal user surface (todo, whiteboard, landing, config).
-  Every capability ships in the scaffold; manual removal is recorded by the
-  registry's per-unit Reason.`)
+  Capabilities (id, kind). plugin (site: Servant) serves other
+  capabilities; feature (site: Recipe) is a terminal user surface. core
+  is load-bearing, including the recipe engine. Every capability ships
+  in the scaffold; manual removal is recorded per-unit Reason.`)
 	printUsageTail(w, fs)
 }
 
