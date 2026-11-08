@@ -16,6 +16,7 @@ import (
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/internal/auth"
+	"github.com/calionauta/gogogo/internal/collab"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/queue"
@@ -52,6 +53,16 @@ type Deps struct {
 	// nil in a caller that offers no slots, and Add is nil-safe on the
 	// registry, so a recipe registers unconditionally.
 	Slots *recipe.SlotRegistry
+	// Persister is the shared Loro snapshot store (whiteboard+notes).
+	// Nil in callers that offer no collab — Register must tolerate nil
+	// by building a local fallback.
+	Persister collab.Persister
+	// DocStore is the shared Loro doc cache. Nil-safe: Register builds a
+	// local store when the root offered none (tests).
+	DocStore *collab.DocStore
+	// Presence is the shared presence seam both collaborative features
+	// use. Nil keeps the handler's own PeerSet fallback.
+	Presence collab.PresenceSeam
 }
 
 // Func is what a recipe package exports as `Register`. The generated

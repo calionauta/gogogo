@@ -13,9 +13,7 @@ import (
 	"github.com/calionauta/gogogo/config"
 	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
 	chatstore "github.com/calionauta/gogogo/features/chat/store"
-	noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"
 	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
-	wbhandlers "github.com/calionauta/gogogo/features/whiteboard/handlers"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/db"
@@ -62,10 +60,9 @@ func buildMuxFixture(t *testing.T) *muxFixture {
 	mux := buildChiMux(a, register.Deps{
 		Cfg: cfg, Auth: a, Queries: dbgen.New(sqlDB),
 		Hub: queue.NewSSEHub(), SQLDB: sqlDB,
-		RealLLM: newReviewHandlerForTestLLM(),
+		RealLLM:   newReviewHandlerForTestLLM(),
+		Persister: persister, DocStore: docs,
 	}, todoH,
-		wbhandlers.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister, docs, cfg),
-		noteshandlers.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister, docs, cfg),
 		chathandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(),
 			stubResponder{raw: "{}"}),
 	)

@@ -442,7 +442,8 @@ var All = append([]Capability{
 			depCollab,
 			depSounds,
 		},
-		Dirs: []string{"features/whiteboard"},
+		Dirs:     []string{"features/whiteboard"},
+		Register: "features/whiteboard/handlers",
 		// The presence wiring is whiteboard+notes infrastructure: with both
 		// gone there is no seam to build, no roster to federate, and no
 		// collab import left in the server package.
@@ -464,12 +465,13 @@ var All = append([]Capability{
 			depCollab,
 			depSounds,
 		},
-		Dirs: []string{"features/notes"},
-		Note: "Manual removal (or trim the whiteboard unit, which covers " +
-			"whiteboard+collab+notes): delete the dir + the notes roots in " +
-			"buildChiMux (internal/server/chi.go), remove the Notes " +
-			"sidebar entry in internal/ui/modules.go, and remove " +
-			"this entry.",
+		Dirs:     []string{"features/notes"},
+		Register: "features/notes/handlers",
+		Reason: "Delete the dir, the routes it mounts through the seam, and the " +
+			"Notes entry in internal/ui/modules.go.",
+		Warns: []string{
+			"The Notes sidebar entry is removed by hand with the unit.",
+		},
 	},
 	{
 		ID:      "landing",

@@ -8,8 +8,10 @@ import (
 	creditshandlers "github.com/calionauta/gogogo/features/credits/handlers"
 	dashboardhandlers "github.com/calionauta/gogogo/features/dashboard/handlers"
 	landinghandlers "github.com/calionauta/gogogo/features/landing/handlers"
+	noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"
 	reviewhandlers "github.com/calionauta/gogogo/features/review/handlers"
 	roomhandlers "github.com/calionauta/gogogo/features/room/handlers"
+	whiteboardhandlers "github.com/calionauta/gogogo/features/whiteboard/handlers"
 
 	"github.com/calionauta/gogogo/internal/recipe"
 	"github.com/calionauta/gogogo/internal/recipe/register"
@@ -24,8 +26,10 @@ var bundledUnits = []register.Func{
 	creditshandlers.Register,
 	dashboardhandlers.Register,
 	landinghandlers.Register,
+	noteshandlers.Register,
 	reviewhandlers.Register,
 	roomhandlers.Register,
+	whiteboardhandlers.Register,
 }
 
 // registerBundledUnits is the one generated call the composition root makes for

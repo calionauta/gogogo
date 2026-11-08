@@ -7,7 +7,7 @@ Sem task tool no OpenCode; este arquivo é a lista. Marcar `[x]` ao concluir, co
 - [x] Fase 2a: review self-mounting (`33c7958f`)
 - [x] Fase 2b: credits self-mounting (ledger + `Service.Start` + shutdown via `Deps.OnShutdown`)
 - [x] Fase 2c: room self-mounting (GoAkt host + shutdown via `Deps.OnShutdown`)
-- [ ] Fase 2d: whiteboard+notes self-mounting (Persister+DocStore+federated via Deps)
+- [x] Fase 2d: whiteboard+notes self-mounting (Persister+DocStore+federated via Deps)
 - [ ] Fase 2e: chat self-mounting (bootAI: panels+actions+router+queue)
 - [ ] Fase 2f: todo self-mounting (display/search/LLM/onboarding/consumer/health via `Service`)
 - [ ] Fase 3: notifications self-mounting (bootInbox) + graph/license (se já forem recipe)

@@ -32,12 +32,10 @@ import (
 	"github.com/calionauta/gogogo/config"
 	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
 	"github.com/calionauta/gogogo/features/notes"
-	noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"
 	notificationshandlers "github.com/calionauta/gogogo/features/notifications/handlers"
 	"github.com/calionauta/gogogo/features/onboarding"
 	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 	"github.com/calionauta/gogogo/features/whiteboard"
-	wbhandlers "github.com/calionauta/gogogo/features/whiteboard/handlers"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/db"
@@ -174,11 +172,6 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	onboardingH, onbShutdown := bootOnboarding(cfg, a, todoH, hub)
 	shutdown = append(shutdown, onbShutdown...)
 
-	// roomHost is read by the graph mount and the presence upgrade from
-	// the process default (room Register set it at boot); nil when the
-	// room recipe registered nothing (GoAkt off or host start failed).
-	roomHost := appgoakt.Default()
-
 	// One slot registry for the boot: the AI panel renders the SAME row.
 	slots := recipe.NewSlotRegistry()
 	realLLM, simulatedLLM := wireTodoLLM(todoH, chiQ, cfg)
@@ -196,33 +189,34 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	if perr != nil {
 		return bootFail(cancelConsumer, sqlDB, "collab snapshots", perr)
 	}
-	wbH := wbhandlers.NewHandler(queries, a, hub, persister, docs, cfg)
-	notesH := noteshandlers.NewHandler(queries, a, hub, persister, docs, cfg)
 	// Collaborator presence: ONE local seam for both features (the actor when
 	// GoAkt runs, the in-process PeerSet otherwise), so a deployment cannot end
 	// up with two rosters that disagree about the same tab. It is federated
 	// across instances in AttachPresenceFederation once NATS exists.
 	federated := bootPresence(hub)
-	// trim:presence-actor
-	if roomHost != nil {
-		upgradePresenceToActor(federated, appgoakt.NewDocPresence(roomHost))
-	}
-	wbH.SetPresence(federated)
-	notesH.SetPresence(federated)
 	// One argument per line: a trim drops its features' lines, nothing else.
 	mux := buildChiMux(a,
 		register.Deps{
 			Cfg: cfg, Auth: a, Queries: queries, Hub: hub, Queue: chiQ,
 			RealLLM: realLLM, SimulatedLLM: simulatedLLM,
 			OnShutdown: onShutdown, Slots: slots, SQLDB: sqlDB,
+			Persister: persister, DocStore: docs, Presence: federated,
 		},
 		todoH,
-		wbH,
-		notesH,
 		chatH,
 	)
 	if mux.recipeErr != nil {
 		return bootFail(cancelConsumer, sqlDB, "recipes", mux.recipeErr)
+	}
+	// roomHost is read by the graph mount and the presence upgrade from
+	// the process default (room Register set it during bootRecipes above);
+	// nil when the room recipe registered nothing (GoAkt off or host start
+	// failed). The upgrade mutates the shared federated object the two
+	// collab handlers already hold, so ordering after buildChiMux is correct.
+	roomHost := appgoakt.Default()
+	// trim:presence-actor
+	if roomHost != nil {
+		upgradePresenceToActor(federated, appgoakt.NewDocPresence(roomHost))
 	}
 	mountOnboarding(mux, onboardingH)
 	// Distribution axes (open auth + activation gate). Mounted here because
@@ -380,8 +374,6 @@ func mountOnboarding(r *Router, onboardingH *onboarding.Handler) {
 // on the same page every unmatched URL already has.
 func buildChiMux(
 	a *auth.Auth, deps register.Deps, todoH *todohandlers.Handler,
-	wbH *wbhandlers.Handler,
-	notesH *noteshandlers.Handler,
 	chatH *chathandlers.Handler,
 ) *Router {
 	r := NewRouter()
@@ -401,8 +393,6 @@ func buildChiMux(
 	// Installed recipes mount through the seam.
 	r.recipes = &recipe.Registry{}
 	r.recipes.Add(todoH.Recipe())
-	r.recipes.Add(notesH.Recipe())
-	r.recipes.Add(wbH.Recipe())
 	// Units that mount themselves (Capability.Register) are registered by the
 	// generated list in units.gen.go, not constructed here.
 	bootInbox(r, deps)

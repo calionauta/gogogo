@@ -15,9 +15,7 @@ import (
 	"github.com/calionauta/gogogo/config"
 	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
 	chatstore "github.com/calionauta/gogogo/features/chat/store"
-	noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"
 	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
-	wbhandlers "github.com/calionauta/gogogo/features/whiteboard/handlers"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/db"
@@ -201,10 +199,12 @@ func TestBuildChiMuxRoomDisabledPinsRouteAbsence(t *testing.T) {
 	docs := collab.NewDocStore()
 	hub := queue.NewSSEHub()
 	mux := buildChiMux(
-		a, register.Deps{Cfg: cfg, Auth: a, Queries: q, Hub: hub, RealLLM: newReviewHandlerForTestLLM()},
+		a,
+		register.Deps{
+			Cfg: cfg, Auth: a, Queries: q, Hub: hub,
+			RealLLM: newReviewHandlerForTestLLM(), Persister: persister, DocStore: docs,
+		},
 		todohandlers.NewHandler(q, a, hub),
-		wbhandlers.NewHandler(q, a, hub, persister, docs, cfg),
-		noteshandlers.NewHandler(q, a, hub, persister, docs, cfg),
 		chathandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(),
 			stubResponder{raw: "{}"}),
 	)
