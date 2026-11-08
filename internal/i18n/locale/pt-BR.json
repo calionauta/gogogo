@@ -1,0 +1,16 @@
+{
+  "home.title": "Início",
+  "nav.modules": "Módulos",
+  "nav.todo": "Tarefas",
+  "nav.board": "Quadro",
+  "nav.notes": "Notas",
+  "nav.chat": "Chat",
+  "todo.tasks": "Tarefas",
+  "todo.filter.all": "Todas",
+  "todo.filter.active": "Ativas",
+  "todo.filter.completed": "Concluídas",
+  "todo.empty.title": "Nenhuma tarefa por aqui ainda.",
+  "todo.empty.body": "Adicione uma abaixo para começar.",
+  "inbox.unread.one": "{{.Count}} não lida",
+  "inbox.unread.other": "{{.Count}} não lidas"
+}

@@ -273,4 +273,9 @@ type Config struct {
 	// removable; the default (substring) is the layer that survives its
 	// removal. See config/search.go and docs/configuration.md.
 	Search SearchConfig
+
+	// I18n holds the localization settings (I18N_* env). The
+	// plugin is removable; disabled keeps English markup. See
+	// config/i18n.go and docs/configuration.md.
+	I18n I18NConfig
 }

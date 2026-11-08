@@ -38,6 +38,14 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 
 | `SEARCH_MODE` | `substring` | **Default** todo search layer: `substring`, `fuzzy` or `bm25` (see [Search](search.md)). **All three are always wired** and the search box's `Match` picker switches between them per request, so this value only decides which one a tab starts on. `bm25` therefore always writes an index (one postings row per distinct term per mutation); set `SEARCH_MODE=substring` and leave the picker alone if you want searches that cost no writes. An unknown value logs a warning and falls back to `substring` rather than failing the boot — a typo must never make the server unbootable. On upgrade, a boot-time heal re-indexes rows that predate the index, because postings are a cache of a Go stemming function and SQL cannot rebuild them. |
 
+### Localization
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `I18N_ENABLED` | `false` | Master switch for the localization plugin. `false` keeps English markup; `true` enables locale resolution (query `lang`, locale cookie, then `Accept-Language`) and translated strings where a phase has converted them. |
+| `SUPPORTED_LOCALES` | `en,pt-BR` | Comma-separated locale tags the catalog loader must find. Invalid entries are skipped; the fallback must be in this list or it resets to `en`. |
+| `DEFAULT_LOCALE` | `en` | Fallback locale when no preference matches. Must be one of `SUPPORTED_LOCALES`. |
+
 ### Realtime and workflows
 
 | Variable | Default | Purpose |

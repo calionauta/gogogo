@@ -1,0 +1,66 @@
+// The one place the localization plugin meets the
+// composition root. Split from chi.go for the function-length
+// gate, mirroring bootSearch.
+//
+// The plugin is removable: this file plus the registry entry
+// are the whole seam. With the flag off the handler is
+// untouched (identical behavior); templates render the
+// embedded English catalog through the same ctx helpers.
+package server
+
+import (
+	"fmt"
+	"log/slog"
+	"net/http"
+	"strings"
+
+	"github.com/calionauta/gogogo/config"
+	"github.com/calionauta/gogogo/internal/i18n"
+)
+
+// bootI18N builds the request catalog once. Nil catalog
+// means disabled; templates fall back to the embedded
+// English catalog through CatalogFromContext.
+func bootI18N(cfg *config.Config) (*i18n.Catalog, error) {
+	if !cfg.I18n.Enabled {
+		return nil, nil
+	}
+	supported, err := i18n.ParseSupported(joinConfigSupported(cfg.I18n.Supported))
+	if err != nil {
+		return nil, fmt.Errorf("server: i18n supported %q: %w",
+			joinConfigSupported(cfg.I18n.Supported), err)
+	}
+	cat, err := i18n.LoadBundled(supported, cfg.I18n.Default)
+	if err != nil {
+		return nil, fmt.Errorf("server: i18n catalog: %w", err)
+	}
+	return cat, nil
+}
+
+// applyI18N loads the request catalog and wraps next with
+// locale resolution. Disabled is a pass-through: no context
+// change, no response change. A bad catalog degrades to
+// English with a warning rather than refusing the boot.
+func applyI18N(cfg *config.Config, next http.Handler) http.Handler {
+	cat, err := bootI18N(cfg)
+	if err != nil {
+		slog.Warn("server: i18n catalog, using default", "error", err)
+		return next
+	}
+	if !cfg.I18n.Enabled || cat == nil {
+		return next
+	}
+	supported, err := i18n.ParseSupported(joinConfigSupported(cfg.I18n.Supported))
+	if err != nil {
+		slog.Warn("server: i18n supported, using default", "error", err)
+		return next
+	}
+	return i18n.CatalogMiddleware(cat, supported, cfg.I18n.Default, next)
+}
+
+func joinConfigSupported(supported []string) string {
+	if len(supported) == 0 {
+		return "en"
+	}
+	return strings.Join(supported, ",")
+}

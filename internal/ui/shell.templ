@@ -15,6 +15,7 @@ package ui
 import (
 	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/internal/components"
+	"github.com/calionauta/gogogo/internal/i18n"
 	"github.com/calionauta/gogogo/internal/icon"
 	"github.com/calionauta/gogogo/internal/rbac"
 )
@@ -65,7 +66,7 @@ func (d Data) HeadingText() string {
 // dependency (its capability unit deliberately carries none).
 templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.Component, body templ.Component) {
 	<!DOCTYPE html>
-	<html lang="en" { authviews.ThemeRootAttrs(ctx, d.Signals)... }>
+	<html lang={ i18n.Locale(ctx) } { authviews.ThemeRootAttrs(ctx, d.Signals)... }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"/>

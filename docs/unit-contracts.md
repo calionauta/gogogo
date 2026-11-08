@@ -12,8 +12,8 @@ of the file you are about to touch.
 
 ## Registry at a glance
 
-- **Units:** 45 — 15 core · 18 plugin · 12 feature
-- **Manual removal:** 30 (core units are never removed)
+- **Units:** 46 — 15 core · 19 plugin · 12 feature
+- **Manual removal:** 31 (core units are never removed)
 - **Source of truth:** `internal/capabilities/registry.go`; this doc is
   regenerated from it, so the counts above cannot drift.
 
@@ -219,6 +219,16 @@ entity actors (GoAkt: room lease + collaborative presence)
 - **Runtime off:** `GOAKT_ENABLED=false`
 - **Note:** Deletion removes the engine + room demo; collaborative presence (whiteboard AND notes) falls back to the in-process PeerSet behind the same seam, so the cross-instance roster still works. The Room sidebar entry is stripped automatically; main.go boot lines go with the unit's mainStrips.
 - **Warning:** Runtime alternative (no deletion): GOAKT_ENABLED=false.
+
+## `i18n` — plugin
+
+localization seam (embedded catalogs, locale resolution, number/date formatting)
+
+- **Owned:** `internal/i18n`
+- **Runtime off:** `I18N_ENABLED=false (already the default)`
+- **Why that class:** Phase one owns lookup and formatting; CLDR depth is a documented revisit trigger, not an upfront dependency.
+- **Note:** Removable seam: delete internal/i18n plus this entry and the I18n config; the shell keeps rendering the English fallback. Runtime-off is the blessed path until a phase converts markup.
+- **Warning:** With the plugin off, markup stays on English fallbacks; no feature needs the locale context to render.
 
 ## `llm` — plugin
 

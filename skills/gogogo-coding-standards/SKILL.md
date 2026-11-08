@@ -273,6 +273,13 @@ Full rules: `references/datastar.md`.
 - **A package with zero importers is opt-in, not dead.** State that in the
   package doc with the two exits: the trigger that wires it, and the exact
   removal step if it never fires.
+- **Frontend strings go through the localization seam.** UI text is looked
+  up with `internal/i18n.T(ctx, "dominio.chave", nil)` against the catalog
+  in ctx; never hardcode a user-facing string in new markup, and never add a
+  second translation library. The seam owns locale resolution, lookup,
+  plural and number/date formatting — see
+  [`docs/research/i18n-2026-11.md`](../../docs/research/i18n-2026-11.md) and
+  the `I18N_*` rows in [`docs/configuration.md`](../../docs/configuration.md).
 
 ## Two failure shapes no linter catches
 
