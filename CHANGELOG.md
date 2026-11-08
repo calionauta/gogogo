@@ -15,6 +15,26 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.63.0 (2026-11-08)
+
+## What's Changed
+* feat: recipe extensions — installable units, self-mounting units, one removal class by @calionauta in https://github.com/calionauta/gogogo/pull/363
+* chore(ci): bump actions/cache from 4 to 6 in the actions group by @dependabot[bot] in https://github.com/calionauta/gogogo/pull/361
+* chore(deps): bump vendored Pele from 1.12.0 to 1.13.0 by @github-actions[bot] in https://github.com/calionauta/gogogo/pull/362
+* chore(skills): bump vendored stelow coding standards to fdc412a076c5 by @github-actions[bot] in https://github.com/calionauta/gogogo/pull/360
+* feat(review): default judge to THX-02 with SimpleJev fallback by @calionauta in https://github.com/calionauta/gogogo/pull/367
+* feat: recipe version check (outdated verdict + catalog scan) by @calionauta in https://github.com/calionauta/gogogo/pull/369
+* docs(skill): declare when each deferred invoke piece becomes necessary by @calionauta in https://github.com/calionauta/gogogo/pull/365
+* feat(cli): gogogo doctor + generate determinísticos by @calionauta in https://github.com/calionauta/gogogo/pull/370
+* feat(i18n): localization seam with Todo slice (phase 1b) by @calionauta in https://github.com/calionauta/gogogo/pull/371
+* fix(doctor): zig warn, xcode via xcode-select + docs(desktop): auth strategy own vs federated by @calionauta in https://github.com/calionauta/gogogo/pull/372
+* docs(desktop): doctor/generate gaps, PWA manifest, strategy confirm (PWA/MyGo/Wails) by @calionauta in https://github.com/calionauta/gogogo/pull/373
+* feat(graph): panorama with live DagNats runs, presence, and native twins by @calionauta in https://github.com/calionauta/gogogo/pull/366
+* feat(todo): transport-free service layer shared by chi handlers and the native window (rebase of #368) by @calionauta in https://github.com/calionauta/gogogo/pull/374
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.62.1...v0.63.0
+
 ## 0.62.1 (2026-10-31)
 
 ## What's Changed
