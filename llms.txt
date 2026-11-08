@@ -33,6 +33,8 @@
 - AI credits and billing: docs/llm-and-credits.md, features/credits/
 - Installer (scaffold/trim/add units): internal/installer/, cmd/gogogo/README.md
   (`gogogo new feature <name>` scaffolds one unit; MCP equivalent: `new_feature`)
+- Preflight/codegen (read-only checks, deterministic generate): `gogogo doctor --json` + `gogogo generate --check` — see docs/doctor-generate.md, skill ref references/doctor-generate.md
+- Desktop strategy (PWA-only vs Wails / gogpu/ui / MyGo — confirm with operator before changing shell): docs/desktop-mobile.md § Choosing a desktop strategy, § Desktop authentication strategy (own gogogo_auth loopback vs federated OAuth RFC 8252 system browser)
 - Trim presets (minimal/no-ai/no-collab): internal/installer/trim_presets.go (`--preset`)
 - Going without auth/database (fork recipe): docs/no-auth-no-db-recipe.md
 - HTTP route inventory (generated, do not edit): docs/api-routes.md

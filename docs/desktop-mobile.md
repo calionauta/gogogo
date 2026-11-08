@@ -472,6 +472,27 @@ Rule of thumb for new features:
 | Google / GitHub OAuth | **System browser only** | Exchange at loopback, then `gogogo_auth` in desktop webview |
 | Device pairing (RFC 8628, future) | System browser for approval | Local row adopts server `user.id`, token in OS keychain |
 
+## Choosing a desktop strategy — ask the operator
+
+An LLM working in gogogo **must confirm with the operator** before adding or
+removing a native shell, and must not assume the answer:
+
+| operator choice | what to build | what to drop / keep |
+|---|---|---|
+| **PWA only** (no Wails, no gogpu/ui, no MyGo) | Web + PWA manifest (`/static/manifest.webmanifest`), service worker, offline outbox | Drop `cmd/desktop`, `cmd/gui`, `cmd/mobile` (see Dropping note) |
+| **Wails default** (today) | Web + Wails loopback shell on `127.0.0.1` | Keep `cmd/desktop`; `cmd/gui` opt-in native mirror |
+| **MyGo alternative** (opt-in, not default) | Same web via MyGo loopback window + `Bind(store)` native view | Keep web; MyGo is peer shell, not replacement for Templ/DaisyUI |
+
+Ask exactly this, in the operator's language:
+
+> *"Deseja apenas PWA (sem Wails/gogpu/ui/MyGo), ou também um shell nativo?"*
+> Options: (a) PWA only, (b) Wails + web (default), (c) Wails + gogpu/ui native, (d) MyGo + web loopback.
+
+Default if unanswered: **PWA + Wails default** (current template). Mobile
+native (APK/IPA, Keychain/Keystore, deep links) requires explicit operator
+consent — it is opt-in and not built in CI. Never silently add a native
+shell or remove one to "simplify" — confirm first.
+
 ## Native window (gogpu/ui)
 
 `cmd/gui` is a **second frontend over the same backend** (Turso +
@@ -505,6 +526,18 @@ must not parse Datastar DOM patches. Its own writes still go straight to the
 shared store, so they are locally visible on the next refresh but are not
 published to the web tabs; an embedded GUI (`Bus.Subscribe`) or thin-client
 writes are the follow-ups.
+
+**Outbox vs poll (writes vs reads):** the 2s poll above is a *read* fallback, not
+a write queue. The offline outbox is the *write* queue — `web/resources/static/offline-outbox.js`
+stores intent before the request leaves, replays with `Idempotency-Key` when
+the app is open (Background Sync does not exist in Safari/Firefox). For `cmd/gui`,
+today there is **no outbox**: `add()`/`toggle()`/`remove()` run synchronously
+against the local DB and fail visibly when unreachable (`cmd/gui/main.go`
+header: online-only). Adding an outbox there would mean persisting intents
+locally and replaying — worthwhile only when offline edits must converge
+without the server; until then the poll + SSE fallback is the right minimal
+realtime (2026 research: SSE for 1-way push, WebSocket only for bidirectional,
+polling only for infrequent/fallback).
 
 **Rules for `cmd/gui`:** the UI tree is only touched on the UI thread
 (`uiMu` serializes `SetRoot`); background poll produces data under `stateMu`
