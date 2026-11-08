@@ -181,7 +181,7 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 					});
 					// Version badge sync: fetch /health live build evidence.
 					// Static BuildLabel is fallback when offline; /health is truth.
-					(function syncBadge() {
+					window.__gogogoSyncBadge = function () {
 						var el = document.getElementById("gogogo-build-badge");
 						if (!el) return;
 						fetch("/health", { cache: "no-store" })
@@ -194,10 +194,10 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 								el.title = b + " (deployed, synced via /health)";
 							})
 							.catch(function () { /* keep static label */ });
-					})();
-					syncBadge();
-					window.addEventListener("online", syncBadge);
-					window.addEventListener("focus", syncBadge);
+					};
+					window.__gogogoSyncBadge();
+					window.addEventListener("online", window.__gogogoSyncBadge);
+					window.addEventListener("focus", window.__gogogoSyncBadge);
 				</script>
 				<div class="app-rail-backdrop" style="display:none" data-show="$railOpen" data-on:click="$railOpen = false; window.__gogogoDrawerReturn()"></div>
 				// The badge route is `user`+ in policy.csv: a viewer's poll is a
