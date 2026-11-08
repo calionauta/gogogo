@@ -36,15 +36,18 @@ const (
 	// Field keys used 3+ times across mask.go + safe_view.go.
 	// Centralised so goconst stops flagging the same string in
 	// each map literal / row() argument.
-	keyAppName      = "AppName"
-	keyBuildLabel   = "BuildLabel"
-	keyBuildCommit  = "BuildCommit"
-	keyDataDir      = "DataDir"
-	keyAPIKey       = "APIKey"
-	keyModel        = "Model"
-	keyJevAPIURL    = "APIURL"
-	keyJevTimeout   = "Timeout"
-	keyJevThreshold = "ConfidenceThreshold"
+	keyAppName           = "AppName"
+	keyBuildLabel        = "BuildLabel"
+	keyBuildCommit       = "BuildCommit"
+	keyDataDir           = "DataDir"
+	keyAPIKey            = "APIKey"
+	keyModel             = "Model"
+	keyJevAPIURL         = "APIURL"
+	keyJevTimeout        = "Timeout"
+	keyJevThreshold      = "ConfidenceThreshold"
+	keyJevFallbackAPIKey = "FallbackAPIKey"
+	keyJevFallbackAPIURL = "FallbackAPIURL"
+	keyJevFallbackModel  = "FallbackModel"
 )
 
 // masked returns a partial-mask of v suitable for display. The
@@ -120,6 +123,9 @@ var envMap = map[string]map[string]string{
 		keyAPIKey:             "JEV_API_KEY",
 		"APIURL":              "JEV_API_URL",
 		keyModel:              "JEV_MODEL",
+		keyJevFallbackAPIKey:  "JEV_FALLBACK_API_KEY",
+		keyJevFallbackAPIURL:  "JEV_FALLBACK_API_URL",
+		keyJevFallbackModel:   "JEV_FALLBACK_MODEL",
 		"Timeout":             "JEV_TIMEOUT",
 		"ConfidenceThreshold": "JEV_CONFIDENCE_THRESHOLD",
 	},
@@ -171,7 +177,7 @@ func safeValue(group, key string) bool {
 	case groupAI:
 		return key == "BaseURL" || key == keyModel
 	case groupReview:
-		return key != keyAPIKey
+		return key != keyAPIKey && key != keyJevFallbackAPIKey
 	case groupNATS:
 		return key != "LeafNodeURL"
 	case groupDagNats:

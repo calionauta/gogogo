@@ -46,7 +46,7 @@ type Handler struct {
 // NewHandler builds the review handler. Nil deps panic: wire errors
 // surface at boot, not per request. g is the shared Genkit instance
 // (one per process); model is the gogogo/llm action; judge is the
-// jev-compatible backend (real *jev.Client or a test stub).
+// jev-compatible backend (the primary→fallback chain or a test stub).
 func NewHandler(cfg *config.Config, a *auth.Auth, r *Runner, llmClient *llm.Client) *Handler {
 	if cfg == nil || a == nil || r == nil || llmClient == nil {
 		panic("review chi: NewHandler with nil dependency")

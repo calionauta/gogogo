@@ -75,17 +75,20 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `JEV_API_URL` | SimpleJev keyless demo (`.../v1/classifier`) | Any jev-compatible endpoint (`POST {state,model,questions}`): TypeSafe, self-hosted SimpleJev, tensai. Bare hosts expand to `/v1/systemone` |
-| `JEV_MODEL` | SimpleJev demo classifier | Judge model ID served by the endpoint |
-| `JEV_API_KEY` | unset | Judge credential (age-encrypted secrets file). Empty = keyless demo, no `Authorization` header |
-| `JEV_TIMEOUT` | `10s` | Per-attempt judge HTTP timeout |
+| `JEV_API_URL` | HAL-X THX-02 (`https://api.hal-x.ai/v1/decide`) | Any jev-compatible endpoint (`POST {state,model,questions}`): THX-02, TypeSafe, self-hosted SimpleJev, tensai. Bare hosts expand to `/v1/systemone` |
+| `JEV_MODEL` | `thx-02` | Judge model ID served by the endpoint |
+| `JEV_API_KEY` | unset | Judge credential (age-encrypted secrets file). Empty = keyless free tier (60 decisions/min/IP), no `Authorization` header |
+| `JEV_FALLBACK_API_URL` | SimpleJev keyless demo (`.../v1/classifier`) | Second endpoint, tried when the primary fails |
+| `JEV_FALLBACK_MODEL` | SimpleJev demo classifier | Model ID served by the fallback endpoint |
+| `JEV_FALLBACK_API_KEY` | unset | Fallback credential (age-encrypted). Empty = keyless |
+| `JEV_TIMEOUT` | `10s` | Per-attempt judge HTTP timeout (both legs) |
 | `JEV_CONFIDENCE_THRESHOLD` | `0.7` | Below this the verdict escalates to a human; recalibrate per backend (see [Review loop](review.md)) |
 | `JEV_ROUTER_ENABLED` | `false` | Let the same jev-compatible endpoint choose which component a Chat answer leads with. Off = byte-identical prompt to the router-less one |
 | `JEV_ROUTER_CONFIDENCE_THRESHOLD` | `0.7` | Below this the pick is ignored and the whole catalog is offered |
 | `GENUI_CHAT_SURFACES` | `catalog,custom,native` | Chat's answer surfaces: CSV of `catalog,custom,native` (every band toggles independently). `custom` is `html_block` (model-invented, sanitized markup). `native` is the app's own panels (real rows from the store). `none` is prose-only: the model answers in plain prose and the page still works. `catalog` alone is the strict showcase (unknown types fail closed). The tab toggles the same names per request from the composer. |
 
-The router (`JEV_ROUTER_*`) is opt-in and reuses the endpoint above —
-one jev-compatible API serves the judge and the router, for BOTH AI legs.
+The router (`JEV_ROUTER_*`) is opt-in and reuses the primary→fallback
+chain above — one chain serves the judge and the router, for BOTH AI legs.
 Turning it on adds a leading hint to the prompt; it never removes a
 component from what the model may emit, and every failure (endpoint down,
 low confidence, a label

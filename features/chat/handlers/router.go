@@ -42,8 +42,8 @@ var _ jevClient = (*jev.Client)(nil)
 
 // jevRouter is the production comp.Router: a jev-compatible classifier
 // chooses the component Chat leads with. Endpoint, model, key and timeout
-// ride the shared JEV_* settings the review judge uses — one classifier
-// endpoint for the whole app.
+// ride the shared JEV_* settings the review judge uses — one
+// primary→fallback chain for the whole app.
 type jevRouter struct {
 	client    jevClient
 	threshold float64
@@ -57,12 +57,49 @@ func NewRouter(cfg *config.Config) comp.Router {
 	if cfg == nil || !cfg.ChatRouter.Enabled {
 		return nil
 	}
-	return newJevRouter(jev.NewClient(
+	primary := jev.NewClient(
 		jev.WithURL(jev.Endpoint(cfg.Review.APIURL)),
 		jev.WithModel(cfg.Review.Model),
 		jev.WithAPIKey(cfg.Review.APIKey),
 		jev.WithTimeout(cfg.Review.Timeout),
-	), cfg.ChatRouter.ConfidenceThreshold)
+	)
+	fallback := jev.NewClient(
+		jev.WithURL(jev.Endpoint(cfg.Review.FallbackAPIURL)),
+		jev.WithModel(cfg.Review.FallbackModel),
+		jev.WithAPIKey(cfg.Review.FallbackAPIKey),
+		jev.WithTimeout(cfg.Review.Timeout),
+	)
+	return newJevRouter(&fallbackClient{primary: primary, fallback: fallback}, cfg.ChatRouter.ConfidenceThreshold)
+}
+
+// fallbackClient is the primary→fallback chain, the same shape the
+// review judge uses: THX-02 first, SimpleJev when the primary fails
+// for any reason. A primary answer — even a shy one — is taken as-is;
+// the router's own confidence threshold is the arbiter.
+type fallbackClient struct {
+	primary  jevClient
+	fallback jevClient
+}
+
+// Compile-time check that the chain satisfies the seam.
+var _ jevClient = (*fallbackClient)(nil)
+
+// Evaluate returns the primary answer, or the fallback's when the
+// primary fails. When both fail, the error preserves both causes.
+func (f *fallbackClient) Evaluate(ctx context.Context, state, questions any) (*jev.Response, error) {
+	resp, err := f.primary.Evaluate(ctx, state, questions)
+	if err == nil {
+		return resp, nil
+	}
+	obsArgs := append(observability.WithComponent("genui", "feature"), "primary_error", err)
+	observability.Warn(ctx, "genui: chat router primary failed, trying fallback", obsArgs...)
+	fresp, ferr := f.fallback.Evaluate(ctx, state, questions)
+	if ferr != nil {
+		return nil, fmt.Errorf("genui: chat router primary and fallback both failed: %w",
+			errors.Join(err, ferr))
+	}
+	observability.Info(ctx, "genui: chat router answered via fallback", observability.WithComponent("genui", "feature")...)
+	return fresp, nil
 }
 
 // newJevRouter is the test seam: NewRouter supplies the real client and

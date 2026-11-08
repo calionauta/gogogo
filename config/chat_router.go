@@ -14,9 +14,9 @@ package config
 // same prompt, so the feature can only add a leading hint, never remove
 // a component from what the model may emit.
 //
-// The endpoint itself is not duplicated here: the router reads the same
-// JEV_* settings the review judge uses (see ReviewConfig), so one
-// jev-compatible API serves both.
+// The endpoints themselves are not duplicated here: the router reads
+// the same JEV_* settings the review judge uses (see ReviewConfig),
+// so one primary→fallback chain serves both.
 type ChatRouterConfig struct {
 	// Enabled is JEV_ROUTER_ENABLED (default false).
 	Enabled bool
