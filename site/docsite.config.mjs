@@ -125,6 +125,8 @@ export default {
     desc: "Why the scaffold prompt offers only the installer units, the three lists that disagree, and the Scaffold class that makes every capability an explicit keep-or-drop." },
   { group: "Research", slug: "extensibility", file: "research/extensibility-2026-11.md",
     desc: "Core plus installable extensions evaluated for 2026: why buildmode=plugin is out, why anchor-patching cannot carry N authors, what compile-time registration costs, and the ordered spikes that can kill the idea." },
+  { group: "Research", slug: "i18n", file: "research/i18n-2026-11.md",
+    desc: "UI internationalization: own the seam on the text package, rent CLDR depth only on a trigger. The libraries evaluated, mitigations for their gaps, and the phased, deletable plan." },
   { group: "Ship", slug: "deploy", file: "deploy.md",
     desc: "Server layout, first-time setup, deploy workflow, build pipeline and version badge." },
   { group: "Ship", slug: "desktop-mobile", file: "desktop-mobile.md",
