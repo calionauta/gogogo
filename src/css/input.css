@@ -96,6 +96,11 @@
   }
   .fade-in { animation-name: motion-fade-in; }
   .slide-in-from-left-4 { animation-name: motion-slide-in-left; }
+  /* Only the variants markup actually uses. A new variant needs its
+     keyframe here — markup alone ships an unstyled class (found when
+     slide-in-from-top-2 / bottom-1 were used without a definition). */
+  .slide-in-from-top-2 { animation-name: motion-slide-in-top; }
+  .slide-in-from-bottom-1 { animation-name: motion-slide-in-bottom; }
   .zoom-in-95 { animation-name: motion-zoom-in; }
 
   @keyframes motion-fade-in {
@@ -105,6 +110,14 @@
   @keyframes motion-slide-in-left {
     from { opacity: 0; transform: translateX(-1rem); }
     to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes motion-slide-in-top {
+    from { opacity: 0; transform: translateY(-0.5rem); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes motion-slide-in-bottom {
+    from { opacity: 0; transform: translateY(0.25rem); }
+    to { opacity: 1; transform: translateY(0); }
   }
   @keyframes motion-zoom-in {
     from { opacity: 0; transform: scale(0.95); }
@@ -128,6 +141,36 @@
    would generate these automatically; we keep them here so the
    build is self-documenting. */
 @layer components {
+  /* Dashboard odometer (features/dashboard/components/odo.templ):
+     one .odo-digit slot per decimal digit, each clipping a 0-9 strip.
+     The strip moves with translateY(-Xem) where X is the digit; the
+     count-up itself is driven by window.__gogogoOdo (dashboardHead)
+     via requestAnimationFrame, so the CSS stays transform-only. */
+  .odo {
+    display: inline-flex;
+    font-variant-numeric: tabular-nums;
+    line-height: 1em;
+  }
+  .odo-digit {
+    display: inline-block;
+    height: 1em;
+    overflow: hidden;
+  }
+  .odo-strip {
+    display: flex;
+    flex-direction: column;
+    will-change: transform;
+  }
+  .odo-strip > span {
+    height: 1em;
+    line-height: 1em;
+    text-align: center;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .odo-strip {
+      transition: none;
+    }
+  }
   /* Toasts container (used by features/todo/components/toast.templ
      and layout.templ). Pinned bottom-right, toasts stack upward. */
   #toast-container {

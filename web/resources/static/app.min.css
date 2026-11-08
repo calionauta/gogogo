@@ -8893,6 +8893,12 @@
   .slide-in-from-left-4 {
     animation-name: motion-slide-in-left;
   }
+  .slide-in-from-top-2 {
+    animation-name: motion-slide-in-top;
+  }
+  .slide-in-from-bottom-1 {
+    animation-name: motion-slide-in-bottom;
+  }
   .zoom-in-95 {
     animation-name: motion-zoom-in;
   }
@@ -8912,6 +8918,26 @@
     to {
       opacity: 1;
       transform: translateX(0);
+    }
+  }
+  @keyframes motion-slide-in-top {
+    from {
+      opacity: 0;
+      transform: translateY(-0.5rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes motion-slide-in-bottom {
+    from {
+      opacity: 0;
+      transform: translateY(0.25rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
     }
   }
   @keyframes motion-zoom-in {
@@ -8937,6 +8963,31 @@
   }
 }
 @layer components {
+  .odo {
+    display: inline-flex;
+    font-variant-numeric: tabular-nums;
+    line-height: 1em;
+  }
+  .odo-digit {
+    display: inline-block;
+    height: 1em;
+    overflow: hidden;
+  }
+  .odo-strip {
+    display: flex;
+    flex-direction: column;
+    will-change: transform;
+  }
+  .odo-strip > span {
+    height: 1em;
+    line-height: 1em;
+    text-align: center;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .odo-strip {
+      transition: none;
+    }
+  }
   #toast-container {
     z-index: 100;
     position: fixed;

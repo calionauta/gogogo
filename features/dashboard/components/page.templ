@@ -42,6 +42,73 @@ templ Page(data PageData, buildLabel string, buildCommit string) {
 // work surfaces' head wrappers, and importing the sounds package here would
 // break a trimmed tree that drops the unit.
 templ dashboardHead() {
+	<script nonce={ templ.GetNonce(ctx) }>
+		// Odometer count-up (Odo). No Datastar primitive counts from one
+		// value to another with easing and per-digit roll, so this island
+		// owns the animation only; data-effect remains the trigger and
+		// runs it on load and whenever the signal changes. The value is
+		// stored on the element so a later patch animates from the number
+		// currently on screen, not from zero again. Plain script on purpose:
+		// data-effect evaluates at Datastar init, so the global must exist
+		// before then (deferred modules would run too late).
+		window.__gogogoOdo = function (el, target) {
+			if (!el) return;
+			target = Math.max(0, Math.floor(Number(target) || 0));
+			var prev = el.dataset.value ? Number(el.dataset.value) : 0;
+			var slots = el.querySelectorAll('.odo-digit');
+			var want = String(target).length;
+			// Rebuild the slots when the digit count grows (9 -> 100) so
+			// the strips can display the longer number at all.
+			if (slots.length !== want) {
+				el.textContent = '';
+				while (el.querySelectorAll('.odo-digit').length < want) {
+					var d = document.createElement('span');
+					d.classList.add('odo-digit');
+					d.setAttribute('aria-hidden', 'true');
+					var strip = document.createElement('span');
+					strip.classList.add('odo-strip');
+					for (var n = 0; n < 10; n++) {
+						var s = document.createElement('span');
+						s.textContent = String(n);
+						strip.appendChild(s);
+					}
+					d.appendChild(strip);
+					el.appendChild(d);
+				}
+			}
+			el.dataset.value = String(target);
+			el.setAttribute('aria-label', String(target));
+			var strips = el.querySelectorAll('.odo-strip');
+			var render = function (n) {
+				var s = String(Math.max(0, Math.floor(n))).padStart(strips.length, '0');
+				for (var i = 0; i < strips.length; i++) {
+					strips[i].style.transform = 'translateY(-' + s[i] + 'em)';
+				}
+			};
+			if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || prev === target) {
+				render(target);
+				return;
+			}
+			// Cancel a still-running count from a previous patch so two
+			// rAF loops never fight over the same strips.
+			if (el.__gogogoOdoRaf) cancelAnimationFrame(el.__gogogoOdoRaf);
+			var dist = Math.abs(target - prev);
+			var dur = Math.min(1500, 600 + Math.log10(Math.max(dist, 1)) * 350);
+			var t0 = performance.now();
+			var tick = function (now) {
+				var p = Math.min(1, (now - t0) / dur);
+				var eased = 1 - Math.pow(1 - p, 3);
+				render(prev + (target - prev) * eased);
+				if (p < 1) {
+					el.__gogogoOdoRaf = requestAnimationFrame(tick);
+				} else {
+					render(target);
+					el.__gogogoOdoRaf = null;
+				}
+			};
+			el.__gogogoOdoRaf = requestAnimationFrame(tick);
+		};
+	</script>
 }
 
 // dashboardSound keeps the shell's sound slot empty on purpose; the shell
@@ -50,14 +117,14 @@ templ dashboardSound() {
 }
 
 templ dashboardBody(data PageData) {
-	<div class="ui-page ui-stack">
+	<div class="ui-page ui-stack" data-signals={ MarshalSignals(Signals{OpenTodos: data.OpenTodos}) }>
 		<section class="ui-card" aria-label="Your summary">
 			<div class="ui-card-body">
 				<h2 class="ui-title">Welcome back</h2>
 				<div class="stats stats-vertical sm:stats-horizontal shadow">
 					<div class="stat">
 						<div class="stat-title">Open todos</div>
-						<div class="stat-value">{ data.OpenTodos }</div>
+						<div class="stat-value">@Odo(data.OpenTodos, "openTodos")</div>
 						<div class="stat-desc">of { data.TotalTodos } total</div>
 						<div class="stat-actions">
 							<a href="/todo" class="btn btn-primary btn-sm">Open Todo</a>
@@ -65,7 +132,7 @@ templ dashboardBody(data PageData) {
 					</div>
 					<div class="stat">
 						<div class="stat-title">Inbox</div>
-						<div class="stat-value">{ data.UnreadInbox }</div>
+						<div class="stat-value">@Odo(data.UnreadInbox, "inboxUnread")</div>
 						<div class="stat-desc">unread messages</div>
 						<div class="stat-actions">
 							<a href="/notifications" class="btn btn-sm">Open Inbox</a>
