@@ -138,6 +138,10 @@ func runSubcommand(ctx context.Context, args []string, stdin io.Reader, stdout i
 		return true, runRecipe(args[1:], stdout)
 	case "extension":
 		return true, runExtension(ctx, args[1:], stdout)
+	case "doctor":
+		return true, runDoctor(args[1:], stdout)
+	case "generate":
+		return true, runGenerate(ctx, args[1:], stdout)
 	}
 	return false, nil
 }

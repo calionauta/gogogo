@@ -118,6 +118,7 @@ manifest, then `make docs-index`; `make check-docs` fails when this block drifts
 - [code-quality](docs/code-quality.md) — The linter set, how to scope it, the Datastar-specific rules, and the ruleguard rules that encode project footguns as CI failures.
 - [troubleshooting](docs/troubleshooting.md) — Symptoms and where they actually come from.
 - [duckdb](docs/duckdb.md) — Query JSONL logs and the Turso file with DuckDB: local operator recipe.
+- [doctor-generate](docs/doctor-generate.md) — Doctor (read-only preflight, JSON for agents) and deterministic generate (templ+sqlc+css+docs) — the LLM-era determinism layer.
 <!-- docs-index:end -->
 
 Plus [ARCHITECTURE.md](ARCHITECTURE.md) — the canonical annotated dependency
