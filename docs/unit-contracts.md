@@ -195,6 +195,13 @@ delivery transport seam: channels (email today) carried by a provider (smtp or a
 - **Runtime off:** `DELIVERY_TRANSPORT=off`
 - **Note:** Without it the inbox still works: the form drops the external channel checkbox, and a delivery that asked for one is recorded skipped/provider. The template ships in_app and email only; other channel values are data a provider may know, not a gogogo surface. in_app is never a sender, which keeps one owner for the inbox.
 
+## `desktopboot` — plugin
+
+shared native-shell boot (migrations, auth+TOTP, demo, instance-id, webview URL)
+
+- **Owned:** `internal/desktopboot`
+- **Note:** Plugin, not core: only cmd/desktop (Wails) and cmd/gui (gogpu/ui) and future native shells read it — cmd/web boots through internal/server. Deleting it drops the shared boot, not the web app.
+
 ## `genkit` — plugin
 
 typed AI flows (Genkit Go): orchestration + traces above internal/llm

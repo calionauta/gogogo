@@ -67,6 +67,7 @@ var ownerFiles = []string{
 	// silently, so both server entries refuse an explicit-but-broken
 	// operator value at boot instead of running half-encrypted.
 	"internal/server/boot_helpers.go",
+	"internal/desktopboot/boot.go",
 	"cmd/gui/main.go",
 	// /config display: AGE_SECRET_KEY boolean-only read (the value
 	// never leaves the process; safe_view_test pins it).
