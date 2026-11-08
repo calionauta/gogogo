@@ -12,6 +12,7 @@ import (
 	noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"
 	reviewhandlers "github.com/calionauta/gogogo/features/review/handlers"
 	roomhandlers "github.com/calionauta/gogogo/features/room/handlers"
+	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 	whiteboardhandlers "github.com/calionauta/gogogo/features/whiteboard/handlers"
 
 	"github.com/calionauta/gogogo/internal/recipe"
@@ -31,6 +32,7 @@ var bundledUnits = []register.Func{
 	noteshandlers.Register,
 	reviewhandlers.Register,
 	roomhandlers.Register,
+	todohandlers.Register,
 	whiteboardhandlers.Register,
 }
 

@@ -17,11 +17,9 @@ var All = append([]Capability{
 		Kind:    KindCore,
 		Summary: "recipe engine: declaration seam, receipt and drift check for installable extensions",
 		Dirs:    []string{"internal/recipe"},
-		Note: "Core: the composition root mounts every route-owning unit " +
-			"through recipe.Registry, and an installed recipe's generated " +
-			"registration calls it too, so deleting the package breaks the " +
-			"web build as well as cmd/gogogo. docs/research/extensibility-2026-11.md " +
-			"records why it stays.",
+		Note: "Core: every route-owning unit mounts through recipe.Registry " +
+			"(plus an installed recipe's generated registration), so deleting it " +
+			"breaks the web build too. docs/research/extensibility-2026-11.md records why it stays.",
 	},
 	{
 		ID:      "queue",
@@ -328,7 +326,7 @@ var All = append([]Capability{
 			"features/todo/handlers/search_heal.go",
 			"features/todo/handlers/search_heal_test.go",
 			"internal/search/sqlindex_inventory.go",
-			"internal/server/boot_search.go",
+			"features/todo/handlers/register.go",
 		},
 		Warns: []string{
 			"A consumer that loses this keeps the SQL substring layer: it " +
@@ -356,6 +354,7 @@ var All = append([]Capability{
 		Recommended: true,
 		Summary:     "Todo MVC demo (reference implementation)",
 		Dirs:        []string{"features/todo"},
+		Register:    "features/todo/handlers",
 		Actions:     []string{"create"},
 		ActionParams: map[string][]string{
 			"create": {"title", "idem_key", "visibility"},

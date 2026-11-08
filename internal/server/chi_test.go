@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/calionauta/gogogo/config"
-	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/db"
@@ -204,9 +203,8 @@ func TestBuildChiMuxRoomDisabledPinsRouteAbsence(t *testing.T) {
 			Cfg: cfg, Auth: a, Queries: q, Hub: hub,
 			RealLLM: newReviewHandlerForTestLLM(), Persister: persister, DocStore: docs,
 			Queue: chiQForTest(t), Slots: slots,
-			Panels: []any{todohandlers.NewTodoPanel(q, slots)},
+			TodoRef: &register.TodoRef{},
 		},
-		todohandlers.NewHandler(q, a, hub),
 	)
 
 	rec := httptest.NewRecorder()

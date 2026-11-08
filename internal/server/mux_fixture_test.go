@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/calionauta/gogogo/config"
-	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/db"
@@ -43,7 +42,6 @@ func buildMuxFixture(t *testing.T) *muxFixture {
 	if aerr != nil {
 		t.Fatalf("auth new: %v", aerr)
 	}
-	todoH := todohandlers.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub())
 	cfg := config.Load()
 	// Retained for combined trims (same rule as the bootCtx retain in chi.go).
 	_ = cfg
@@ -63,8 +61,8 @@ func buildMuxFixture(t *testing.T) *muxFixture {
 		RealLLM:   newReviewHandlerForTestLLM(),
 		Persister: persister, DocStore: docs,
 		Queue: chiQForTest(t), Slots: slots,
-		Panels: []any{todohandlers.NewTodoPanel(dbgen.New(sqlDB), slots)},
-	}, todoH,
+		TodoRef: &register.TodoRef{},
+	},
 	)
 	if mux.recipeErr != nil {
 		t.Fatalf("recipe boot: %v", mux.recipeErr)

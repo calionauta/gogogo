@@ -110,7 +110,7 @@ RBAC with Casbin (embedded model + policy, enforced at the mux)
 recipe engine: declaration seam, receipt and drift check for installable extensions
 
 - **Owned:** `internal/recipe`
-- **Note:** Core: the composition root mounts every route-owning unit through recipe.Registry, and an installed recipe's generated registration calls it too, so deleting the package breaks the web build as well as cmd/gogogo. docs/research/extensibility-2026-11.md records why it stays.
+- **Note:** Core: every route-owning unit mounts through recipe.Registry (plus an installed recipe's generated registration), so deleting the package breaks the web build too. docs/research/extensibility-2026-11.md records why it stays.
 
 ## `secrets` — core
 
@@ -283,7 +283,7 @@ opt-in operator diagnostics: statsviz dashboard + stdlib pprof
 
 search layers (substring, fuzzy, BM25) behind one seam
 
-- **Owned:** `internal/search`, `features/todo/handlers/search_source.go`, `features/todo/handlers/search_source_test.go`, `features/todo/handlers/search_test.go`, `features/todo/handlers/search_mode_test.go`, `features/todo/handlers/search_heal.go`, `features/todo/handlers/search_heal_test.go`, `internal/search/sqlindex_inventory.go`, `internal/server/boot_search.go`
+- **Owned:** `internal/search`, `features/todo/handlers/search_source.go`, `features/todo/handlers/search_source_test.go`, `features/todo/handlers/search_test.go`, `features/todo/handlers/search_mode_test.go`, `features/todo/handlers/search_heal.go`, `features/todo/handlers/search_heal_test.go`, `internal/search/sqlindex_inventory.go`, `features/todo/handlers/register.go`
 - **Store calls:** `dbgen.ListTodosForIndex`, `dbgen.ListVisibleTodos`, `dbgen.SearchTodosVisible`
 - **Note:** No external engine on purpose: this driver ships no FTS5 and no Turso native FTS (tursogo v0.8.2/v0.8.3/v0.9.0-pre.1), and a second index store would put a row's truth in two places.
 - **Warning:** A consumer that loses this keeps the SQL substring layer: it holds a search.Searcher and degrades (that is why it is swappable).

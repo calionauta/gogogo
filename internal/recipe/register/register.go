@@ -12,13 +12,17 @@
 package register
 
 import (
+	"context"
 	"database/sql"
+
+	natsio "github.com/nats-io/nats.go"
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/collab"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/llm"
+	"github.com/calionauta/gogogo/internal/natswire"
 	"github.com/calionauta/gogogo/internal/queue"
 	"github.com/calionauta/gogogo/internal/recipe"
 )
@@ -63,12 +67,30 @@ type Deps struct {
 	// Presence is the shared presence seam both collaborative features
 	// use. Nil keeps the handler's own PeerSet fallback.
 	Presence collab.PresenceSeam
-	// Panels is the chat panel catalog the root built (todo panel,
-	// genui/comp.PanelProvider values carried as any so this contract
-	// stays free of the genui import and a genui trim does not strip
-	// this file). The chat unit asserts and installs; keeping
-	// construction in the root avoids a cross-feature import.
-	Panels []any
+	// TodoRef is the todo slice's handle holder: Register fills the
+	// funcs so the composition root can wire JetStream, onboarding and
+	// the DagNats worker without importing the handlers package (the
+	// self-mounting gate forbids that import). Nil in callers that do
+	// not need the handle — Register must tolerate nil.
+	TodoRef *TodoRef
+}
+
+// OnboardingResumer is what the todo create path needs from the onboarding
+// flow, by method shape only (no import in either direction, same shape
+// handlers/service already use). Register carries it as a func arg type
+// so the root can wire onboarding without naming todo handlers.
+type OnboardingResumer interface {
+	ResumeOnboarding(owner string)
+}
+
+// TodoRef is the todo handle the Register publishes for the root. Funcs
+// close over the handler, so the root never names the concrete type.
+type TodoRef struct {
+	CreateTodoForOnboarding func(ctx context.Context, title, owner string) error
+	SetPublisher            func(pub *natswire.CrudPublisher)
+	RunCrudConsumer         func(ctx context.Context, js natsio.JetStreamContext, appName, instanceID string) error
+	HealSearch              func(ctx context.Context) error
+	SetOnboarding           func(r OnboardingResumer)
 }
 
 // Func is what a recipe package exports as `Register`. The generated

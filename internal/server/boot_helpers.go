@@ -14,17 +14,12 @@ import (
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/authviews"
-	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/collab"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/demo"
-	"github.com/calionauta/gogogo/internal/instance"
-	"github.com/calionauta/gogogo/internal/llm"
-	"github.com/calionauta/gogogo/internal/nats"
 	"github.com/calionauta/gogogo/internal/observability"
-	"github.com/calionauta/gogogo/internal/queue"
 	"github.com/calionauta/gogogo/internal/rbac"
 )
 
@@ -248,39 +243,6 @@ func applyRBAC(
 	return rbac.MiddlewareWithPermissive(a, enforcer, cfg.RBACEnabled, cfg.RBACPermissive)(mux), nil
 }
 
-// wireTodoDisplay copies the display-time config into the todo handler:
-// version badge, offline label and realtime label. Extracted from BootChi
-// to keep boot under the function-length gate; it is plain assignment with
-// no control flow of its own.
-func wireTodoDisplay(todoH *todohandlers.Handler, cfg *config.Config) {
-	todoH.BuildLabel = cfg.BuildLabel
-	todoH.BuildCommit = cfg.BuildCommit
-	todoH.OfflineSyncEnabled = cfg.OfflineSync.Enabled
-	todoH.NATSEnabled = cfg.NATS.Enabled
-	todoH.DemoAccounts = cfg.DemoAccounts
-	todoH.SignupEnabled = cfg.SignupEnabled
-}
-
-// wireTodoLLM builds the LLM clients and attaches the todo slice's queue,
-// suggest and retry handlers. Split out of BootChi for the funlen gate.
-// The clients are both consumed here (todo wiring, always compiled) and
-// returned for the chat construction in BootChi (dropped by the
-// genui trim): either side alone keeps the composition green.
-func wireTodoLLM(todoH *todohandlers.Handler, chiQ *queue.Queue, cfg *config.Config) (real, simulated *llm.Client) {
-	real = llm.New(cfg.GoAI.APIKey)
-	if v := os.Getenv("SIMULATE_LLM"); v != "false" {
-		simulated = llm.NewSimulated()
-	}
-	todoH.SetQueue(chiQ)
-	todoH.SetLLMClient(real)
-	if simulated != nil {
-		todoH.SetSimulatedLLMClient(simulated)
-	}
-	todoH.RegisterSuggestHandlers(chiQ.Registry())
-	todoH.RegisterRetryHandlers(chiQ.Registry())
-	return real, simulated
-}
-
 // promoteAdmins sets users.role='admin' for existing rows matching the
 // operator list (ADMIN_EMAILS). Promotion only, never provisioning: unknown
 // addresses are skipped silently (anyone can claim an unowned address, so
@@ -335,24 +297,6 @@ func wireTOTPKey(a *auth.Auth, cfg *config.Config) error {
 		return fmt.Errorf("server: chi auth: %w", err)
 	}
 	return nil
-}
-
-// startCrudConsumer runs the JetStream CRUD consumer for cross-instance
-// convergence until the boot context is cancelled. It is nil-safe on js
-// (RunCrudConsumer no-ops when NATS is disabled). Split from chi.go for
-// the file-sizes gate; the CRUD indexer it threads through must match the
-// one the HTTP path uses or the two write paths diverge.
-func startCrudConsumer(
-	ctx context.Context, js nats.JetStreamLike, appName string,
-	todoH *todohandlers.Handler,
-) {
-	go func() {
-		if cerr := todohandlers.RunCrudConsumer(
-			ctx, js, appName, instance.ID(), todoH.Q, todoH.Index, todoH.DB, todoH.Bus(),
-		); cerr != nil {
-			slog.Error("server: chi crud consumer stopped", "error", cerr)
-		}
-	}()
 }
 
 // bootFail tears down the two resources every mid-boot failure must release

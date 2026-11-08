@@ -104,8 +104,8 @@ than a stale key.
 ## Trim and degrade
 
 `trim search` removes `internal/search`, the consumer half
-(`features/todo/handlers/search_source.go`) and its tests, the boot helper
-(`internal/server/boot_search.go`), and the one composition-root call.
+(`features/todo/handlers/search_source.go`) and its tests, the wiring in
+`features/todo/handlers/register.go`, and the one composition-root call.
 
 What stays, on purpose: the handler's search slice (`search.go`), the
 `/api/todos/search` endpoint, the `SEARCH_MODE` knob, and the template's box.
@@ -129,8 +129,7 @@ with a raw name until `searchModeLabel` gives it a friendly one.
 - `internal/search/` — the plugin: `Searcher`, `New`, `NewAll`, `Modes`,
   `Tokenize`, the three layers, the stemmer, the SQL index.
 - `features/todo/handlers/search*.go` — the consumer half: the source, the read
-  path, the mode vocabulary, the heal.
-- `internal/server/boot_search.go` — the composition root.
+  path, the mode vocabulary, the heal, and the Register wiring.
 - `internal/dbschema/migrations/0011_search.sql` — `search_postings`.
 
 ## Related
