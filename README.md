@@ -189,7 +189,7 @@ dependencies and are left alone.
 | **Realtime for one instance or many** | SSE Hub + NATS JetStream | Per-user record push, plus cross-instance broadcast — including a collaborative presence roster that is the *union* of instances, not a per-pod count |
 | **AI features on any provider** | [GoAI](https://github.com/zendev-sh/goai) + optional [ai-credits](https://github.com/calionauta/ai-credits) | Any OpenAI-compatible provider; optional billing ledger + BYOK |
 | **Secrets encrypted at rest** | [age](https://age-encryption.org) + `~/.secrets/` | Project-scoped local encryption. No vault, no cloud; name scoping is not a sandbox ([security](docs/security.md)) |
-| **Desktop apps on the same backend** | [Wails v3](https://wails.io) + [gogpu/ui](https://github.com/gogpu/ui) | Native shells over the same backend, plus a no-HTTP frontend |
+| **Desktop apps on the same backend** | [Wails v3](https://wails.io) (default) + [gogpu/ui](https://github.com/gogpu/ui) (opt-in native) + [MyGo](https://mygo.egoist.dev) (opt-in loopback shell) + PWA-only option | Native shells over the same backend, plus a no-HTTP frontend; confirm strategy with operator (see `desktop-mobile.md` § Choosing) |
 | **Linting tuned for AI-written code** | [golangci-lint](https://golangci-lint.run) + [datastar-lint](https://github.com/calionauta/datastar-lint) | Tuned for LLM-authored code: unchecked errors, context leaks, lost context propagation |
 
 ### Database drivers by target

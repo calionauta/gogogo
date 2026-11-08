@@ -6,7 +6,7 @@ one JSON object `{ok, checks[{id,name,status:pass|warn|fail|skip,version,require
 read-only, `--json` stdout pure, logs stderr, exit 0 ok / 1 fail / 4 usage.
 
 ```
-go run ./cmd/gogogo doctor            # text summary (2 fails = zig + xcode here)
+go run ./cmd/gogogo doctor            # text summary (0 fail on macOS CLT; zig warn if absent)
 go run ./cmd/gogogo doctor --json     # machine-readable for agents/CI
 go run ./cmd/gogogo doctor --only go.version --json
 ```

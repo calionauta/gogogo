@@ -1,0 +1,22 @@
+{
+  "name": "gogogo",
+  "short_name": "gogogo",
+  "start_url": "/todo",
+  "display": "standalone",
+  "background_color": "#1d232a",
+  "theme_color": "#1d232a",
+  "description": "gogogo \u2014 offline-capable web app",
+  "icons": [
+    {
+      "src": "/static/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
