@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/calionauta/gogogo/features/todo"
+	"github.com/calionauta/gogogo/internal/i18n"
 )
 
 // marshalSignals serializes the initial signal set as a JSON string for
@@ -54,7 +55,7 @@ templ TodoList(signals todo.Signals) {
 					<div class="ui-card">
 						<div class="ui-card-head">
 
-							<h2 class="ui-title">Tasks</h2>
+							<h2 class="ui-title">{ i18n.T(ctx, "todo.tasks", nil) }</h2>
 							<span class="badge badge-sm" data-text="$itemCount + ' items'"></span>
 						</div>
 						<div class="ui-card-body ui-stack">
@@ -63,9 +64,9 @@ templ TodoList(signals todo.Signals) {
 
 							<div class="flex flex-wrap items-center gap-2" role="toolbar" aria-label="Task filters">
 								<div class="tabs tabs-box tabs-sm" role="tablist" aria-label="Status filter">
-									<button type="button" role="tab" class="tab" data-on:click={ ui.TodoFilterOn("all") } data-class="{'tab-active': ($filter || 'all') === 'all'}">All</button>
-									<button type="button" role="tab" class="tab" data-on:click={ ui.TodoFilterOn("active") } data-class="{'tab-active': ($filter || 'all') === 'active'}">Active</button>
-									<button type="button" role="tab" class="tab" data-on:click={ ui.TodoFilterOn("completed") } data-class="{'tab-active': ($filter || 'all') === 'completed'}">Completed</button>
+									<button type="button" role="tab" class="tab" data-on:click={ ui.TodoFilterOn("all") } data-class="{'tab-active': ($filter || 'all') === 'all'}">{ i18n.T(ctx, "todo.filter.all", nil) }</button>
+									<button type="button" role="tab" class="tab" data-on:click={ ui.TodoFilterOn("active") } data-class="{'tab-active': ($filter || 'all') === 'active'}">{ i18n.T(ctx, "todo.filter.active", nil) }</button>
+									<button type="button" role="tab" class="tab" data-on:click={ ui.TodoFilterOn("completed") } data-class="{'tab-active': ($filter || 'all') === 'completed'}">{ i18n.T(ctx, "todo.filter.completed", nil) }</button>
 								</div>
 								<select
 									class="select select-sm w-28"
@@ -294,9 +295,9 @@ templ TodoListRegion(signals todo.Signals) {
 				<svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-3 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
 				</svg>
-				<p class="ui-empty-title">No todos here yet.</p>
+				<p class="ui-empty-title">{ i18n.T(ctx, "todo.empty.title", nil) }</p>
 				<p class="ui-empty-body">
-					Add one below to get started.
+					{ i18n.T(ctx, "todo.empty.body", nil) }
 					if !signals.IsViewer {
 						if signals.DagNatsEnabled {
 							Or open Demo mode and use Run durable workflow to create examples.

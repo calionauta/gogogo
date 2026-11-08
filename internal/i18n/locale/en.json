@@ -1,0 +1,16 @@
+{
+  "home.title": "Home",
+  "nav.modules": "Modules",
+  "nav.todo": "Todo",
+  "nav.board": "Board",
+  "nav.notes": "Notes",
+  "nav.chat": "Chat",
+  "todo.tasks": "Tasks",
+  "todo.filter.all": "All",
+  "todo.filter.active": "Active",
+  "todo.filter.completed": "Completed",
+  "todo.empty.title": "No todos here yet.",
+  "todo.empty.body": "Add one below to get started.",
+  "inbox.unread.one": "{{.Count}} unread",
+  "inbox.unread.other": "{{.Count}} unread"
+}

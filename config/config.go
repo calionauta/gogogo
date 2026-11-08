@@ -40,6 +40,11 @@
 //	SEARCH_MODE          (default: "substring") — todo search layer:
 //	                       "substring" | "fuzzy" | "bm25"; unknown values
 //	                       fall back to substring (see config/search.go)
+//	I18N_ENABLED         (default: false) — localization plugin master switch;
+//	                       false keeps English markup, true enables locale
+//	                       resolution (see config/i18n.go)
+//	SUPPORTED_LOCALES    (default: "en,pt-BR") — tags the catalog loads
+//	DEFAULT_LOCALE       (default: "en") — fallback locale
 //	RBAC_ENABLED         (default: false) — opt-in Casbin RBAC middleware;
 //	                       enforces the embedded policy in internal/rbac/casbin
 //	JEV_API_URL          (default: THX-02) — jev-compatible primary judge endpoint
@@ -180,10 +185,9 @@ func Load() *Config {
 	cfg.loadAuthEnv()
 	cfg.loadDeliveryEnv()
 	cfg.loadSearchEnv()
-	cfg.Turso.URL = getEnv("TURSO_DATABASE_URL", "")
+	cfg.loadI18NEnv()
 	cfg.Turso.AuthToken = getEnv("TURSO_AUTH_TOKEN", "")
-	cfg.Turso.DBPath = getEnv("TURSO_DB_PATH", "data/app.db")
-	cfg.ChiAddr = getEnv("CHI_ADDR", "")
+	cfg.loadStorageEnv()
 	cfg.loadReviewEnv()
 	cfg.loadChatRouterEnv()
 	cfg.loadGenUIEnv()
