@@ -44,6 +44,11 @@ type CatalogEntry struct {
 	Files   map[string]string `yaml:"files"`
 	License string            `yaml:"license"`
 	MinCore string            `yaml:"minCore"`
+	// Recommended marks this entry as offered in the installer welcome prompt.
+	// Built-in units publish with Recommended=true so the operator can accept
+	// the install without browsing. Later a version may keep the entry but set
+	// Recommended=false and only list it in the marketplace.
+	Recommended bool `yaml:"recommended,omitempty"`
 	// Register is the repo-relative package exporting `Register`, when the
 	// entry's code mounts through the seam. Empty is a data-only recipe.
 	Register string `yaml:"register,omitempty"`

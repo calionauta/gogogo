@@ -1,0 +1,21 @@
+id: graph
+version: v1.0.0
+source:
+  repo: github.com/calionauta/gogogo
+  ref: c7722900
+files:
+  internal/graph/graph.go: "a67ca87b67a4ab20913a2b9f017a5a4b636dede33e16ecabb8bb091887a2f907"
+license: MIT
+minCore: v0.62.0
+recommended: true
+register: features/graph/handlers
+slots:
+  - dashboard.card
+routes:
+  - method: GET
+    pattern: /graph
+upstreamDeps: []
+reviewedAt: "2026-11-08"
+reviewedBy: "calionauta"
+reviewedAgainst: "master@c7722900"
+notes: "Official reference recipe — system panorama + DagNats presence."
