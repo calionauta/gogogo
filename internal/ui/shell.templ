@@ -101,7 +101,7 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 					<div class="app-rail-brand">
 						<a href="/">gogogo</a>
 						if d.BuildLabel != "" {
-							<span class="app-nav-badge" title={ d.BuildCommit + " · built " + d.BuildLabel }>{ d.BuildLabel }</span>
+							<span class="app-nav-badge" id="gogogo-build-badge" title={ d.BuildCommit + " · built " + d.BuildLabel + " (syncing from /health)" }>{ d.BuildLabel }</span>
 						}
 						<span class="app-rail-brand-spacer"></span>
 						@authviews.ThemeToggle()
@@ -179,6 +179,25 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 						if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
 						else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
 					});
+					// Version badge sync: fetch /health live build evidence.
+					// Static BuildLabel is fallback when offline; /health is truth.
+					(function syncBadge() {
+						var el = document.getElementById("gogogo-build-badge");
+						if (!el) return;
+						fetch("/health", { cache: "no-store" })
+							.then(function (r) { return r.text(); })
+							.then(function (t) {
+								var b = (t || "").trim();
+								if (!b || b === "ok") return;
+								var m = b.match(/^([^-]+)-/);
+								if (m) el.textContent = m[1];
+								el.title = b + " (deployed, synced via /health)";
+							})
+							.catch(function () { /* keep static label */ });
+					})();
+					syncBadge();
+					window.addEventListener("online", syncBadge);
+					window.addEventListener("focus", syncBadge);
 				</script>
 				<div class="app-rail-backdrop" style="display:none" data-show="$railOpen" data-on:click="$railOpen = false; window.__gogogoDrawerReturn()"></div>
 				// The badge route is `user`+ in policy.csv: a viewer's poll is a
