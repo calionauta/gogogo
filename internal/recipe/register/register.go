@@ -63,6 +63,12 @@ type Deps struct {
 	// Presence is the shared presence seam both collaborative features
 	// use. Nil keeps the handler's own PeerSet fallback.
 	Presence collab.PresenceSeam
+	// Panels is the chat panel catalog the root built (todo panel,
+	// genui/comp.PanelProvider values carried as any so this contract
+	// stays free of the genui import and a genui trim does not strip
+	// this file). The chat unit asserts and installs; keeping
+	// construction in the root avoids a cross-feature import.
+	Panels []any
 }
 
 // Func is what a recipe package exports as `Register`. The generated

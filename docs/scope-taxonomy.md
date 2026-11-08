@@ -192,7 +192,7 @@ top-level unit's dirs).
 | `features/sounds/` | 🟡 PLUGIN | Delete the package + its consumers (the checklist lives in `features/sounds/sounds.go`) |
 | `features/credits/` | 🟡 PLUGIN | Optional ledger (`CREDITS_ENABLED=false` already the default) |
 | `features/onboarding/` | 🟡 PLUGIN | The workflow engine side of the durable run — goes with `internal/dagnats/` |
-| `features/genui/` | 🟡 PLUGIN | The rendering capability behind Chat; one bundle with `features/chat/` — delete both + `internal/server/genui_stubs_test.go` |
+| `features/genui/` | 🟡 PLUGIN | The rendering capability behind Chat; one bundle with `features/chat/` — delete both |
 | `features/todo/` | 🟢 FEATURE | Delete package + wiring call |
 | `features/chat/` | 🟢 FEATURE | Bundled into the `genui` unit (chat imports genui components, so both trim together) |
 | `features/review/` | 🟢 FEATURE | Delete package + `bootReview`/`reviewH` lines + `/review` mounts in `internal/server/chi.go` (+ `newReviewHandlerForTest` in its test) + `go mod tidy` (drops genkit + go-jev) |

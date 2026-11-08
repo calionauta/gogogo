@@ -43,8 +43,10 @@ func newPageSource(name, module string) string {
 func editChiGo(src, name, module string) (string, error) {
 	alias := name + "handlers"
 	// The import anchor is module-relative: every real checkout is renamed,
-	// so a hardcoded template path would refuse on the first `new`.
-	importAnchor := "\tconfighandlers \"" + module + "/features/config/handlers\"\n"
+	// so a hardcoded template path would refuse on the first `new`. The todo
+	// import is core (every trimmed tree keeps it), unlike the former config
+	// anchor (config mounts itself and no longer imports in chi.go).
+	importAnchor := "\ttodohandlers \"" + module + "/features/todo/handlers\"\n"
 	var err error
 	if src, err = insertAfter(src, importAnchor,
 		"\t"+alias+" \""+module+"/features/"+name+"/handlers\"\n"); err != nil {

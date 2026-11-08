@@ -11,8 +11,6 @@ import (
 	"testing"
 
 	"github.com/calionauta/gogogo/config"
-	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
-	chatstore "github.com/calionauta/gogogo/features/chat/store"
 	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/collab"
@@ -20,6 +18,7 @@ import (
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/queue"
+	"github.com/calionauta/gogogo/internal/recipe"
 	"github.com/calionauta/gogogo/internal/recipe/register"
 )
 
@@ -53,6 +52,7 @@ func buildMuxFixture(t *testing.T) *muxFixture {
 		t.Fatalf("persister: %v", perr)
 	}
 	docs := collab.NewDocStore()
+	slots := recipe.NewSlotRegistry()
 	// SQLDB is what the recipe step migrates: without it a recipe that ships
 	// DDL cannot apply its schema, and the composition below would be built
 	// with the recipe step failed and every seam-mounted route (todo's
@@ -62,9 +62,9 @@ func buildMuxFixture(t *testing.T) *muxFixture {
 		Hub: queue.NewSSEHub(), SQLDB: sqlDB,
 		RealLLM:   newReviewHandlerForTestLLM(),
 		Persister: persister, DocStore: docs,
+		Queue: chiQForTest(t), Slots: slots,
+		Panels: []any{todohandlers.NewTodoPanel(dbgen.New(sqlDB), slots)},
 	}, todoH,
-		chathandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(),
-			stubResponder{raw: "{}"}),
 	)
 	if mux.recipeErr != nil {
 		t.Fatalf("recipe boot: %v", mux.recipeErr)

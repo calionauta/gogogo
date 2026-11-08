@@ -219,7 +219,7 @@ typed AI flows (Genkit Go): orchestration + traces above internal/llm
 
 generative UI: the Chat demo renders LLM answers as Templ directives over the SSE hub
 
-- **Owned:** `features/genui`, `internal/server/genui_stubs_test.go`, `features/todo/handlers/genui_panel.go`, `features/todo/handlers/genui_panel_test.go`, `features/todo/handlers/genui_owner_test.go`, `features/todo/handlers/panel_action.go`, `features/todo/handlers/panel_action_test.go`, `features/config/components/safe_view_catalog_test.go`, `features/todo/panel.go`, `features/todo/panel_filter_test.go`, `features/todo/components/panel.templ`, `features/todo/components/panel_templ.go`, `features/todo/components/panel_delete_test.go`, `web/resources/static/pele.global.js`, `web/resources/static/diagram.js`
+- **Owned:** `features/genui`, `features/todo/handlers/genui_panel.go`, `features/todo/handlers/genui_panel_test.go`, `features/todo/handlers/genui_owner_test.go`, `features/todo/handlers/panel_action.go`, `features/todo/handlers/panel_action_test.go`, `features/config/components/safe_view_catalog_test.go`, `features/todo/panel.go`, `features/todo/panel_filter_test.go`, `features/todo/components/panel.templ`, `features/todo/components/panel_templ.go`, `features/todo/components/panel_delete_test.go`, `web/resources/static/pele.global.js`, `web/resources/static/diagram.js`
 - **Store calls:** `dbgen.ListTodosByOwner`
 - **Note:** Deletion removes the Chat demo (one bundle: chat imports genui components, so chat without genui does not compile — same honest shape as whiteboard+collab+notes). The Chat sidebar entry is stripped automatically.
 - **Warning:** ci-local smoke: export SMOKE_FEATURES without genui (e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the trimmed route.
@@ -371,7 +371,8 @@ shared plain-text notes (server-owned Loro Text + SSE)
 - **Routes:** `/api/notes/fragment`, `/api/notes/{docID}/caret`, `/api/notes/{docID}/delete`, `/api/notes/{docID}/leave`, `/api/notes/{docID}/op`, `/api/notes/{docID}/stream`, `/api/notes/{docID}/typing`, `/notes`, `/notes/new`, `/notes/{docID}`
 - **Store calls:** `dbgen.DeleteNote`, `dbgen.GetNoteMeta`, `dbgen.ListNotes`, `dbgen.UpsertNote`
 - **Depends on:** collab, sounds
-- **Note:** Manual removal (or trim the whiteboard unit, which covers whiteboard+collab+notes): delete the dir + the notes roots in buildChiMux (internal/server/chi.go), remove the Notes sidebar entry in internal/ui/modules.go, and remove this entry.
+- **Why that class:** Delete the dir, the routes it mounts through the seam, and the Notes entry in internal/ui/modules.go.
+- **Warning:** The Notes sidebar entry is removed by hand with the unit.
 
 ## `notifications` — feature
 

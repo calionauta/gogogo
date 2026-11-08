@@ -30,7 +30,6 @@ import (
 	natsio "github.com/nats-io/nats.go"
 
 	"github.com/calionauta/gogogo/config"
-	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
 	"github.com/calionauta/gogogo/features/notes"
 	notificationshandlers "github.com/calionauta/gogogo/features/notifications/handlers"
 	"github.com/calionauta/gogogo/features/onboarding"
@@ -178,11 +177,10 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// Retained for the trimmed tree: the genui trim drops the constructions
 	// below, and an unused local would not compile there.
 	_, _ = realLLM, simulatedLLM
-	chatH, err := bootAI(cfg, a, chiQ, hub, realLLM, simulatedLLM, queries, slots)
-	if err != nil {
-		cancelConsumer()
-		return nil, err
-	}
+	// Chat panel catalog: the todo panel the chat unit installs globally.
+	// Built here (not in chat Register) to keep the seam free of a chat→todo
+	// cross-feature import; Deps.Panels carries it in as any.
+	panels := []any{todohandlers.NewTodoPanel(queries, slots)}
 	chiQ.StartWorkers()
 
 	persister, docs, perr := bootCollab(cfg, queries)
@@ -201,9 +199,9 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 			RealLLM: realLLM, SimulatedLLM: simulatedLLM,
 			OnShutdown: onShutdown, Slots: slots, SQLDB: sqlDB,
 			Persister: persister, DocStore: docs, Presence: federated,
+			Panels: panels,
 		},
 		todoH,
-		chatH,
 	)
 	if mux.recipeErr != nil {
 		return bootFail(cancelConsumer, sqlDB, "recipes", mux.recipeErr)
@@ -374,7 +372,6 @@ func mountOnboarding(r *Router, onboardingH *onboarding.Handler) {
 // on the same page every unmatched URL already has.
 func buildChiMux(
 	a *auth.Auth, deps register.Deps, todoH *todohandlers.Handler,
-	chatH *chathandlers.Handler,
 ) *Router {
 	r := NewRouter()
 	// A panic in a handler answers 500 instead of dropping the connection and
@@ -389,7 +386,6 @@ func buildChiMux(
 	// long-lived SSE the banner holds open and it only hears about changes.
 	MountPath(r, "/api/session/stream", a.SessionStreamHandler())
 
-	r.MountFeature("chat", chatH.Routes())
 	// Installed recipes mount through the seam.
 	r.recipes = &recipe.Registry{}
 	r.recipes.Add(todoH.Recipe())

@@ -229,11 +229,10 @@ var All = append([]Capability{
 		Kind:    KindPlugin,
 		Summary: "generative UI: the Chat demo renders LLM answers as Templ directives over the SSE hub",
 		Dirs:    []string{"features/genui"},
-		// Owned by no dir: the composition test's model stubs, and the todo
-		// feature's half of the panel seam (all of them would otherwise outlive
-		// the unit and trip the deadcode or import gate).
+		// Owned by no dir: the todo feature's half of the panel seam
+		// (all of them would otherwise outlive the unit and trip the
+		// deadcode or import gate).
 		Files: []string{
-			"internal/server/genui_stubs_test.go",
 			// The panel seam: four files that exist ONLY to let the app answer
 			// with its own todos through this catalog. Nothing else in
 			// features/todo references them, so without genui they are dead code
@@ -369,6 +368,7 @@ var All = append([]Capability{
 		Summary:   "conversation demo (persisted history + catalog answers on genui)",
 		DependsOn: []string{"genui"},
 		Dirs:      []string{"features/chat"},
+		Register:  "features/chat/handlers",
 		Reason: "Bundled into the genui unit: chat imports genui components " +
 			"(no-compile without it) — one unit is the honest shape, same as " +
 			"whiteboard+collab+notes.",

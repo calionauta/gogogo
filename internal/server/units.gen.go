@@ -4,6 +4,7 @@ package server
 
 import (
 	accounthandlers "github.com/calionauta/gogogo/features/account/handlers"
+	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
 	confighandlers "github.com/calionauta/gogogo/features/config/handlers"
 	creditshandlers "github.com/calionauta/gogogo/features/credits/handlers"
 	dashboardhandlers "github.com/calionauta/gogogo/features/dashboard/handlers"
@@ -22,6 +23,7 @@ import (
 // naming its package in the registry — the file that already owns its identity.
 var bundledUnits = []register.Func{
 	accounthandlers.Register,
+	chathandlers.Register,
 	confighandlers.Register,
 	creditshandlers.Register,
 	dashboardhandlers.Register,

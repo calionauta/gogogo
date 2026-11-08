@@ -13,8 +13,6 @@ import (
 	"time"
 
 	"github.com/calionauta/gogogo/config"
-	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
-	chatstore "github.com/calionauta/gogogo/features/chat/store"
 	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/collab"
@@ -23,6 +21,7 @@ import (
 	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/queue"
+	"github.com/calionauta/gogogo/internal/recipe"
 	"github.com/calionauta/gogogo/internal/recipe/register"
 )
 
@@ -198,15 +197,16 @@ func TestBuildChiMuxRoomDisabledPinsRouteAbsence(t *testing.T) {
 	}
 	docs := collab.NewDocStore()
 	hub := queue.NewSSEHub()
+	slots := recipe.NewSlotRegistry()
 	mux := buildChiMux(
 		a,
 		register.Deps{
 			Cfg: cfg, Auth: a, Queries: q, Hub: hub,
 			RealLLM: newReviewHandlerForTestLLM(), Persister: persister, DocStore: docs,
+			Queue: chiQForTest(t), Slots: slots,
+			Panels: []any{todohandlers.NewTodoPanel(q, slots)},
 		},
 		todohandlers.NewHandler(q, a, hub),
-		chathandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(),
-			stubResponder{raw: "{}"}),
 	)
 
 	rec := httptest.NewRecorder()

@@ -14,9 +14,6 @@ import (
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/authviews"
-	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
-	chatstore "github.com/calionauta/gogogo/features/chat/store"
-	comp "github.com/calionauta/gogogo/features/genui/components"
 	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/collab"
@@ -29,7 +26,6 @@ import (
 	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
 	"github.com/calionauta/gogogo/internal/rbac"
-	"github.com/calionauta/gogogo/internal/recipe"
 )
 
 // seedDemoAccounts signs the advertised demo pair up and stamps their
@@ -381,67 +377,4 @@ func bootCollab(cfg *config.Config, queries *dbgen.Queries) (collab.Persister, *
 	docs := collab.NewDocStore()
 	docs.SetPersister(persister)
 	return persister, docs, nil
-}
-
-// bootAI wires the Chat demo: one surface set, one interaction shape. The
-// Ask one-shot leg is gone — its demonstrable behaviors (catalog-only
-// strictness via surfaces, fail-closed repair, router lead pick) live in
-// Chat through the same responder/router/prompt stack.
-//
-// The whole body has to stay in ONE function so the installer can strip it as
-// one brace-matched block (see the genui unit's extraStrips rule). It lives
-// here rather than inline in BootChi for the statement budget.
-func bootAI(
-	cfg *config.Config, a *auth.Auth, chiQ *queue.Queue, hub *queue.SSEHub,
-	realLLM, simulatedLLM *llm.Client, queries *dbgen.Queries, slots *recipe.SlotRegistry,
-) (chatH *chathandlers.Handler, err error) {
-	// Chat answer surfaces (GENUI_CHAT_SURFACES, absent = the documented
-	// default). An unknown name is a BOOT error, not a logged warning.
-	chatSurfaces, err := comp.ParseSurfaces(cfg.GenUI.ChatSurfaces, comp.DefaultSurfacesChat)
-	if err != nil {
-		return nil, fmt.Errorf("config: GENUI_CHAT_SURFACES: %w", err)
-	}
-	// The env path rejects an unknown name above; this is the same assertion
-	// for the set as it arrives here, so a future caller building one from
-	// literals cannot slip an unnamed band past the prompt (NormalizeSurfaces
-	// drops it silently, which would read as "the band did nothing").
-	if verr := comp.ValidateSurfaces(chatSurfaces); verr != nil {
-		return nil, verr
-	}
-	// panels: the data half of the AI components. Installed as the process
-	// catalog — this is the ONE place that decides which of the app's own data
-	// is answerable, and it comes from the same providers Hydrate will use, so
-	// the advertised vocabulary and the renderable one cannot drift.
-	panels := []comp.PanelProvider{todohandlers.NewTodoPanel(queries, slots)}
-	if perr := comp.InstallPanelRegistry(panels); perr != nil {
-		return nil, perr
-	}
-	// actions: what the app offers to model-authored cards. Same providers,
-	// same reasoning as the panel registry above — a feature declares the
-	// action next to the route that implements it, and this is the one place
-	// that collects them. Without this the model is told nothing and invents a
-	// path (the button then 404s), or is told everything and can aim at any
-	// route; the declaration is what makes neither happen.
-	var actionProviders []comp.ActionProvider
-	for _, p := range panels {
-		if ap, ok := p.(comp.ActionProvider); ok {
-			actionProviders = append(actionProviders, ap)
-		}
-	}
-	if aerr := comp.InstallActionRegistry(actionProviders); aerr != nil {
-		return nil, aerr
-	}
-	// One router for the Chat leg: deciding which component should lead is
-	// still a classifier decision, now owned by the chat slice.
-	chatRouter := chathandlers.NewRouter(cfg)
-	chatH = chathandlers.NewHandler(cfg, a, chiQ, hub,
-		chatstore.NewMemStore(), chathandlers.ResponderFromLLM(realLLM, simulatedLLM, chatRouter, chatSurfaces))
-	// Per-request surfaces: the tab toggles its own vocabulary on the job,
-	// so the worker rebuilds the leg from these plus the toggles.
-	chatH.SetModelLeg(realLLM, simulatedLLM, chatRouter, chatSurfaces)
-	// Registered here, not by the caller: BootChi needs only the handler for
-	// the mux, and hoisting registration keeps its error path to one line
-	// (the statement budget this helper exists to respect).
-	chatH.RegisterHandlers(chiQ.Registry())
-	return chatH, nil
 }

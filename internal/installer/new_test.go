@@ -26,7 +26,7 @@ func TestValidateNewName(t *testing.T) {
 	}
 }
 
-// chiFixture mirrors the two anchors the scaffold edits: the config import
+// chiFixture mirrors the two anchors the scaffold edits: the todo import
 // and the console mount line in BootChi. Neither belongs to a built-in unit, which
 // is what makes the scaffold work on trimmed trees.
 const chiFixture = `package server
@@ -34,7 +34,7 @@ const chiFixture = `package server
 import (
 	"net/http"
 
-	confighandlers "github.com/acme/app/features/config/handlers"
+	todohandlers "github.com/acme/app/features/todo/handlers"
 )
 
 func boot() {
@@ -45,7 +45,7 @@ func boot() {
 
 func buildChiMux(a string, todoH string) *Router {
 	r := NewRouter()
-	_ = confighandlers.NewHandler
+	_ = todohandlers.NewHandler
 	_ = todoH
 	return r
 }
