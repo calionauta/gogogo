@@ -24,7 +24,7 @@
 - Architecture details: docs/architecture.md, docs/architecture-decision.md
 - Config and env vars: docs/configuration.md
 - Local CI and gates: docs/local-ci.md
-- Keeping a scaffolded project current (base marker, --check-update, migrate, `migrate --files` for which files apply to you, `advise --intent update`): docs/upgrading.md
+- Keeping a scaffolded project current (base marker, --check-update, migrate, `migrate --files` for which files apply to you, `advise --intent update`; installed recipes: `recipe outdated` against the reviewed catalog): docs/upgrading.md
 - Taking one unit into an app that already exists (read-only export bundle + porting checklist): docs/porting-into-an-existing-app.md
 - Realtime, queue, offline: docs/async-layers.md; the transport decision tree (no poll, one stream per page, leader tab + BroadcastChannel): docs/realtime-recipe.md#global-state-and-the-connection-budget
 - Auth and sessions: internal/auth/ (owned argon2id sessions), features/authviews/ (login UI)

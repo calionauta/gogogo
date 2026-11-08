@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 // validCatalogEntry is the baseline every rule test mutates: a reviewed pomodoro
@@ -80,6 +82,111 @@ func TestCatalogEntryRules(t *testing.T) {
 				t.Fatalf("expected a problem containing %q, got %v", tc.want, problems)
 			}
 		})
+	}
+}
+
+// TestIsValidVersion pins the one shape validator: catalog entries and the
+// installable manifest must agree on what a version is.
+func TestIsValidVersion(t *testing.T) {
+	for _, v := range []string{"v0.1.0", "v1.2.0", "v1.2.3-rc.1", "v10.20.30"} {
+		if !IsValidVersion(v) {
+			t.Errorf("IsValidVersion(%q) must be true", v)
+		}
+	}
+	for _, v := range []string{"", "1.2.0", "v1.2", "v1", "main", "0.53.0"} {
+		if IsValidVersion(v) {
+			t.Errorf("IsValidVersion(%q) must be false", v)
+		}
+	}
+}
+
+// TestScanCatalogGroupsEntriesByID: a catalog directory with two versions of
+// one recipe loads both, grouped, so the caller's ordering sees the whole
+// history.
+func TestScanCatalogGroupsEntriesByID(t *testing.T) {
+	dir := t.TempDir()
+	for _, version := range []string{"v1.2.0", "v1.10.0"} {
+		e := validCatalogEntry()
+		e.Version = version
+		writeCatalogEntryFile(t, dir, e)
+	}
+	got, err := ScanCatalog(dir)
+	if err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	if len(got["pomodoro"]) != 2 {
+		t.Fatalf("want 2 pomodoro entries, got %+v", got)
+	}
+	found := map[string]bool{}
+	for _, e := range got["pomodoro"] {
+		found[e.Version] = true
+	}
+	if !found["v1.2.0"] || !found["v1.10.0"] {
+		t.Fatalf("both versions must load: %v", found)
+	}
+}
+
+// TestScanCatalogMissingDirIsEmptyNoError pins that absence is not failure:
+// a project without a catalog is every recipe unknown, not a broken install.
+func TestScanCatalogMissingDirIsEmptyNoError(t *testing.T) {
+	got, err := ScanCatalog(filepath.Join(t.TempDir(), "does-not-exist"))
+	if err != nil {
+		t.Fatalf("missing catalog dir must not fail: %v", err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("missing catalog must scan as empty, got %+v", got)
+	}
+}
+
+// TestScanCatalogRejectsAnInvalidEntry: a present but unreadable review
+// fails at scan time, with the file named.
+func TestScanCatalogRejectsAnInvalidEntry(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "pomodoro", "v1.0.0.yaml")
+	if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(file, []byte("id: pomodoro\nversion: v1.0.0\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ScanCatalog(dir); err == nil || !strings.Contains(err.Error(), "v1.0.0.yaml") {
+		t.Fatalf("invalid entry must fail naming the file, got %v", err)
+	}
+}
+
+// TestScanCatalogRejectsAnIDMismatch: an entry sitting under another
+// recipe's directory is a layout bug, never a silent merge.
+func TestScanCatalogRejectsAnIDMismatch(t *testing.T) {
+	dir := t.TempDir()
+	raw, err := yaml.Marshal(validCatalogEntry())
+	if err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(dir, "timer", "v1.2.0.yaml")
+	if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(file, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ScanCatalog(dir); err == nil || !strings.Contains(err.Error(), "timer") {
+		t.Fatalf("an entry under the wrong id directory must fail, got %v", err)
+	}
+}
+
+// writeCatalogEntryFile commits one valid entry at catalog-dir/<id>/<version>.yaml.
+func writeCatalogEntryFile(t *testing.T, dir string, e CatalogEntry) {
+	t.Helper()
+	raw, err := yaml.Marshal(e)
+	if err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(dir, e.ID, e.Version+".yaml")
+	if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(file, raw, 0o600); err != nil {
+		t.Fatal(err)
 	}
 }
 

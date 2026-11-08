@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -28,6 +29,10 @@ func TestRecipeToolsRequireDirAndConfirm(t *testing.T) {
 			return err
 		}},
 		{"status", func() error { _, _, err := handleRecipeStatus(context.Background(), nil, recipeArgs{}); return err }},
+		{"outdated", func() error {
+			_, _, err := handleRecipeOutdated(context.Background(), nil, recipeArgs{})
+			return err
+		}},
 	} {
 		if err := tt.call(); err == nil || !strings.Contains(err.Error(), "required") {
 			t.Errorf("%s without dir: expected required-fields refusal, got %v", tt.name, err)
@@ -105,6 +110,64 @@ func TestRecipeStatusReadsAnEmptyCheckout(t *testing.T) {
 	}
 	if text := toolText(t, res); !strings.Contains(text, "nothing is installed yet") {
 		t.Errorf("empty checkout status changed meaning: %s", text)
+	}
+}
+
+// TestRecipeOutdatedVerdictIsNotAnError mirrors the version_status rule for
+// the recipe half: "behind" arrives as exit 3 and must still deliver its
+// JSON instead of becoming a tool error.
+func TestRecipeOutdatedVerdictIsNotAnError(t *testing.T) {
+	dir := t.TempDir()
+	for _, f := range []struct{ path, body string }{
+		{"cmd/web/main.go", "package main\n"},
+		{"internal/installer/run.go", "package installer\n"},
+		{"go.mod", "module example.com/demo\n\ngo 1.27\n"},
+	} {
+		full := filepath.Join(dir, filepath.FromSlash(f.path))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(f.body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.MkdirAll(filepath.Join(dir, ".recipes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".recipes", "pomodoro.yml"), []byte(
+		"id: pomodoro\nversion: v1.2.0\nupstream: {repo: example.com/recipes, ref: v1.2.0}\nfiles: {}\ndeclaration: {}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	catalog := filepath.Join(dir, "catalog", "pomodoro")
+	if err := os.MkdirAll(catalog, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(catalog, "v1.3.0.yaml"), []byte(
+		"id: pomodoro\nversion: v1.3.0\nsource: {repo: example.com/recipes, ref: v1.3.0}\n"+
+			"files: {features/pomodoro/handlers/chi.go: sha256:"+strings.Repeat("a", 64)+"}\n"+
+			"license: MIT\nminCore: v0.56.0\nupstreamDeps: []\n"+
+			"reviewedAt: \"2026-11-14\"\nreviewedBy: calionauta\nreviewedAgainst: 3f8a1c2\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	res, _, err := handleRecipeOutdated(context.Background(), nil, recipeArgs{Dir: dir})
+	if err != nil {
+		t.Fatalf("a verdict must not surface as a tool error: %v", err)
+	}
+	var rep struct {
+		Outdated int `json:"outdated"`
+		Results  []struct {
+			ID        string `json:"id"`
+			Installed string `json:"installed"`
+			Latest    string `json:"latest"`
+			Status    string `json:"status"`
+		} `json:"results"`
+	}
+	if jerr := json.Unmarshal([]byte(toolText(t, res)), &rep); jerr != nil {
+		t.Fatalf("recipe_outdated must answer JSON: %v", jerr)
+	}
+	if rep.Outdated != 1 || len(rep.Results) != 1 || rep.Results[0].Status != "behind" {
+		t.Fatalf("expected one behind row, got %+v", rep)
 	}
 }
 

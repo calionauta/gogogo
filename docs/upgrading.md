@@ -12,6 +12,7 @@ neither runs on its own: there is no background check, no nag, no telemetry.
 | The question | Command | Changes anything? |
 |---|---|---|
 | Is the tool — or this tree — behind? | `gogogo --check-update --dir .` | No. **Exit 3 means "yes"**: a verdict, not a failure |
+| Is an installed recipe behind the reviewed catalog? | `gogogo recipe outdated --dir .` | No. **Exit 3 means "yes"**: a verdict, not a failure |
 | What changed since my base? | `gogogo migrate --dir .` | No |
 | Which files does it touch, and do they apply to me? | `gogogo migrate --dir . --files` | No — read-only report, needs the compare API |
 | Does the tree still match the unit manifest? | `gogogo --check --dir .` | No |
@@ -83,6 +84,31 @@ The answer is cached for 24 hours in the OS cache directory, and a stale entry
 is still used when the network is gone (reported as `source: cache-stale`). That
 cache is also why the check needs no credential: one anonymous request per
 machine per day sits far under GitHub's 60/hour ceiling.
+
+## `recipe outdated`: is an installed recipe behind?
+
+```bash
+gogogo recipe outdated --dir .            # every installed recipe
+gogogo recipe outdated pomodoro --dir .   # one, by id
+```
+
+It compares the version each receipt recorded against the latest reviewed
+catalog entry — the same per-version review the installer consumes
+(`catalog/<id>/<version>.yaml`, default `<checkout>/catalog`; `--catalog`
+names another directory). `recipe status` carries the same verdict as one
+line per recipe.
+
+| Case | Verdict |
+|---|---|
+| recorded version < latest catalog version | `behind` — **exit 3**, the same verdict code |
+| recorded version == latest | `current` — exit 0 |
+| recorded version > latest | `ahead` (a branch build) — exit 0 |
+| no version recorded, or no catalog entry | `unknown` — never assumed current |
+
+The latest entry's `minCore` travels with the verdict: `"needs core v0.56.0"`
+is part of the report, so the upgrade decision weighs the core requirement
+before the recipe. `--format json` emits `{checked, outdated, catalog,
+results:[{id, installed, latest, status, minCore}]}`.
 
 ## `migrate`: what actually changed?
 

@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -62,6 +63,12 @@ type CatalogEntry struct {
 	ReviewedAgainst string    `yaml:"reviewedAgainst"`
 	Notes           string    `yaml:"notes,omitempty"`
 }
+
+// IsValidVersion reports whether v is a version a reviewed artifact carries:
+// a v-prefixed semver. It is the one shape validator shared by the catalog
+// entry and the installable manifest, so the two halves never disagree on
+// what a version is.
+func IsValidVersion(v string) bool { return catalogVersionRE.MatchString(v) }
 
 // LoadCatalogEntry reads and validates one entry. Validation problems are
 // returned as an error so a broken artifact fails at load, not at install.
@@ -203,6 +210,65 @@ func (e CatalogEntry) reviewProblems() []string {
 			"review, not a licence to exist")
 	}
 	return out
+}
+
+// ScanCatalog reads every reviewed entry under dir, grouped by id, in the
+// layout an entry is committed: catalog/<id>/<version>.yaml. A directory that
+// does not exist is not an error — it is a project with no catalog, and every
+// installed recipe reports unknown — but a present entry that fails validation
+// is: an unreadable review must fail at scan time, not at install. Which
+// entry is the latest is the caller's job; this only loads, sorted per id so
+// the answer is deterministic.
+func ScanCatalog(dir string) (map[string][]CatalogEntry, error) {
+	out := map[string][]CatalogEntry{}
+	ids, err := os.ReadDir(dir)
+	if os.IsNotExist(err) {
+		return out, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	for _, id := range ids {
+		if !id.IsDir() {
+			continue
+		}
+		if err := scanCatalogID(dir, id.Name(), out); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+// scanCatalogID loads every YAML file under one id directory.
+func scanCatalogID(dir, id string, out map[string][]CatalogEntry) error {
+	files, err := os.ReadDir(filepath.Join(dir, id))
+	if err != nil {
+		return err
+	}
+	names := []string{}
+	for _, f := range files {
+		if f.IsDir() {
+			continue
+		}
+		switch filepath.Ext(f.Name()) {
+		case ".yaml", ".yml":
+			names = append(names, f.Name())
+		}
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		file := filepath.Join(dir, id, name)
+		entry, err := LoadCatalogEntry(file)
+		if err != nil {
+			return err
+		}
+		if entry.ID != id {
+			return fmt.Errorf("recipe: catalog entry %s claims id %q (directory %q)",
+				file, entry.ID, id)
+		}
+		out[id] = append(out[id], entry)
+	}
+	return nil
 }
 
 // safeRelPath reports whether p is a clean, repo-relative path: no absolute
