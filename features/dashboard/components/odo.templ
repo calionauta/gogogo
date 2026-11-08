@@ -1,0 +1,34 @@
+// Odo renders the dashboard's odometer counter.
+//
+// SSR renders the final value: every digit slot already sits at its final
+// position, so the page reads correctly with no JavaScript and screen
+// readers get the value through aria-label. The strips are aria-hidden —
+// they are decoration, the label is the number.
+//
+// window.__gogogoOdo (dashboardHead) replays the count from the previously
+// shown value to the current signal on load and on every change, so the
+// digits roll up from a smaller number to the exact value instead of
+// jumping to it.
+package components
+
+import "strconv"
+
+// Odo is one dashboard stat value with a rolling-digit strip per digit.
+// signal is the camelCase Datastar signal name (e.g. "openTodos") that
+// drives the counter; the component does not know where the signal lives.
+templ Odo(value int, signal string) {
+	<span
+		class="odo"
+		data-effect={ "window.__gogogoOdo($el, $" + signal + ")" }
+		aria-live="polite"
+		aria-label={ strconv.Itoa(value) }
+	>
+		for _, r := range strconv.Itoa(value) {
+			<span class="odo-digit" aria-hidden="true"><span class="odo-strip" style={ "transform: translateY(-" + string(r) + "em);" }>
+				for _, d := range "0123456789" {
+					<span>{ string(d) }</span>
+				}
+			</span></span>
+		}
+	</span>
+}

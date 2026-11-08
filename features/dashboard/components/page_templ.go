@@ -103,6 +103,23 @@ func dashboardHead() templ.Component {
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<script nonce=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var3 string
+		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 45, Col: 36}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\">\n\t\t// Odometer count-up (Odo). No Datastar primitive counts from one\n\t\t// value to another with easing and per-digit roll, so this island\n\t\t// owns the animation only; data-effect remains the trigger and\n\t\t// runs it on load and whenever the signal changes. The value is\n\t\t// stored on the element so a later patch animates from the number\n\t\t// currently on screen, not from zero again. Plain script on purpose:\n\t\t// data-effect evaluates at Datastar init, so the global must exist\n\t\t// before then (deferred modules would run too late).\n\t\twindow.__gogogoOdo = function (el, target) {\n\t\t\tif (!el) return;\n\t\t\ttarget = Math.max(0, Math.floor(Number(target) || 0));\n\t\t\tvar prev = el.dataset.value ? Number(el.dataset.value) : 0;\n\t\t\tvar slots = el.querySelectorAll('.odo-digit');\n\t\t\tvar want = String(target).length;\n\t\t\t// Rebuild the slots when the digit count grows (9 -> 100) so\n\t\t\t// the strips can display the longer number at all.\n\t\t\tif (slots.length !== want) {\n\t\t\t\tel.textContent = '';\n\t\t\t\twhile (el.querySelectorAll('.odo-digit').length < want) {\n\t\t\t\t\tvar d = document.createElement('span');\n\t\t\t\t\td.classList.add('odo-digit');\n\t\t\t\t\td.setAttribute('aria-hidden', 'true');\n\t\t\t\t\tvar strip = document.createElement('span');\n\t\t\t\t\tstrip.classList.add('odo-strip');\n\t\t\t\t\tfor (var n = 0; n < 10; n++) {\n\t\t\t\t\t\tvar s = document.createElement('span');\n\t\t\t\t\t\ts.textContent = String(n);\n\t\t\t\t\t\tstrip.appendChild(s);\n\t\t\t\t\t}\n\t\t\t\t\td.appendChild(strip);\n\t\t\t\t\tel.appendChild(d);\n\t\t\t\t}\n\t\t\t}\n\t\t\tel.dataset.value = String(target);\n\t\t\tel.setAttribute('aria-label', String(target));\n\t\t\tvar strips = el.querySelectorAll('.odo-strip');\n\t\t\tvar render = function (n) {\n\t\t\t\tvar s = String(Math.max(0, Math.floor(n))).padStart(strips.length, '0');\n\t\t\t\tfor (var i = 0; i < strips.length; i++) {\n\t\t\t\t\tstrips[i].style.transform = 'translateY(-' + s[i] + 'em)';\n\t\t\t\t}\n\t\t\t};\n\t\t\tif (window.matchMedia('(prefers-reduced-motion: reduce)').matches || prev === target) {\n\t\t\t\trender(target);\n\t\t\t\treturn;\n\t\t\t}\n\t\t\t// Cancel a still-running count from a previous patch so two\n\t\t\t// rAF loops never fight over the same strips.\n\t\t\tif (el.__gogogoOdoRaf) cancelAnimationFrame(el.__gogogoOdoRaf);\n\t\t\tvar dist = Math.abs(target - prev);\n\t\t\tvar dur = Math.min(1500, 600 + Math.log10(Math.max(dist, 1)) * 350);\n\t\t\tvar t0 = performance.now();\n\t\t\tvar tick = function (now) {\n\t\t\t\tvar p = Math.min(1, (now - t0) / dur);\n\t\t\t\tvar eased = 1 - Math.pow(1 - p, 3);\n\t\t\t\trender(prev + (target - prev) * eased);\n\t\t\t\tif (p < 1) {\n\t\t\t\t\tel.__gogogoOdoRaf = requestAnimationFrame(tick);\n\t\t\t\t} else {\n\t\t\t\t\trender(target);\n\t\t\t\t\tel.__gogogoOdoRaf = null;\n\t\t\t\t}\n\t\t\t};\n\t\t\tel.__gogogoOdoRaf = requestAnimationFrame(tick);\n\t\t};\n\t</script>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
 		return nil
 	})
 }
@@ -125,9 +142,9 @@ func dashboardSound() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var3 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var3 == nil {
-			templ_7745c5c3_Var3 = templ.NopComponent
+		templ_7745c5c3_Var4 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var4 == nil {
+			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		return nil
@@ -150,70 +167,73 @@ func dashboardBody(data PageData) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var4 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var4 == nil {
-			templ_7745c5c3_Var4 = templ.NopComponent
+		templ_7745c5c3_Var5 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var5 == nil {
+			templ_7745c5c3_Var5 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"ui-page ui-stack\"><section class=\"ui-card\" aria-label=\"Your summary\"><div class=\"ui-card-body\"><h2 class=\"ui-title\">Welcome back</h2><div class=\"stats stats-vertical sm:stats-horizontal shadow\"><div class=\"stat\"><div class=\"stat-title\">Open todos</div><div class=\"stat-value\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var5 string
-		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(data.OpenTodos)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 60, Col: 46}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</div><div class=\"stat-desc\">of ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"ui-page ui-stack\" data-signals=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var6 string
-		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(data.TotalTodos)
+		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(MarshalSignals(Signals{OpenTodos: data.OpenTodos}))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 61, Col: 49}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 120, Col: 96}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, " total</div><div class=\"stat-actions\"><a href=\"/todo\" class=\"btn btn-primary btn-sm\">Open Todo</a></div></div><div class=\"stat\"><div class=\"stat-title\">Inbox</div><div class=\"stat-value\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\"><section class=\"ui-card\" aria-label=\"Your summary\"><div class=\"ui-card-body\"><h2 class=\"ui-title\">Welcome back</h2><div class=\"stats stats-vertical sm:stats-horizontal shadow\"><div class=\"stat\"><div class=\"stat-title\">Open todos</div><div class=\"stat-value\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = Odo(data.OpenTodos, "openTodos").Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div><div class=\"stat-desc\">of ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var7 string
-		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(data.UnreadInbox)
+		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(data.TotalTodos)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 68, Col: 48}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 128, Col: 49}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div><div class=\"stat-desc\">unread messages</div><div class=\"stat-actions\"><a href=\"/notifications\" class=\"btn btn-sm\">Open Inbox</a></div></div></div></div></section><section class=\"grid grid-cols-1 md:grid-cols-2 gap-4\" aria-label=\"Recipe cards\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, " total</div><div class=\"stat-actions\"><a href=\"/todo\" class=\"btn btn-primary btn-sm\">Open Todo</a></div></div><div class=\"stat\"><div class=\"stat-title\">Inbox</div><div class=\"stat-value\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = Odo(data.UnreadInbox, "inboxUnread").Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</div><div class=\"stat-desc\">unread messages</div><div class=\"stat-actions\"><a href=\"/notifications\" class=\"btn btn-sm\">Open Inbox</a></div></div></div></div></section><section class=\"grid grid-cols-1 md:grid-cols-2 gap-4\" aria-label=\"Recipe cards\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if len(data.DashboardCards) > 0 {
 			for _, f := range data.DashboardCards {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div class=\"ui-card\" data-slot=\"dashboard.card\"><div class=\"ui-card-body\"><h3 class=\"ui-title\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<div class=\"ui-card\" data-slot=\"dashboard.card\"><div class=\"ui-card-body\"><h3 class=\"ui-title\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(f.Title)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 84, Col: 37}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 151, Col: 37}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</h3>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</h3>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -221,18 +241,18 @@ func dashboardBody(data PageData) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</div></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</div></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<div class=\"ui-card md:col-span-2\"><div class=\"ui-card-body text-center\"><p class=\"text-base-content/70\">No extensions installed yet. Your dashboard cards appear here — try listing in Todo or the Inbox.</p></div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div class=\"ui-card md:col-span-2\"><div class=\"ui-card-body text-center\"><p class=\"text-base-content/70\">No extensions installed yet. Your dashboard cards appear here — try listing in Todo or the Inbox.</p></div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</section></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</section></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
