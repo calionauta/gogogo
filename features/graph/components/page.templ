@@ -2,11 +2,22 @@
 package components
 
 import (
+	"github.com/calionauta/gogogo/internal/components"
 	"github.com/calionauta/gogogo/internal/ui"
 	"github.com/calionauta/gogogo/features/graph"
 )
 
-// Page renders the graph page inside the shared shell.
+// graphStack is the page's technology key, rendered by the shell behind
+// [ Stack ]. Matches notificationsStack() shape (name + note).
+func graphStack() []components.TechItem {
+	return []components.TechItem{
+		{Name: "Panorama API", Note: "capabilities + receipts as one JSON map"},
+		{Name: "DagNats runs", Note: "live workflow defs via GET /api/graph/dagnats"},
+		{Name: "Presence", Note: "GoAkt roster via /api/graph/presence"},
+		{Name: "Canvas2D", Note: "pan/zoom/pick, theme-aware colors"},
+	}
+}
+
 templ Page(email string, role string, buildLabel string, buildCommit string) {
 	@ui.Shell(ui.Data{
 		Title:       "graph — gogogo",
@@ -17,6 +28,7 @@ templ Page(email string, role string, buildLabel string, buildCommit string) {
 		Role:        role,
 		BuildLabel:  buildLabel,
 		BuildCommit: buildCommit,
+		Stack:       graphStack(),
 	}, nil, nil, nil, body())
 }
 
@@ -30,7 +42,19 @@ templ body() {
 					and live views of the DagNats workflows this binary owns.
 					Pan/zoom, click for detail. <span id="graph-rung" class="opacity-60">Canvas2D</span>
 				</p>
-				<div class="flex gap-2 py-2">
+				<div class="flex flex-wrap gap-2 items-center py-2">
+					<label class="label cursor-pointer gap-2">
+						<span class="label-text">core</span>
+						<input type="checkbox" checked class="toggle toggle-primary" data-graph-filter="core"/>
+					</label>
+					<label class="label cursor-pointer gap-2">
+						<span class="label-text">plugin</span>
+						<input type="checkbox" checked class="toggle toggle-secondary" data-graph-filter="plugin"/>
+					</label>
+					<label class="label cursor-pointer gap-2">
+						<span class="label-text">feature</span>
+						<input type="checkbox" checked class="toggle toggle-accent" data-graph-filter="feature"/>
+					</label>
 					<button id="graph-fit" class="btn btn-sm btn-ghost">Fit</button>
 					<button class="btn btn-sm" data-graph-source="panorama">Panorama</button>
 					<button class="btn btn-sm" data-graph-source="dagnats">Workflows</button>

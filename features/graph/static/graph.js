@@ -11,6 +11,7 @@
     nodes: [], edges: [],
     scale: 1, offX: 0, offY: 0,
     selected: null, hover: null,
+    filters: { core: true, plugin: true, feature: true },
   };
 
   // Two live sources: system panorama (capabilities + receipts) and
@@ -22,10 +23,28 @@
       .then((doc) => {
         state.nodes = doc.nodes || [];
         state.edges = doc.edges || [];
+        // Radial deterministic layout: angle by index, radius by kind rank
+        // so core in center, feature outer — prevents overlap.
+        const kinds = ['core','plugin','feature'];
+        const byKind = { core: [], plugin: [], feature: [] };
+        state.nodes.forEach((n) => {
+          const k = kinds.includes(n.kind) ? n.kind : 'feature';
+          (byKind[k] = byKind[k] || []).push(n);
+        });
+        const cx = 0, cy = 0;
+        const ringR = { core: 80, plugin: 140, feature: 200 };
+        Object.entries(byKind).forEach(([kind, list]) => {
+          const r = ringR[kind] || 140;
+          list.forEach((n, i) => {
+            const a = (i / Math.max(1, list.length)) * Math.PI * 2;
+            n._nx = cx + Math.cos(a) * r;
+            n._ny = cy + Math.sin(a) * r;
+          });
+        });
         draw();
       })
       .catch((e) => {
-        state.nodes = [{ id: 'err', label: 'graph unavailable: ' + e.message, kind: 'error', x: 0, y: 0 }];
+        state.nodes = [{ id: 'err', label: 'graph unavailable: ' + e.message, kind: 'error', _nx: 0, _ny: 0 }];
         draw();
       });
   }
@@ -35,13 +54,28 @@
     btn.addEventListener('click', () => load(btn.getAttribute('data-graph-source')));
   });
 
+  document.querySelectorAll('[data-graph-filter]').forEach((chk) => {
+    chk.addEventListener('change', () => {
+      const k = chk.getAttribute('data-graph-filter');
+      state.filters[k] = chk.checked;
+      draw();
+    });
+  });
+
   function project(n) {
-    // CSS-pixel space: pointer offsets and pan deltas are CSS px, and
-    // the ctx is scaled by DPR. Using canvas.width (device px) here
-    // would double-scale on hidpi and break picking.
     const rect = canvas.getBoundingClientRect();
-    return [rect.width / 2 + state.offX + n.x * state.scale,
-            rect.height / 2 + state.offY + n.y * state.scale];
+    return [rect.width / 2 + state.offX + (n._nx || n.x || 0) * state.scale,
+            rect.height / 2 + state.offY + (n._ny || n.y || 0) * state.scale];
+  }
+
+  function themeColors() {
+    const dark = document.documentElement.classList.contains('dark') || document.documentElement.dataset.theme === 'dark';
+    return {
+      bg: dark ? '#1f2937' : '#ffffff',
+      label: dark ? '#e5e7eb' : '#111827',
+      edge: dark ? 'rgba(156,163,175,0.6)' : 'rgba(107,114,128,0.5)',
+      kind: { core: dark ? '#60a5fa' : '#2563eb', plugin: dark ? '#34d399' : '#059669', feature: dark ? '#f472b6' : '#db2777' }
+    };
   }
 
   function draw() {
@@ -50,30 +84,34 @@
     if (canvas.width !== Math.floor(rect.width * dpr)) canvas.width = Math.floor(rect.width * dpr);
     if (canvas.height !== Math.floor(rect.height * dpr)) canvas.height = Math.floor(rect.height * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, rect.width, rect.height);
-    ctx.strokeStyle = 'rgba(128,128,128,0.5)';
+    const t = themeColors();
+    ctx.fillStyle = t.bg;
+    ctx.fillRect(0, 0, rect.width, rect.height);
+    ctx.strokeStyle = t.edge;
     ctx.beginPath();
+    const visible = state.nodes.filter((n) => state.filters[n.kind] !== false);
     for (const e of state.edges) {
-      const a = state.nodes.find((n) => n.id === e.from);
-      const b = state.nodes.find((n) => n.id === e.to);
+      const a = visible.find((n) => n.id === e.from);
+      const b = visible.find((n) => n.id === e.to);
       if (!a || !b) continue;
       const [ax, ay] = project(a), [bx, by] = project(b);
       ctx.moveTo(ax, ay); ctx.lineTo(bx, by);
     }
     ctx.stroke();
-    for (const n of state.nodes) {
+    // draw nodes with kind colors, labels offset to avoid overlap: put labels to right, clipped
+    for (const n of visible) {
       const [x, y] = project(n);
       const r = n.id === state.selected ? 8 : 5;
-      // Live status drives the fill: running is amber, failed red,
-      // completed green, everything else (pending/defs-only) neutral.
-      ctx.fillStyle =
-        n.status === 'running' ? '#f59e0b' :
+      ctx.fillStyle = n.status === 'running' ? '#f59e0b' :
         n.status === 'failed' ? '#ef4444' :
-        n.status === 'completed' ? '#22c55e' : '';
+        n.status === 'completed' ? '#22c55e' : (t.kind[n.kind] || '#9ca3af');
       ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '';
-      const label = String(n.label || n.id) + (n.status ? ' · ' + n.status : '');
-      ctx.fillText(label, x + 10, y + 4);
+      ctx.fillStyle = t.label;
+      ctx.font = '11px system-ui, sans-serif';
+      const label = String(n.label || n.id);
+      // truncate to 18 chars to avoid overlap
+      const short = label.length > 18 ? label.slice(0, 17) + '…' : label;
+      ctx.fillText(short, x + 10, y + 4);
     }
   }
 
@@ -125,9 +163,6 @@
   });
   window.addEventListener('resize', draw);
 
-  // WebGPU probe: log the rung so operators can see which path drew.
-  // The draw above is Canvas2D; a WebGPU/WebGL rung would share the same
-  // nodes/edges and layout, only the primitive changes.
   if (navigator.gpu) {
     navigator.gpu.requestAdapter().then((a) => {
       const el = document.getElementById('graph-rung');

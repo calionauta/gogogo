@@ -8713,6 +8713,24 @@
       --badge-color: var(--color-warning);
       --badge-fg: var(--color-warning-content);
     }
+    .toggle-accent:checked {
+      --input-color: var(--color-accent);
+    }
+    .toggle-accent[aria-checked="true"] {
+      --input-color: var(--color-accent);
+    }
+    .toggle-primary:checked {
+      --input-color: var(--color-primary);
+    }
+    .toggle-primary[aria-checked="true"] {
+      --input-color: var(--color-primary);
+    }
+    .toggle-secondary:checked {
+      --input-color: var(--color-secondary);
+    }
+    .toggle-secondary[aria-checked="true"] {
+      --input-color: var(--color-secondary);
+    }
     .toggle-xs:is([type="checkbox"]) {
       --size: calc(var(--size-selector, 0.25rem) * 4);
     }
