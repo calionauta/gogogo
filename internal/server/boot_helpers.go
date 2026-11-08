@@ -418,6 +418,13 @@ func bootAI(
 	cfg *config.Config, a *auth.Auth, chiQ *queue.Queue, hub *queue.SSEHub,
 	realLLM, simulatedLLM *llm.Client, queries *dbgen.Queries, slots *recipe.SlotRegistry,
 ) (chatH *chathandlers.Handler, err error) {
+	// Built-ins as installed recipes: todo declares dashboard.card so the
+	// official unit shows as an installed recipe on /dashboard.
+	if slots != nil {
+		_ = slots.Add(recipe.Contribution{Fragments: map[recipe.SlotID]recipe.Fragment{
+			recipe.SlotDashboardCard: {Title: "Todo", Render: func() string { return `<a href="/todo">Open todos</a>` }},
+		}})
+	}
 	// Chat answer surfaces (GENUI_CHAT_SURFACES, absent = the documented
 	// default). An unknown name is a BOOT error, not a logged warning.
 	chatSurfaces, err := comp.ParseSurfaces(cfg.GenUI.ChatSurfaces, comp.DefaultSurfacesChat)
