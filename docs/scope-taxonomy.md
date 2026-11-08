@@ -42,6 +42,17 @@ Three clarifications the table alone does not carry:
   but the unit exists to render answers for chat, todo panels and review, so it
   is classified plugin (and bundled with `features/chat` for trimming).
 
+## Recommendation (installer advisory)
+
+`Capability.Recommended` marks recipes the registry advises at scaffold
+time (today: `todo` only — the reference slice). `CatalogEntry.Recommended`
+does the same for out-of-tree catalog recipes: the catalog maintainer flips
+it without code changes. The installer prints `recommend:` in `--dry-run`;
+nothing installs without explicit acceptance (`--install-recommended` or
+`--install <ids>`). Bundled recommended recipes ship in the default set
+(they *are* the template), so acceptance is recorded in the plan; catalog
+recipes take the full copy + receipt + `recipes.gen.go` path on acceptance.
+
 ## Installer scope (scaffold prompt retired)
 
 Removal class answers *what disappears*. The former scaffold prompt

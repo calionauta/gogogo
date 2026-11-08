@@ -44,6 +44,11 @@ type CatalogEntry struct {
 	Files   map[string]string `yaml:"files"`
 	License string            `yaml:"license"`
 	MinCore string            `yaml:"minCore"`
+	// Recommended marks this catalog recipe as advised at scaffold time.
+	// The installer recommends it in the plan/advise; installation still
+	// requires explicit acceptance. The catalog maintainer flips this over
+	// time without code changes.
+	Recommended bool `yaml:"recommended,omitempty"`
 	// Register is the repo-relative package exporting `Register`, when the
 	// entry's code mounts through the seam. Empty is a data-only recipe.
 	Register string `yaml:"register,omitempty"`

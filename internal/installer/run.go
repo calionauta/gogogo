@@ -28,6 +28,12 @@ type options struct {
 	// which read-only paths (--check-update) must not mistake for a target.
 	dirGiven bool
 	format   string
+	// installRecommended accepts the registry's recommended recipes at
+	// scaffold time. Without it (and without --install), installer prints
+	// the recommendation but installs none — acceptance is explicit.
+	installRecommended bool
+	installIDs         string
+	skipRecommended    bool
 }
 
 // exitError carries a stable process exit code for agents.
@@ -104,6 +110,7 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) 
 	}
 	// Scaffold keeps everything: no keep/drop decision exists.
 	plan := buildPlan(opt.name, opt.owner, opt.dir, opt.dryRun)
+	applyInstallSelection(&plan, opt)
 	if opt.format == planFormatJSON {
 		if opt.dryRun {
 			return printPlanJSON(stdout, plan)
@@ -161,6 +168,12 @@ func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, err
 	fs.BoolVar(&opt.run, "run", false, "hand over to `make dev` after a "+
 		"successful proof (takes this terminal; Ctrl-C stops dev; humans only)")
 	fs.StringVar(&opt.format, "format", planFormatText, "plan format: text|json")
+	fs.BoolVar(&opt.installRecommended, "install-recommended", false,
+		"accept recommended recipes (default: recommend only)")
+	fs.StringVar(&opt.installIDs, "install", "",
+		"comma-separated recipe ids to install (e.g. --install pomodoro)")
+	fs.BoolVar(&opt.skipRecommended, "skip-recommended", false,
+		"hide the recommendation in the plan (install none)")
 	fs.Usage = func() { PrintUsage(stdout, fs) }
 	fs.SetOutput(stdout)
 	if err := fs.Parse(args); err != nil {

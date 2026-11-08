@@ -1,7 +1,4 @@
-// Capability registry entries (data only)
-//
-// Split from capabilities.go for the file-sizes gate: the type + API live
-// there, the table here. A growing slice moves to its own file.
+// Capability registry entries (data only), split from capabilities.go.
 package capabilities
 
 // All is the full capability map. Installer units cover a subset (see
@@ -358,11 +355,12 @@ var All = append([]Capability{
 		Reason: "Spans a config struct field, the outbox, the worker, and templ registration; deletion is manual.",
 	},
 	{
-		ID:      "todo",
-		Kind:    KindFeature,
-		Summary: "Todo MVC demo (reference implementation)",
-		Dirs:    []string{"features/todo"},
-		Actions: []string{"create"},
+		ID:          "todo",
+		Kind:        KindFeature,
+		Recommended: true,
+		Summary:     "Todo MVC demo (reference implementation)",
+		Dirs:        []string{"features/todo"},
+		Actions:     []string{"create"},
 		ActionParams: map[string][]string{
 			"create": {"title", "idem_key", "visibility"},
 		},

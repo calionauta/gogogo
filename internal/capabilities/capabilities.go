@@ -28,6 +28,13 @@ type Capability struct {
 	RuntimeOff string   `json:"runtimeOff,omitempty"`
 	Reason     string   `json:"reason,omitempty"`
 	DependsOn  []string `json:"dependsOn,omitempty"`
+	// Recommended marks this recipe as advised at scaffold time. The
+	// installer recommends it in the plan and in `advise`; installation
+	// still requires explicit acceptance (--install-recommended or --install).
+	// The catalog maintainer flips this over time; bundled recipes are
+	// always shipped in the default set (they are the template), so
+	// Recommended is an advisory, not a packaging switch.
+	Recommended bool `json:"recommended,omitempty"`
 	// Actions lists the invocable verb names the unit's Provider declares
 	// (recipe.Declaration.Actions). Why it is data here: discovery is a
 	// checkout-level read (installer + MCP) that must not link feature
