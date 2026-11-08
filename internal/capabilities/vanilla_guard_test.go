@@ -47,7 +47,9 @@ var vanillaAllow = map[string][]vanillaAllowed{
 	// matchMedia mirrors chrome.css: on desktop the rail is a persistent
 	// sidebar and the trap stays out of the way.
 	"internal/ui/shell.templ": {
-		{`__gogogoRail.addEventListener("keydown", function (e) {`, "Tab-focus trap has no Datastar primitive"},
+		{`__gogogoRail.addEventListener("keydown", function (e) {`, "Tab-focus trap"},
+		{`window.addEventListener("online", window.__gogogoSyncBadge);`, "badge sync on online"},
+		{`window.addEventListener("focus", window.__gogogoSyncBadge);`, "badge sync on focus"},
 	},
 	// Nav link row: ONE <details> serves the inline row and the collapsed
 	// menu, so its `open` state must follow the stylesheet's breakpoint.

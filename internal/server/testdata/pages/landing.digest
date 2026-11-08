@@ -1,5 +1,5 @@
 route /
-ids app-rail command-palette command-palette-input command-palette-list offline-banner offline-banner-drop offline-banner-signin offline-banner-text rail-inbox-badge session-banner toast-container
+ids app-rail command-palette command-palette-input command-palette-list gogogo-build-badge offline-banner offline-banner-drop offline-banner-signin offline-banner-text rail-inbox-badge session-banner toast-container
 data-bind cmdQuery
 data-on data-on:click data-on:close data-on:gogogo:outbox__window data-on:gogogo:synced__window data-on:gogogo:unread__document data-on:keydown__window data-on:load__window data-on:offline__window data-on:online__window
 signals bannerAuth bannerCount bannerDrop bannerDropWhy bannerOnline bannerSyncing cmdQuery inboxUnread loading railOpen sessionAuthed theme
