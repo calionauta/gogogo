@@ -63,6 +63,7 @@ var Modules = []Module{
 	{ID: "chat", Title: "Chat", Group: GroupAI, Icon: "material-symbols:forum", URL: "/chat"},
 	{ID: "review", Title: "Review", Group: GroupAI, Icon: "material-symbols:fact-check", URL: "/review"},
 	{ID: "room", Title: "Room", Group: GroupOperate, Icon: "material-symbols:groups", URL: "/room"},
+	{ID: "graph", Title: "Graph", Group: GroupOperate, Icon: "material-symbols:share", URL: "/graph"},
 	{ID: "config", Title: "Config", Admin: true, MenuOnly: true, Icon: "material-symbols:settings", URL: "/config"},
 }
 

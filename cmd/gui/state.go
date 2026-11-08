@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/google/uuid"
@@ -52,9 +53,18 @@ type windowState struct {
 	authErr  string
 
 	// list phase
-	items []todo.Todo
-	draft string
-	err   string
+	items  []todo.Todo
+	draft  string
+	err    string
+	search string
+	notifs []notifItem
+	unread int
+	notes  []docItem
+	boards []docItem
+	// reviewConfigured mirrors the web rule: the review loop is
+	// real-LLM only, so an unconfigured window says so instead of
+	// offering a run that would fail.
+	reviewConfigured bool
 
 	// sessionCh wakes the event watcher when the session appears or ends, so
 	// it reconnects immediately instead of polling the state.
@@ -117,6 +127,41 @@ type windowSnapshot struct {
 	items    []todo.Todo
 	draft    string
 	err      string
+	search   string
+	notifs   []notifItem
+	unread   int
+	notes    []docItem
+	boards   []docItem
+	// reviewConfigured mirrors the web rule: the review loop is
+	// real-LLM only, so an unconfigured window says so instead of
+	// offering a run that would fail.
+	reviewConfigured bool
+}
+
+// visibleItems applies the native search filter (substring, token AND,
+// case-insensitive — the same narrowing the web search applies before
+// ranking). Empty query is the identity.
+func visibleItems(items []todo.Todo, query string) []todo.Todo {
+	q := strings.ToLower(strings.TrimSpace(query))
+	if q == "" {
+		return items
+	}
+	tokens := strings.Fields(q)
+	out := make([]todo.Todo, 0, len(items))
+	for _, it := range items {
+		title := strings.ToLower(it.Title)
+		ok := true
+		for _, tok := range tokens {
+			if !strings.Contains(title, tok) {
+				ok = false
+				break
+			}
+		}
+		if ok {
+			out = append(out, it)
+		}
+	}
+	return out
 }
 
 func (s *windowState) snapshot() windowSnapshot {
@@ -124,15 +169,29 @@ func (s *windowState) snapshot() windowSnapshot {
 	defer s.mu.Unlock()
 	items := make([]todo.Todo, len(s.items))
 	copy(items, s.items)
+	notifs := make([]notifItem, len(s.notifs))
+	copy(notifs, s.notifs)
 	return windowSnapshot{
-		signedIn: s.signedIn,
-		ownerID:  s.ownerID,
-		email:    s.email,
-		authErr:  s.authErr,
-		items:    items,
-		draft:    s.draft,
-		err:      s.err,
+		signedIn:         s.signedIn,
+		ownerID:          s.ownerID,
+		email:            s.email,
+		authErr:          s.authErr,
+		items:            items,
+		draft:            s.draft,
+		err:              s.err,
+		search:           s.search,
+		notifs:           notifs,
+		unread:           s.unread,
+		notes:            append([]docItem(nil), s.notes...),
+		boards:           append([]docItem(nil), s.boards...),
+		reviewConfigured: s.reviewConfigured,
 	}
+}
+
+func (s *windowState) setSearch(v string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.search = v
 }
 
 func (s *windowState) setEmail(v string) {
@@ -230,6 +289,7 @@ func (s *windowState) refresh() {
 	s.mu.Unlock()
 
 	items, err := st.List(context.Background(), ownerID, "")
+	notifs, unread, nerr := st.ListNotifications(context.Background(), ownerID)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	// A sign-out racing this refresh must win: if the owner changed
@@ -243,7 +303,46 @@ func (s *windowState) refresh() {
 		return
 	}
 	s.items = items
+	if nerr != nil {
+		// Inbox is secondary: a notifications read failure must not
+		// blank the todo list or the unread badge path.
+		s.notifs = nil
+		s.unread = 0
+		return
+	}
+	s.notifs = notifs
+	s.unread = int(unread)
+	notes, nerr2 := st.ListDocs(context.Background(), "notes")
+	boards, berr := st.ListDocs(context.Background(), "boards")
+	if nerr2 == nil {
+		s.notes = notes
+	}
+	if berr == nil {
+		s.boards = boards
+	}
 	s.err = ""
+}
+
+func (s *windowState) createDoc(kind string) {
+	s.mu.Lock()
+	owner := s.ownerID
+	s.mu.Unlock()
+	if owner == "" {
+		return
+	}
+	if _, err := s.st.CreateDoc(context.Background(), kind, owner); err != nil {
+		s.mu.Lock()
+		s.err = "create " + kind + ": " + err.Error()
+		s.mu.Unlock()
+		return
+	}
+	s.refresh()
+}
+
+func (s *windowState) setReviewConfigured(v bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.reviewConfigured = v
 }
 
 func (s *windowState) add() {

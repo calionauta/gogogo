@@ -129,6 +129,27 @@ func TestEditRegistryRefusesUnexpectedShape(t *testing.T) {
 	}
 }
 
+// TestEditRegistryAppendsToAppendWrappedRegistry pins the current shape:
+// var All = append([]Capability{…}, append(…)) — the entry must land
+// inside the literal, before "}, append(", not after the file.
+func TestEditRegistryAppendsToAppendWrappedRegistry(t *testing.T) {
+	fixture := "package capabilities\n\nvar extra []Capability\n\n" +
+		"var All = append([]Capability{\n\t{ID: \"x\"},\n}, extra...)\n"
+	out, err := editRegistry(fixture, "reports")
+	if err != nil {
+		t.Fatalf("editRegistry (append shape): %v", err)
+	}
+	if !strings.Contains(out, `ID:      "reports"`) {
+		t.Errorf("append-wrapped entry missing:\n%s", out)
+	}
+	if _, perr := parser.ParseFile(token.NewFileSet(), "registry.go", out, parser.AllErrors); perr != nil {
+		t.Fatalf("edited append-wrapped registry does not parse: %v\n%s", perr, out)
+	}
+	if strings.Count(out, `ID:      "reports"`) != 1 {
+		t.Errorf("expected exactly one scaffolded unit:\n%s", out)
+	}
+}
+
 // TestAppendPolicyRows is the RBAC half: two literal user rows, appended
 // once, and stable on a re-run.
 func TestAppendPolicyRows(t *testing.T) {

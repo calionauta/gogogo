@@ -156,6 +156,101 @@ func (s guiStore) Delete(ctx context.Context, owner, id string) error {
 	return nil
 }
 
+// notifItem is the inbox slice the native window renders. Read-only:
+// marking read is a web action in v1 (the same row the inbox stream
+// patches); the native twin answers "what is waiting for me".
+type notifItem struct {
+	ID      string
+	Subject string
+	Body    string
+	Created string
+	Unread  bool
+}
+
+// ListNotifications loads the owner's in_app inbox rows, newest first —
+// the same query and limit the web page renders.
+func (s guiStore) ListNotifications(ctx context.Context, owner string) ([]notifItem, int64, error) {
+	rows, err := s.q.ListNotificationsForOwner(ctx, dbgen.ListNotificationsForOwnerParams{
+		Owner: owner, Limit: 50,
+	})
+	if err != nil {
+		return nil, 0, fmt.Errorf("gui: list notifications: %w", err)
+	}
+	unread, err := s.q.CountUnreadInApp(ctx, owner)
+	if err != nil {
+		return nil, 0, fmt.Errorf("gui: count unread: %w", err)
+	}
+	out := make([]notifItem, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, notifItem{
+			ID: row.ID, Subject: row.Subject, Body: row.Body,
+			Created: row.Created, Unread: !row.ReadAt.Valid,
+		})
+	}
+	return out, unread, nil
+}
+
+// docItem is one shared collaborative doc (note or board) the native
+// twin lists. Shared listing: every signed-in user sees every doc; the
+// row carries the author's email.
+type docItem struct {
+	ID     string
+	Author string
+	Title  string
+}
+
+// ListDocs loads shared notes or boards. kind is "notes" or "boards".
+func (s guiStore) ListDocs(ctx context.Context, kind string) ([]docItem, error) {
+	switch kind {
+	case "notes":
+		rows, err := s.q.ListNotes(ctx)
+		if err != nil {
+			return nil, err
+		}
+		out := make([]docItem, 0, len(rows))
+		for _, r := range rows {
+			out = append(out, docItem{ID: r.DocID, Author: r.OwnerEmail, Title: "note"})
+		}
+		return out, nil
+	case "boards":
+		rows, err := s.q.ListBoards(ctx)
+		if err != nil {
+			return nil, err
+		}
+		out := make([]docItem, 0, len(rows))
+		for _, r := range rows {
+			out = append(out, docItem{ID: r.DocID, Author: r.OwnerEmail, Title: "board"})
+		}
+		return out, nil
+	default:
+		return nil, fmt.Errorf("gui: unknown doc kind %q", kind)
+	}
+}
+
+// CreateDoc writes a new shared doc metadata row (note or board).
+// Content (Loro doc) starts empty on the web; the native twin owns
+// creation, the web owns editing — the same split the inbox uses.
+func (s guiStore) CreateDoc(ctx context.Context, kind, owner string) (docItem, error) {
+	now := dbschema.Now()
+	id := dbschema.NewID()
+	params := dbgen.UpsertNoteParams{DocID: id, Owner: owner, Updated: now, Created: now}
+	switch kind {
+	case "notes":
+		if err := s.q.UpsertNote(ctx, params); err != nil {
+			return docItem{}, fmt.Errorf("gui: create note: %w", err)
+		}
+	case "boards":
+		if err := s.q.UpsertBoard(ctx, dbgen.UpsertBoardParams{
+			DocID: id, Owner: owner, Updated: now, Created: now,
+		}); err != nil {
+			return docItem{}, fmt.Errorf("gui: create board: %w", err)
+		}
+	default:
+		return docItem{}, fmt.Errorf("gui: unknown doc kind %q", kind)
+	}
+	return docItem{ID: id, Author: "", Title: kind}, nil
+}
+
 // errNotFound mirrors the store contract's not-found signal so callers
 // can tell "row gone" from "row broken".
 var errNotFound = errors.New("gui: not found")
