@@ -1,83 +1,32 @@
-// The todo index writer: the postings half of every mutation
-// that can change which rows a search matches.
+// The todo index writer: the postings half of every mutation.
 //
-// Both write paths go through here — the HTTP handlers and the cross-instance
-// CRUD bridge — because a second path that skipped the index would recreate
-// exactly the row/index divergence the transactional design exists to
-// prevent. Split from mutations.go for the file-size gate. To remove: delete
-// with features/todo/ (the plugin's own half lives in internal/search).
+// The transaction implementations live in the domain service
+// (features/todo/service). These wrappers keep the bridge + test call
+// sites working during the migration; new code should use the service.
 package handlers
 
 import (
 	"context"
 	"database/sql"
 
+	"github.com/calionauta/gogogo/features/todo/service"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
-	"github.com/calionauta/gogogo/internal/dbschema"
 )
 
-// indexEnabled reports whether postings must be kept in step with the rows.
-// False is the common case: the substring and fuzzy layers answer from the
-// rows themselves, so a search box in those modes costs zero extra writes.
-func indexEnabled(ix SearchIndexer, db *sql.DB) bool { return ix != nil && db != nil }
-
-// createTodoIndexed inserts a row and its postings in one transaction, so a
-// row can never exist without the index entry a bm25 search would need, nor
-// an index entry outlive a failed insert.
 func createTodoIndexed(ctx context.Context, q *dbgen.Queries, ix SearchIndexer, db *sql.DB,
 	p dbgen.CreateTodoParams,
 ) error {
-	if !indexEnabled(ix, db) {
-		_, err := q.CreateTodo(ctx, p)
-		return err
-	}
-	return dbschema.Transact(ctx, db, "todo create+index", func(ctx context.Context, tx *sql.Tx) error {
-		if _, err := q.WithTx(tx).CreateTodo(ctx, p); err != nil {
-			return err
-		}
-		return ix.IndexTodo(ctx, tx, p.Owner, p.ID, p.Title, p.Visibility)
-	})
+	return service.New(q, ix, db, nil, nil).CreateIndexed(ctx, p)
 }
 
-// deleteTodoIndexed removes a row and its postings in one transaction.
 func deleteTodoIndexed(ctx context.Context, q *dbgen.Queries, ix SearchIndexer, db *sql.DB,
 	owner, id string,
 ) error {
-	if !indexEnabled(ix, db) {
-		return q.DeleteTodoByID(ctx, id)
-	}
-	return dbschema.Transact(ctx, db, "todo delete+index", func(ctx context.Context, tx *sql.Tx) error {
-		if err := ix.DeleteTodo(ctx, tx, owner, id); err != nil {
-			return err
-		}
-		return q.WithTx(tx).DeleteTodoByID(ctx, id)
-	})
+	return service.New(q, ix, db, nil, nil).DeleteIndexed(ctx, owner, id)
 }
 
-// clearCompletedIndexed deletes an owner's completed rows and their postings
-// in one transaction. The ids are read inside the same transaction: reading
-// them outside would race a concurrent toggle into clearing a row whose
-// postings were written after the read, leaving an orphan index entry.
 func clearCompletedIndexed(ctx context.Context, q *dbgen.Queries, ix SearchIndexer, db *sql.DB,
 	owner string,
 ) (int64, error) {
-	if !indexEnabled(ix, db) {
-		return q.DeleteCompletedByOwner(ctx, owner)
-	}
-	var count int64
-	err := dbschema.Transact(ctx, db, "todo clear+index", func(ctx context.Context, tx *sql.Tx) error {
-		txq := q.WithTx(tx)
-		ids, err := txq.ListCompletedIDsByOwner(ctx, owner)
-		if err != nil {
-			return err
-		}
-		for _, id := range ids {
-			if derr := ix.DeleteTodo(ctx, tx, owner, id); derr != nil {
-				return derr
-			}
-		}
-		count, err = txq.DeleteCompletedByOwner(ctx, owner)
-		return err
-	})
-	return count, err
+	return service.New(q, ix, db, nil, nil).ClearCompletedIndexed(ctx, owner)
 }

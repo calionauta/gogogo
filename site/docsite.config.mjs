@@ -28,6 +28,8 @@ export default {
     desc: "The installer as scriptable commands: advise, preview, apply, add, check." },
   { group: "Agents", slug: "mcp", file: "mcp.md",
     desc: "Install the MCP server, wire it into your client, and the tools it serves: opinions, trim, drift, migration." },
+  { group: "Core", slug: "service-layer", file: "service-layer.md",
+    desc: "Transport-free domain service: one rule per frontend fact, the recipe contract for features with writes, and the check-flatdeps gate." },
   { group: "Core", slug: "architecture", file: "architecture.md",
     desc: "Directory layout, dependency direction, entry points, and route wiring gotchas." },
   { group: "Core", slug: "stack-layers", file: "stack-layers.md",

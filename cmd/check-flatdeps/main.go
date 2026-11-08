@@ -67,8 +67,84 @@ func run() error {
 	if err := checkSQLOpenOwners(); err != nil {
 		return err
 	}
+	if err := checkServiceLayer(); err != nil {
+		return err
+	}
 	fmt.Fprintln(os.Stdout, "check-flatdeps: flat stack is framework-free")
 	return nil
+}
+
+// serviceLayerFeatures are the features that write to the DB and must
+// expose a transport-free domain service (docs/service-layer.md).
+// Todo is the reference implementation; the gate fails closed on a new
+// feature that ships handlers writing with no service, so the next
+// recipe cannot re-introduce the guiStore copy.
+var serviceLayerFeatures = []string{"todo"}
+
+// checkServiceLayer enforces docs/service-layer.md: every feature in
+// serviceLayerFeatures has a features/<name>/service package, and its
+// handlers do not import dbgen directly for writes (they call the
+// service). The import check is textual (handlers/*.go), so generated
+// _templ.go and tests are excluded.
+func checkServiceLayer() error {
+	root, err := moduleRoot()
+	if err != nil {
+		return err
+	}
+	for _, feat := range serviceLayerFeatures {
+		path := filepath.Join(root, "features", feat, "service", "service.go")
+		if _, err := os.Stat(path); err != nil {
+			return fmt.Errorf("feature %s: missing service at %s", feat, path)
+		}
+	}
+	for _, feat := range serviceLayerFeatures {
+		if err := checkTodoHandlersWrite(feat, root); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func checkTodoHandlersWrite(feat, root string) error {
+	dir := filepath.Join(root, "features", feat, "handlers")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		if err := checkOneHandlerFile(feat, dir, e); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func checkOneHandlerFile(feat, dir string, e os.DirEntry) error {
+	name := e.Name()
+	if e.IsDir() || !isHandlerSource(name) {
+		return nil
+	}
+	if name == "bridge.go" || name == "index_write.go" || name == "chi.go" {
+		return nil
+	}
+	b, err := os.ReadFile(filepath.Join(dir, name))
+	if err != nil {
+		return err
+	}
+	s := string(b)
+	for _, bad := range []string{"dbgen.CreateTodo", "q.CreateTodo"} {
+		if strings.Contains(s, bad+"(") || strings.Contains(s, bad+"Param") {
+			return fmt.Errorf("feature %s handlers/%s writes via %s; use service", feat, name, bad)
+		}
+	}
+	return nil
+}
+
+func isHandlerSource(name string) bool {
+	if !strings.HasSuffix(name, ".go") {
+		return false
+	}
+	return !strings.HasSuffix(name, "_test.go") && !strings.HasSuffix(name, "_templ.go")
 }
 
 func checkBannedClosure() error {

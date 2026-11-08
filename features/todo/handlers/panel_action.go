@@ -35,6 +35,7 @@ import (
 
 	"github.com/calionauta/gogogo/features/todo"
 	todoscomp "github.com/calionauta/gogogo/features/todo/components"
+	"github.com/calionauta/gogogo/features/todo/service"
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
 	"github.com/calionauta/gogogo/internal/observability"
 )
@@ -150,7 +151,7 @@ func (h *Handler) answerPanelReadErr(
 		return false
 	}
 	ctx := r.Context()
-	if errors.Is(err, sql.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) || errors.Is(err, service.ErrNotFound) {
 		if perr := h.answerPanelSelf(w, r, owner, target); perr != nil {
 			h.fail(ctx, w, "todo: "+op+" panel patch failed", perr, op+" failed")
 		}

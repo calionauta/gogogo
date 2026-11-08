@@ -43,7 +43,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -58,12 +57,8 @@ import (
 	"github.com/gogpu/ui/widget"
 
 	"github.com/calionauta/gogogo/config"
-	"github.com/calionauta/gogogo/features/todo"
-	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
-	"github.com/calionauta/gogogo/internal/auth"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
-	"github.com/calionauta/gogogo/internal/dbschema"
-	"github.com/calionauta/gogogo/internal/demo"
+	"github.com/calionauta/gogogo/internal/desktopboot"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 )
@@ -100,8 +95,7 @@ func run() error {
 	}
 
 	// The same flat stack the web app serves: app file + migrations +
-	// owned auth, minus the HTTP listener. No framework, no bootstrap
-	// hook — the queries below are the ones the chi handlers call.
+	// owned auth, minus the HTTP listener. Boot is shared (desktopboot).
 	//
 	// Opened through the ncruces `sqlite3` driver, never internal/db:
 	// importing that package links tursogo (purego), whose fakecgo
@@ -112,40 +106,14 @@ func run() error {
 		return err
 	}
 	defer sqlDB.Close()
-	if merr := dbschema.Migrate(sqlDB); merr != nil {
-		return fmt.Errorf("migrate: %w", merr)
+	if merr := desktopboot.MigrateAll(sqlDB); merr != nil {
+		return merr
 	}
-	// The todo unit owns ext_todo_todos now; the core ledger alone does not
-	// create it (see features/todo/migrations/0001_init.sql).
-	todoSet := dbschema.MigrationSet{ID: todohandlers.RecipeID, FS: todo.Migrations, Dir: "migrations"}
-	if merr := dbschema.MigrateWith(sqlDB, todoSet); merr != nil {
-		return fmt.Errorf("todo migrate: %w", merr)
-	}
-
-	a, aerr := auth.New(dbgen.New(sqlDB), cfg.Auth.SecureCookies)
+	a, aerr := desktopboot.NewAuth(sqlDB, cfg)
 	if aerr != nil {
-		return fmt.Errorf("auth: %w", aerr)
+		return aerr
 	}
-	// Same seal-key rule as the web stack (see wireTOTPKey): env key wins,
-	// malformed fails the boot, else the auto-created file, else keyless
-	// with enrollment failing closed per operation.
-	key := cfg.Auth.TOTPEncKey
-	if raw := os.Getenv("AUTH_ENC_KEY"); raw != "" && len(key) == 0 {
-		return errors.New("auth: malformed AUTH_ENC_KEY (want 64 hex chars)")
-	}
-	if len(key) == 0 {
-		if fk, ferr := auth.LoadOrCreateKeyFile(cfg.DataDir); ferr != nil {
-			slog.Warn("gui: totp key file unavailable, TOTP enrollment disabled", "error", ferr)
-		} else {
-			key = fk[:]
-		}
-	}
-	if len(key) > 0 {
-		if err := a.SetTOTPEncKey(key); err != nil {
-			return fmt.Errorf("auth: %w", err)
-		}
-	}
-	demo.Ensure(context.Background(), a, dbgen.New(sqlDB))
+	desktopboot.EnsureDemo(context.Background(), a, sqlDB)
 
 	m3 := material3.New(widget.Hex(seedColorHex))
 
@@ -160,7 +128,7 @@ func run() error {
 		app.WithTheme(m3.AsTheme()),
 	)
 
-	st := newState(guiStore{q: dbgen.New(sqlDB)}, a)
+	st := newState(newGUIStore(dbgen.New(sqlDB), sqlDB, nil, nil), a)
 	st.setReviewConfigured(cfg.GoAI.APIKey != "")
 	tokPath := tokenPath(cfg.DataDir)
 	restoreSession(st, tokPath)

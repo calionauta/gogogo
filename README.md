@@ -49,6 +49,7 @@ manifest, then `make docs-index`; `make check-docs` fails when this block drifts
 - [mcp](docs/mcp.md) — Install the MCP server, wire it into your client, and the tools it serves: opinions, trim, drift, migration.
 
 **Core**
+- [service-layer](docs/service-layer.md) — Transport-free domain service: one rule per frontend fact, the recipe contract for features with writes, and the check-flatdeps gate.
 - [architecture](docs/architecture.md) — Directory layout, dependency direction, entry points, and route wiring gotchas.
 - [stack-layers](docs/stack-layers.md) — Every dependency and what it buys, layer by layer.
 - [stack-tradeoffs](docs/stack-tradeoffs.md) — What each choice rejected, what it costs to keep, and when to revisit: Turso vs SQLite vs Postgres, Datastar vs React, and the rest.

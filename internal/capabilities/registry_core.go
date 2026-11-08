@@ -3,6 +3,15 @@ package capabilities
 
 var coreExtraUnits = []Capability{
 	{
+		ID:      "desktopboot",
+		Kind:    KindPlugin,
+		Summary: "shared native-shell boot (migrations, auth+TOTP, demo, instance-id, webview URL)",
+		Dirs:    []string{"internal/desktopboot"},
+		Note: "Plugin, not core: only cmd/desktop (Wails) and cmd/gui (gogpu/ui) " +
+			"and future native shells read it — cmd/web boots through " +
+			"internal/server. Deleting it drops the shared boot, not the web app.",
+	},
+	{
 		ID:      "observability",
 		Kind:    KindCore,
 		Summary: "core observability (slog + tracing)",

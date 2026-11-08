@@ -422,9 +422,19 @@ writes are the follow-ups.
 (`uiMu` serializes `SetRoot`); background poll produces data under `stateMu`
 while views read `snapshot()` copies; lock order is always `uiMu → stateMu`.
 
+**Cross-frontend rule:** todo writes go through the transport-free
+`features/todo/service` (docs/service-layer.md) — the HTTP handlers
+and the native window call the same `Create/Toggle/Delete`, so the
+onboarding resume and Bus publish happen on both. Fresh-read toggle
+(never snapshot-based), idempotent create and `canDeleteRow` live
+there once. Boot for both shells goes through `internal/desktopboot`
+(migrations, auth+TOTP, demo, instance-id, single-instance,
+webview-URL).
+
 **Deliberate limits** (see the `cmd/gui/main.go` header): online-only (no
-outbox/replay), no JetStream push (poll only), native `add()` does not trigger
-the onboarding workflow, session token in a `0600` file (no OS keyring).
+outbox/replay), no JetStream push (poll only), session token in a `0600` file
+(no OS keyring). Native `add()` now triggers the onboarding workflow via the
+service.
 
 **To remove:** delete `cmd/gui/`, drop the `gui`, `gui-build`, `gui-test`,
 `run-gui` and `lint-gui` Makefile targets. No script change needed — it is

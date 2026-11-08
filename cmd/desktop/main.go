@@ -13,8 +13,6 @@ package main
 
 import (
 	"context"
-	"crypto/sha256"
-	"fmt"
 	"log/slog"
 	"net"
 	"os"
@@ -27,7 +25,7 @@ import (
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/internal/cloudcfg"
 	"github.com/calionauta/gogogo/internal/collab"
-	"github.com/calionauta/gogogo/internal/instance"
+	"github.com/calionauta/gogogo/internal/desktopboot"
 	"github.com/calionauta/gogogo/internal/nats"
 	"github.com/calionauta/gogogo/internal/server"
 )
@@ -178,47 +176,22 @@ func applySyncConfig(cfg *config.Config) {
 }
 
 // scopeInstanceIdentity pins APP_INSTANCE_ID to the desktop profile unless the
-// operator already set one. instance.ID() caches on first use, so this must run
-// before the backend boots.
-func scopeInstanceIdentity(cfg *config.Config) {
-	if os.Getenv(instance.EnvVar) != "" {
-		return
-	}
-	sum := sha256.Sum256([]byte(cfg.Turso.DBPath))
-	os.Setenv(instance.EnvVar, fmt.Sprintf("%s-desktop-%x", cfg.AppName, sum[:8]))
-}
+// operator already set one. Delegates to internal/desktopboot.
+func scopeInstanceIdentity(cfg *config.Config) { desktopboot.ScopeInstanceIdentity(cfg) }
 
-// singleInstanceID scopes the Wails lock to the app AND its database, so a
-// second profile still opens while a duplicate of the same profile is refused.
+// singleInstanceID scopes the Wails lock to the app AND its database.
+// Delegates to internal/desktopboot.
 func singleInstanceID(appName, dbPath string) string {
-	sum := sha256.Sum256([]byte(dbPath))
-	return fmt.Sprintf("%s.desktop.%x", appName, sum[:8])
+	return desktopboot.SingleInstanceID(appName, dbPath)
 }
 
-// portOf parses the port out of a bound listener address.
-func portOf(addr string) (int, error) {
-	_, portStr, err := net.SplitHostPort(addr)
-	if err != nil {
-		return 0, err
-	}
-	port, err := strconv.Atoi(portStr)
-	if err != nil {
-		return 0, fmt.Errorf("port %q: %w", portStr, err)
-	}
-	return port, nil
-}
+// portOf parses the port out of a bound listener address. Delegates to
+// internal/desktopboot.
+func portOf(addr string) (int, error) { return desktopboot.PortOf(addr) }
 
-// webviewURL is the loopback URL the window loads. cfg.Host is the LISTEN
-// address (the wildcard unless HOST names one); a webview cannot navigate to
-// 0.0.0.0, so the wildcard maps to 127.0.0.1 — the same process is serving
-// there.
-func webviewURL(host string, port int) string {
-	switch host {
-	case "", "0.0.0.0", "::", "[::]":
-		host = "127.0.0.1"
-	}
-	return "http://" + net.JoinHostPort(host, strconv.Itoa(port)) + "/"
-}
+// webviewURL is the loopback URL the window loads. Delegates to
+// internal/desktopboot.
+func webviewURL(host string, port int) string { return desktopboot.WebviewURL(host, port) }
 
 // startTransport boots the realtime transport. Edge sync (Phase B): a
 // configured central NATS URL makes this instance a Leaf Node, so its
