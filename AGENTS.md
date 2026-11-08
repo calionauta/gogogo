@@ -14,7 +14,7 @@ Go template: Datastar + Templ + Turso (sqlc) + owned auth + goqite + DagNats + N
 
 ## Stack (exact versions)
 
-Go 1.27 | Templ v0.3.1020 | Datastar v1.0.4 (JS core, vendored) + datastar-go v1.2.2 (Go SDK) | Turso (tursogo v0.8.3, sqlc queries) | TailwindCSS v4.3.3 + DaisyUI v5.7.42 | goqite v0.4.0 | retry-go v4 | DagNats v0.0.30 | GoAkt v4.6.3 (room lease + whiteboard/notes collaborative presence) | NATS JetStream | age v1.3.2 | uuid v1.6.0
+Go 1.27 | Templ v0.3.1020 | Datastar v1.0.4 (JS core, vendored) + datastar-go v1.2.2 (Go SDK) | Turso (tursogo v0.8.3, sqlc queries) | TailwindCSS v4.3.3 + DaisyUI v5.7.42 | goqite v0.4.0 | retry-go v4 | DagNats v0.0.30 | GoAkt v4.6.3 (room lease + whiteboard/notes collaborative presence) | NATS JetStream | age v1.3.2 | uuid v1.6.0 | localization seam (`internal/i18n`, `I18N_ENABLED=false` default, `golang.org/x/text` only — see `docs/research/i18n-2026-11.md`)
 
 ## Skills
 
@@ -57,6 +57,7 @@ Go 1.27 | Templ v0.3.1020 | Datastar v1.0.4 (JS core, vendored) + datastar-go v1
 - NO hand-rolled IDs on rows — use `dbschema.NewID()` (UUIDv7 string, matches every owner column).
 - NO authorization by ad-hoc `role == "admin"` in a handler (ruleguard `RoleCompareOutsideRBAC` fails CI) — route decisions go in `casbin/policy.csv`, per-record decisions in `canDeleteDoc`/`canDeleteRow`. NO shared-doc read/write without a session check in the handler: `RBAC_ENABLED` defaults to true in production (false in development), and the policy is inert only if an operator opts out explicitly (`docs/rbac.md`).
 - NO `PatchElements` without top-level `id` + `WithSelector` (`PatchElementsNoTargetsFound`). Use `internal/datastar.RenderAndPatch`.
+- NO new translation library: user-facing strings go through `internal/i18n.T(ctx, "dominio.chave", nil)` (own the seam, rent CLDR depth only on the trigger in `docs/research/i18n-2026-11.md`). No hardcoded copy in new markup, no second i18n dependency.
 - NO real LLM in tests — inject a stub (`internal/llm/fakeserver` only inside `internal/llm/`).
 - NO secrets in git, chat-visible commands, or test fixtures — keys live in `~/.secrets/` (600) or age `.env.age` via `bin/init-secrets`; `gitleaks` pre-commit + CI enforce it. Never print secret values (lengths/names only).
 - NO agent self-certification in-loop — tests guarding new behavior follow RED/GREEN/PROVE (acceptance from human/fresh context → implement → hand-mutate, watch fail, revert; never commit the mutation); no mandated TDD red-green cycle (evidence: ProgramBench + DeepSWE 2026). Normative text: `skills/gogogo-coding-standards/references/go-testing.md`.
