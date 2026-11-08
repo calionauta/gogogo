@@ -22,6 +22,7 @@ import (
 	"github.com/calionauta/gogogo/features/todo"
 	"github.com/calionauta/gogogo/features/todo/service"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 )
 
 const guiDirPerm = 0o755

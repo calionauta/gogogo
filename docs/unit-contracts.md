@@ -12,8 +12,8 @@ of the file you are about to touch.
 
 ## Registry at a glance
 
-- **Units:** 47 — 15 core · 19 plugin · 13 feature
-- **Manual removal:** 32 (core units are never removed)
+- **Units:** 48 — 15 core · 20 plugin · 13 feature
+- **Manual removal:** 33 (core units are never removed)
 - **Source of truth:** `internal/capabilities/registry.go`; this doc is
   regenerated from it, so the counts above cannot drift.
 
