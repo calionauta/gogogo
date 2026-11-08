@@ -95,6 +95,7 @@ func (h *Handler) Routes() chi.Router {
 	r.Post("/api/notifications/remind", h.handleRemind)
 	r.Post("/api/notifications/read-all", h.handleReadAll)
 	r.Post("/api/notifications/{id}/read", h.handleRead)
+	r.Post("/api/notifications/{id}/unread", h.handleUnread)
 	r.Get("/api/notifications/badge", h.handleBadge)
 	return r
 }
@@ -123,7 +124,7 @@ func (h *Handler) handlePage(w http.ResponseWriter, r *http.Request) {
 // handleRead marks one row read and patches the inbox region. A row that
 // belongs to someone else updates nothing (the query is owner-scoped).
 func (h *Handler) handleRead(w http.ResponseWriter, r *http.Request) {
-	h.mutate(w, r, func(ctx context.Context, owner string) error {
+	h.mutate(w, r, "read", func(ctx context.Context, owner string) error {
 		_, err := h.q.MarkNotificationRead(ctx, dbgen.MarkNotificationReadParams{
 			ReadAt: sql.NullString{String: dbschema.Now(), Valid: true},
 			ID:     chi.URLParam(r, "id"),
@@ -133,9 +134,21 @@ func (h *Handler) handleRead(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleUnread is the reverse of handleRead: it clears read_at on one row so
+// a misread item returns to the unread pile. Same owner scoping, same patch.
+func (h *Handler) handleUnread(w http.ResponseWriter, r *http.Request) {
+	h.mutate(w, r, "unread", func(ctx context.Context, owner string) error {
+		_, err := h.q.MarkNotificationUnread(ctx, dbgen.MarkNotificationUnreadParams{
+			ID:    chi.URLParam(r, "id"),
+			Owner: owner,
+		})
+		return err
+	})
+}
+
 // handleReadAll marks every in-app row read for the session owner.
 func (h *Handler) handleReadAll(w http.ResponseWriter, r *http.Request) {
-	h.mutate(w, r, func(ctx context.Context, owner string) error {
+	h.mutate(w, r, "read-all", func(ctx context.Context, owner string) error {
 		_, err := h.q.MarkAllNotificationsRead(ctx, dbgen.MarkAllNotificationsReadParams{
 			ReadAt: sql.NullString{String: dbschema.Now(), Valid: true},
 			Owner:  owner,
@@ -165,10 +178,10 @@ func (h *Handler) handleBadge(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// mutate is the shared body of the two read actions: session check, the
+// mutate is the shared body of the read/unread actions: session check, the
 // owner-scoped write, one patch of the inbox region for the clicker, and one
 // bus event for every other tab of the same owner.
-func (h *Handler) mutate(w http.ResponseWriter, r *http.Request,
+func (h *Handler) mutate(w http.ResponseWriter, r *http.Request, action string,
 	write func(ctx context.Context, owner string) error,
 ) {
 	sess, err := h.auth.Session(r)
@@ -178,7 +191,7 @@ func (h *Handler) mutate(w http.ResponseWriter, r *http.Request,
 	}
 	owner := sess.User.ID
 	if werr := write(r.Context(), owner); werr != nil {
-		h.logError(r, "notifications: mark read", werr)
+		h.logError(r, "notifications: mark "+action, werr)
 		http.Error(w, "write failed", http.StatusInternalServerError)
 		return
 	}

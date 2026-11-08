@@ -5,7 +5,11 @@
 
 //
 
-// The badge is a DaisyUI `indicator-item` on the module icon and always renders
+// The badge sits at the END of the rail row (after the label), not on the icon:
+
+// in a labelled row the icon corner is close enough to the first letter of
+
+// "Inbox" that a wide count ("99+") would paint over it. It always renders
 
 // (hidden at zero) because the notifications feature patches this exact node by
 
@@ -29,13 +33,13 @@ import (
 )
 
 // RailInboxBadge is the unread count bubble. tabular-nums keeps a count
-// change from shifting the icon; the label caps at 99+ so three digits cannot
+// change from shifting the label; the label caps at 99+ so three digits cannot
 // stretch the rail row.
 //
 // The text/visibility are bound to $inboxUnread: the server seeds it from the
 // page middleware, and session.js updates it from the leader stream's frames
 // (BroadcastChannel fans the same value out to every tab). The server-rendered
-// text is the pre-init fallback; the JS expression mirrors unreadBadgeLabel so
+// text is the pre-init fallback; the JS expression mirrors UnreadBadgeLabel so
 // the first paint and every later update agree on the 99+ cap.
 func RailInboxBadge(unread int) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
@@ -58,7 +62,7 @@ func RailInboxBadge(unread int) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var2 = []any{templ.Classes("indicator-item badge badge-primary badge-xs tabular-nums", map[string]bool{"hidden": unread <= 0})}
+		var templ_7745c5c3_Var2 = []any{templ.Classes("badge badge-primary badge-xs tabular-nums", map[string]bool{"hidden": unread <= 0})}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var2...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -81,9 +85,9 @@ func RailInboxBadge(unread int) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var4 string
-		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(unreadBadgeLabel(unread))
+		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(UnreadBadgeLabel(unread))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/inbox.templ`, Line: 32, Col: 28}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/inbox.templ`, Line: 34, Col: 28}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
@@ -139,7 +143,7 @@ func railInboxRefresh() templ.Component {
 }
 
 // railItem is one destination in the rail: same markup for every module, with
-// the inbox icon wrapped in the indicator that carries its count.
+// the inbox count badge at the end of the row, after the label.
 func railItem(m Module, active bool, unread int) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -173,7 +177,7 @@ func railItem(m Module, active bool, unread int) templ.Component {
 		var templ_7745c5c3_Var8 templ.SafeURL
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(m.URL))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/inbox.templ`, Line: 65, Col: 29}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/inbox.templ`, Line: 67, Col: 29}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -199,7 +203,7 @@ func railItem(m Module, active bool, unread int) templ.Component {
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(activeCurrent(active))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/inbox.templ`, Line: 67, Col: 38}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/inbox.templ`, Line: 69, Col: 38}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 		if templ_7745c5c3_Err != nil {
@@ -209,43 +213,34 @@ func railItem(m Module, active bool, unread int) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if m.ID == ModuleInbox {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<span class=\"indicator\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = RailInboxBadge(unread).Render(ctx, templ_7745c5c3_Buffer)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = icon.Icon(m.Icon, "app-rail-icon").Render(ctx, templ_7745c5c3_Buffer)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</span> ")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		} else {
-			templ_7745c5c3_Err = icon.Icon(m.Icon, "app-rail-icon").Render(ctx, templ_7745c5c3_Buffer)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
+		templ_7745c5c3_Err = icon.Icon(m.Icon, "app-rail-icon").Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<span class=\"app-rail-label\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<span class=\"app-rail-label\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(m.Title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/inbox.templ`, Line: 79, Col: 40}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/inbox.templ`, Line: 74, Col: 40}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</span></a>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</span> ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if m.ID == ModuleInbox {
+			templ_7745c5c3_Err = RailInboxBadge(unread).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</a>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -253,9 +248,11 @@ func railItem(m Module, active bool, unread int) templ.Component {
 	})
 }
 
-// unreadBadgeLabel is the bubble's text. Zero renders nothing (the node stays
+// UnreadBadgeLabel is the bubble's text. Zero renders nothing (the node stays
 // in the DOM for patching); past 99 the bubble says "99+" instead of growing.
-func unreadBadgeLabel(unread int) string {
+// Exported: the inbox header badge reads the same counter in the same form, so
+// the two surfaces cannot disagree on the cap.
+func UnreadBadgeLabel(unread int) string {
 	switch {
 	case unread <= 0:
 		return ""

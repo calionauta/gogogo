@@ -73,7 +73,9 @@ func TestInboxStatePanelCountsEveryChannel(t *testing.T) {
 		}
 	}
 	// The email row is the panel's evidence, never a second inbox item.
-	if strings.Count(html, `<li class="flex items-start gap-3 py-3">`) != 1 {
+	// Rows carry a data-show filter binding after the class, so count the
+	// class prefix, not the full tag.
+	if strings.Count(html, `<li class="flex items-start gap-3 py-3"`) != 1 {
 		t.Errorf("inbox list rendered more than the in-app row")
 	}
 	if strings.Contains(html, "Email · sent") {
@@ -110,11 +112,35 @@ func TestReadAndRemindPatchTheShellSurfaces(t *testing.T) {
 		}
 	}
 
+	// Mark-unread reverses the read: the same row returns to the unread pile,
+	// the count goes back to one, and the patch carries it. The query is
+	// owner-scoped, so this also proves the route cannot resurrect another
+	// account's row (verified in the store test; here the owner's own row).
+	rows, lerr := q.ListNotificationsForOwner(context.Background(),
+		dbgen.ListNotificationsForOwnerParams{Owner: u.ID, Limit: 10})
+	if lerr != nil || len(rows) != 1 {
+		t.Fatalf("list inbox rows = %+v, %v, want exactly one row", rows, lerr)
+	}
+	unread := postForm(t, server, cookie, "/api/notifications/"+rows[0].ID+"/unread?clientID=tab-test", "")
+	for _, want := range []string{
+		"data: selector #inbox\n", "event: datastar-patch-signals",
+		`data: signals {"inboxUnread":1}`, "Mark read",
+	} {
+		if !strings.Contains(unread, want) {
+			t.Errorf("mark-unread patch missing %q:\n%s", want, unread)
+		}
+	}
+	if strings.Contains(unread, "Mark unread") {
+		t.Errorf("mark-unread patch still offers Mark unread on a now-unread row:\n%s", unread)
+	}
+
 	remind := postForm(t, server, cookie, "/api/notifications/remind", "text=Drink+water&delay=1m")
 	for _, want := range []string{
 		"data: selector #inbox\n", "data: selector #toast-container\n",
 		"data: mode append\n", "Reminder scheduled.", "toastmsg_",
-		`data: signals {"inboxUnread":0}`,
+		// The mark-unread above restored the count, so the remind patch
+		// reports the live value, not zero.
+		`data: signals {"inboxUnread":1}`,
 	} {
 		if !strings.Contains(remind, want) {
 			t.Errorf("remind patch missing %q:\n%s", want, remind)

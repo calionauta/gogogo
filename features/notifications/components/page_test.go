@@ -79,6 +79,57 @@ func TestInboxStatePanelShowsDeliveryEvidence(t *testing.T) {
 	}
 }
 
+// TestInboxHeaderBadgeAndFilterTabs pins the inbox header and list surfaces:
+// the unread count is a primary badge on the Notifications title (the same
+// counter language as the rail, not an "N new" word), the All/Unread tabs are
+// a client-side filter bound to $notificationFilter, row actions are sentence
+// case with a soft fill, and read rows offer Mark unread.
+func TestInboxHeaderBadgeAndFilterTabs(t *testing.T) {
+	t.Parallel()
+	data := samplePageData()
+	data.Unread = 2
+	data.Items = []components.Item{
+		{ID: "a", Subject: "Unread subject", Body: "b", When: "08 Nov", Unread: true},
+		{ID: "b", Subject: "Read subject", Body: "b", When: "08 Nov", Unread: false},
+	}
+	html := renderPage(context.Background(), t, false, data)
+	for _, want := range []string{
+		`id="rail-inbox-badge"`,
+		"badge badge-primary badge-sm tabular-nums",
+		`data-text="$inboxUnread`,
+		`data-signals='{"notificationFilter":"all"}'`,
+		`role="tablist" aria-label="Notifications filter"`,
+		`$notificationFilter = 'all'`,
+		`$notificationFilter = 'unread'`,
+		// Dynamic attribute values escape single quotes in rendered HTML
+		// (the same &#39; normalisation as the action URLs), so pin that form.
+		`data-show="$notificationFilter !== &#39;unread&#39; || true"`,
+		`data-show="$notificationFilter !== &#39;unread&#39; || false"`,
+		"Mark read",
+		"Mark unread",
+		"Mark all read",
+		"All caught up.",
+		"btn btn-soft btn-xs",
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("inbox missing %q", want)
+		}
+	}
+	// The old surfaces are gone: no "N new" header word, no lowercase
+	// "mark read", and the rail badge is no longer an indicator on the icon.
+	// (The shell's panel-close button legitimately keeps btn-ghost; the row
+	// buttons carry btn-soft, asserted above.)
+	for _, banned := range []string{
+		"none new",
+		">mark read<",
+		`indicator-item badge badge-primary badge-xs`,
+	} {
+		if strings.Contains(html, banned) {
+			t.Errorf("inbox still renders old surface %q", banned)
+		}
+	}
+}
+
 // TestInboxDagNatsLinkIsOperatorOnly pins the contextual link: an operator can
 // open the console to see the scheduled run, while everyone else reads the same
 // sentence without a link that answers 403.

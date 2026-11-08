@@ -30,6 +30,7 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 			{Method: post, Pattern: "/api/notifications/remind"},
 			{Method: post, Pattern: "/api/notifications/read-all"},
 			{Method: post, Pattern: "/api/notifications/{id}/read"},
+			{Method: post, Pattern: "/api/notifications/{id}/unread"},
 			{Method: get, Pattern: "/api/notifications/badge"},
 		},
 	}

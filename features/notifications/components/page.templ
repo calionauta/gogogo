@@ -91,7 +91,9 @@ templ notificationsSound() {
 }
 
 templ body(data PageData) {
-	<div class="ui-page ui-stack">
+	// $notificationFilter lives here, outside #inbox, so a stream or action
+	// patch that re-renders the inbox cannot reset the tab the user picked.
+	<div class="ui-page ui-stack" data-signals='{"notificationFilter":"all"}'>
 		@components.StreamOpener("inbox-stream", "/api/notifications/stream", false)
 		@remindForm(data)
 		@Inbox(data)
@@ -178,12 +180,38 @@ templ dagNatsWord() {
 
 // Inbox is the patch target: the stream and every read action re-render this
 // region, so a live push and a click cannot drift.
+//
+// The unread count is the same badge the rail carries ($inboxUnread), sitting
+// on the Notifications title — not a separate "N new" word. The All/Unread
+// tabs are the row filter: rows hide client-side (see rowShow), the inbox
+// never paginates, so a tab click needs no server round-trip.
 templ Inbox(data PageData) {
 	<section class="ui-card" id="inbox">
 		<div class="ui-card-body ui-stack">
-			<div class="flex items-center justify-between gap-2">
-				<h2 class="ui-title">Notifications</h2>
-				<span class="badge badge-sm">{ unreadLabel(data.Unread) }</span>
+			<div class="flex items-center gap-2">
+				<h2 class="ui-title flex items-center gap-2">Notifications
+					<span
+						class={ templ.Classes("badge badge-primary badge-sm tabular-nums", map[string]bool{"hidden": data.Unread <= 0}) }
+						data-class="{'hidden': $inboxUnread <= 0}"
+						data-text="$inboxUnread > 99 ? '99+' : ($inboxUnread > 0 ? $inboxUnread : '')"
+					>{ ui.UnreadBadgeLabel(data.Unread) }</span>
+				</h2>
+			</div>
+			<div class="tabs tabs-box tabs-sm" role="tablist" aria-label="Notifications filter">
+				<button
+					type="button"
+					role="tab"
+					class="tab"
+					data-on:click="$notificationFilter = 'all'"
+					data-class="{'tab-active': ($notificationFilter || 'all') === 'all'}"
+				>All</button>
+				<button
+					type="button"
+					role="tab"
+					class="tab"
+					data-on:click="$notificationFilter = 'unread'"
+					data-class="{'tab-active': $notificationFilter === 'unread'}"
+				>Unread</button>
 			</div>
 			if len(data.Items) == 0 {
 				<div class="ui-empty">
@@ -195,11 +223,15 @@ templ Inbox(data PageData) {
 					<div class="flex justify-end">
 						<button
 							type="button"
-							class="btn btn-ghost btn-xs"
+							class="btn btn-soft btn-xs"
 							data-on:click={ readAllAction() }
 						>Mark all read</button>
 					</div>
 				}
+				<div class="ui-empty" data-show="$notificationFilter === 'unread' && $inboxUnread === 0">
+					<p class="ui-empty-title">All caught up.</p>
+					<p class="ui-empty-body">New reminders arrive here when their delay ends.</p>
+				</div>
 				<ul class="divide-y divide-base-200">
 					for _, item := range data.Items {
 						@itemRow(item)
@@ -211,7 +243,7 @@ templ Inbox(data PageData) {
 }
 
 templ itemRow(item Item) {
-	<li class="flex items-start gap-3 py-3">
+	<li class="flex items-start gap-3 py-3" data-show={ rowShow(item.Unread) }>
 		<span class="app-inbox-marker" aria-hidden="true">
 			if item.Unread {
 				<span class="status status-primary"></span>
@@ -230,9 +262,15 @@ templ itemRow(item Item) {
 		if item.Unread {
 			<button
 				type="button"
-				class="btn btn-ghost btn-xs"
+				class="btn btn-soft btn-xs"
 				data-on:click={ readAction(item.ID) }
-			>mark read</button>
+			>Mark read</button>
+		} else {
+			<button
+				type="button"
+				class="btn btn-soft btn-xs"
+				data-on:click={ unreadAction(item.ID) }
+			>Mark unread</button>
 		}
 	</li>
 }
