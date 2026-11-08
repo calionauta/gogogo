@@ -90,6 +90,54 @@ func TestChatRouterChooseReportsTransportErrors(t *testing.T) {
 	}
 }
 
+// countingJev wraps a stub with a call counter, so the fallback tests
+// assert the fallback was — or was not — consulted.
+type countingJev struct {
+	inner stubJev
+	calls int
+}
+
+func (c *countingJev) Evaluate(ctx context.Context, state, questions any) (*jev.Response, error) {
+	c.calls++
+	return c.inner.Evaluate(ctx, state, questions)
+}
+
+// TestChatRouterUsesClientFallback pins the same primary→fallback chain
+// the review judge uses. Red-proof: return the primary error without
+// consulting the fallback and the first case goes red.
+func TestChatRouterUsesClientFallback(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	primaryDown := &countingJev{inner: stubJev{err: errors.New("connection refused")}}
+	fallbackOK := &countingJev{inner: stubJev{answers: true, choice: "bar_chart", confidence: 0.9}}
+	r := newJevRouter(&fallbackClient{primary: primaryDown, fallback: fallbackOK}, 0.7)
+	got, err := r.Choose(ctx, "plan my day")
+	if err != nil {
+		t.Fatalf("fallback success returned error: %v", err)
+	}
+	if got != "bar_chart" {
+		t.Errorf("Choose = %q, want fallback pick %q", got, "bar_chart")
+	}
+	if primaryDown.calls != 1 || fallbackOK.calls != 1 {
+		t.Errorf("primary.calls=%d fallback.calls=%d, want 1 and 1", primaryDown.calls, fallbackOK.calls)
+	}
+
+	primaryOK := &countingJev{inner: stubJev{answers: true, choice: "data_table", confidence: 0.9}}
+	fallbackIdle := &countingJev{inner: stubJev{answers: true, choice: "bar_chart", confidence: 0.9}}
+	r = newJevRouter(&fallbackClient{primary: primaryOK, fallback: fallbackIdle}, 0.7)
+	got, err = r.Choose(ctx, "plan my day")
+	if err != nil {
+		t.Fatalf("primary success returned error: %v", err)
+	}
+	if got != "data_table" {
+		t.Errorf("Choose = %q, want primary pick %q", got, "data_table")
+	}
+	if fallbackIdle.calls != 0 {
+		t.Errorf("fallback.calls = %d, want 0 when primary answers", fallbackIdle.calls)
+	}
+}
+
 // TestNewRouterIsOffByDefault is the opt-in guarantee: unless
 // JEV_ROUTER_ENABLED is set, no router (and therefore no HTTP client and
 // no changed prompt) exists. Red-proof: return a router unconditionally

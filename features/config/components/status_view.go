@@ -104,7 +104,7 @@ func aiStatus(cfg *config.Config) []StatusItem {
 	}
 	judge, judgeTone := "custom judge", toneInfo
 	if cfg.Review.APIKey == "" {
-		judge, judgeTone = "demo endpoint", toneNeutral
+		judge, judgeTone = "keyless endpoint", toneNeutral
 	}
 	return []StatusItem{
 		{
@@ -113,7 +113,7 @@ func aiStatus(cfg *config.Config) []StatusItem {
 		},
 		{
 			Group: statusGroupAI, Label: "Review judge", State: judge, Tone: judgeTone,
-			Hint: "JEV_API_KEY: custom judge, or keyless demo endpoint.",
+			Hint: "JEV_API_KEY: production key, or the keyless free endpoint.",
 		},
 	}
 }

@@ -200,9 +200,9 @@ func BuildPageData(cfg *config.Config) PageData {
 		},
 	})
 
-	// Review group — jev judge endpoint surfaced, API key masked.
-	// Values come from cfg.Review (JEV_* env); the key lives in the
-	// age-encrypted secrets file when set, keyless demo when empty.
+	// Review group — jev judge endpoints surfaced, API keys masked.
+	// Values come from cfg.Review (JEV_* env); the keys live in the
+	// age-encrypted secrets file when set, keyless when empty.
 	pd.Groups = append(pd.Groups, reviewGroup(cfg))
 
 	// NATS group.
@@ -283,19 +283,26 @@ func panelInfos() []comp.ComponentInfo {
 	return out
 }
 
-// reviewGroup builds the jev judge section: endpoint surfaced, API key
-// masked. Split from BuildPageData for the funlen gate.
+// reviewGroup builds the jev judge section: primary + fallback
+// endpoints surfaced, API keys masked. Split from BuildPageData for
+// the funlen gate.
 func reviewGroup(cfg *config.Config) Group {
 	return Group{
 		Name: "Review (Jev)",
 		Rows: []Row{
 			rowSecret(groupReview, keyAPIKey, cfg.Review.APIKey,
-				"Judge API key (masked; empty = keyless demo endpoint)."),
+				"Primary judge API key (masked; empty = keyless free tier)."),
 			row(groupReview, keyJevAPIURL, cfg.Review.APIURL,
-				"Jev-compatible judge endpoint (any POST state/model/questions server)."),
-			row(groupReview, keyModel, cfg.Review.Model, "Judge model ID."),
+				"Primary jev-compatible judge endpoint (THX-02 by default)."),
+			row(groupReview, keyModel, cfg.Review.Model, "Primary judge model ID."),
+			rowSecret(groupReview, keyJevFallbackAPIKey, cfg.Review.FallbackAPIKey,
+				"Fallback judge API key (masked; empty = keyless demo)."),
+			row(groupReview, keyJevFallbackAPIURL, cfg.Review.FallbackAPIURL,
+				"Fallback endpoint, tried when the primary fails (SimpleJev demo by default)."),
+			row(groupReview, keyJevFallbackModel, cfg.Review.FallbackModel,
+				"Fallback judge model ID."),
 			row(groupReview, keyJevTimeout, cfg.Review.Timeout.String(),
-				"Per-attempt judge HTTP timeout."),
+				"Per-attempt judge HTTP timeout (shared by both legs)."),
 			row(groupReview, keyJevThreshold,
 				strconv.FormatFloat(cfg.Review.ConfidenceThreshold, 'f', 2, 64),
 				"Below this the verdict escalates to a human."),

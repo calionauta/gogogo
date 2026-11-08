@@ -250,12 +250,13 @@ type Config struct {
 	GoAI GoAIConfig
 
 	// Review holds the jev-compatible judge settings for features/review
-	// (JEV_* env, keyless SimpleJev demo by default). See config/review.go
+	// (JEV_* env, THX-02 primary + SimpleJev fallback by default).
+	// See config/review.go
 	// and docs/review.md for the customization contract.
 	Review ReviewConfig
 
-	// ChatRouter opts Chat into that same jev-compatible
-	// endpoint as a component router (JEV_ROUTER_* env, off by default).
+	// ChatRouter opts Chat into that same primary→fallback chain
+	// as a component router (JEV_ROUTER_* env, off by default).
 	// See config/chat_router.go and docs/configuration.md.
 	ChatRouter ChatRouterConfig
 

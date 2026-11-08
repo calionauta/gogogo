@@ -80,17 +80,25 @@ Three rules keep the card honest, and each fixes a reported failure:
 The flow never names a provider — endpoint and model ride env, and the
 contract is just `POST {state,model,questions}`:
 
-| Env | Default (keyless SimpleJev demo) | Custom example |
+| Env | Default (THX-02 primary + SimpleJev fallback) | Custom example |
 |---|---|---|
-| `JEV_API_URL` | `https://simple-jev-demo-api.featherless.ai/v1/classifier` | `https://api.typesafe.ai/v1/systemone`, `http://127.0.0.1:8000/v1/classifier` (self-hosted), bare `host:port` (expands to `/v1/systemone`) |
-| `JEV_MODEL` | `featherless-ai/Qwen3.6-35B-A3B-classifier` | `jev-latest`, any served ID |
-| `JEV_API_KEY` | empty (no `Authorization` header) | operator key in the age-encrypted secrets file |
-| `JEV_TIMEOUT` | `10s` | per-attempt HTTP timeout |
+| `JEV_API_URL` | `https://api.hal-x.ai/v1/decide` | `https://api.typesafe.ai/v1/systemone`, `http://127.0.0.1:8000/v1/classifier` (self-hosted), bare `host:port` (expands to `/v1/systemone`) |
+| `JEV_MODEL` | `thx-02` | `jev-latest`, any served ID |
+| `JEV_API_KEY` | empty (no `Authorization` header) | HAL-X key for production in the age-encrypted secrets file |
+| `JEV_FALLBACK_API_URL` | `https://simple-jev-demo-api.featherless.ai/v1/classifier` | a second jev-compatible endpoint, tried when the primary fails |
+| `JEV_FALLBACK_MODEL` | `featherless-ai/Qwen3.6-35B-A3B-classifier` | model ID served by the fallback endpoint |
+| `JEV_FALLBACK_API_KEY` | empty (keyless) | fallback credential, age-encrypted; empty = keyless |
+| `JEV_TIMEOUT` | `10s` | per-attempt HTTP timeout (shared by both legs) |
 | `JEV_CONFIDENCE_THRESHOLD` | `0.7` | recalibrate (below) when changing backends |
 
-The demo endpoint is rate-limited (2k context, 2 RPS) — fine for trying,
-not for production. Production wants a `featherless.ai` account (or the
-open-source self-host) plus the calibration below.
+The chain is primary-first: the judge (and the Chat router) asks
+THX-02, and only an actual failure (down, timeout, bad answer) spills
+to the SimpleJev demo. A low-confidence primary answer is never second
+guessed — it goes through the confidence cascade. THX-02's keyless
+free tier caps at 60 decisions/min/IP (a review run costs 2, a router
+pick 1); production wants a HAL-X key plus the calibration below. The
+fallback demo is rate-limited (2k context, 2 RPS) — fine as a
+fallback, not as a primary.
 
 ## Calibrating the confidence threshold
 

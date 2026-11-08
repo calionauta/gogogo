@@ -117,24 +117,36 @@ func TestRBACPermissiveParsing(t *testing.T) {
 }
 
 // TestReviewEnvParsing pins the jev-compatible judge knobs: working
-// demo defaults when unset, operator overrides via env, out-of-range
-// and unparseable thresholds falling back to default (a typo must not
-// brick the boot, and must never silently become auto-accept-everything
-// at 0.0). Red-proof: drop the clamp in loadReviewEnv and the
-// out-of-range cases go red.
+// defaults (THX-02 primary, SimpleJev fallback) when unset, operator
+// overrides via env, out-of-range and unparseable thresholds falling
+// back to default (a typo must not brick the boot, and must never
+// silently become auto-accept-everything at 0.0). Red-proof: drop the
+// clamp in loadReviewEnv and the out-of-range cases go red.
 func TestReviewEnvParsing(t *testing.T) {
 	// Not parallel: t.Setenv forbids t.Parallel.
 	t.Setenv("JEV_API_URL", "")
 	t.Setenv("JEV_MODEL", "")
 	t.Setenv("JEV_API_KEY", "")
+	t.Setenv("JEV_FALLBACK_API_URL", "")
+	t.Setenv("JEV_FALLBACK_MODEL", "")
+	t.Setenv("JEV_FALLBACK_API_KEY", "")
 	t.Setenv("JEV_TIMEOUT", "")
 	t.Setenv("JEV_CONFIDENCE_THRESHOLD", "")
 	got := Load()
-	if got.Review.APIURL != DefaultJevAPIURL {
-		t.Errorf("default APIURL = %q, want demo %q", got.Review.APIURL, DefaultJevAPIURL)
+	if got.Review.APIURL != DefaultThxAPIURL {
+		t.Errorf("default APIURL = %q, want THX-02 %q", got.Review.APIURL, DefaultThxAPIURL)
 	}
-	if got.Review.Model != DefaultJevModel {
-		t.Errorf("default Model = %q, want demo %q", got.Review.Model, DefaultJevModel)
+	if got.Review.Model != DefaultThxModel {
+		t.Errorf("default Model = %q, want THX-02 %q", got.Review.Model, DefaultThxModel)
+	}
+	if got.Review.FallbackAPIURL != DefaultFallbackAPIURL {
+		t.Errorf("default FallbackAPIURL = %q, want SimpleJev %q", got.Review.FallbackAPIURL, DefaultFallbackAPIURL)
+	}
+	if got.Review.FallbackModel != DefaultFallbackModel {
+		t.Errorf("default FallbackModel = %q, want SimpleJev %q", got.Review.FallbackModel, DefaultFallbackModel)
+	}
+	if got.Review.FallbackAPIKey != "" {
+		t.Errorf("default FallbackAPIKey = %q, want keyless", got.Review.FallbackAPIKey)
 	}
 	if got.Review.ConfidenceThreshold != DefaultReviewConfidenceThreshold {
 		t.Errorf("default threshold = %v, want %v", got.Review.ConfidenceThreshold, DefaultReviewConfidenceThreshold)
@@ -142,6 +154,9 @@ func TestReviewEnvParsing(t *testing.T) {
 
 	t.Setenv("JEV_API_URL", "http://127.0.0.1:8000/v1/classifier")
 	t.Setenv("JEV_MODEL", "jev-latest")
+	t.Setenv("JEV_FALLBACK_API_URL", "http://127.0.0.1:8001/v1/classifier")
+	t.Setenv("JEV_FALLBACK_MODEL", "fallback-classifier")
+	t.Setenv("JEV_FALLBACK_API_KEY", "fallback-key")
 	t.Setenv("JEV_CONFIDENCE_THRESHOLD", "0.9")
 	got = Load()
 	if got.Review.APIURL != "http://127.0.0.1:8000/v1/classifier" {
@@ -149,6 +164,15 @@ func TestReviewEnvParsing(t *testing.T) {
 	}
 	if got.Review.Model != "jev-latest" {
 		t.Errorf("override Model = %q", got.Review.Model)
+	}
+	if got.Review.FallbackAPIURL != "http://127.0.0.1:8001/v1/classifier" {
+		t.Errorf("override FallbackAPIURL = %q", got.Review.FallbackAPIURL)
+	}
+	if got.Review.FallbackModel != "fallback-classifier" {
+		t.Errorf("override FallbackModel = %q", got.Review.FallbackModel)
+	}
+	if got.Review.FallbackAPIKey != "fallback-key" {
+		t.Errorf("override FallbackAPIKey = %q", got.Review.FallbackAPIKey)
 	}
 	if got.Review.ConfidenceThreshold != 0.9 {
 		t.Errorf("override threshold = %v, want 0.9", got.Review.ConfidenceThreshold)

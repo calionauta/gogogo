@@ -225,6 +225,9 @@ func TestBuildPageData_MasksJevKey(t *testing.T) {
 	cfg.Review.APIKey = "jev-operator-key-32bytes!!"
 	cfg.Review.APIURL = "https://jev.example.com/v1/classifier"
 	cfg.Review.Model = "demo-classifier"
+	cfg.Review.FallbackAPIKey = "fallback-key-32bytes!!"
+	cfg.Review.FallbackAPIURL = "https://fallback.example.com/v1/classifier"
+	cfg.Review.FallbackModel = "fallback-classifier"
 
 	pd := BuildPageData(cfg)
 
@@ -242,5 +245,20 @@ func TestBuildPageData_MasksJevKey(t *testing.T) {
 	model := findRow(t, pd, "review", "Model")
 	if model.Display != "demo-classifier" {
 		t.Fatalf("JEV Model Display = %q, want surfaced raw", model.Display)
+	}
+	fallbackKey := findRow(t, pd, "review", "FallbackAPIKey")
+	if !fallbackKey.Masked {
+		t.Fatalf("FallbackAPIKey row must be Masked")
+	}
+	if strings.Contains(fallbackKey.Display, "fallback-key") {
+		t.Fatalf("FallbackAPIKey Display leaks raw value: %q", fallbackKey.Display)
+	}
+	fallbackURL := findRow(t, pd, "review", "FallbackAPIURL")
+	if fallbackURL.Display != "https://fallback.example.com/v1/classifier" {
+		t.Fatalf("FallbackAPIURL Display = %q, want surfaced raw", fallbackURL.Display)
+	}
+	fallbackModel := findRow(t, pd, "review", "FallbackModel")
+	if fallbackModel.Display != "fallback-classifier" {
+		t.Fatalf("FallbackModel Display = %q, want surfaced raw", fallbackModel.Display)
 	}
 }

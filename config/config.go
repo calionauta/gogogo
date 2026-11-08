@@ -42,10 +42,13 @@
 //	                       fall back to substring (see config/search.go)
 //	RBAC_ENABLED         (default: false) — opt-in Casbin RBAC middleware;
 //	                       enforces the embedded policy in internal/rbac/casbin
-//	JEV_API_URL          (default: SimpleJev demo) — jev-compatible judge endpoint
-//	JEV_MODEL            (default: demo classifier) — judge model ID
-//	JEV_API_KEY          (default: "") — keyless demo when empty (age secrets in prod)
-//	JEV_TIMEOUT          (default: 10s) — per-attempt judge HTTP timeout
+//	JEV_API_URL          (default: THX-02) — jev-compatible primary judge endpoint
+//	JEV_MODEL            (default: thx-02) — primary judge model ID
+//	JEV_API_KEY          (default: "") — keyless free tier when empty (age secrets in prod)
+//	JEV_FALLBACK_API_URL (default: SimpleJev demo) — fallback when the primary fails
+//	JEV_FALLBACK_MODEL   (default: demo classifier) — fallback judge model ID
+//	JEV_FALLBACK_API_KEY (default: "") — keyless demo when empty
+//	JEV_TIMEOUT          (default: 10s) — per-attempt judge HTTP timeout (both legs)
 //	JEV_CONFIDENCE_THRESHOLD (default: 0.7) — escalate to human below this
 //
 // ── Runtime constants (tune in config.go, consumed across packages) ──

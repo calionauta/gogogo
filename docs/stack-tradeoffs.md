@@ -122,7 +122,7 @@ completion: typed choices with confidence and probabilities instead of a prose
 verdict that needs parsing — ~100x cheaper per call, and more accurate exactly
 where the demo lives (prose; classifier judges trail on math/code/logic, which
 is why the code tab is second). Any server speaking `POST {state,model,questions}`
-works (TypeSafe, self-hosted SimpleJev, tensai) via `JEV_*` env.
+works (THX-02, TypeSafe, self-hosted SimpleJev, tensai) via `JEV_*` env.
 
 Cost: one more backend to configure and calibrate (~20 hand-labelled cases
 before trusting auto-accept). Revisit per workload: a rubric a classifier cannot
