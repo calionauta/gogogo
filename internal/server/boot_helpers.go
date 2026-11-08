@@ -209,10 +209,11 @@ func demoQueries(cfg *config.Config, a *auth.Auth, sqlDB *sql.DB) *dbgen.Queries
 	q := dbgen.New(sqlDB)
 	if cfg.DemoAccounts {
 		seedDemoAccounts(a, q)
-		// A development demo shows the operator surfaces (DagNats console,
-		// stats) so the demo can prove them. A production demo keeps the
-		// allowlist empty: demo1 is an admin, never an operator.
-		if cfg.Dev && !slices.Contains(cfg.AdminEmails, demo.Email) {
+		// Demo accounts are always operator-capable (both dev and prod demo):
+		// demo1 is published demo credentials, so showing DagNats console
+		// is the point of the demo. Production builds that disable demo
+		// accounts stay closed.
+		if !slices.Contains(cfg.AdminEmails, demo.Email) {
 			cfg.AdminEmails = append(cfg.AdminEmails, demo.Email)
 		}
 	} else {
@@ -417,6 +418,13 @@ func bootAI(
 	cfg *config.Config, a *auth.Auth, chiQ *queue.Queue, hub *queue.SSEHub,
 	realLLM, simulatedLLM *llm.Client, queries *dbgen.Queries, slots *recipe.SlotRegistry,
 ) (chatH *chathandlers.Handler, err error) {
+	// Built-ins as installed recipes: todo declares dashboard.card so the
+	// official unit shows as an installed recipe on /dashboard.
+	if slots != nil {
+		_ = slots.Add(recipe.Contribution{Fragments: map[recipe.SlotID]recipe.Fragment{
+			recipe.SlotDashboardCard: {Title: "Todo", Render: func() string { return `<a href="/todo">Open todos</a>` }},
+		}})
+	}
 	// Chat answer surfaces (GENUI_CHAT_SURFACES, absent = the documented
 	// default). An unknown name is a BOOT error, not a logged warning.
 	chatSurfaces, err := comp.ParseSurfaces(cfg.GenUI.ChatSurfaces, comp.DefaultSurfacesChat)

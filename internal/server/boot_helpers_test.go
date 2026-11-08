@@ -212,10 +212,9 @@ func TestApplyRBACWiresPermissive(t *testing.T) {
 	}
 }
 
-// TestDemoAdminOperatorOnlyInDev pins the demo/operator boundary: a
-// development demo adds demo1 to the operator allowlist so the console and
-// stats menus are demonstrable; a production demo (the public one) keeps the
-// list empty and demo1 stays an admin without operator surfaces.
+// TestDemoAdminOperatorOnlyInDev pins the demo/operator boundary: demo1 is
+// operator whenever DemoAccounts enabled (both dev and prod demo), so the
+// DagNats console is demonstrable in any demo deployment.
 func TestDemoAdminOperatorOnlyInDev(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -223,7 +222,7 @@ func TestDemoAdminOperatorOnlyInDev(t *testing.T) {
 		want bool
 	}{
 		{"development", true, true},
-		{"production", false, false},
+		{"production", false, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			sqlDB, err := db.OpenAt(t.TempDir() + "/demo-operator.db")
