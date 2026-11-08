@@ -18,6 +18,7 @@ import (
 	"github.com/calionauta/gogogo/internal/i18n"
 	"github.com/calionauta/gogogo/internal/icon"
 	"github.com/calionauta/gogogo/internal/rbac"
+	"github.com/calionauta/gogogo/web/resources"
 )
 
 // Data is what the shell needs to render around a page body.
@@ -71,8 +72,8 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"/>
 			<meta name="theme-color" content="#1d232a"/>
-			<link rel="manifest" href="/static/manifest.webmanifest"/>
-			<link rel="icon" type="image/png" href="/static/logo.png"/>
+			<link rel="manifest" href={ resources.StaticURL("manifest.webmanifest") }/>
+			<link rel="icon" type="image/png" href={ resources.StaticURL("logo.png") }/>
 			<title>{ d.Title }</title>
 			@components.Assets()
 			@authviews.ThemeHead()
