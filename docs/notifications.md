@@ -18,22 +18,27 @@ seam that would host one live in [notify](research/notify-2026-10.md).
 | `/api/notifications/badge` | GET | One Datastar signal patch with the unread count (the shell's refresh on visibility/focus/online) |
 | `/api/notifications/remind` | POST | Schedule one reminder (`text`, `delay` of `1m`/`1h`/`24h`); answers with the inbox patch plus a toast |
 | `/api/notifications/{id}/read` | POST | Mark one row read; patches `#inbox` and the rail count |
+| `/api/notifications/{id}/unread` | POST | Mark one row unread again (clears `read_at`); patches `#inbox` and the rail count |
 | `/api/notifications/read-all` | POST | Mark every in-app row read; patches `#inbox` and the rail count |
 
 Every route checks the session itself. RBAC can be off, so a policy row is
 never the only guard, and every query is scoped by the session owner.
 
-## The rail indicator
+## The rail badge
 
-The sidebar's Inbox entry carries the unread count as a DaisyUI `indicator`
-bubble on its icon, above the first group heading. Three writers keep it honest:
+The sidebar's Inbox entry carries the unread count as a DaisyUI badge at the
+end of its row, after the label, above the first group heading. The badge is
+**not** on the icon: in a labelled row the icon corner sits close enough to
+the first letter of "Inbox" that a wide count ("99+") would paint over it.
+The inbox page uses the same counter badge on its Notifications title, so the
+two surfaces cannot disagree. Three writers keep the rail count honest:
 
 - `inboxBadgeMiddleware` (`internal/server/inbox_badge.go`) resolves the count
   once per page navigation and seeds the shell signal, so every page renders
   the rail with the right number without importing the delivery store.
-- The inbox stream and both read actions merge `$inboxUnread` together with
-  the `#inbox` patch (`patchInboxData`), so reading a row on the inbox page
-  lowers the rail count in the same frame.
+- The inbox stream and the read/unread actions merge `$inboxUnread` together
+  with the `#inbox` patch (`patchInboxData`), so reading (or unreading) a row
+  on the inbox page moves the rail count in the same frame.
 - The browser's leader session stream (`/api/session/stream`, opened by
   `session.js` on pages with no feature stream and shared through a
   BroadcastChannel) carries an `unread` field on its session frame. Pages that
@@ -61,6 +66,18 @@ step"). For an operator in a binary with the engine wired, that word links to
 `/dagnats/`, so the claim is checkable where the run is visible; everyone else
 reads it as plain text, because the console fence answers 403 (see
 [Admin & Dashboard](admin-dashboard.md#dagnats-console)).
+
+## The list: filter and read state
+
+The rows carry an All/Unread tab strip (`tabs-box`, the same filter shape the
+Todo list uses). The filter is client-side — `$notificationFilter` hides read
+rows in place, because the inbox never paginates (newest 50); a tab click
+needs no server round-trip, and the hide expression travels with the row
+markup, so a stream patch re-binds the current tab on its own. Each row
+offers the inverse action — "Mark read" on an unread row, "Mark unread" on a
+read one — in sentence case on a soft fill (`btn btn-soft btn-xs`), the
+affordance level that reads as a button without hover. With the Unread tab
+selected and nothing unread, the list shows an "All caught up." empty state.
 
 ## Panels: State and Stack
 

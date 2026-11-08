@@ -219,6 +219,7 @@ func TestAnonymousRequestsAreRefused(t *testing.T) {
 	}{
 		{method: http.MethodPost, path: "/api/notifications/read-all", want: http.StatusUnauthorized},
 		{method: http.MethodPost, path: "/api/notifications/abc/read", want: http.StatusUnauthorized},
+		{method: http.MethodPost, path: "/api/notifications/abc/unread", want: http.StatusUnauthorized},
 		{method: http.MethodPost, path: "/api/notifications/remind", want: http.StatusUnauthorized},
 		{method: http.MethodGet, path: "/api/notifications/stream", want: http.StatusUnauthorized},
 		{method: http.MethodGet, path: "/api/notifications/badge", want: http.StatusUnauthorized},

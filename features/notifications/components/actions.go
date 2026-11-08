@@ -1,20 +1,6 @@
 // Notifications page helpers.
 package components
 
-import "strconv"
-
-// unreadLabel is the badge copy. The count is stated even at zero, so the
-// badge cannot be mistaken for an error state.
-func unreadLabel(unread int) string {
-	if unread == 0 {
-		return "none new"
-	}
-	if unread == 1 {
-		return "1 new"
-	}
-	return strconv.Itoa(unread) + " new"
-}
-
 // clientIDExpr appends this tab's clientID to an action URL. The server uses it
 // to skip the tab that already rendered the change, so a click does not get a
 // second, identical patch from its own stream. It starts with the JS `+`
@@ -29,7 +15,27 @@ func readAction(id string) string {
 	return "@post('/api/notifications/" + id + "/read'" + clientIDExpr + ")"
 }
 
+// unreadAction is the Datastar action that marks one row unread again, by the
+// same single-quoted-URL rule as readAction.
+func unreadAction(id string) string {
+	return "@post('/api/notifications/" + id + "/unread'" + clientIDExpr + ")"
+}
+
 // readAllAction marks every in-app row read.
 func readAllAction() string {
 	return "@post('/api/notifications/read-all'" + clientIDExpr + ")"
+}
+
+// rowShow is the $notificationFilter expression one row carries in data-show.
+// The inbox never paginates, so the filter is client-side: read rows leave
+// the DOM's visibility when the tab is "unread" and come back when it is
+// "all". The expression travels with the row markup, so a stream or action
+// patch that re-renders #inbox re-binds the current filter on its own — no
+// server round-trip per tab click.
+func rowShow(unread bool) string {
+	literal := "false"
+	if unread {
+		literal = "true"
+	}
+	return "$notificationFilter !== 'unread' || " + literal
 }

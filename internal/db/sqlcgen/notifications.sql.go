@@ -219,6 +219,25 @@ func (q *Queries) MarkNotificationRead(ctx context.Context, arg MarkNotification
 	return result.RowsAffected()
 }
 
+const markNotificationUnread = `-- name: MarkNotificationUnread :execrows
+UPDATE notifications
+SET read_at = NULL
+WHERE id = ? AND owner = ? AND read_at IS NOT NULL
+`
+
+type MarkNotificationUnreadParams struct {
+	ID    string
+	Owner string
+}
+
+func (q *Queries) MarkNotificationUnread(ctx context.Context, arg MarkNotificationUnreadParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, markNotificationUnread, arg.ID, arg.Owner)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const setNotificationStatus = `-- name: SetNotificationStatus :execrows
 UPDATE notifications
 SET status = ?, skip_reason = ?, error_text = ?

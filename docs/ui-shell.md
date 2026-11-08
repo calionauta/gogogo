@@ -9,7 +9,7 @@ class to use so a new screen looks like the other eight.
 ```
 internal/ui.Shell(d Data, head, sound, actions, body)
 ├── <html>   data-signals (page seed), data-theme bindings, data-theme-dark
-├── <aside id="app-rail">   brand · build badge · theme toggle · sound mute · pinned Inbox (indicator count) · []Module groups · account row
+├── <aside id="app-rail">   brand · build badge · theme toggle · sound mute · pinned Inbox (badge count at row end) · []Module groups · account row
 │      account row → panel: identity · Account · Config (admin) · DagNats console (operators) · Tema list · sign out
 ├── <header class="app-module-header">
 │      drawer trigger (≤1024px) · title · context slot · [ State ] [ Stack ] · search input · actions
@@ -24,7 +24,8 @@ internal/ui.Shell(d Data, head, sound, actions, body)
 
 **The rail is ordered, not alphabetised.** The inbox is pinned above the first
 heading: it is the always-on surface, and it carries the unread count as a
-DaisyUI `indicator` bubble on its icon. The count is seeded once per page
+DaisyUI badge at the end of its row, after the label (an icon-corner badge
+would paint over the first letter of "Inbox" at wide counts). The count is seeded once per page
 navigation by `inboxBadgeMiddleware` (`internal/server/inbox_badge.go`), kept
 live on pages without a feature stream by the leader session stream
 (`session.js`), and refreshed on visibility/focus/online on pages that already hold a stream —
