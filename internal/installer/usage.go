@@ -16,9 +16,17 @@ func printBuildGuidance(w io.Writer) {
 	fmt.Fprintln(w, "\n"+MobilePrerequisites)
 }
 
-func PrintUsage(w io.Writer, fs *flag.FlagSet) {
+func printPreamble(w io.Writer) {
 	fmt.Fprintln(w, `gogogo `+Version+` — scaffold a project from gogogo.
 
+  Preflight: go run ./cmd/gogogo doctor --json
+  Codegen: go run ./cmd/gogogo generate [--check]
+`)
+}
+
+func PrintUsage(w io.Writer, fs *flag.FlagSet) {
+	printPreamble(w)
+	fmt.Fprintln(w, `
   Interactive (humans: 2 questions — name, owner — then a plan to confirm):
 
     go run github.com/calionauta/gogogo/cmd/gogogo@latest --run

@@ -143,5 +143,7 @@ export default {
     desc: "Symptoms and where they actually come from." },
   { group: "Operate", slug: "duckdb", file: "duckdb.md",
     desc: "Query JSONL logs and the Turso file with DuckDB: local operator recipe." },
+  { group: "Operate", slug: "doctor-generate", file: "doctor-generate.md",
+    desc: "Doctor (read-only preflight, JSON for agents) and deterministic generate (templ+sqlc+css+docs) — the LLM-era determinism layer." },
 ],
 };
