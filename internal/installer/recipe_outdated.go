@@ -57,7 +57,7 @@ func runRecipeOutdated(args []string, stdout io.Writer) error {
 	if !looksLikeTemplate(root) {
 		return &ExitError{code: 1, msg: "recipe outdated: " + opt.dir + " is not a gogogo checkout"}
 	}
-	ids, ierr := statusIDs(root, opt.id)
+	ids, ierr := statusIDs("outdated", root, opt.id)
 	if ierr != nil {
 		return outdatedIDsError(ierr)
 	}
@@ -91,7 +91,9 @@ func runRecipeOutdated(args []string, stdout io.Writer) error {
 // outdatedIDsError rewraps a status-ids failure under this command's name.
 func outdatedIDsError(err error) error {
 	if ee, ok := errors.AsType[*ExitError](err); ok {
-		return &ExitError{code: ee.code, msg: "recipe outdated: " + strings.TrimPrefix(ee.msg, "recipe status: ")}
+		msg := strings.TrimPrefix(ee.msg, "recipe outdated: ")
+		msg = strings.TrimPrefix(msg, "recipe status: ")
+		return &ExitError{code: ee.code, msg: "recipe outdated: " + msg}
 	}
 	return err
 }

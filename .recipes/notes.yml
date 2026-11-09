@@ -31,6 +31,12 @@ files:
   features/notes/handlers/wire.go: 02b22755689837bc750680d8ed9507f344ec819f828f89170a3369e065da4072
   features/notes/static/notes.js: fbe9cce1da47a69de1fd7e3eb6687b25dd603809f9b6ddbf34e60cc45b649f51
 declaration:
+  metrics:
+  - {label: Notes, query: "SELECT COUNT(*) FROM notes WHERE owner = ?", signal: notesCount}
+  panel:
+    component: "notes_list"
+    prompt: "notes_list {scope: all|mine} whenever the request involves the user's shared notes"
+    writable: [scope]
   routes:
   - method: GET
     pattern: /notes

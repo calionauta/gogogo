@@ -68,7 +68,7 @@ func runRecipeStatus(args []string, stdout io.Writer) error {
 	if !looksLikeTemplate(root) {
 		return &ExitError{code: 1, msg: "recipe status: " + opt.dir + " is not a gogogo checkout"}
 	}
-	ids, ierr := statusIDs(root, opt.id)
+	ids, ierr := statusIDs("status", root, opt.id)
 	if ierr != nil {
 		return ierr
 	}
@@ -135,16 +135,16 @@ func runRecipeStatusOne(root, id string, latest map[string]recipe.CatalogEntry, 
 }
 
 // statusIDs resolves "one recipe" or "every installed recipe" into ids.
-func statusIDs(root, id string) ([]string, error) {
+func statusIDs(command, root, id string) ([]string, error) {
 	if id != "" {
 		if _, err := recipe.LoadReceipt(root, id); err != nil {
-			return nil, &ExitError{code: 1, msg: "recipe status: " + err.Error()}
+			return nil, &ExitError{code: 1, msg: "recipe " + command + ": " + err.Error()}
 		}
 		return []string{id}, nil
 	}
 	ids, err := recipe.ListReceipts(root)
 	if err != nil {
-		return nil, &ExitError{code: 1, msg: "recipe status: " + err.Error()}
+		return nil, &ExitError{code: 1, msg: "recipe " + command + ": " + err.Error()}
 	}
 	sort.Strings(ids)
 	return ids, nil

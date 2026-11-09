@@ -89,6 +89,7 @@ func TestActionTableRefusesDuplicateAndEmptyVerb(t *testing.T) {
 func TestMetricAndPanelProblemsPinTheFailFastShapes(t *testing.T) {
 	good := Declaration{Metrics: []Metric{
 		{Label: "Items", Query: "SELECT COUNT(*) FROM ext_probe_items WHERE owner = ?"},
+		{Label: "Everything", Query: "SELECT COUNT(*) FROM ext_probe_items", OwnerBinds: WithoutOwner()},
 	}}
 	if problems := MetricProblems(good); len(problems) != 0 {
 		t.Fatalf("good metric must pass, got %v", problems)
