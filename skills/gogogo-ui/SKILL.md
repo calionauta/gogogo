@@ -129,3 +129,54 @@ the vocabulary and the CSS. Read both before writing markup.
 Do NOT activate for: Go-only changes (that is `gogogo-coding-standards`
 alone), landing-page copy, release notes, or `site/` stylesheet work
 (separate bundle).
+
+## Edge Cases
+
+### Page works but the panel shows stale markup
+- The panel duplicated the page's row instead of calling it. `Render` must
+  return the same component the page renders (`TodoItem` is the reference).
+  A duplicated row loses the badge, author, age and delete gate the page keeps.
+
+### Unstyled markup after a class change
+- Tailwind emits only what it scans. After a class change run `make templ &&
+  make css` so `make css-check` stays green. `site/` and `docs/` are outside
+  the scan — landing edits cannot stale `app.min.css`.
+
+### `className` in `.templ`
+- The one JSX-ism templ passes through silently (compiles clean, renders
+  verbatim, unstyled). `make check-no-jsx` fails on it. Use `class=`.
+
+### DaisyUI 4 name (`label-text`, `tab-sm`…)
+- Fails `make check-classes` with the v5 replacement in the message. Migrate
+  to the v5 name; never re-add a v4 name as a custom class.
+
+### `data-on-interval` / `setInterval` fetching from the server
+- A poll. The page already holds a stream; shell state rides the leader
+  session stream + BroadcastChannel, pages refresh on
+  visibility/focus/online/pageshow only. `TestNoPeriodicFetch` enforces it.
+
+### Inline success notice on the page
+- Transient feedback is a toast in `#toast-container` (`components.Toast` +
+  `RenderAndPatch` with `WithSelectorID("toast-container")` + append). Inline
+  `alert` is for persistent state the user must act on.
+
+### `.templ` change that breaks `datastar-lint`
+- Gate is `make datastar-lint` (`bin/datastar-lint -only-errors`). The
+  backend half needs an `id` + `WithSelector` on the top element
+  (`internal/datastar.RenderAndPatch`). Keep intentional attrs in
+  `.datastar-lint.yaml`.
+
+## Test Cases
+
+### Should activate
+- "Restyle this card with DaisyUI"
+- "Pick a theme for the new page"
+- "Add a filter to this list"
+- "Render the todo row inside a chat panel"
+- "Fix the unstyled class in this .templ"
+
+### Should NOT activate
+- "Fix this goroutine leak" (use `gogogo-coding-standards`)
+- "Write landing-page copy" (content, not vocabulary)
+- "Bump the marketing site Tailwind" (`site/` has its own stylesheet)
+- "Add a Zig kernel" (exception-to-go gate, not UI)
