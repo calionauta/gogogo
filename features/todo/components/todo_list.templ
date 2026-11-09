@@ -79,11 +79,11 @@ templ TodoList(signals todo.Signals) {
 								</select>
 								@createdFilter()
 							</div>
-							<div class="alert alert-warning mt-2" role="alert" data-show="$permDenied">
+							<div class="alert alert-warning mt-2" role="alert" style="display:none" data-show="$permDenied">
 								<span>You cannot delete this todo — its author or an admin can. Keep adding.</span>
 								<button type="button" class="btn btn-ghost btn-sm" data-on:click={ "$permDenied = false" }>dismiss</button>
 							</div>
-							<div class="alert alert-info mt-2" role="status" id="todo-list-offline" data-show="$listOffline">
+							<div class="alert alert-info mt-2" role="status" id="todo-list-offline" style="display:none" data-show="$listOffline">
 								<span>Changing the list needs a connection — the view stays as it is until you reconnect.</span>
 								<button type="button" class="btn btn-ghost btn-sm" data-on:click={ "$listOffline = false" }>dismiss</button>
 							</div>
@@ -120,7 +120,7 @@ templ TodoList(signals todo.Signals) {
 		@clearCompletedModal()
 		</div>
 
-		<div class="toast toast-end" id="retry-toast" data-show="$loading"></div>
+		<div class="toast toast-end" id="retry-toast" style="display:none" data-show="$loading"></div>
 	</div>
 }
 
@@ -161,7 +161,7 @@ templ createForm(signals todo.Signals) {
 				data-attr:disabled="!!($loading || !$newTitle.trim())">
 				<span class="inline-flex items-center gap-2">
 					Add
-					<span class="loading loading-spinner loading-xs" data-show="$loading"></span>
+					<span class="loading loading-spinner loading-xs" style="display:none" data-show="$loading"></span>
 				</span>
 			</button>
 		</div>
@@ -169,7 +169,7 @@ templ createForm(signals todo.Signals) {
 			<input type="checkbox" name="visibility" value="public" class="checkbox checkbox-xs checkbox-info"/>
 			<span>Shared — every login sees this todo (private by default)</span>
 		</label>
-		<div class="alert alert-warning mt-2" role="alert" id="todo-save-error" data-show="$syncFailed">
+		<div class="alert alert-warning mt-2" role="alert" id="todo-save-error" style="display:none" data-show="$syncFailed">
 			<span>Not saved — the request failed. Your text is still in the box; try again.</span>
 			<button type="button" class="btn btn-ghost btn-sm" data-on:click="$syncFailed = false">dismiss</button>
 		</div>
@@ -347,6 +347,7 @@ func pageDeleteConfirmExpr() string {
 // driven by $suggestions being non-empty.
 templ SuggestionsList(suggestions []string) {
 	<div
+		style="display:none"
 		class="mb-4 p-3 bg-base-200/40 rounded-lg transition-all duration-500 animate-in fade-in slide-in-from-top-2"
 		id="suggestions-region"
 		data-show="$suggestions && $suggestions.length > 0"
@@ -481,7 +482,7 @@ templ deleteConfirmModal(spec deleteModalSpec) {
 					data-on:click={ "$deleting = true; document.getElementById(" + safeJSString(spec.ID) + ").close(); " + spec.ConfirmExpr }>
 					<span class="inline-flex items-center gap-2">
 						<span>Delete</span>
-						<span class="loading loading-spinner loading-xs" data-show="$deleting"></span>
+						<span class="loading loading-spinner loading-xs" style="display:none" data-show="$deleting"></span>
 					</span>
 				</button>
 			</div>
@@ -557,6 +558,7 @@ templ createdFilter() {
 		</button>
 		<button
 			type="button"
+			style="display:none"
 			class="btn btn-ghost btn-sm"
 			data-show="$createdAfter !== ''"
 			data-on:click="$createdAfter = ''; $noMatches = false"

@@ -134,7 +134,7 @@ templ remindForm(data PageData) {
 						>
 							<span class="inline-flex items-center gap-2">
 								Schedule
-								<span class="loading loading-spinner loading-xs" data-show="$reminding"></span>
+								<span class="loading loading-spinner loading-xs" style="display:none" data-show="$reminding"></span>
 							</span>
 						</button>
 					</div>
@@ -228,7 +228,7 @@ templ Inbox(data PageData) {
 						>Mark all read</button>
 					</div>
 				}
-				<div class="ui-empty" data-show="$notificationFilter === 'unread' && $inboxUnread === 0">
+				<div style="display:none" class="ui-empty" data-show="$notificationFilter === 'unread' && $inboxUnread === 0">
 					<p class="ui-empty-title">All caught up.</p>
 					<p class="ui-empty-body">New reminders arrive here when their delay ends.</p>
 				</div>

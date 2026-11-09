@@ -98,20 +98,37 @@ func chatStack() []components.TechItem {
 // other's half.
 templ chatBody(msgs []store.MessageView, catalogOn bool, customOn bool, nativeOn bool) {
 	<div class="ui-page ui-page-narrow chat-layout" data-class="{'is-empty': $chat_empty}">
-		<div class="flex items-center justify-end" data-show="!$chat_empty">
-			<button
-				type="button"
-				class="btn btn-ghost btn-xs gap-1.5"
-				data-attr:disabled="!!$chat_thinking"
-				data-on:click="document.getElementById('confirm-new-chat').showModal()"
-				title="Clear this conversation and start a new one"
-			>
-				<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-					<path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
-				</svg>
-				<span>New chat</span>
-			</button>
-		</div>
+		if len(msgs) == 0 {
+			<div class="flex items-center justify-end" style="display:none" data-show="!$chat_empty">
+				<button
+					type="button"
+					class="btn btn-ghost btn-xs gap-1.5"
+					data-attr:disabled="!!$chat_thinking"
+					data-on:click="document.getElementById('confirm-new-chat').showModal()"
+					title="Clear this conversation and start a new one"
+				>
+					<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+						<path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+					</svg>
+					<span>New chat</span>
+				</button>
+			</div>
+		} else {
+			<div class="flex items-center justify-end" data-show="!$chat_empty">
+				<button
+					type="button"
+					class="btn btn-ghost btn-xs gap-1.5"
+					data-attr:disabled="!!$chat_thinking"
+					data-on:click="document.getElementById('confirm-new-chat').showModal()"
+					title="Clear this conversation and start a new one"
+				>
+					<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+						<path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+					</svg>
+					<span>New chat</span>
+				</button>
+			</div>
+		}
 		<div class="flex-1">
 			@ChatList(msgs, "")
 			@ChatThinking()
@@ -136,7 +153,7 @@ templ chatBody(msgs []store.MessageView, catalogOn bool, customOn bool, nativeOn
 						<input type="checkbox" name="surfaces" value="custom" class="toggle toggle-xs" checked?={ customOn }/>
 					</label>
 					<label class="label cursor-pointer gap-1.5 p-0" title="Your own data panels, filled from the app (e.g. todo_list)">
-						<span class="text-xs">native</span>
+						<span class="text-xs">recipe</span>
 						<input type="checkbox" name="surfaces" value="native" class="toggle toggle-xs" checked?={ nativeOn }/>
 					</label>
 				</div>
@@ -160,9 +177,9 @@ templ chatBody(msgs []store.MessageView, catalogOn bool, customOn bool, nativeOn
 					class="input input-md sm:input-sm join-item grow"
 				/>
 				<button type="submit" class="btn btn-primary btn-md sm:btn-sm join-item" data-attr:disabled="!!($chat_thinking || !$chat_ready)">
-					<span data-show="!$chat_thinking && $chat_ready">Send</span>
+					<span style="display:none" data-show="!$chat_thinking && $chat_ready">Send</span>
 					<span data-show="!$chat_thinking && !$chat_ready">Wait</span>
-					<span data-show="$chat_thinking" class="loading loading-spinner loading-xs" aria-hidden="true"></span>
+					<span style="display:none" data-show="$chat_thinking" class="loading loading-spinner loading-xs" aria-hidden="true"></span>
 				</button>
 			</div>
 		</form>
@@ -171,7 +188,7 @@ templ chatBody(msgs []store.MessageView, catalogOn bool, customOn bool, nativeOn
 			<span>Connecting to the live stream…</span>
 			<button type="button" class="btn btn-ghost btn-xs" data-on:click="window.__gogogoSSERefresh && window.__gogogoSSERefresh('chat-stream-opener')">Reconnect</button>
 		</div>
-		<div data-show="$chat_error" class="alert alert-error alert-soft mt-2" role="alert">
+		<div style="display:none" data-show="$chat_error" class="alert alert-error alert-soft mt-2" role="alert">
 			<span class="text-sm" data-text="$chat_error"></span>
 			<div class="flex gap-1">
 				<button type="submit" form="chat-composer" class="btn btn-xs">Try again</button>
@@ -231,10 +248,17 @@ templ newChatModal() {
 // container, the spinner always reads as the last message.
 templ ChatList(msgs []store.MessageView, errMsg string) {
 	<div id="chat-messages" class="flex flex-col gap-3 pb-6" aria-live="polite">
-		<div id="chat-empty" data-show="$chat_empty" class="chat-hero">
-			<h2>Ask your app anything</h2>
-			<p>Ask in plain words — answers render as visuals, tables, plans, or your own data when that's what you asked for.</p>
-		</div>
+		if len(msgs) == 0 {
+			<div id="chat-empty" data-show="$chat_empty" class="chat-hero">
+				<h2>Ask your app anything</h2>
+				<p>Ask in plain words — answers render as visuals, tables, plans, or your own data when that's what you asked for.</p>
+			</div>
+		} else {
+			<div id="chat-empty" style="display:none" data-show="$chat_empty" class="chat-hero">
+				<h2>Ask your app anything</h2>
+				<p>Ask in plain words — answers render as visuals, tables, plans, or your own data when that's what you asked for.</p>
+			</div>
+		}
 		@ChatThread(msgs, errMsg)
 	</div>
 }
@@ -244,7 +268,7 @@ templ ChatList(msgs []store.MessageView, errMsg string) {
 // through $chat_thinking, owned by the composer (true on submit) and the
 // worker (false with the answer).
 templ ChatThinking() {
-	<div id="chat-thinking" data-show="$chat_thinking" class="chat chat-start">
+	<div id="chat-thinking" style="display:none" data-show="$chat_thinking" class="chat chat-start">
 		<div class="chat-bubble flex items-center gap-2">
 			<span class="loading loading-dots loading-sm" aria-hidden="true"></span>
 			<span class="text-sm" data-text="$chat_working || 'Thinking…'">Thinking…</span>

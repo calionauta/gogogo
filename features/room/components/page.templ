@@ -189,7 +189,7 @@ templ RoomCardContent(roomID string, roster appgoakt.Roster, email string) {
 				The lock is held by { roster.Presenter }; only they can release it.
 			}
 		</p>
-		<p id="room-left" class="alert alert-info text-sm" role="status" data-show="$roomLeft">
+		<p id="room-left" style="display:none" class="alert alert-info text-sm" role="status" data-show="$roomLeft">
 			You left this room: peers no longer list you and the roster actions are
 			hidden. Rejoin puts you back — and so does this tab reconnecting, because
 			presence IS the connection.
@@ -204,6 +204,7 @@ templ RoomCardContent(roomID string, roster appgoakt.Roster, email string) {
 			>Take presenter</button>
 			<button
 				id="room-release"
+				style="display:none"
 				class="btn btn-ghost"
 				type="button"
 				data-show="$roomLeft !== true && $roomMe !== '' && $roomMe === $roomHolder"
@@ -218,6 +219,7 @@ templ RoomCardContent(roomID string, roster appgoakt.Roster, email string) {
 			>Leave</button>
 			<button
 				id="room-rejoin"
+				style="display:none"
 				class="btn btn-primary"
 				type="button"
 				data-show="$roomLeft === true"

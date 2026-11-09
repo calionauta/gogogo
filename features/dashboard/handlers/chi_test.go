@@ -109,24 +109,26 @@ func TestDashboardRendersSummaryAndCards(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("GET /dashboard = %d, want 200", rec.Code)
 	}
-	// Installed recipes are cards: the headline stats (todo/inbox with live
-	// counters), the other sidebar destinations, AND slot contributions.
+	// Metric cards (todo/inbox) + slot contributions only. Sidebar owns
+	// navigation, so non-metric destinations must not appear as link cards
+	// ("Open Whiteboard" CTA would prove a link card).
 	body := rec.Body.String()
 	for _, want := range []string{
-		"Welcome back", "Todo", "Inbox", "Whiteboard",
+		"Welcome back", "Todo", "Inbox",
 		"Pomodoro", "focus", `data-slot="dashboard.card"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("body missing %q", want)
 		}
 	}
+	if strings.Contains(body, "Open Whiteboard") {
+		t.Fatalf("dashboard has a link card for Whiteboard; summary only")
+	}
 }
 
-// TestBuildCardsListsInstalledRecipes pins the dashboard's "one card per
-// installed recipe" contract: every sidebar destination becomes a card,
-// headline recipes (todo/inbox) carry their live counter, the rest are static
-// link cards. Platform surfaces (dashboard itself, graph panorama, admin
-// config) are not recipes and never become a card.
+// TestBuildCardsListsInstalledRecipes pins the dashboard's "summary only"
+// contract: only metric recipes (todo/inbox) become cards. Sidebar owns
+// navigation, config owns inventory — link-only destinations never appear.
 func TestBuildCardsListsInstalledRecipes(t *testing.T) {
 	mods := []ui.Module{
 		{ID: ui.ModuleInbox, Title: "Inbox", URL: "/notifications"},
@@ -136,8 +138,8 @@ func TestBuildCardsListsInstalledRecipes(t *testing.T) {
 		{ID: "graph", Title: "Graph", URL: "/graph"},
 	}
 	cards := buildCards(mods, 3, 7, 1)
-	if len(cards) != 3 {
-		t.Fatalf("buildCards = %d cards, want 3 (inbox, todo, whiteboard)", len(cards))
+	if len(cards) != 2 {
+		t.Fatalf("buildCards = %d cards, want 2 (inbox, todo metrics only)", len(cards))
 	}
 	if cards[0].Title != "Inbox" || cards[0].Stat == nil ||
 		cards[0].Stat.Signal != "inboxUnread" || cards[0].Stat.Value != 1 {
@@ -146,9 +148,6 @@ func TestBuildCardsListsInstalledRecipes(t *testing.T) {
 	if cards[1].Title != "Todo" || cards[1].Stat == nil ||
 		cards[1].Stat.Signal != "openTodos" || cards[1].Stat.Value != 3 {
 		t.Errorf("todo card = %+v, want stat {Value:3, Signal:openTodos}", cards[1])
-	}
-	if cards[2].Title != "Whiteboard" || cards[2].Stat != nil || cards[2].URL != "/whiteboard" {
-		t.Errorf("whiteboard card = %+v, want a static link card", cards[2])
 	}
 }
 

@@ -274,7 +274,7 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 					</main>
 				</div>
 				if d.HasDemo() {
-					<aside id="state-panel" class="app-state-panel" aria-label="Demo panel" data-signals={ panelVisibilitySignals(d.Demo, d.HasState(), d.HasStack()) } data-show="$panelVisible">
+					<aside id="state-panel" style="display:none" class="app-state-panel" aria-label="Demo panel" data-signals={ panelVisibilitySignals(d.Demo, d.HasState(), d.HasStack()) } data-show="$panelVisible">
 						<div class="app-state-panel-head-row">
 							// The State section has no caption of its own, so the head
 							// names it. The Stack section carries its own STACK caption

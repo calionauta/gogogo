@@ -12,6 +12,7 @@
 package components
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/calionauta/gogogo/features/sounds"
@@ -91,8 +92,8 @@ templ configSound() {
 	@sounds.SoundSwitch()
 }
 
-// configBody is the page's work area: the runtime status card, the grouped
-// field table, and the rotate-a-secret footer. The old page opened with two
+// configBody is the page's work area: the runtime status card and the
+// grouped field table. The old page opened with two
 // banner paragraphs restating the page and the RBAC posture; both facts now
 // live where they are read (header context + status card), and only the
 // actionable warning — enforcement OFF — stays as an alert.
@@ -154,7 +155,7 @@ templ configBody(data PageData) {
 	// adjacent to the markup it drives.
 	<div
 		class="tabs tabs-box"
-		data-init="var tabs = {'#runtime': 'config-tab-runtime', '#units': 'config-tab-units', '#users': 'config-tab-users', '#security-events': 'config-tab-security', '#answer-components': 'config-tab-components'}; var id = tabs[window.location.hash]; if (id) { var el = document.getElementById(id); if (el) { el.checked = true; } }"
+		data-init="var tabs = {'#runtime': 'config-tab-runtime', '#units': 'config-tab-units-core', '#units-core': 'config-tab-units-core', '#units-servants': 'config-tab-units-servants', '#units-recipes': 'config-tab-units-recipes', '#users': 'config-tab-users', '#security-events': 'config-tab-security', '#answer-components': 'config-tab-components'}; var id = tabs[window.location.hash]; if (id) { var el = document.getElementById(id); if (el) { el.checked = true; } }"
 	>
 		<input type="radio" name="config_tabs" id="config-tab-runtime" class="tab" aria-label="Runtime" checked/>
 		<div class="tab-content pt-4" role="tabpanel" aria-label="Runtime settings">
@@ -210,15 +211,17 @@ templ configBody(data PageData) {
 
 		</section>
 		</div>
-		<input type="radio" name="config_tabs" id="config-tab-units" class="tab" aria-label="Units"/>
-		<div class="tab-content pt-4" role="tabpanel" aria-label="Units">
-		// The inventory: every unit this binary ships, grouped by removal
-		// class with its status. Core/Servants carry the platform; recipes
-		// carry the user's surfaces (also listed on the dashboard grid).
+		// Units: one tab per removal class, with count badge. #units stays
+		// as alias of Core for old deep links.
 		for _, group := range data.Units {
+			<input type="radio" name="config_tabs" id={ "config-tab-units-" + strings.ToLower(group.Label) } class="tab" aria-label={ group.Label + " (" + strconv.Itoa(len(group.Rows)) + ")" }/>
+			<div class="tab-content pt-4" role="tabpanel" aria-label={ group.Label }>
 			<section class="ui-card config-group" aria-label={ group.Label }>
 				<div class="ui-card-body">
-					<h2 class="ui-title">{ group.Label }</h2>
+					<div class="flex items-center gap-2 mb-2">
+						<h2 class="ui-title">{ group.Label }</h2>
+						<span class="badge badge-sm badge-soft">{ strconv.Itoa(len(group.Rows)) }</span>
+					</div>
 					<div class="overflow-x-auto">
 						<table class="table table-sm">
 							<thead>
@@ -234,9 +237,9 @@ templ configBody(data PageData) {
 										<td class="font-mono">{ row.ID }</td>
 										<td>
 											if row.Status == "in" {
-												<span class="badge badge-sm badge-success">in</span>
+												<span class="badge badge-sm badge-soft badge-success">in</span>
 											} else {
-												<span class="badge badge-sm badge-warning">{ row.Status }</span>
+												<span class="badge badge-sm badge-soft badge-warning whitespace-normal text-left h-auto py-1">{ row.Status }</span>
 											}
 										</td>
 										<td class="hidden md:table-cell text-sm text-base-content/70">{ row.Summary }</td>
@@ -247,8 +250,8 @@ templ configBody(data PageData) {
 					</div>
 				</div>
 			</section>
+			</div>
 		}
-		</div>
 		<input type="radio" name="config_tabs" id="config-tab-users" class="tab" aria-label="Users"/>
 		<div class="tab-content pt-4" role="tabpanel" aria-label="Users">
 	<section class="ui-card" id="users">
@@ -417,9 +420,23 @@ templ configBody(data PageData) {
 		<div class="ui-card-body">
 			<h2 class="ui-title">Answer components</h2>
 			<p class="text-sm text-base-content/70 mb-2">
-				What the chat model may emit. The generative catalog is fixed; native panels
+				What the chat model may emit. The generative catalog is fixed; recipe panels
 				render your own data (the model picks the slice, the app fills the rows).
 			</p>
+			<form method="GET" action="/config#answer-components" class="flex flex-wrap items-end gap-2 mb-3">
+				<label>
+					<div class="label py-1"><span class="text-xs">Show</span></div>
+					<select name="components" class="select select-sm">
+						<option value="" selected?={ data.ComponentFilter == "" }>All</option>
+						<option value="catalog" selected?={ data.ComponentFilter == "catalog" }>Catalog</option>
+						<option value="container" selected?={ data.ComponentFilter == "container" }>Container</option>
+						<option value="custom" selected?={ data.ComponentFilter == "custom" }>Custom</option>
+						<option value="panels" selected?={ data.ComponentFilter == "panels" }>Recipe panels</option>
+					</select>
+				</label>
+				<button type="submit" class="btn btn-sm">Filter</button>
+			</form>
+			if data.ComponentFilter == "" || data.ComponentFilter == "catalog" || data.ComponentFilter == "container" || data.ComponentFilter == "custom" {
 			<h3 class="font-semibold mt-3 mb-1">Generative catalog</h3>
 			<div class="overflow-x-auto">
 				<table class="table table-sm">
@@ -442,9 +459,11 @@ templ configBody(data PageData) {
 					</tbody>
 				</table>
 			</div>
-			<h3 class="font-semibold mt-3 mb-1">Native panels</h3>
+			}
+			if data.ComponentFilter == "" || data.ComponentFilter == "panels" {
+			<h3 class="font-semibold mt-3 mb-1">Recipe panels</h3>
 			if len(data.AnswerPanels) == 0 {
-				<p class="text-sm">No native panels installed — answers about your own data have no component to render through.</p>
+				<p class="text-sm">No recipe panels installed — answers about your own data have no component to render through.</p>
 			} else {
 				<div class="overflow-x-auto">
 					<table class="table table-sm">
@@ -468,6 +487,7 @@ templ configBody(data PageData) {
 					</table>
 				</div>
 			}
+			}
 		</div>
 	</section>
 
@@ -490,9 +510,6 @@ templ configBody(data PageData) {
 		</section>
 	}
 	</div>
-	<footer class="text-xs text-base-content/60 mt-6">
-		<p>Need to rotate a secret? Edit <code>~/.secrets/{ data.AppName }.env.age</code> (L2 in <code>cali-ops-server-security</code>) and restart the binary.</p>
-	</footer>
 	</div>
 }
 
