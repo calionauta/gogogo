@@ -1916,7 +1916,7 @@ invoke → row in `ext_todo_todos`), and `recipe describe` advertising the
 wrapped handler, so each target route is policy-checked for the caller's
 role), `gogogo recipe invoke` (loopback-only SSRF guard, `--param`
 k=v forwarded, verb validated locally for receipt-installs) and MCP
-`extension_invoke` — both Proved end-to-end. Param schema followed
+`recipe_invoke` — both Proved end-to-end. Param schema followed
 (2026-11-07): `Actions[].Params` is a closed set of top-level form
 fields; unknown keys are refused loud naming the allowed set (no
 typed coercion — handlers parse values at the boundary), GET reads
