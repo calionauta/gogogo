@@ -213,3 +213,43 @@ func TestBuildCardsEmptyPinsTheDegenerateBuild(t *testing.T) {
 		t.Fatalf("buildCards(nil) = %v, want empty", cards)
 	}
 }
+
+// TestDeclaredMetricsExecutesCounts pins the generic path: a provider
+// that declares a COUNT query yields its metric with the value the
+// query returns, and a provider with a broken query is omitted (not a
+// fake zero). This is the user-recipe contract — a recipe that today
+// stores no DB rows simply declares nothing.
+func TestDeclaredMetricsExecutesCounts(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	owner := "owner-1"
+	// One real row in todos so the COUNT has something to say. The
+	// user must exist first (FK owner → users.id).
+	if _, err := f.sqlDB.ExecContext(ctx,
+		"INSERT INTO users (id, email, password_hash, created, updated) VALUES (?, ?, ?, ?, ?)",
+		owner, "owner@example.com", "x", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"); err != nil {
+		t.Fatalf("insert user: %v", err)
+	}
+	if _, err := f.sqlDB.ExecContext(ctx,
+		"INSERT INTO todos (id, owner, title, completed, visibility, created, updated) VALUES (?, ?, ?, 0, 'private', ?, ?)",
+		"id1", owner, "hello", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"); err != nil {
+		t.Fatalf("insert todo: %v", err)
+	}
+	reg := &recipe.Registry{}
+	reg.Add(&stubProvider{id: "todo", metrics: []recipe.Metric{
+		{Label: "Open", Query: "SELECT COUNT(*) FROM todos WHERE owner = ? AND completed = 0", Signal: "openTodos"},
+	}})
+	reg.Add(&stubProvider{id: "broken", metrics: []recipe.Metric{
+		{Label: "Fake", Query: "SELECT nope FROM missing_table WHERE owner = ?"},
+	}})
+	h := NewHandler(f.h.cfg, f.auth, f.q, nil)
+	h.SetRegistry(reg, f.sqlDB)
+	got := h.declaredMetrics(ctx, owner)
+	m := got["todo"]
+	if len(m) != 1 || m[0].Value != 1 || m[0].Label != "Open" || m[0].Signal != "openTodos" {
+		t.Fatalf("todo declared = %+v, want one metric Open=1", m)
+	}
+	if _, ok := got["broken"]; ok {
+		t.Fatalf("broken provider must be omitted, got %v", got["broken"])
+	}
+}
