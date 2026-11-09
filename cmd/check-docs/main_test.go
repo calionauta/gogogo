@@ -149,8 +149,7 @@ func TestCommandMatches(t *testing.T) {
 
 // TestReadmeIndexRoundTrip pins the generated-index rule: a hand-kept block is
 // reported as drift, `-write` is the only repair, and a missing marker pair is
-// an error rather than a silent skip (a silently skipped block is how the
-// index drifted from 43 pages to 23).
+// clean by design (link-only README — no index to rot).
 func TestReadmeIndexRoundTrip(t *testing.T) {
 	root := t.TempDir()
 	mkdir := func(rel, body string) {
@@ -211,11 +210,11 @@ func TestReadmeIndexRoundTrip(t *testing.T) {
 		t.Error("stale bullet survived -write")
 	}
 
-	// A missing marker pair must fail loudly: this is the shape that let the
-	// index rot without any gate noticing.
+	// A missing marker pair is clean by design: the README is link-only, so a
+	// README with no index has nothing to drift.
 	mkdir("README.md", "no markers here\n")
-	if problems := checkReadmeIndex(root); len(problems) == 0 {
-		t.Fatal("missing markers reported no problem")
+	if problems := checkReadmeIndex(root); len(problems) != 0 {
+		t.Fatalf("missing markers reported %v, want none (clean by design)", problems)
 	}
 }
 
