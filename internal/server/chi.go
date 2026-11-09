@@ -25,7 +25,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 
 	natsio "github.com/nats-io/nats.go"
@@ -198,22 +197,14 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// bootCtx owns the retention ticker and engines below; cancellation stops them.
 
 	// Chi-owned queue: feature workers run here so they never compete
-	// with the other stack's workers for the same jobs. Its hub is the
-	// SINGLE hub every stream and every worker shares: workers broadcast
-	// to chiQ.Hub(), so every handler below is built with that same hub.
-	// A second hub object silently swallows all worker feedback (the
-	// Queue + Retry demo stuck on step 1 was exactly this: the todo
-	// stream listened on a standalone hub while workers broadcast on
-	// the queue's own hub).
-	chiQ, qerr := queue.NewAt(filepath.Join(cfg.DataDir, "chi"))
+	// with the other stack's workers. Its hub is the SINGLE hub every
+	// stream and worker shares (a second hub silently swallows feedback).
+	chiQ, hub, qerr := newChiQueue(cfg)
 	if qerr != nil {
 		return bootFail(cancelConsumer, sqlDB, "queue", qerr)
 	}
-	hub := chiQ.Hub()
-	// Shutdown hooks stop independent things: stepper, actor, queue,
-	// ledger. The order is arbitrary. onShutdown is handed to Deps so
-	// self-mounting units (credits ledger, room host) register theirs
-	// without the root knowing their types.
+	// Shutdown hooks stop independent things; onShutdown is handed to
+	// Deps so self-mounting units register theirs without type knowledge.
 	shutdown := []func(){chiQ.Close}
 	onShutdown := func(f func()) { shutdown = append(shutdown, f) }
 
@@ -222,6 +213,9 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// root importing the handlers package.
 	todoRef := &register.TodoRef{}
 	inboxRef := &register.InboxRef{}
+	chatRef := &register.ChatRef{}
+	creditsRef := &register.CreditsRef{}
+	panels := []any{}
 
 	// LLM clients are built once here and shared by the todo and chat
 	// Registers (same clients BootChi used to hand each handler).
@@ -251,15 +245,18 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 			OnShutdown: onShutdown, Slots: slots, SQLDB: sqlDB,
 			Persister: persister, DocStore: docs, Presence: federated,
 			TodoRef: todoRef, InboxRef: inboxRef,
+			ChatRef: chatRef, CreditsRef: creditsRef,
+			Panels: &panels,
 		},
 	)
 	if mux.recipeErr != nil {
 		return bootFail(cancelConsumer, sqlDB, "recipes", mux.recipeErr)
 	}
-	if todoRef.HealSearch != nil {
-		if herr := todoRef.HealSearch(bootCtx); herr != nil {
-			return bootFail(cancelConsumer, sqlDB, "search", herr)
-		}
+	if perr := installPanels(panels); perr != nil {
+		return bootFail(cancelConsumer, sqlDB, "panels", perr)
+	}
+	if herr := healSearch(bootCtx, todoRef); herr != nil {
+		return bootFail(cancelConsumer, sqlDB, "search", herr)
 	}
 	// Onboarding wires after the recipe step: TodoRef.SetOnboarding is
 	// filled by the todo Register, so the resumer lands on the handler the

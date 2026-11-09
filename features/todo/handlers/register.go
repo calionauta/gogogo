@@ -7,7 +7,6 @@ import (
 
 	natsio "github.com/nats-io/nats.go"
 
-	comp "github.com/calionauta/gogogo/features/genui/components"
 	"github.com/calionauta/gogogo/internal/natswire"
 	"github.com/calionauta/gogogo/internal/queue"
 	"github.com/calionauta/gogogo/internal/recipe"
@@ -67,23 +66,13 @@ func Register(reg *recipe.Registry, d register.Deps) {
 	h.SetSearch(set, ix, d.SQLDB)
 
 	h.RowActions = RowActionsFrom(d.Slots)
-	// Panel catalog: this unit owns the provider, so it installs the
-	// global catalog the chat unit answers through. Chat Register no
-	// longer touches panels (it mounts after/before by id; the catalog
-	// is process-global and read at request time, after the whole
-	// bundled pass has run, so order inside the pass does not matter).
-	panels := []comp.PanelProvider{NewTodoPanel(d.Queries, d.Slots)}
-	if err := comp.InstallPanelRegistry(panels); err != nil {
-		panic(err)
-	}
-	var actionProviders []comp.ActionProvider
-	for _, p := range panels {
-		if ap, ok := p.(comp.ActionProvider); ok {
-			actionProviders = append(actionProviders, ap)
-		}
-	}
-	if err := comp.InstallActionRegistry(actionProviders); err != nil {
-		panic(err)
+	// Panel catalog: this unit owns the provider and contributes it to
+	// the boot's panel list (d.Panels). The root installs the global
+	// catalog once, after every recipe has appended. Order inside the
+	// pass does not matter: the catalog is process-global and read at
+	// request time.
+	if d.Panels != nil {
+		*d.Panels = append(*d.Panels, NewTodoPanel(d.Queries, d.Slots))
 	}
 	reg.Add(h.Recipe())
 

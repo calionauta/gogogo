@@ -14,7 +14,8 @@ import (
 )
 
 // PageData is everything the dashboard shows: the session, the grid of
-// installed-recipe cards, and the fragments recipes declared for this page.
+// installed-recipe metric cards, and the fragments recipes declared for
+// this page.
 type PageData struct {
 	Email          string
 	Role           string
@@ -25,23 +26,60 @@ type PageData struct {
 	DashboardCards []recipe.Fragment
 }
 
-// Card is one installed recipe in the dashboard grid. Stat carries the live
-// counter for headline recipes (todo, inbox); a nil Stat renders a static
-// link card. The Title and URL come from the shell's module registry, so a
-// trimmed build loses the card together with its rail destination.
-type Card struct {
-	Title string
-	URL   string
-	Stat  *Stat
+// Metric is one labeled count a recipe reports for the dashboard. The
+// label is the user's word; Value feeds the odometer; Signal drives it
+// after the first paint. Grouped per recipe under the card title.
+type Metric struct {
+	Label  string
+	Value  int
+	Signal string
 }
 
-// Stat is a card's live counter: Value is the odometer target, Signal the
-// Datastar signal driving it, Desc the smaller caption under the number.
+// Card is one installed recipe in the dashboard grid. Metrics carries its
+// labeled counts (a nil/empty Metrics renders a static link card). The
+// Title and URL come from the shell's module registry, so a trimmed build
+// loses the card together with its rail destination.
+type Card struct {
+	Title   string
+	URL     string
+	Metrics []Metric
+	Cta     string
+}
+
+// Stat is kept for the odometer's legacy single-metric callers; new cards
+// use Metrics.
 type Stat struct {
 	Value  int
 	Signal string
 	Desc   string
 	Cta    string
+}
+
+// LabelsFor returns the metric labels each recipe reports (convention over
+// configuration: the dashboard reads this table, recipes never register
+// prose). Landing/account/config/dashboard are platform, not recipes with
+// user data, and report no metrics.
+func LabelsFor(recipeID string) []string {
+	switch recipeID {
+	case "todo":
+		return []string{"Open", "Done", "Total", "Shared"}
+	case "notifications":
+		return []string{"Unread", "Total"}
+	case "chat":
+		return []string{"Messages", "Human"}
+	case "notes":
+		return []string{"Notes"}
+	case "whiteboard":
+		return []string{"Boards"}
+	case "credits":
+		return []string{"Balance"}
+	case "review":
+		return []string{"Runs"}
+	case "room":
+		return []string{"Online"}
+	default:
+		return nil
+	}
 }
 
 // Page renders the /dashboard module inside the shared shell.
@@ -139,29 +177,32 @@ templ dashboardSound() {
 }
 
 templ dashboardBody(data PageData) {
-	<div class="ui-page ui-stack" data-signals={ MarshalSignals(Signals{OpenTodos: data.OpenTodos}) }>
+	<div class="ui-page ui-stack" data-signals={ MarshalSignals(data.signals()) }>
 		<h2 class="ui-title">Welcome back</h2>
-		// The dashboard is a summary surface: only metric cards (todo,
-		// inbox) plus dashboard.card slot fragments a recipe declares.
-		// Navigation lives in the sidebar; inventory lives in /config.
+		// The dashboard is a summary surface: one card per recipe with
+		// data, grouped metrics (label + count) plus dashboard.card slot
+		// fragments a recipe declares. Navigation lives in the sidebar.
 		<section class="grid grid-cols-1 md:grid-cols-2 gap-4" aria-label="Your recipes">
 			if len(data.Cards) > 0 || len(data.DashboardCards) > 0 {
 				for _, c := range data.Cards {
 					<div class="ui-card" data-slot="dashboard.card">
 						<div class="ui-card-body">
-							if c.Stat != nil {
-								<div class="stat">
-									<div class="stat-title">{ c.Title }</div>
-									<div class="stat-value">@Odo(c.Stat.Value, c.Stat.Signal)</div>
-									<div class="stat-desc">{ c.Stat.Desc }</div>
-									<div class="stat-actions">
-										<a href={ c.URL } class="btn btn-primary btn-sm">{ c.Stat.Cta }</a>
-									</div>
+							<div class="stat">
+								<div class="stat-title">{ c.Title }</div>
+							</div>
+							if len(c.Metrics) > 0 {
+								<div class="grid grid-cols-2 gap-3 mt-3">
+									for _, m := range c.Metrics {
+										<div>
+											<div class="text-xs uppercase tracking-wide text-base-content/50">{ m.Label }</div>
+											<div class="stat-value">@Odo(m.Value, m.Signal)</div>
+										</div>
+									}
 								</div>
-							} else {
-								<h3 class="ui-title">{ c.Title }</h3>
-								<div class="stat-actions">
-									<a href={ c.URL } class="btn btn-sm">{ "Open " + c.Title }</a>
+							}
+							if c.Cta != "" {
+								<div class="stat-actions mt-3">
+									<a href={ c.URL } class="btn btn-primary btn-sm">{ c.Cta }</a>
 								</div>
 							}
 						</div>
@@ -184,4 +225,21 @@ templ dashboardBody(data PageData) {
 			}
 		</section>
 	</div>
+}
+
+// signals derives the odometer seeds from the first metric of each card.
+// Fail-fast: a metric without a Signal is a wiring bug, so the signal names
+// here and in buildCards must cover every metric the handler emits.
+func (d PageData) signals() Signals {
+	b := map[string]int{}
+	for _, c := range d.Cards {
+		for _, m := range c.Metrics {
+			b[m.Signal] = m.Value
+		}
+	}
+	return Signals{
+		OpenTodos: b["openTodos"], DoneTodos: b["doneTodos"], TotalTodos: b["totalTodos"],
+		SharedTodos: b["sharedTodos"], TotalInbox: b["totalInbox"], ChatTotal: b["chatTotal"],
+		ChatHuman: b["chatHuman"], NotesCount: b["notesCount"], BoardsCount: b["boardsCount"], CreditsBal: b["creditsBal"],
+	}
 }

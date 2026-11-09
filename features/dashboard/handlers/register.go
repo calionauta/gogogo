@@ -15,5 +15,15 @@ import (
 // The generated registration in internal/server calls it once at boot, from
 // the entry `Capability.Register` names.
 func Register(reg *recipe.Registry, d register.Deps) {
-	reg.Add(NewHandler(d.Cfg, d.Auth, d.Queries, d.Slots).Recipe())
+	h := NewHandler(d.Cfg, d.Auth, d.Queries, d.Slots)
+	// Chat/credits counts ride their refs (filled by those Registers,
+	// which run before this one in the generated order). Nil-safe: a
+	// trimmed recipe simply leaves its card off.
+	if d.ChatRef != nil && d.ChatRef.Count != nil {
+		h.SetChatRef(d.ChatRef.Count)
+	}
+	if d.CreditsRef != nil && d.CreditsRef.Balance != nil {
+		h.SetCreditsRef(d.CreditsRef.Balance)
+	}
+	reg.Add(h.Recipe())
 }

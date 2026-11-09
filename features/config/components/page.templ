@@ -418,33 +418,30 @@ templ configBody(data PageData) {
 	</section>
 		</div>
 	<!-- trim-genui:components-section:start -->
-		<input type="radio" name="config_tabs" id="config-tab-components" class="tab" aria-label="Components"/>
+		<label class="tab">
+			<input type="radio" name="config_tabs" id="config-tab-components" class="sr-only"/>
+			<span class="flex items-center gap-1.5">Components <span class="badge badge-sm badge-soft">{ strconv.Itoa(len(data.AnswerCatalog) + len(data.AnswerPanels)) }</span></span>
+		</label>
 		<div class="tab-content pt-4" role="tabpanel" aria-label="Answer components">
 	<section class="ui-card" id="answer-components">
 		<div class="ui-card-body">
 			<h2 class="ui-title">Answer components</h2>
 			<p class="text-sm text-base-content/70 mb-2">
-				What the chat model may emit. The generative catalog is fixed; recipe panels
-				render your own data (the model picks the slice, the app fills the rows).
+				What the chat model may emit. Blue rows are fixed (catalog, container, custom);
+				gold rows are recipe panels — one per installed recipe, each rendering that
+				recipe's own page components with real rows (<code>todo_list</code> is the todo
+				recipe's own list, not a duplicate).
 			</p>
-			<form method="GET" action="/config" class="flex flex-wrap items-end gap-2 mb-3">
-				<label>
-					<div class="label py-1"><span class="text-xs">Show</span></div>
-					<select name="components" class="select select-sm">
-						<option value="" selected?={ data.ComponentFilter == "" }>All</option>
-						<option value="catalog" selected?={ data.ComponentFilter == "catalog" }>Catalog</option>
-						<option value="container" selected?={ data.ComponentFilter == "container" }>Container</option>
-						<option value="custom" selected?={ data.ComponentFilter == "custom" }>Custom</option>
-						<option value="panels" selected?={ data.ComponentFilter == "panels" }>Recipe panels</option>
-					</select>
-				</label>
-				<button type="submit" class="btn btn-sm">Filter</button>
-			</form>
-			if data.ComponentFilter == "" || data.ComponentFilter == "catalog" || data.ComponentFilter == "container" || data.ComponentFilter == "custom" {
-			<h3 class="font-semibold mt-3 mb-1">Generative catalog</h3>
+			<div class="join mb-3" role="group" aria-label="Filter components">
+				<a href="/config#answer-components" class={ templ.Classes("btn btn-sm join-item", map[string]bool{"btn-primary": data.ComponentFilter == ""}) }>All</a>
+				<a href="/config?components=catalog#answer-components" class={ templ.Classes("btn btn-sm join-item", map[string]bool{"btn-primary": data.ComponentFilter == "catalog"}) }>Catalog</a>
+				<a href="/config?components=container#answer-components" class={ templ.Classes("btn btn-sm join-item", map[string]bool{"btn-primary": data.ComponentFilter == "container"}) }>Container</a>
+				<a href="/config?components=custom#answer-components" class={ templ.Classes("btn btn-sm join-item", map[string]bool{"btn-primary": data.ComponentFilter == "custom"}) }>Custom</a>
+				<a href="/config?components=panels#answer-components" class={ templ.Classes("btn btn-sm join-item", map[string]bool{"btn-primary": data.ComponentFilter == "panels"}) }>Recipe panels</a>
+			</div>
 			<div class="overflow-x-auto">
 				<table class="table table-sm">
-					<caption class="sr-only">Generative answer components</caption>
+					<caption class="sr-only">Answer components, ordered by band then name</caption>
 					<thead>
 						<tr>
 							<th>Component</th>
@@ -453,48 +450,32 @@ templ configBody(data PageData) {
 						</tr>
 					</thead>
 					<tbody>
-						for _, info := range data.AnswerCatalog {
-							<tr>
-								<td><code class="text-sm">{ info.Name }</code></td>
-								<td><span class="badge badge-neutral badge-sm">{ string(info.Kind) }</span></td>
-								<td class="text-sm text-base-content/70">{ info.Blurb }</td>
-							</tr>
+						if data.ComponentFilter == "" || data.ComponentFilter == "catalog" || data.ComponentFilter == "container" || data.ComponentFilter == "custom" {
+							for _, info := range data.AnswerCatalog {
+								<tr>
+									<td><code class="text-sm">{ info.Name }</code></td>
+									<td><span class="badge badge-neutral badge-sm">{ string(info.Kind) }</span></td>
+									<td class="text-sm text-base-content/70">{ info.Blurb }</td>
+								</tr>
+							}
+						}
+						if data.ComponentFilter == "" || data.ComponentFilter == "panels" {
+							for _, info := range data.AnswerPanels {
+								<tr>
+									<td><code class="text-sm">{ info.Name }</code></td>
+									<td><span class="badge badge-warning badge-sm">recipe</span></td>
+									<td class="text-sm text-base-content/70">{ info.Blurb }<span class="opacity-60"> (slices: { strings.Join(info.Writable, ", ") })</span></td>
+								</tr>
+							}
 						}
 					</tbody>
 				</table>
 			</div>
+			if len(data.AnswerCatalog) + len(data.AnswerPanels) == 0 {
+				<p class="text-sm mt-2">No components in this filter.</p>
 			}
-			if data.ComponentFilter == "" || data.ComponentFilter == "panels" {
-			<h3 class="font-semibold mt-3 mb-1">Recipe panels</h3>
-			<p class="text-sm text-base-content/70 mb-2">
-				One per installed recipe — each renders that recipe's own page components with
-				real rows. <code>todo_list</code> is the todo recipe's own list, not a duplicate.
-			</p>
-			if len(data.AnswerPanels) == 0 {
-				<p class="text-sm">No recipe panels installed — answers about your own data have no component to render through.</p>
-			} else {
-				<div class="overflow-x-auto">
-					<table class="table table-sm">
-						<caption class="sr-only">Native answer panels</caption>
-						<thead>
-							<tr>
-								<th>Panel</th>
-								<th>When the model picks it</th>
-								<th>Slice props</th>
-							</tr>
-						</thead>
-						<tbody>
-							for _, info := range data.AnswerPanels {
-								<tr>
-									<td><code class="text-sm">{ info.Name }</code></td>
-									<td class="text-sm text-base-content/70">{ info.Blurb }</td>
-									<td><code class="text-sm">{ strings.Join(info.Writable, ", ") }</code></td>
-								</tr>
-							}
-						</tbody>
-					</table>
-				</div>
-			}
+			if len(data.AnswerPanels) == 0 && (data.ComponentFilter == "" || data.ComponentFilter == "panels") {
+				<p class="text-sm mt-2">No recipe panels installed — answers about your own data have no component to render through.</p>
 			}
 		</div>
 	</section>

@@ -127,7 +127,8 @@ func TestDashboardRendersSummaryAndCards(t *testing.T) {
 }
 
 // TestBuildCardsListsInstalledRecipes pins the dashboard's "summary only"
-// contract: only metric recipes (todo/inbox) become cards. Sidebar owns
+// contract: one card per recipe with data (todo, inbox, chat, notes,
+// whiteboard, credits), grouped metrics per card with labels. Sidebar owns
 // navigation, config owns inventory — link-only destinations never appear.
 func TestBuildCardsListsInstalledRecipes(t *testing.T) {
 	mods := []ui.Module{
@@ -137,17 +138,21 @@ func TestBuildCardsListsInstalledRecipes(t *testing.T) {
 		{ID: "whiteboard", Title: "Whiteboard", URL: "/whiteboard"},
 		{ID: "graph", Title: "Graph", URL: "/graph"},
 	}
-	cards := buildCards(mods, 3, 7, 1)
-	if len(cards) != 2 {
-		t.Fatalf("buildCards = %d cards, want 2 (inbox, todo metrics only)", len(cards))
+	c := counts{open: 3, done: 4, total: 7, shared: 2, unread: 1, inboxTotal: 5}
+	cards := buildCards(mods, c)
+	if len(cards) != 3 {
+		t.Fatalf("buildCards = %d cards, want 3 (inbox, todo, whiteboard)", len(cards))
 	}
-	if cards[0].Title != "Inbox" || cards[0].Stat == nil ||
-		cards[0].Stat.Signal != "inboxUnread" || cards[0].Stat.Value != 1 {
-		t.Errorf("inbox card = %+v, want stat {Value:1, Signal:inboxUnread}", cards[0])
+	if cards[0].Title != "Inbox" || len(cards[0].Metrics) != 2 ||
+		cards[0].Metrics[0].Signal != "inboxUnread" || cards[0].Metrics[0].Value != 1 {
+		t.Errorf("inbox card = %+v, want 2 metrics starting with inboxUnread=1", cards[0])
 	}
-	if cards[1].Title != "Todo" || cards[1].Stat == nil ||
-		cards[1].Stat.Signal != "openTodos" || cards[1].Stat.Value != 3 {
-		t.Errorf("todo card = %+v, want stat {Value:3, Signal:openTodos}", cards[1])
+	if cards[1].Title != "Todo" || len(cards[1].Metrics) != 4 ||
+		cards[1].Metrics[0].Label != "Open" || cards[1].Metrics[0].Value != 3 {
+		t.Errorf("todo card = %+v, want 4 metrics starting with Open=3", cards[1])
+	}
+	if cards[2].Title != "Whiteboard" || len(cards[2].Metrics) != 1 || cards[2].Metrics[0].Label != "Boards" {
+		t.Errorf("whiteboard card = %+v, want one metric Boards", cards[2])
 	}
 }
 
@@ -156,7 +161,7 @@ func TestBuildCardsListsInstalledRecipes(t *testing.T) {
 // build with bundled recipes always has cards, so the old message — "no
 // extensions installed" while todo/inbox were on screen — cannot return.
 func TestBuildCardsEmptyPinsTheDegenerateBuild(t *testing.T) {
-	if cards := buildCards(nil, 0, 0, 0); len(cards) != 0 {
+	if cards := buildCards(nil, counts{}); len(cards) != 0 {
 		t.Fatalf("buildCards(nil) = %v, want empty", cards)
 	}
 }

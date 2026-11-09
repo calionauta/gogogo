@@ -29,4 +29,7 @@ func Register(reg *recipe.Registry, d register.Deps) {
 	h := NewHandler(d.Queries, d.Auth, hub, persister, docs, d.Cfg)
 	h.SetPresence(d.Presence)
 	reg.Add(h.Recipe())
+	if d.Panels != nil {
+		*d.Panels = append(*d.Panels, NewNotesPanel(d.Queries))
+	}
 }

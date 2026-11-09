@@ -77,6 +77,18 @@ type Deps struct {
 	// and the deliver funcs so the root can wire the session stream feed
 	// and the DagNats worker without importing the handlers package.
 	InboxRef *InboxRef
+	// ChatRef lets the dashboard read per-owner message counts without
+	// importing the chat store. Nil keeps the chat card off.
+	ChatRef *ChatRef
+	// CreditsRef lets the dashboard read the ledger balance without
+	// importing the credits service. Nil keeps the credits card off.
+	CreditsRef *CreditsRef
+	// Panels collects each recipe's PanelProvider (the genui panel
+	// contract) in boot order. The root asserts them to the panel
+	// interface and installs the registry once — as `any` so this
+	// contract never imports a feature package (the same reason
+	// InboxRef.Bus is `any`). Nil = no panels installed.
+	Panels *[]any
 }
 
 // OnboardingResumer is what the todo create path needs from the onboarding
@@ -105,6 +117,17 @@ type InboxRef struct {
 	Deliver       func(ctx context.Context, d any) error
 	SetRunStarter func(r any)
 	Wired         func() bool
+}
+
+// ChatRef is the chat handle the dashboard reads message counts through.
+// Funcs close over the handler's store, so the root never names it.
+type ChatRef struct {
+	Count func(ctx context.Context, owner string) (total, human int, err error)
+}
+
+// CreditsRef is the credits handle the dashboard reads the balance through.
+type CreditsRef struct {
+	Balance func(ctx context.Context, owner string) (int64, error)
 }
 
 // Func is what a recipe package exports as `Register`. The generated

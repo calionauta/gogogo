@@ -343,7 +343,9 @@ func appendSecretsGroup(pd PageData, ageSet bool) PageData {
 }
 
 // catalogInfos lists the generative answer components (everything but
-// native panels): the fixed vocabulary the model fills with typed props.
+// recipe panels): the fixed vocabulary the model fills with typed props.
+// Sorted by Kind (catalog, container, custom) then Name — intuitive for
+// operators scanning the list.
 func catalogInfos() []comp.ComponentInfo {
 	var out []comp.ComponentInfo
 	for _, info := range comp.CatalogOverview() {
@@ -352,11 +354,18 @@ func catalogInfos() []comp.ComponentInfo {
 		}
 		out = append(out, info)
 	}
+	slices.SortFunc(out, func(a, b comp.ComponentInfo) int {
+		if a.Kind != b.Kind {
+			return strings.Compare(string(a.Kind), string(b.Kind))
+		}
+		return strings.Compare(a.Name, b.Name)
+	})
 	return out
 }
 
-// panelInfos lists the installed native panels: the app's own data the
+// panelInfos lists the installed recipe panels: the app's own data the
 // model may answer with (slice chosen by the model, rows filled here).
+// Sorted by Name for the same reason as catalogInfos.
 func panelInfos() []comp.ComponentInfo {
 	var out []comp.ComponentInfo
 	for _, info := range comp.CatalogOverview() {
@@ -365,6 +374,9 @@ func panelInfos() []comp.ComponentInfo {
 		}
 		out = append(out, info)
 	}
+	slices.SortFunc(out, func(a, b comp.ComponentInfo) int {
+		return strings.Compare(a.Name, b.Name)
+	})
 	return out
 }
 

@@ -31,4 +31,7 @@ func Register(reg *recipe.Registry, d register.Deps) {
 		svc.Start(context.Background())
 	}
 	reg.Add(NewHandler(d.Auth, svc).Recipe())
+	if d.CreditsRef != nil && svc != nil && svc.Credits != nil {
+		d.CreditsRef.Balance = svc.Credits.Balance
+	}
 }
