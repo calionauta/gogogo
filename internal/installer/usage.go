@@ -58,11 +58,11 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
   --yes it prints the plan and changes nothing; --yes copies the tree, writes
   .recipes/<id>.yml and regenerates internal/server/recipes.gen.go:
 
-    go run ./cmd/gogogo recipe install ./extensions/pomodoro --dir ./my-app
-    go run ./cmd/gogogo recipe install ./extensions/pomodoro --dir ./my-app --yes
+    go run ./cmd/gogogo recipe install _recipes/pomodoro --dir ./my-app
+    go run ./cmd/gogogo recipe install _recipes/pomodoro --dir ./my-app --yes
     go run ./cmd/gogogo recipe install --entry catalog/pomodoro/v1.2.0.yml \
       ./downloaded/pomodoro --dir ./my-app --yes
-    go run ./cmd/gogogo recipe update ./extensions/pomodoro --dir ./my-app --yes
+    go run ./cmd/gogogo recipe update _recipes/pomodoro --dir ./my-app --yes
     go run ./cmd/gogogo recipe uninstall pomodoro --dir ./my-app --yes
 
   What did I change inside a recipe? Pristine vs yours, plus whether the

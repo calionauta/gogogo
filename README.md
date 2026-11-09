@@ -47,7 +47,7 @@ Product slices are recipes: copied code you own, with a receipt
 (`.recipes/<id>.yml`) recording where it came from. Install, update,
 and uninstall with `gogogo recipe install|update|uninstall` — user edits
 are kept (three-way via git). Reference: `features/todo`. Minimal
-installable example: `_extensions/pomodoro`. Contract:
+installable example: `_recipes/pomodoro`. Contract:
 [`skills/gogogo-recipe-authoring`](skills/gogogo-recipe-authoring/SKILL.md).
 Taxonomy: [scope-taxonomy](docs/scope-taxonomy.md).
 

@@ -242,7 +242,7 @@ hosts are recipes too (they mount via `Register`). `dashboard` hosts
 `ListTodosByOwner` (open/total) and `CountUnreadInApp` (unread inbox), lists one
 card per installed recipe (its rail destination), then renders
 `SlotRegistry.Fragments(SlotDashboardCard)` for out-of-tree contributions;
-`graph` renders the capability/recipe map itself. Pomodoro (`_extensions/pomodoro`, 281 lines,
+`graph` renders the capability/recipe map itself. Pomodoro (`_recipes/pomodoro`, 281 lines,
 one table/page/write/sidebar) stays the minimal installable example;
 `features/todo` stays the in-tree reference slice. New cost: none — deleting
 a bundled unit is `recipe uninstall <id>` (see `docs/features.md`).

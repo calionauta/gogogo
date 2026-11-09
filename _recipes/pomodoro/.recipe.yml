@@ -9,7 +9,7 @@
 #
 # Install it from the repo root:
 #
-#   go run ./cmd/gogogo recipe install _extensions/pomodoro --yes
+#   go run ./cmd/gogogo recipe install _recipes/pomodoro --yes
 #
 # `id` is the receipt name, the prefix every table must carry (`ext_pomodoro_`),
 # and the id the generated registration and the policy block both key on.
@@ -32,7 +32,7 @@ register: features/pomodoro/handlers
 upstream:
   repo: github.com/calionauta/gogogo
   ref: master
-  path: _extensions/pomodoro
+  path: _recipes/pomodoro
 
 # declaration is the append-only half: what the code claims, checked against the
 # code at install and at every `recipe status`. Tables must carry the id prefix;
