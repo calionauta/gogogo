@@ -20,6 +20,8 @@ const (
 	scopeMine = "mine"
 )
 
+const propScope = "scope"
+
 // BoardsPanel is the app's own boards_list panel.
 type BoardsPanel struct {
 	Q *dbgen.Queries
@@ -53,14 +55,14 @@ func (p *BoardsPanel) HomePage() string { return "/whiteboard" }
 func (p *BoardsPanel) Aliases() []string { return []string{"boards", "board_list"} }
 
 // Writable implements comp.PanelProvider: the model picks the scope only.
-func (p *BoardsPanel) Writable() []string { return []string{"scope"} }
+func (p *BoardsPanel) Writable() []string { return []string{propScope} }
 
 // Fill implements comp.PanelProvider. The index is shared — every signed-in
 // user sees every board — so "all" needs no owner filter; "mine" keeps only
 // the requester's docs. Delete rights come from boardMeta, the same stamp
 // the index uses.
 func (p *BoardsPanel) Fill(ctx context.Context, owner string, props map[string]any) (map[string]any, error) {
-	scope, _ := props["scope"].(string)
+	scope, _ := props[propScope].(string)
 	if scope != scopeAll && scope != scopeMine {
 		return nil, fmt.Errorf("whiteboard panel: scope %q is not one of [all mine]", scope)
 	}
@@ -75,12 +77,12 @@ func (p *BoardsPanel) Fill(ctx context.Context, owner string, props map[string]a
 		}
 		out = append(out, boardMeta(row, owner, ""))
 	}
-	return map[string]any{"scope": scope, "rows": out}, nil
+	return map[string]any{propScope: scope, "rows": out}, nil
 }
 
 // Render implements comp.PanelProvider: the feature's own list component.
 func (p *BoardsPanel) Render(props map[string]any) (templ.Component, error) {
-	scope, _ := props["scope"].(string)
+	scope, _ := props[propScope].(string)
 	if scope != scopeAll && scope != scopeMine {
 		return nil, fmt.Errorf("whiteboard panel: scope %q is not one of [all mine]", scope)
 	}

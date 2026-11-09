@@ -9,6 +9,7 @@ package handlers
 
 import (
 	"context"
+	"database/sql"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -30,8 +31,17 @@ type Handler struct {
 	// registry the recipes register into; nil means no recipe may
 	// contribute here, and the grid renders its empty state.
 	slots      *recipe.SlotRegistry
+	registry   *recipe.Registry
+	db         *sql.DB
 	chatCount  func(ctx context.Context, owner string) (total, human int, err error)
 	creditsBal func(ctx context.Context, owner string) (int64, error)
+}
+
+// SetRegistry attaches the boot registry and raw store (nil-safe: no
+// declared metrics then, cards fall back to the hook counts only).
+func (h *Handler) SetRegistry(reg *recipe.Registry, db *sql.DB) {
+	h.registry = reg
+	h.db = db
 }
 
 // SetChatRef wires the chat count hook (nil-safe: the chat card stays off).
@@ -88,11 +98,7 @@ func (h *Handler) index(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
-	c, err := h.loadCounts(r.Context(), sess.User.ID)
-	if err != nil {
-		http.Error(w, "dashboard unavailable", http.StatusInternalServerError)
-		return
-	}
+	c := h.loadCounts(r.Context(), sess.User.ID)
 	var cards []recipe.Fragment
 	if h.slots != nil {
 		cards = h.slots.Fragments(recipe.SlotDashboardCard)
@@ -100,9 +106,6 @@ func (h *Handler) index(w http.ResponseWriter, r *http.Request) {
 	data := components.PageData{
 		Email:          sess.User.Email,
 		Role:           sess.Role,
-		OpenTodos:      c.open,
-		TotalTodos:     c.total,
-		UnreadInbox:    c.unread,
 		Cards:          buildCards(ui.Visible(sess.Role), c),
 		DashboardCards: cards,
 	}
@@ -114,55 +117,25 @@ func (h *Handler) index(w http.ResponseWriter, r *http.Request) {
 	).Render(r.Context(), w)
 }
 
-// counts carries every metric the handler could read, so buildCards
-// stays a pure table (labels come from components.LabelsFor).
+// counts carries every metric the handler could read: declared metrics
+// (generic COUNT path) plus the two hook counts with no COUNT query
+// (chat messages, credits balance).
 type counts struct {
-	open, done, total, shared int
-	unread, inboxTotal        int
-	chatTotal, chatHuman      int
-	notes, boards, balance    int
+	declared             map[string][]components.Metric
+	chatTotal, chatHuman int
+	balance              int
 }
 
-// loadCounts reads every metric for one owner. Fail-fast: any read error
-// fails the page, so a partial dashboard never pretends to be complete.
-// Chat/credits degrade to zero when their ref is unwired (trimmed
-// recipe), which is honest — the card still exists (see buildCards).
-func (h *Handler) loadCounts(ctx context.Context, owner string) (counts, error) {
-	rows, err := h.q.ListTodosByOwner(ctx, owner)
-	if err != nil {
-		return counts{}, err
-	}
-	c := counts{total: len(rows)}
-	for _, row := range rows {
-		if row.Completed {
-			c.done++
-		} else {
-			c.open++
-		}
-		if row.Visibility == "public" {
-			c.shared++
-		}
-	}
-	unread, err := h.q.CountUnreadInApp(ctx, owner)
-	if err != nil {
-		return counts{}, err
-	}
-	c.unread = int(unread)
-	inbox, err := h.q.ListNotificationsForOwner(
-		ctx, dbgen.ListNotificationsForOwnerParams{Owner: owner, Limit: 10000})
-	if err != nil {
-		return counts{}, err
-	}
-	c.inboxTotal = len(inbox)
-	notes, err := h.q.ListNotes(ctx)
-	if err != nil {
-		return counts{}, err
-	}
-	boards, err := h.q.ListBoards(ctx)
-	if err != nil {
-		return counts{}, err
-	}
-	c.notes, c.boards = countOwnedNotes(notes, owner), countOwnedBoards(boards, owner)
+// loadCounts reads every metric for one owner. Declared metrics run
+// generically (see declaredMetrics); hook counts degrade to zero when
+// their ref is unwired (trimmed recipe), which is honest — the card
+// still exists (see buildCards).
+func (h *Handler) loadCounts(ctx context.Context, owner string) counts {
+	var c counts
+	// Declared metrics: every provider's Declaration (bundled or
+	// user-installed) is executed here generically — one COUNT query
+	// per metric, bound to the viewing owner. No per-recipe switch.
+	c.declared = h.declaredMetrics(ctx, owner)
 	if h.chatCount != nil {
 		if total, human, err := h.chatCount(ctx, owner); err == nil {
 			c.chatTotal, c.chatHuman = total, human
@@ -173,61 +146,75 @@ func (h *Handler) loadCounts(ctx context.Context, owner string) (counts, error) 
 			c.balance = int(bal)
 		}
 	}
-	return c, nil
+	return c
 }
 
-func countOwnedNotes(rows []dbgen.ListNotesRow, owner string) int {
-	n := 0
-	for _, r := range rows {
-		if r.Owner == owner {
-			n++
+// declaredMetrics executes every installed recipe's declared COUNT
+// metrics for one owner. Fail-fast on a page error is the caller's
+// choice; a single bad query degrades to omitting that metric (the
+// registry Validate already proved the shape at boot).
+func (h *Handler) declaredMetrics(ctx context.Context, owner string) map[string][]components.Metric {
+	out := map[string][]components.Metric{}
+	if h.registry == nil || h.db == nil {
+		return out
+	}
+	for _, p := range h.registry.Providers() {
+		id := p.ID()
+		for _, m := range p.Declaration().Metrics {
+			var n int
+			if err := h.db.QueryRowContext(ctx, m.Query, owner).Scan(&n); err != nil {
+				continue
+			}
+			signal := m.Signal
+			if signal == "" {
+				signal = metricSignal(id, m.Label)
+			}
+			out[id] = append(out[id], components.Metric{Label: m.Label, Value: n, Signal: signal})
 		}
 	}
-	return n
+	return out
 }
 
-func countOwnedBoards(rows []dbgen.ListBoardsRow, owner string) int {
-	n := 0
-	for _, r := range rows {
-		if r.Owner == owner {
-			n++
+// metricSignal derives the odometer signal for a declared metric
+// without an explicit Signal: camelCase of the label ("Open Todos" ->
+// "openTodos"). Deterministic, so YAML and code agree by convention.
+const (
+	asciiLower = 'a' - 'A' // 'a'-'A' = 32 (toLowercase offset, named for mnd)
+)
+
+func metricSignal(recipeID, label string) string {
+	var out []rune
+	lowerNext := true
+	for _, r := range label {
+		if r == ' ' || r == '_' || r == '-' {
+			lowerNext = true
+			continue
 		}
+		if lowerNext && r >= 'A' && r <= 'Z' {
+			r += asciiLower
+		}
+		out = append(out, r)
+		lowerNext = false
 	}
-	return n
+	_ = recipeID
+	return string(out)
 }
 
 // buildCards lists the metric cards for this build: one card per recipe
-// that has user data, grouped metrics per card (label + count). The
-// dashboard is a summary surface, not a second nav — sidebar owns
-// destinations and /config owns inventory. Landing/account/config/
-// dashboard are platform, not recipes with data, and never appear here.
-// A recipe whose metric source is unwired (chat/credits without their
-// ref) is omitted rather than shown as a fake zero.
+// that reports data. Sources, in order:
+//  1. Declared COUNT metrics from the recipe's Declaration (generic
+//     path — any bundled or user-installed recipe appears with zero
+//     dashboard edits).
+//  2. Hook counts for recipes with no COUNT query (chat memory,
+//     credits ledger).
+//
+// Landing/account/config/dashboard are platform, not recipes with
+// data, and never appear here.
 func buildCards(mods []ui.Module, c counts) []components.Card {
 	cards := make([]components.Card, 0, len(mods))
 	for _, m := range mods {
 		switch m.ID {
-		case "todo":
-			cards = append(cards, components.Card{
-				Title: m.Title, URL: m.URL, Cta: "Open Todo",
-				Metrics: []components.Metric{
-					{Label: "Open", Value: c.open, Signal: "openTodos"},
-					{Label: "Done", Value: c.done, Signal: "doneTodos"},
-					{Label: "Total", Value: c.total, Signal: "totalTodos"},
-					{Label: "Shared", Value: c.shared, Signal: "sharedTodos"},
-				},
-			})
-		case ui.ModuleInbox:
-			cards = append(cards, components.Card{
-				Title: m.Title, URL: m.URL, Cta: "Open Inbox",
-				Metrics: []components.Metric{
-					{Label: "Unread", Value: c.unread, Signal: "inboxUnread"},
-					{Label: "Total", Value: c.inboxTotal, Signal: "totalInbox"},
-				},
-			})
 		case "chat":
-			// Chat always shows (even when unwired): in-memory history
-			// is volatile, so zero is honest, not a missing card.
 			cards = append(cards, components.Card{
 				Title: m.Title, URL: m.URL, Cta: "Open Chat",
 				Metrics: []components.Metric{
@@ -235,26 +222,13 @@ func buildCards(mods []ui.Module, c counts) []components.Card {
 					{Label: "Human", Value: c.chatHuman, Signal: "chatHuman"},
 				},
 			})
-		case "notes":
+		default:
+			metrics, ok := c.declared[m.ID]
+			if !ok {
+				continue
+			}
 			cards = append(cards, components.Card{
-				Title: m.Title, URL: m.URL, Cta: "Open Notes",
-				Metrics: []components.Metric{
-					{Label: "Notes", Value: c.notes, Signal: "notesCount"},
-				},
-			})
-		case "whiteboard":
-			cards = append(cards, components.Card{
-				Title: m.Title, URL: m.URL, Cta: "Open Board",
-				Metrics: []components.Metric{
-					{Label: "Boards", Value: c.boards, Signal: "boardsCount"},
-				},
-			})
-		case "credits":
-			cards = append(cards, components.Card{
-				Title: m.Title, URL: "/config",
-				Metrics: []components.Metric{
-					{Label: "Balance", Value: c.balance, Signal: "creditsBal"},
-				},
+				Title: m.Title, URL: m.URL, Cta: "Open " + m.Title, Metrics: metrics,
 			})
 		}
 	}

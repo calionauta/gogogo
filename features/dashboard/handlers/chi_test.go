@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/calionauta/gogogo/config"
+	"github.com/calionauta/gogogo/features/dashboard/components"
 	"github.com/calionauta/gogogo/features/todo"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/db"
@@ -19,7 +20,24 @@ import (
 	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/recipe"
 	"github.com/calionauta/gogogo/internal/ui"
+
+	"github.com/go-chi/chi/v5"
 )
+
+// stubProvider is a minimal recipe.Provider for the generic dashboard
+// path: it only declares metrics (no routes served).
+type stubProvider struct {
+	id      string
+	metrics []recipe.Metric
+}
+
+func (s *stubProvider) ID() string { return s.id }
+
+func (s *stubProvider) Declaration() recipe.Declaration {
+	return recipe.Declaration{Metrics: s.metrics}
+}
+
+func (s *stubProvider) Routes() chi.Router { return chi.NewRouter() }
 
 type fixture struct {
 	r     http.Handler
@@ -102,6 +120,17 @@ func TestDashboardRendersSummaryAndCards(t *testing.T) {
 		t.Fatalf("add card: %v", err)
 	}
 	f.h.slots = slots
+	// Registry with the todo + notifications declarations (the generic
+	// path): without it the dashboard legitimately renders no metric
+	// cards (declared metrics live in the registry, not in the handler).
+	reg := &recipe.Registry{}
+	reg.Add(&stubProvider{id: "todo", metrics: []recipe.Metric{
+		{Label: "Open", Query: "SELECT COUNT(*) FROM todos WHERE owner = ?", Signal: "openTodos"},
+	}})
+	reg.Add(&stubProvider{id: "notifications", metrics: []recipe.Metric{
+		{Label: "Unread", Query: "SELECT COUNT(*) FROM notifications WHERE owner = ?", Signal: "inboxUnread"},
+	}})
+	f.h.SetRegistry(reg, f.sqlDB)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/dashboard", nil)
 	req.AddCookie(cookie)
 	rec := httptest.NewRecorder()
@@ -114,7 +143,7 @@ func TestDashboardRendersSummaryAndCards(t *testing.T) {
 	// ("Open Whiteboard" CTA would prove a link card).
 	body := rec.Body.String()
 	for _, want := range []string{
-		"Welcome back", "Todo", "Inbox",
+		"Welcome back", "Todo", "Inbox", "Open", "Unread",
 		"Pomodoro", "focus", `data-slot="dashboard.card"`,
 	} {
 		if !strings.Contains(body, want) {
@@ -127,21 +156,37 @@ func TestDashboardRendersSummaryAndCards(t *testing.T) {
 }
 
 // TestBuildCardsListsInstalledRecipes pins the dashboard's "summary only"
-// contract: one card per recipe with data (todo, inbox, chat, notes,
-// whiteboard, credits), grouped metrics per card with labels. Sidebar owns
-// navigation, config owns inventory — link-only destinations never appear.
+// contract: one card per recipe with data, metrics from the Declaration
+// (generic path) plus hook counts for chat. Sidebar owns navigation,
+// config owns inventory — link-only destinations never appear.
 func TestBuildCardsListsInstalledRecipes(t *testing.T) {
 	mods := []ui.Module{
 		{ID: ui.ModuleInbox, Title: "Inbox", URL: "/notifications"},
 		{ID: "dashboard", Title: "Dashboard", URL: "/dashboard"},
 		{ID: "todo", Title: "Todo", URL: "/todo"},
 		{ID: "whiteboard", Title: "Whiteboard", URL: "/whiteboard"},
+		{ID: "chat", Title: "Chat", URL: "/chat"},
 		{ID: "graph", Title: "Graph", URL: "/graph"},
 	}
-	c := counts{open: 3, done: 4, total: 7, shared: 2, unread: 1, inboxTotal: 5}
+	c := counts{
+		declared: map[string][]components.Metric{
+			"todo": {
+				{Label: "Open", Value: 3, Signal: "openTodos"},
+				{Label: "Done", Value: 4, Signal: "doneTodos"},
+				{Label: "Total", Value: 7, Signal: "totalTodos"},
+				{Label: "Shared", Value: 2, Signal: "sharedTodos"},
+			},
+			"notifications": {
+				{Label: "Unread", Value: 1, Signal: "inboxUnread"},
+				{Label: "Total", Value: 5, Signal: "totalInbox"},
+			},
+			"whiteboard": {{Label: "Boards", Value: 2, Signal: "boardsCount"}},
+		},
+		chatTotal: 10, chatHuman: 4,
+	}
 	cards := buildCards(mods, c)
-	if len(cards) != 3 {
-		t.Fatalf("buildCards = %d cards, want 3 (inbox, todo, whiteboard)", len(cards))
+	if len(cards) != 4 {
+		t.Fatalf("buildCards = %d cards, want 4 (inbox, todo, whiteboard, chat)", len(cards))
 	}
 	if cards[0].Title != "Inbox" || len(cards[0].Metrics) != 2 ||
 		cards[0].Metrics[0].Signal != "inboxUnread" || cards[0].Metrics[0].Value != 1 {
@@ -153,6 +198,9 @@ func TestBuildCardsListsInstalledRecipes(t *testing.T) {
 	}
 	if cards[2].Title != "Whiteboard" || len(cards[2].Metrics) != 1 || cards[2].Metrics[0].Label != "Boards" {
 		t.Errorf("whiteboard card = %+v, want one metric Boards", cards[2])
+	}
+	if cards[3].Title != "Chat" || len(cards[3].Metrics) != 2 || cards[3].Metrics[0].Value != 10 {
+		t.Errorf("chat card = %+v, want hook metrics Messages=10 Human=4", cards[3])
 	}
 }
 

@@ -39,10 +39,35 @@ A feature contributes one `PanelProvider` (`features/genui/components/panel.go`)
 - **`Fill`** — owner-scoped rows from the store; map the page's model.
 - **`Render`** — the feature's own component. No new markup.
 
-Boot installs the set in the todo Register (`features/todo/handlers/register.go`).
-`Hydrate` fills a live answer; `Rehydrate` re-fills stored history, so a reload
-shows current rows. A provider that cannot fill is replaced by the honest
+Boot installs the set in the root (`internal/server/chi.go`): every recipe
+appends its provider to `register.Deps.Panels` during the recipe step and
+the root installs the catalog once. `Hydrate` fills a live answer;
+`Rehydrate` re-fills stored history, so a reload shows current rows. A
+provider that cannot fill is replaced by the honest
 "couldn't load this" placeholder, never an empty panel.
+
+## Declarative spec (schema-first)
+
+The component name, prompt and writable props also live in the recipe's
+`Declaration` (`internal/recipe/receipt.go`): `PanelSpec{Component,
+Prompt, Writable}`. `checkDeclaration` and the seam `Validate()` reject a
+non-snake_case component, an empty prompt or an empty writable list at
+boot (fail fast). The code provider should mirror the spec (the boot
+never guesses the scaffold's file). Scaffolded recipes get both: the
+declaration entry and a `genui_panel.go` skeleton using the shared
+`SlicePanel` base in `features/genui/components/panel.go` — only the two
+closures (List, Render) are recipe-specific.
+
+## The catalog (where recipes live)
+
+The catalog **is this repository**: `.recipes/*.yml` receipts +
+`internal/capabilities/registry*.go` rows + `GenerateGo`'s generated
+`internal/server/recipes.gen.go`. There is no separate registry repo by
+design — the drift check (`checkDeclaration`) compares code against the
+pinned receipt in the same commit, so a recipe added elsewhere would need
+a second source of truth to stay in sync. New recipes arrive as PRs
+adding: `features/<name>/` (handlers + components), a capability row, a
+`.recipes/<name>.yml`, and generated `recipes.gen.go`.
 
 ## Interactive panels (the part that drifted)
 

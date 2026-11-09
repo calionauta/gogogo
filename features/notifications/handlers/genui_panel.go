@@ -20,6 +20,8 @@ const (
 	scopeUnread = "unread"
 )
 
+const propScope = "scope"
+
 // InboxPanel is the app's own inbox_list panel.
 type InboxPanel struct {
 	Q *dbgen.Queries
@@ -53,12 +55,12 @@ func (p *InboxPanel) HomePage() string { return "/notifications" }
 func (p *InboxPanel) Aliases() []string { return []string{"inbox", "reminders", "reminder_list"} }
 
 // Writable implements comp.PanelProvider: the model picks the scope only.
-func (p *InboxPanel) Writable() []string { return []string{"scope"} }
+func (p *InboxPanel) Writable() []string { return []string{propScope} }
 
 // Fill implements comp.PanelProvider. The list is strictly owner-scoped
 // (ListNotificationsForOwner) — nobody else's reminders are ever visible.
 func (p *InboxPanel) Fill(ctx context.Context, owner string, props map[string]any) (map[string]any, error) {
-	scope, _ := props["scope"].(string)
+	scope, _ := props[propScope].(string)
 	if scope != scopeUnread && scope != scopeAll {
 		return nil, fmt.Errorf("inbox panel: scope %q is not one of [unread all]", scope)
 	}
@@ -87,12 +89,12 @@ func (p *InboxPanel) Fill(ctx context.Context, owner string, props map[string]an
 		})
 	}
 	data := notificationscomp.PageData{Items: items, Unread: int(unread), Wired: true}
-	return map[string]any{"scope": scope, "data": data}, nil
+	return map[string]any{propScope: scope, "data": data}, nil
 }
 
 // Render implements comp.PanelProvider: the feature's own Inbox component.
 func (p *InboxPanel) Render(props map[string]any) (templ.Component, error) {
-	scope, _ := props["scope"].(string)
+	scope, _ := props[propScope].(string)
 	if scope != scopeUnread && scope != scopeAll {
 		return nil, fmt.Errorf("inbox panel: scope %q is not one of [unread all]", scope)
 	}

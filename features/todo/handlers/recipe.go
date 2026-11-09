@@ -50,6 +50,21 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 		signup   = "/signup"
 	)
 	return recipe.Declaration{
+		Metrics: []recipe.Metric{
+			{Label: "Open", Query: "SELECT COUNT(*) FROM todos WHERE owner = ? AND completed = 0", Signal: "openTodos"},
+			{Label: "Done", Query: "SELECT COUNT(*) FROM todos WHERE owner = ? AND completed = 1", Signal: "doneTodos"},
+			{Label: "Total", Query: "SELECT COUNT(*) FROM todos WHERE owner = ?", Signal: "totalTodos"},
+			{
+				Label:  "Shared",
+				Query:  "SELECT COUNT(*) FROM todos WHERE owner = ? AND visibility = 'public'",
+				Signal: "sharedTodos",
+			},
+		},
+		Panel: &recipe.PanelSpec{
+			Component: "todo_list",
+			Prompt:    "todo_list {filter: open|done|all} whenever the request involves the user's OWN todos or tasks",
+			Writable:  []string{"filter"},
+		},
 		Tables: []string{"ext_todo_todos"},
 		Actions: []recipe.InvokeAction{
 			{

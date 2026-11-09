@@ -168,7 +168,7 @@ func (h *Handler) handleBadge(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sse := sdk.NewSSE(w, r)
-	if perr := dshelpers.MergeSignals(sse, map[string]any{"inboxUnread": int(n)}); perr != nil {
+	if perr := dshelpers.MergeSignals(sse, map[string]any{signalInboxUnread: int(n)}); perr != nil {
 		h.logError(r, "notifications: patch badge", perr)
 	}
 }
@@ -275,7 +275,7 @@ func (h *Handler) patchInboxData(sse *sdk.ServerSentEventGenerator, data compone
 	if err := dshelpers.RenderAndPatch(sse, components.Inbox(data), sdk.WithSelector("#inbox")); err != nil {
 		return err
 	}
-	return dshelpers.MergeSignals(sse, map[string]any{"inboxUnread": data.Unread})
+	return dshelpers.MergeSignals(sse, map[string]any{signalInboxUnread: data.Unread})
 }
 
 // friendlyTime keeps the raw timestamp when it cannot be parsed. A broken

@@ -80,6 +80,33 @@ type Declaration struct {
 	Jobs    []string       `yaml:"jobs,omitempty"`
 	Slots   []string       `yaml:"slots,omitempty"`
 	Actions []InvokeAction `yaml:"actions,omitempty"`
+	// Metrics are the dashboard's labeled counts (one COUNT query per
+	// entry, `?` bound to the viewing owner). Labels are the user's
+	// words; the dashboard groups them per recipe.
+	Metrics []Metric `yaml:"metrics,omitempty"`
+	// Panel is the chat answer slice this recipe offers (optional — a
+	// recipe with no list-shaped data declares none). The component
+	// name, prompt and writable props live here so the dashboard,
+	// /config and the model read the same words; Fill/Render still
+	// live in code (they must call the page's own component).
+	Panel *PanelSpec `yaml:"panel,omitempty"`
+}
+
+// Metric is one dashboard count a recipe declares: a label for the
+// user, a COUNT(*) query (one `?` — the viewing owner), and the
+// odometer signal name (default: derived from the label).
+type Metric struct {
+	Label  string `yaml:"label"`
+	Query  string `yaml:"query"`
+	Signal string `yaml:"signal,omitempty"`
+}
+
+// PanelSpec names the chat answer slice a recipe offers. Writable is
+// the model-chosen slice (never the rows — Fill owns those).
+type PanelSpec struct {
+	Component string   `yaml:"component"`
+	Prompt    string   `yaml:"prompt"`
+	Writable  []string `yaml:"writable"`
 }
 
 // Route is a declared HTTP surface. The pattern is absolute, matching the
@@ -245,12 +272,81 @@ func checkDeclaration(root string, r Receipt) []string {
 	// route this same declaration claims. Pure data, checked alongside the
 	// other declaration halves so a drifted table is refused at boot.
 	problems = append(problems, actionProblems(r.Declaration)...)
+	problems = append(problems, MetricProblems(r.Declaration)...)
+	if ps := PanelProblems(r.Declaration); len(ps) > 0 {
+		problems = append(problems, ps...)
+	}
 	return problems
+}
+
+// MetricProblems applies the one metric rule: query counts, owner-scoped,
+// single placeholder. Exported so registration, the catalog and the
+// dashboard executor share one definition of a valid metric.
+func MetricProblems(d Declaration) []string {
+	var out []string
+	for _, m := range d.Metrics {
+		if strings.TrimSpace(m.Label) == "" {
+			out = append(out, "metric with an empty label")
+		}
+		if err := validCount(m.Query); err != nil {
+			out = append(out, fmt.Sprintf("metric %q: %v", m.Label, err))
+		}
+	}
+	return out
+}
+
+// PanelProblems applies the panel rule: snake_case component, prompt,
+// at least one writable prop (the model must choose a slice).
+func PanelProblems(d Declaration) []string {
+	if d.Panel == nil {
+		return nil
+	}
+	var out []string
+	if !validPanelName(d.Panel.Component) {
+		out = append(out, fmt.Sprintf("panel component %q must be snake_case", d.Panel.Component))
+	}
+	if strings.TrimSpace(d.Panel.Prompt) == "" {
+		out = append(out, fmt.Sprintf("panel %q has an empty prompt", d.Panel.Component))
+	}
+	if len(d.Panel.Writable) == 0 {
+		out = append(out, fmt.Sprintf("panel %q declares no writable prop", d.Panel.Component))
+	}
+	return out
 }
 
 // IsCoreTable reports whether a name belongs to the core schema. Exported for
 // the catalog validator, which applies the same boundary to a reviewed entry.
 func IsCoreTable(table string) bool { return isCoreTable(table) }
+
+// validCount reports whether query is a single COUNT(*) with one `?` — the
+// dashboard executor binds the viewing owner to it. Anything else fails fast
+// at registration, not as a broken SQL string at render time.
+func validCount(query string) error {
+	q := strings.TrimSpace(strings.ToLower(query))
+	if !strings.HasPrefix(q, "select count") {
+		return fmt.Errorf("query must select count(*), got %q", query)
+	}
+	if n := strings.Count(query, "?"); n != 1 {
+		return fmt.Errorf("query must bind exactly one owner parameter (?), got %d", n)
+	}
+	return nil
+}
+
+// validPanelName reports whether name is snake_case (lowercase letters,
+// digits, underscores, no leading/trailing underscore).
+func validPanelName(name string) bool {
+	if name == "" || strings.HasPrefix(name, "_") || strings.HasSuffix(name, "_") {
+		return false
+	}
+	for _, r := range name {
+		lower := (r >= 'a' && r <= 'z')
+		digit := (r >= '0' && r <= '9')
+		if !lower && !digit && r != '_' {
+			return false
+		}
+	}
+	return true
+}
 
 // isCoreTable reports whether a name belongs to the core schema. The rule the
 // recipe model depends on: a recipe never owns a core object, because two

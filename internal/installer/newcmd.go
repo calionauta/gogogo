@@ -348,9 +348,10 @@ func applyNew(ctx context.Context, opt newOptions, plan newPlan, stdout io.Write
 	files := map[string]string{
 		plan.paths.handler: newHandlerSource(opt.name, plan.module),
 		plan.paths.page:    newPageSource(opt.name, plan.module),
-		"features/" + opt.name + "/handlers/register.go": newRegisterSource(opt.name, plan.module),
-		"features/" + opt.name + "/handlers/recipe.go":   newRecipeSource(opt.name, plan.module),
-		".recipes/" + opt.name + ".yml":                  newReceiptSource(opt.name, plan.module),
+		"features/" + opt.name + "/handlers/register.go":    newRegisterSource(opt.name, plan.module),
+		"features/" + opt.name + "/handlers/recipe.go":      newRecipeSource(opt.name, plan.module),
+		"features/" + opt.name + "/handlers/genui_panel.go": newPanelSource(opt.name, plan.module),
+		".recipes/" + opt.name + ".yml":                     newReceiptSource(opt.name, plan.module),
 	}
 	for rel, src := range files {
 		full := filepath.Join(root, filepath.FromSlash(rel))
