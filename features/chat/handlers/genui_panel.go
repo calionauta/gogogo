@@ -16,6 +16,8 @@ import (
 	"github.com/calionauta/gogogo/features/chat/store"
 )
 
+const propLimit = "limit"
+
 // ChatPanel is the app's own chat_history panel.
 type ChatPanel struct {
 	Store store.MessageStore
@@ -50,7 +52,7 @@ func (p *ChatPanel) HomePage() string { return "/chat" }
 func (p *ChatPanel) Aliases() []string { return []string{"history", "conversation"} }
 
 // Writable implements comp.PanelProvider: the model picks the history size only.
-func (p *ChatPanel) Writable() []string { return []string{"limit"} }
+func (p *ChatPanel) Writable() []string { return []string{propLimit} }
 
 // Fill implements comp.PanelProvider: the owner's recent messages, oldest first.
 func (p *ChatPanel) Fill(ctx context.Context, owner string, props map[string]any) (map[string]any, error) {
@@ -65,7 +67,7 @@ func (p *ChatPanel) Fill(ctx context.Context, owner string, props map[string]any
 	if len(msgs) > limit {
 		msgs = msgs[len(msgs)-limit:]
 	}
-	return map[string]any{"limit": props["limit"], "rows": msgs}, nil
+	return map[string]any{propLimit: props[propLimit], "rows": msgs}, nil
 }
 
 // Render implements comp.PanelProvider: the feature's own thread component.
@@ -78,7 +80,7 @@ func (p *ChatPanel) Render(props map[string]any) (templ.Component, error) {
 
 // chatLimit validates the model-chosen history size.
 func chatLimit(props map[string]any) (int, error) {
-	return chatLimitValue(props["limit"])
+	return chatLimitValue(props[propLimit])
 }
 
 func chatLimitValue(v any) (int, error) {

@@ -16,6 +16,10 @@ import (
 // the entry `Capability.Register` names.
 func Register(reg *recipe.Registry, d register.Deps) {
 	h := NewHandler(d.Cfg, d.Auth, d.Queries, d.Slots)
+	// Registry + raw DB: metrics come from every provider's Declaration
+	// (generic COUNT execution), so a user recipe is on the dashboard
+	// with zero dashboard edits. d.SQLDB may be nil (tests).
+	h.SetRegistry(reg, d.SQLDB)
 	// Chat/credits counts ride their refs (filled by those Registers,
 	// which run before this one in the generated order). Nil-safe: a
 	// trimmed recipe simply leaves its card off.

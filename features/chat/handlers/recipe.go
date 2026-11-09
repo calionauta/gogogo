@@ -29,6 +29,14 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 		post = "POST"
 	)
 	return recipe.Declaration{
+		// Chat history lives in the in-memory MessageStore (no COUNT
+		// query exists) — Messages/Human ride the ChatRef hook, not a
+		// declared metric. The panel IS declared (chat_history slice).
+		Panel: &recipe.PanelSpec{
+			Component: "chat_history",
+			Prompt:    "chat_history {limit: 5|10|20} whenever the request involves the user's recent conversation",
+			Writable:  []string{"limit"},
+		},
 		Routes: []recipe.Route{
 			{Method: get, Pattern: "/chat"},
 			{Method: post, Pattern: "/api/chat/ask"},

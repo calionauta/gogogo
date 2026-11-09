@@ -18,12 +18,29 @@ type recipeProvider struct{ h *Handler }
 
 func (p recipeProvider) ID() string { return RecipeID }
 
+// signalInboxUnread is the inbox unread count signal, shared by the badge
+// patch (chi.go) and the declared dashboard metric (recipe.go).
+const signalInboxUnread = "inboxUnread"
+
 func (p recipeProvider) Declaration() recipe.Declaration {
 	const (
 		get  = "GET"
 		post = "POST"
 	)
 	return recipe.Declaration{
+		Metrics: []recipe.Metric{
+			{
+				Label:  "Unread",
+				Query:  "SELECT COUNT(*) FROM notifications WHERE owner = ? AND read_at IS NULL",
+				Signal: signalInboxUnread,
+			},
+			{Label: "Total", Query: "SELECT COUNT(*) FROM notifications WHERE owner = ?", Signal: "totalInbox"},
+		},
+		Panel: &recipe.PanelSpec{
+			Component: "inbox_list",
+			Prompt:    "inbox_list {scope: unread|all} whenever the request involves the user's reminders or inbox",
+			Writable:  []string{"scope"},
+		},
 		Routes: []recipe.Route{
 			{Method: get, Pattern: "/notifications"},
 			{Method: get, Pattern: "/api/notifications/stream"},

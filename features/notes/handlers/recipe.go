@@ -24,6 +24,8 @@ func (p recipeProvider) ID() string { return RecipeID }
 // `notes` rows are created by the core migration ledger, so claiming them would
 // be a declaration the core does not honour. The table moves in with the schema
 // split, when a prefixed recipe migration owns it.
+const propScope = "scope"
+
 func (p recipeProvider) Declaration() recipe.Declaration {
 	const (
 		get  = "GET"
@@ -31,6 +33,14 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 		doc  = "/api/notes/{docID}"
 	)
 	return recipe.Declaration{
+		Metrics: []recipe.Metric{
+			{Label: "Notes", Query: "SELECT COUNT(*) FROM notes WHERE owner = ?", Signal: "notesCount"},
+		},
+		Panel: &recipe.PanelSpec{
+			Component: "notes_list",
+			Prompt:    "notes_list {scope: all|mine} whenever the request involves the user's shared notes",
+			Writable:  []string{propScope},
+		},
 		Routes: []recipe.Route{
 			{Method: get, Pattern: "/notes"},
 			{Method: get, Pattern: "/notes/new"},

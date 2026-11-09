@@ -19,16 +19,13 @@ import (
 type PageData struct {
 	Email          string
 	Role           string
-	OpenTodos      int
-	TotalTodos     int
-	UnreadInbox    int
 	Cards          []Card
 	DashboardCards []recipe.Fragment
 }
 
 // Metric is one labeled count a recipe reports for the dashboard. The
-// label is the user's word; Value feeds the odometer; Signal drives it
-// after the first paint. Grouped per recipe under the card title.
+// label is the user's word (from the recipe's Declaration); Value feeds
+// the odometer; Signal drives it after the first paint.
 type Metric struct {
 	Label  string
 	Value  int
@@ -36,50 +33,14 @@ type Metric struct {
 }
 
 // Card is one installed recipe in the dashboard grid. Metrics carries its
-// labeled counts (a nil/empty Metrics renders a static link card). The
-// Title and URL come from the shell's module registry, so a trimmed build
-// loses the card together with its rail destination.
+// labeled counts (empty renders a static link card). The Title and URL
+// come from the shell's module registry, so a trimmed build loses the
+// card together with its rail destination.
 type Card struct {
 	Title   string
 	URL     string
 	Metrics []Metric
 	Cta     string
-}
-
-// Stat is kept for the odometer's legacy single-metric callers; new cards
-// use Metrics.
-type Stat struct {
-	Value  int
-	Signal string
-	Desc   string
-	Cta    string
-}
-
-// LabelsFor returns the metric labels each recipe reports (convention over
-// configuration: the dashboard reads this table, recipes never register
-// prose). Landing/account/config/dashboard are platform, not recipes with
-// user data, and report no metrics.
-func LabelsFor(recipeID string) []string {
-	switch recipeID {
-	case "todo":
-		return []string{"Open", "Done", "Total", "Shared"}
-	case "notifications":
-		return []string{"Unread", "Total"}
-	case "chat":
-		return []string{"Messages", "Human"}
-	case "notes":
-		return []string{"Notes"}
-	case "whiteboard":
-		return []string{"Boards"}
-	case "credits":
-		return []string{"Balance"}
-	case "review":
-		return []string{"Runs"}
-	case "room":
-		return []string{"Online"}
-	default:
-		return nil
-	}
 }
 
 // Page renders the /dashboard module inside the shared shell.
@@ -151,14 +112,28 @@ templ dashboardHead() {
 			// rAF loops never fight over the same strips.
 			if (el.__gogogoOdoRaf) cancelAnimationFrame(el.__gogogoOdoRaf);
 			var dist = Math.abs(target - prev);
-			// Expo-out: fast start, long settle. The last digits settle
-			// exponentially slower — the 1900 case rolls fast then lands.
-			var dur = Math.min(1100, 420 + Math.log10(Math.max(dist, 1)) * 280);
+			// Expo-out per digit (stagger 30ms per case): fast start,
+			// long settle, and the trailing digits start last — the
+			// 1900 case rolls fast, then each trailing case lands in
+			// turn shorter than the one before, slower as the number
+			// closes in on the target.
+			var nDigits = strips.length;
+			var stagger = Math.min(30, 90 / Math.max(1, nDigits));
+			var total = Math.min(1100, 420 + Math.log10(Math.max(dist, 1)) * 280);
+			var win = Math.max(1, total - (nDigits - 1) * stagger);
 			var t0 = performance.now();
 			var tick = function (now) {
-				var p = Math.min(1, (now - t0) / dur);
+				var elapsed = now - t0;
+				var p = Math.min(1, elapsed / total);
 				var eased = p >= 1 ? 1 : (1 - Math.pow(2, -10 * p));
-				render(prev + (target - prev) * eased);
+				var n = prev + (target - prev) * eased;
+				var s = String(Math.max(0, Math.floor(n))).padStart(nDigits, '0');
+				for (var i = 0; i < nDigits; i++) {
+					var lp = Math.min(1, Math.max(0, (elapsed - i * stagger) / win));
+					var le = lp >= 1 ? 1 : (1 - Math.pow(2, -10 * lp));
+					var digit = String(Math.max(0, Math.floor(prev + (target - prev) * le))).padStart(nDigits, '0')[i];
+					strips[i].style.transform = 'translateY(-' + digit + 'em)';
+				}
 				if (p < 1) {
 					el.__gogogoOdoRaf = requestAnimationFrame(tick);
 				} else {

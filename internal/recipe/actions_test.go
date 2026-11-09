@@ -82,3 +82,34 @@ func TestActionTableRefusesDuplicateAndEmptyVerb(t *testing.T) {
 		t.Fatalf("duplicate + empty must produce two problems, got %v", problems)
 	}
 }
+
+// TestMetricAndPanelProblemsPinTheFailFastShapes pins the two validators
+// the dashboard and the panel catalog share: a non-COUNT metric, a
+// metric with an unbound query, and a panel without a writable slice.
+func TestMetricAndPanelProblemsPinTheFailFastShapes(t *testing.T) {
+	good := Declaration{Metrics: []Metric{
+		{Label: "Items", Query: "SELECT COUNT(*) FROM ext_probe_items WHERE owner = ?"},
+	}}
+	if problems := MetricProblems(good); len(problems) != 0 {
+		t.Fatalf("good metric must pass, got %v", problems)
+	}
+	bad := Declaration{
+		Metrics: []Metric{
+			{Label: "Items", Query: "SELECT id FROM ext_probe_items"},
+			{Label: "", Query: "SELECT COUNT(*) FROM ext_probe_items WHERE owner = ?"},
+		},
+		Panel: &PanelSpec{Component: "Bad_Name", Prompt: "when", Writable: nil},
+	}
+	if problems := MetricProblems(bad); len(problems) != 2 {
+		t.Fatalf("two bad metrics must produce two problems, got %v", problems)
+	}
+	if problems := PanelProblems(bad); len(problems) != 2 {
+		t.Fatalf("bad panel name + empty writable must produce two problems, got %v", problems)
+	}
+	goodPanel := Declaration{Panel: &PanelSpec{
+		Component: "probe_list", Prompt: "when the user asks", Writable: []string{"scope"},
+	}}
+	if problems := PanelProblems(goodPanel); len(problems) != 0 {
+		t.Fatalf("good panel must pass, got %v", problems)
+	}
+}

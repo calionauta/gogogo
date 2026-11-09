@@ -31,6 +31,14 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 		doc  = "/api/whiteboard/{docID}"
 	)
 	return recipe.Declaration{
+		Metrics: []recipe.Metric{
+			{Label: "Boards", Query: "SELECT COUNT(*) FROM boards WHERE owner = ?", Signal: "boardsCount"},
+		},
+		Panel: &recipe.PanelSpec{
+			Component: "boards_list",
+			Prompt:    "boards_list {scope: all|mine} whenever the request involves the shared whiteboards",
+			Writable:  []string{"scope"},
+		},
 		Routes: []recipe.Route{
 			{Method: get, Pattern: "/whiteboard"},
 			{Method: get, Pattern: "/whiteboard/new"},

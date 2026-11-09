@@ -138,6 +138,16 @@ func (r *Registry) Validate() []Conflict {
 		for _, slot := range d.Slots {
 			claim("slot", slot, p.ID())
 		}
+		for _, m := range MetricProblems(d) {
+			conflicts = append(conflicts, Conflict{
+				Kind: "metric", Key: p.ID(), Owner: []string{p.ID(), m},
+			})
+		}
+		for _, m := range PanelProblems(d) {
+			conflicts = append(conflicts, Conflict{
+				Kind: "panel", Key: p.ID(), Owner: []string{p.ID(), m},
+			})
+		}
 	}
 
 	for kind, keys := range owners {

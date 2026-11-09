@@ -89,6 +89,65 @@ type PanelProvider interface {
 	Render(props map[string]any) (templ.Component, error)
 }
 
+// SlicePanel is the shared base every list-shaped recipe builds on
+// (convention over configuration): the recipe passes its component name,
+// prompt (or enum), writable slice and two closures, and gets a complete
+// PanelProvider back — no per-recipe boilerplate for the interface
+// methods, the wire decode, or the Fill/Render split. A scaffolded
+// recipe starts from this instead of hand-rolling the contract.
+type SlicePanel struct {
+	Name   string
+	Text   string // the prompt line (field is Text: Prompt is the method)
+	Slice  string // the model-chosen dimension (e.g. "filter", "scope")
+	Values []string
+	List   func(ctx context.Context, owner string, slice string) (any, error)
+	Rows   func(props map[string]any) []any
+	View   func(rows []any, slice string) (templ.Component, error)
+}
+
+// Component implements PanelProvider.
+func (p SlicePanel) Component() string { return p.Name }
+
+// Prompt implements PanelProvider.
+func (p SlicePanel) Prompt() string { return p.Text }
+
+// Writable implements PanelProvider.
+func (p SlicePanel) Writable() []string { return []string{p.Slice} }
+
+// Fill implements PanelProvider: validates the slice, lists rows.
+func (p SlicePanel) Fill(ctx context.Context, owner string, props map[string]any) (map[string]any, error) {
+	slice, _ := props[p.Slice].(string)
+	if !slices.Contains(p.Values, slice) {
+		return nil, fmt.Errorf("panel %s: %s %q is not one of %v", p.Name, p.Slice, slice, p.Values)
+	}
+	rows, err := p.List(ctx, owner, slice)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{p.Slice: slice, "rows": rows}, nil
+}
+
+// Render implements PanelProvider: re-validates the slice, then renders.
+func (p SlicePanel) Render(props map[string]any) (templ.Component, error) {
+	slice, _ := props[p.Slice].(string)
+	if !slices.Contains(p.Values, slice) {
+		return nil, fmt.Errorf("panel %s: %s %q is not one of %v", p.Name, p.Slice, slice, p.Values)
+	}
+	return p.View(p.Rows(props), slice)
+}
+
+// NewSlicePanel constructs the shared base for a recipe panel.
+func NewSlicePanel(name, prompt, slice string, values []string,
+	list func(ctx context.Context, owner string, slice string) (any, error),
+	rows func(props map[string]any) []any,
+	render func(rows []any, slice string) (templ.Component, error),
+) SlicePanel {
+	return SlicePanel{
+		Name: name, Text: prompt, Slice: slice, Values: values,
+		List: list, Rows: rows, View: render,
+	}
+}
+
 // panelRegistry is the process-scope catalog. Guarded by a mutex because it is
 // installed once at boot and read concurrently by workers (a chat reply and an
 // Ask answer can render at the same time); the read path is a map lookup, so

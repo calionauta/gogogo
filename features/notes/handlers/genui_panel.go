@@ -53,7 +53,7 @@ func (p *NotesPanel) HomePage() string { return "/notes" }
 func (p *NotesPanel) Aliases() []string { return []string{"notes", "note_list"} }
 
 // Writable implements comp.PanelProvider: the model picks the scope only.
-func (p *NotesPanel) Writable() []string { return []string{"scope"} }
+func (p *NotesPanel) Writable() []string { return []string{propScope} }
 
 // Fill implements comp.PanelProvider. The index is shared — every signed-in
 // user sees every note — so "all" needs no owner filter; "mine" keeps only
