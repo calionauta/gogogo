@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/calionauta/gogogo/internal/recipe"
 )
 
 const toolNameTempl = "templ"
@@ -143,6 +145,9 @@ func runAllChecks(only ...string) (doctorReport, int) {
 	add(checkRegistryFresh())
 	// Drift (templ/sqlc) — WARN, not FAIL
 	add(checkDrift())
+	// Recipe declaration health is a fail on structural errors; warnings
+	// remain visible without blocking environment preflight.
+	add(checkRecipes())
 
 	rep := doctorReport{OK: fails == 0, Checks: checks}
 	return rep, fails
@@ -258,6 +263,40 @@ func checkDrift() doctorCheck {
 	// Do not run templ/sqlc generate here (read-only). Warn if generated files predate .templ
 	// Caller should run `gogogo generate --check` for the hard gate.
 	return doctorCheck{ID: "generate.drift", Name: "generated drift (templ/sqlc)", Status: "skip", Required: "gogogo generate --check", Fix: "gogogo generate --check"}
+}
+
+func checkRecipes() doctorCheck {
+	ids, err := recipe.ListReceipts(".")
+	if err != nil {
+		return doctorCheck{ID: "recipe.declarations", Name: "recipe declarations", Status: "skip", Fix: "gogogo recipe check --format json"}
+	}
+	if len(ids) == 0 {
+		return doctorCheck{ID: "recipe.declarations", Name: "recipe declarations", Status: "skip", Fix: "gogogo recipe check --format json"}
+	}
+	blocked := 0
+	warnings := 0
+	for _, id := range ids {
+		report := checkOneRecipe(".", id)
+		if !report.Healthy {
+			blocked++
+		}
+		warnings += len(report.Warnings)
+	}
+	if blocked > 0 {
+		return doctorCheck{
+			ID: "recipe.declarations", Name: "recipe declarations", Status: "fail",
+			Version: fmt.Sprintf("%d checked", len(ids)),
+			Fix:     "gogogo recipe check --format json",
+		}
+	}
+	if warnings > 0 {
+		return doctorCheck{
+			ID: "recipe.declarations", Name: "recipe declarations", Status: "warn",
+			Version: fmt.Sprintf("%d checked", len(ids)),
+			Fix:     "gogogo recipe check --format json",
+		}
+	}
+	return doctorCheck{ID: "recipe.declarations", Name: "recipe declarations", Status: "pass", Version: fmt.Sprintf("%d checked", len(ids))}
 }
 
 func jsonMarshal(v any) ([]byte, error) {
