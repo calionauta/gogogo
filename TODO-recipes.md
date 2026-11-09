@@ -10,7 +10,7 @@ Sem task tool no OpenCode; este arquivo é a lista. Marcar `[x]` ao concluir, co
 - [x] Fase 2d: whiteboard+notes self-mounting (Persister+DocStore+federated via Deps)
 - [x] Fase 2e: chat self-mounting (bootAI: panels+actions+router+queue)
 - [x] Fase 2f: todo self-mounting (display/search/LLM/onboarding/consumer/health via `Service`)
-- [ ] Fase 3: notifications self-mounting (bootInbox) + graph/license (se já forem recipe)
+- [x] Fase 3: notifications self-mounting (bootInbox) + graph/license avaliados (não são recipes — ver `docs/scope-taxonomy.md`)
 - [ ] Fase 4: receipts `.recipes/<id>.yml` para todos os bundled + `recipe uninstall <builtin>` funcional
 - [ ] Fase 4b: scaffold escreve receipts + TUI aceita recomendado (non-interactive já feito)
 - [ ] Fase 5: docs/site/skill/README/AGENTS/llms fechamento (glossário único)

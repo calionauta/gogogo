@@ -36,11 +36,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/calionauta/gogogo/internal/recipe"
-
 	"github.com/calionauta/gogogo/config"
-	"github.com/calionauta/gogogo/features/notifications"
-	notificationshandlers "github.com/calionauta/gogogo/features/notifications/handlers"
+	"github.com/calionauta/gogogo/internal/recipe"
 )
 
 // routeKey identifies one registration: a method on a pattern.
@@ -84,10 +81,6 @@ type Router struct {
 	// while the composed tree is still being built, like every other
 	// boot-phase error it cannot answer requests yet.
 	invokeOut http.Handler
-	// inbox is the notifications slice the root built inside the composition,
-	// kept because the shell middleware and the session stream share its bus.
-	inbox    *notificationshandlers.Handler
-	inboxBus *notifications.Bus
 	// recipeErr is a failure from the recipe step (registration, schema, mount).
 	// It rides the tree instead of the return list because buildChiMux takes one
 	// parameter per feature, and an error return would make every trimmed test

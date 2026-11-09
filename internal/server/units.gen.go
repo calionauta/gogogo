@@ -10,6 +10,7 @@ import (
 	dashboardhandlers "github.com/calionauta/gogogo/features/dashboard/handlers"
 	landinghandlers "github.com/calionauta/gogogo/features/landing/handlers"
 	noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"
+	notificationshandlers "github.com/calionauta/gogogo/features/notifications/handlers"
 	reviewhandlers "github.com/calionauta/gogogo/features/review/handlers"
 	roomhandlers "github.com/calionauta/gogogo/features/room/handlers"
 	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
@@ -30,6 +31,7 @@ var bundledUnits = []register.Func{
 	dashboardhandlers.Register,
 	landinghandlers.Register,
 	noteshandlers.Register,
+	notificationshandlers.Register,
 	reviewhandlers.Register,
 	roomhandlers.Register,
 	todohandlers.Register,

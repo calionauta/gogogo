@@ -32,7 +32,7 @@ import (
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/notes"
-	notificationshandlers "github.com/calionauta/gogogo/features/notifications/handlers"
+	"github.com/calionauta/gogogo/features/notifications"
 	"github.com/calionauta/gogogo/features/onboarding"
 	"github.com/calionauta/gogogo/features/whiteboard"
 	"github.com/calionauta/gogogo/internal/auth"
@@ -61,6 +61,11 @@ type TodoCreator interface {
 	CreateTodoForOnboarding(ctx context.Context, title, owner string) error
 }
 
+// NotificationsDeliverer is what the DagNats reminder worker needs from
+// the inbox slice (one deliver method, in features/notifications so the
+// root never imports handlers).
+type NotificationsDeliverer notifications.Deliverer
+
 // todoHandle adapts the Register-published funcs to TodoCreator.
 type todoHandle struct{ ref *register.TodoRef }
 
@@ -69,6 +74,30 @@ func (h todoHandle) CreateTodoForOnboarding(ctx context.Context, title, owner st
 		return nil
 	}
 	return h.ref.CreateTodoForOnboarding(ctx, title, owner)
+}
+
+// inboxHandle adapts InboxRef to NotificationsDeliverer.
+type inboxHandle struct{ ref *register.InboxRef }
+
+func (h *inboxHandle) Deliver(ctx context.Context, d notifications.Delivery) error {
+	if h == nil || h.ref == nil || h.ref.Deliver == nil {
+		return nil
+	}
+	return h.ref.Deliver(ctx, d)
+}
+
+func (h *inboxHandle) SetRunStarter(r notifications.RunStarter) {
+	if h == nil || h.ref == nil || h.ref.SetRunStarter == nil {
+		return
+	}
+	h.ref.SetRunStarter(r)
+}
+
+func (h *inboxHandle) Wired() bool {
+	if h == nil || h.ref == nil || h.ref.Wired == nil {
+		return false
+	}
+	return h.ref.Wired()
 }
 
 // ChiStack is the booted flat stack, held apart so callers can attach
@@ -96,8 +125,11 @@ type ChiStack struct {
 	todoRef *register.TodoRef
 	// NotificationsHandler is the delivery side engines wire against: the
 	// DagNats reminder worker writes the notification row through it, so
-	// cmd/web passes this to startDagNats before NATS exists.
-	NotificationsHandler *notificationshandlers.Handler
+	// cmd/web passes this to startDagNats before NATS exists. Filled from
+	// InboxRef so the root never imports the handlers package.
+	NotificationsHandler NotificationsDeliverer
+	// inboxRef is the full Register bridge (bus) the shell feed needs.
+	inboxRef *register.InboxRef
 	// presence is the roster seam both collaborative features share (created
 	// at boot, federated by AttachPresenceFederation). Nil = features trimmed.
 	presence *collab.FederatedPresence
@@ -189,6 +221,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// so engines (JetStream, onboarding, DagNats worker) wire without the
 	// root importing the handlers package.
 	todoRef := &register.TodoRef{}
+	inboxRef := &register.InboxRef{}
 
 	// LLM clients are built once here and shared by the todo and chat
 	// Registers (same clients BootChi used to hand each handler).
@@ -217,7 +250,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 			RealLLM: realLLM, SimulatedLLM: simulatedLLM,
 			OnShutdown: onShutdown, Slots: slots, SQLDB: sqlDB,
 			Persister: persister, DocStore: docs, Presence: federated,
-			TodoRef: todoRef,
+			TodoRef: todoRef, InboxRef: inboxRef,
 		},
 	)
 	if mux.recipeErr != nil {
@@ -257,8 +290,9 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	mountGraph(mux, a, cfg, roomHost)
 	// Runtime dashboard: opt-in, operator-only, mounted before applyRBAC (internal/server/perf.go).
 	perfH := bootPerf(mux, a, cfg, &shutdown)
-	// Inbox is an optional surface next to the console.
-	notificationsH := mountInbox(mux, a, queries)
+	// Inbox bus feed (the inbox itself mounted via the seam).
+	mountInbox(a, queries, inboxRef)
+	notificationsH := &inboxHandle{ref: inboxRef}
 
 	// RBAC is wired, not optional plumbing: one enforcer built here and the
 	// middleware wraps the whole mux (pass-through when disabled, enforced
@@ -290,6 +324,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		// DagNats reminder worker writes the notification row through it, so
 		// cmd/web passes this to startDagNats before NATS exists.
 		NotificationsHandler: notificationsH,
+		inboxRef:             inboxRef,
 		presence:             federated,
 	}, nil
 }
@@ -430,7 +465,6 @@ func buildChiMux(
 	r.recipes = &recipe.Registry{}
 	// Units that mount themselves (Capability.Register) are registered by the
 	// generated list in units.gen.go, not constructed here.
-	bootInbox(r, deps)
 	// Installed recipes register through the generated file, then their own
 	// migrations run, then they mount: one step, in that order (recipe_surface.go).
 	r.recipeErr = bootRecipes(r, deps)

@@ -110,7 +110,7 @@ RBAC with Casbin (embedded model + policy, enforced at the mux)
 recipe engine: declaration seam, receipt and drift check for installable extensions
 
 - **Owned:** `internal/recipe`
-- **Note:** Core: every route-owning unit mounts through recipe.Registry (plus an installed recipe's generated registration), so deleting the package breaks the web build too. docs/research/extensibility-2026-11.md records why it stays.
+- **Note:** Core: every route-owning unit mounts through recipe.Registry (plus an installed recipe's generated registration), so deleting it breaks the web build too. docs/research/extensibility-2026-11.md records why it stays.
 
 ## `secrets` — core
 

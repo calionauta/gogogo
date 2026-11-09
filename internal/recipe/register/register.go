@@ -73,6 +73,10 @@ type Deps struct {
 	// self-mounting gate forbids that import). Nil in callers that do
 	// not need the handle — Register must tolerate nil.
 	TodoRef *TodoRef
+	// InboxRef is the inbox slice's handle holder: Register fills the bus
+	// and the deliver funcs so the root can wire the session stream feed
+	// and the DagNats worker without importing the handlers package.
+	InboxRef *InboxRef
 }
 
 // OnboardingResumer is what the todo create path needs from the onboarding
@@ -91,6 +95,16 @@ type TodoRef struct {
 	RunCrudConsumer         func(ctx context.Context, js natsio.JetStreamContext, appName, instanceID string) error
 	HealSearch              func(ctx context.Context) error
 	SetOnboarding           func(r OnboardingResumer)
+}
+
+// InboxRef is the inbox handle the Register publishes for the root. Bus is
+// the *notifications.Bus as any so this contract omits the feature import
+// (a trim would otherwise strip this file); the root asserts it.
+type InboxRef struct {
+	Bus           any
+	Deliver       func(ctx context.Context, d any) error
+	SetRunStarter func(r any)
+	Wired         func() bool
 }
 
 // Func is what a recipe package exports as `Register`. The generated

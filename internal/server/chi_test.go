@@ -203,7 +203,7 @@ func TestBuildChiMuxRoomDisabledPinsRouteAbsence(t *testing.T) {
 			Cfg: cfg, Auth: a, Queries: q, Hub: hub,
 			RealLLM: newReviewHandlerForTestLLM(), Persister: persister, DocStore: docs,
 			Queue: chiQForTest(t), Slots: slots,
-			TodoRef: &register.TodoRef{},
+			TodoRef: &register.TodoRef{}, InboxRef: &register.InboxRef{},
 		},
 	)
 

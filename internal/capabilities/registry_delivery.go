@@ -9,10 +9,11 @@ package capabilities
 // (the transport seam it depends on through an injected Sender).
 var deliveryUnits = []Capability{
 	{
-		ID:      "notifications",
-		Kind:    KindFeature,
-		Summary: "inbox + durable reminders (DagNats sleep → delivery row)",
-		Dirs:    []string{"features/notifications"},
+		ID:       "notifications",
+		Kind:     KindFeature,
+		Summary:  "inbox + durable reminders (DagNats sleep → delivery row)",
+		Dirs:     []string{"features/notifications"},
+		Register: "features/notifications/handlers",
 		DependsOn: []string{
 			depSounds,
 		},
