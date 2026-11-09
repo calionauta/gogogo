@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/calionauta/gogogo/internal/capabilities"
+	"github.com/calionauta/gogogo/internal/recipe"
 )
 
 // newNameRE is the kebab-case id every capability, directory and route shares:
@@ -296,6 +297,14 @@ func confirmNew(stdout io.Writer, stdin io.Reader, name string) bool {
 // printNewPlan renders the plan in text or JSON. Both shapes name every file
 // written and every file edited, so a dry run is the review.
 func printNewPlan(w io.Writer, opt newOptions, plan newPlan) error {
+	creates := []string{
+		"features/" + opt.name + "/handlers/chi.go",
+		"features/" + opt.name + "/components/page.templ",
+		"features/" + opt.name + "/handlers/register.go",
+		"features/" + opt.name + "/handlers/recipe.go",
+		"features/" + opt.name + "/handlers/genui_panel.go",
+		".recipes/" + opt.name + ".yml",
+	}
 	if opt.format == planFormatJSON {
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
@@ -303,21 +312,22 @@ func printNewPlan(w io.Writer, opt newOptions, plan newPlan) error {
 			"name":    opt.name,
 			"dir":     opt.dir,
 			"dryRun":  opt.dryRun,
-			"creates": []string{plan.paths.handler, plan.paths.page},
+			"creates": creates,
 			"edits":   []string{plan.paths.chi, plan.paths.registry, plan.paths.policy},
 			"proof": []string{
 				"templ generate", "generated docs", "registry conformance",
-				"check-flatdeps", "go build ./cmd/web",
+				"check-flatdeps", "go build ./cmd/web", "recipe check",
 			},
 			"next": newNextSteps(opt.name),
 		})
 	}
 	fmt.Fprintf(w, "gogogo: new feature %q in %s\n", opt.name, opt.dir)
-	fmt.Fprintf(w, "  creates %s, %s\n", plan.paths.handler, plan.paths.page)
+	fmt.Fprintf(w, "  creates %s\n", strings.Join(creates, ", "))
 	fmt.Fprintf(w, "  edits   %s (import + parameter + mount)\n", plan.paths.chi)
 	fmt.Fprintf(w, "  edits   %s (one feature unit)\n", plan.paths.registry)
 	fmt.Fprintf(w, "  edits   %s (two user rows)\n", plan.paths.policy)
-	fmt.Fprintln(w, "  proof   templ generate, generated docs, registry conformance, check-flatdeps, go build ./cmd/web")
+	fmt.Fprintln(w, "  proof   templ generate, generated docs, registry conformance,")
+	fmt.Fprintln(w, "  proof   check-flatdeps, go build ./cmd/web, recipe check")
 	return nil
 }
 
@@ -328,6 +338,7 @@ func newNextSteps(name string) []string {
 			"internal/icon/icons.go (the shell has no navbar).",
 		"Replace the page body in features/" + name + "/components/page.templ; run `make css` for new Tailwind classes.",
 		"Read docs/unit-contracts.md for the routes/state your unit now owns.",
+		"Run `gogogo recipe check " + name + " --dir .` — warnings are the work list; errors block `doctor` and CI.",
 	}
 }
 
@@ -351,7 +362,6 @@ func applyNew(ctx context.Context, opt newOptions, plan newPlan, stdout io.Write
 		"features/" + opt.name + "/handlers/register.go":    newRegisterSource(opt.name, plan.module),
 		"features/" + opt.name + "/handlers/recipe.go":      newRecipeSource(opt.name, plan.module),
 		"features/" + opt.name + "/handlers/genui_panel.go": newPanelSource(opt.name, plan.module),
-		".recipes/" + opt.name + ".yml":                     newReceiptSource(opt.name, plan.module),
 	}
 	for rel, src := range files {
 		full := filepath.Join(root, filepath.FromSlash(rel))
@@ -362,19 +372,30 @@ func applyNew(ctx context.Context, opt newOptions, plan newPlan, stdout io.Write
 			return &ExitError{code: 1, msg: "write " + rel + ": " + err.Error()}
 		}
 	}
+	// The receipt pins the pristine hashes of the files just written, so
+	// recipe check can compare declaration vs code from the first boot.
+	hashes := make(map[string]string, len(files))
+	for rel, src := range files {
+		hashes[rel] = recipe.Hash([]byte(src))
+	}
+	receiptRel := ".recipes/" + opt.name + ".yml"
+	if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(receiptRel)),
+		[]byte(newReceiptSource(opt.name, hashes)), scaffoldFileMode); err != nil {
+		return &ExitError{code: 1, msg: "write " + receiptRel + ": " + err.Error()}
+	}
 	edits := map[string]string{plan.paths.chi: plan.chi, plan.paths.registry: plan.reg, plan.paths.policy: plan.policy}
 	for rel, src := range edits {
 		if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(rel)), []byte(src), scaffoldFileMode); err != nil {
 			return &ExitError{code: 1, msg: "write " + rel + ": " + err.Error()}
 		}
 	}
-	return proveNewFeature(ctx, root, stdout)
+	return proveNewFeature(ctx, root, opt.name, stdout)
 }
 
 // proveNewFeature runs the gates a new unit must pass, in the order that
 // reveals mistakes earliest. Failures keep the tree mutated on purpose: the
 // diff is the debugging context, and `git checkout` is one command away.
-func proveNewFeature(ctx context.Context, root string, stdout io.Writer) error {
+func proveNewFeature(ctx context.Context, root, name string, stdout io.Writer) error {
 	steps := []struct {
 		label string
 		name  string
@@ -423,5 +444,10 @@ func proveNewFeature(ctx context.Context, root string, stdout io.Writer) error {
 			tailLines(string(out), proofBuildTailLines)}
 	}
 	fmt.Fprintln(stdout, "gogogo: prove: build OK")
+	fmt.Fprintf(stdout, "gogogo: prove: recipe check %s …\n", name)
+	if out, err := runIn(ctx, root, "go", "run", "./cmd/gogogo", "recipe", "check", name, "--dir", "."); err != nil {
+		return &ExitError{code: 2, msg: "recipe check failed — the scaffold is applied but blocked:\n" +
+			tailLines(string(out), proofBuildTailLines)}
+	}
 	return nil
 }

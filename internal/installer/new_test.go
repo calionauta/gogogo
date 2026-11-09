@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/calionauta/gogogo/internal/recipe"
 )
 
 // TestValidateNewName pins the id contract: kebab-case, unique, and never a
@@ -205,4 +207,36 @@ func TestNewRefusesToolchainMismatch(t *testing.T) {
 	if _, statErr := os.Stat(filepath.Join(proj, "features", "reports")); statErr == nil {
 		t.Error("the refused scaffold wrote the feature anyway")
 	}
+}
+
+// TestNewScaffoldStartsHealthyWithoutMetrics pins the fresh-clone gap: a
+// scaffolded feature owns no table, so it must not declare an aspirational
+// metric (which would read a table nobody created) and its receipt must
+// pin the pristine hashes just written — otherwise `recipe check` is blocked
+// (declaration cannot be checked) while the scaffold's own build proof is
+// green, and `doctor` fails on a fresh checkout.
+func TestNewScaffoldStartsHealthyWithoutMetrics(t *testing.T) {
+	recipeSrc := newRecipeSource("reports", "github.com/acme/app")
+	if strings.Contains(recipeSrc, "Metrics: []recipe.Metric{") {
+		t.Errorf("scaffolded declaration must not declare Metrics (no table exists):\n%s", recipeSrc)
+	}
+	files := map[string]string{
+		"features/reports/handlers/chi.go":    newHandlerSource("reports", "github.com/acme/app"),
+		"features/reports/handlers/recipe.go": newRecipeSource("reports", "github.com/acme/app"),
+	}
+	sources := make(map[string]string, len(files))
+	for rel, src := range files {
+		sources[rel] = hashForTest(src)
+	}
+	receipt := newReceiptSource("reports", sources)
+	if strings.Contains(receipt, "metrics:") || strings.Contains(receipt, "ext_reports") {
+		t.Errorf("scaffolded receipt must not declare metrics:\n%s", receipt)
+	}
+	if strings.Contains(receipt, "files: {}") || !strings.Contains(receipt, "features/reports/handlers/chi.go: ") {
+		t.Errorf("scaffolded receipt must pin the pristine file hashes:\n%s", receipt)
+	}
+}
+
+func hashForTest(src string) string {
+	return recipe.Hash([]byte(src))
 }
