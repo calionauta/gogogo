@@ -54,14 +54,36 @@ func newRecipeSource(name, module string) string {
 }
 
 // newReceiptSource renders .recipes/<name>.yml: the install receipt for a
-// scaffolded feature. Files are empty at scaffold time (the installer writes
-// hashes on the next `recipe install`/`status` pass); the declaration is
-// complete so drift is checked from the first boot.
-func newReceiptSource(name, module string) string {
-	return strings.NewReplacer(
-		"{{name}}", name,
-		"{{module}}", module,
-	).Replace(newReceiptTemplate)
+// scaffolded feature. The caller passes the pristine hashes of the files it
+// just wrote, so drift checking works from the first boot (an empty file set
+// is a check error, not a warning, because checkDeclaration needs the code).
+// Metrics are absent for the same reason as in the seam declaration: no
+// table exists yet.
+func newReceiptSource(name string, files map[string]string) string {
+	var b strings.Builder
+	b.WriteString("id: " + name + "\n")
+	b.WriteString("version: v0.1.0\n")
+	b.WriteString("upstream:\n  repo: github.com/calionauta/gogogo\n  ref: master\n  path: features/" + name + "\n")
+	b.WriteString("files:\n")
+	keys := make([]string, 0, len(files))
+	for k := range files {
+		keys = append(keys, k)
+	}
+	sortStrings(keys)
+	for _, k := range keys {
+		b.WriteString("  " + k + ": " + files[k] + "\n")
+	}
+	b.WriteString("declaration:\n")
+	b.WriteString("  routes:\n")
+	b.WriteString("    - { method: GET, pattern: /" + name + " }\n")
+	b.WriteString("    - { method: GET, pattern: /api/" + name + "/ping }\n")
+	b.WriteString("  panel:\n")
+	b.WriteString("    component: \"" + name + "_list\"\n")
+	b.WriteString("    prompt: \"" + name + "_list {scope: all|mine} " +
+		"whenever the request involves the user's " + name + " data\"\n")
+	b.WriteString("    writable: [scope]\n")
+	b.WriteString("register: features/" + name + "/handlers\n")
+	return b.String()
 }
 
 // editChiGo is kept for backward compatibility with the old manual mount.
@@ -300,6 +322,10 @@ func Register(reg *recipe.Registry, d register.Deps) {
 `
 
 // newRecipeTemplate is the seam declaration for a scaffolded feature.
+// Metrics are deliberately absent at scaffold time: a fresh feature owns no
+// table yet, so an aspirational COUNT would read a table nobody created.
+// The author declares Metrics (and Tables) when the first migration lands;
+// until then recipe-check warns instead of blocking.
 const newRecipeTemplate = `// The {{name}} unit declares its surface to the recipe seam.
 package handlers
 
@@ -323,13 +349,10 @@ func (p recipeProvider) ID() string { return RecipeID }
 
 func (p recipeProvider) Declaration() recipe.Declaration {
 	return recipe.Declaration{
-		// Convention over configuration: ONE example metric + the
-		// panel spec. The dashboard groups these per recipe (labels
-		// live here, nowhere else); the panel skeleton implements
-		// Fill/Render on top of comp.SlicePanel.
-		Metrics: []recipe.Metric{
-			{Label: "Items", Query: "SELECT COUNT(*) FROM ext_{{name}}_items WHERE owner = ?"},
-		},
+		// No Metrics yet: the feature owns no table. When the first
+		// migration lands, declare Tables + Metrics (one COUNT per
+		// entry) here and in .recipes/{{name}}.yml in the same commit;
+		// recipe-check enforces the pair.
 		Panel: &recipe.PanelSpec{
 			Component: "{{name}}_list",
 			Prompt:    "{{name}}_list {scope: all|mine} whenever the request involves the user's {{name}} data",
@@ -343,29 +366,6 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 }
 
 func (p recipeProvider) Routes() chi.Router { return p.h.Routes() }
-`
-
-// newReceiptTemplate is the install receipt a scaffolded feature starts
-// with. Files is empty until `recipe status` hashes the tree; the
-// declaration is complete so drift is checked from the first boot.
-const newReceiptTemplate = `id: {{name}}
-version: v0.1.0
-upstream:
-  repo: github.com/calionauta/gogogo
-  ref: master
-  path: features/{{name}}
-files: {}
-declaration:
-  routes:
-    - { method: GET, pattern: /{{name}} }
-    - { method: GET, pattern: /api/{{name}}/ping }
-  metrics:
-    - { label: Items, query: "SELECT COUNT(*) FROM ext_{{name}}_items WHERE owner = ?" }
-  panel:
-    component: "{{name}}_list"
-    prompt: "{{name}}_list {scope: all|mine} whenever the request involves the user's {{name}} data"
-    writable: [scope]
-register: features/{{name}}/handlers
 `
 
 // newPanelSource renders features/<name>/handlers/genui_panel.go: the
