@@ -640,7 +640,7 @@
 
       <div class="gate-map">
         <p class="gate-map-row"><code>daisyui-lint</code> <span>Pinned <code>go tool daisyui-lint --strict</code> over <code>features/</code> + <code>internal/</code>. Reads <code>chrome.css</code>/<code>app.css</code> so this repo's own classes are not flagged. Guards the DaisyUI vocabulary the <a href="#layer-core">shell</a> owns and every feature uses; <code>check-classes</code> is its integrity half.</span></p>
-        <p class="gate-map-row"><code>datastar-lint</code> <span>Datastar attributes in <code>.templ</code> and the Go SDK calls that drive them. The <a href="#layer-plugins">datastar</a> unit is the Go seam those pages render through (<code>internal/datastar</code>), not the lint target.</span></p>
+        <p class="gate-map-row"><code>datastar-lint</code> <span>Datastar attributes in <code>.templ</code> and the Go SDK calls that drive them. The <a href="#layer-servants">datastar</a> unit is the Go seam those pages render through (<code>internal/datastar</code>), not the lint target.</span></p>
       </div>
 
       <div class="chapter-foot">
@@ -700,13 +700,13 @@
       <tr><th scope="col">Async layer</th><th scope="col">What it does</th><th scope="col">Lives in</th><th scope="col">Switch</th></tr>
     </thead>
     <tbody>
-      <tr><th scope="row">Background jobs</th><td data-label="What it does">goqite + SSE Hub delivery. Work longer than ~50 ms goes here instead of blocking a request.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-core">Core</a><a href="#layer-features">Features</a></span></td><td data-label="Switch"><span class="async-switch">always on</span></td></tr>
-      <tr><th scope="row">Durable workflows</th><td data-label="What it does">DagNats over JetStream. Kill the process mid-run; it resumes at the last incomplete step.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-plugins">Plugins</a><a href="#layer-features">Features</a></span></td><td data-label="Switch"><code>DAGNATS_ENABLED=false</code></td></tr>
-      <tr><th scope="row">Collaboration</th><td data-label="What it does">Loro CRDT. Offline edits merge; snapshots persist to Turso.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-features">Features</a><a href="#layer-plugins">Plugins</a></span></td><td data-label="Switch"><span class="async-switch">remove <code>internal/collab/</code></span></td></tr>
-      <tr><th scope="row">Live record updates</th><td data-label="What it does">SSE Hub record-sync, scoped by owner and visibility.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-core">Core</a><a href="#layer-features">Features</a></span></td><td data-label="Switch"><span class="async-switch">always on</span></td></tr>
-      <tr><th scope="row">Ephemeral signals</th><td data-label="What it does">SSE Hub over Datastar: toasts, progress, chat answers.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-core">Core</a><a href="#layer-features">Features</a></span></td><td data-label="Switch"><span class="async-switch">always on</span></td></tr>
-      <tr><th scope="row">Cross-instance</th><td data-label="What it does">NATS JetStream. Records and docs converge across instances.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-plugins">Plugins</a></span></td><td data-label="Switch"><code>NATS_ENABLED=false</code></td></tr>
-      <tr><th scope="row">Room ownership</th><td data-label="What it does">GoAkt grains. One owner per room: roster, locks, supervision.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-plugins">Plugins</a><a href="#layer-features">Features</a></span></td><td data-label="Switch"><code>GOAKT_ENABLED=false</code></td></tr>
+      <tr><th scope="row">Background jobs</th><td data-label="What it does">goqite + SSE Hub delivery. Work longer than ~50 ms goes here instead of blocking a request.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-core">Core</a><a href="#layer-recipes">Features</a></span></td><td data-label="Switch"><span class="async-switch">always on</span></td></tr>
+      <tr><th scope="row">Durable workflows</th><td data-label="What it does">DagNats over JetStream. Kill the process mid-run; it resumes at the last incomplete step.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-servants">Plugins</a><a href="#layer-recipes">Features</a></span></td><td data-label="Switch"><code>DAGNATS_ENABLED=false</code></td></tr>
+      <tr><th scope="row">Collaboration</th><td data-label="What it does">Loro CRDT. Offline edits merge; snapshots persist to Turso.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-recipes">Features</a><a href="#layer-servants">Plugins</a></span></td><td data-label="Switch"><span class="async-switch">remove <code>internal/collab/</code></span></td></tr>
+      <tr><th scope="row">Live record updates</th><td data-label="What it does">SSE Hub record-sync, scoped by owner and visibility.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-core">Core</a><a href="#layer-recipes">Features</a></span></td><td data-label="Switch"><span class="async-switch">always on</span></td></tr>
+      <tr><th scope="row">Ephemeral signals</th><td data-label="What it does">SSE Hub over Datastar: toasts, progress, chat answers.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-core">Core</a><a href="#layer-recipes">Features</a></span></td><td data-label="Switch"><span class="async-switch">always on</span></td></tr>
+      <tr><th scope="row">Cross-instance</th><td data-label="What it does">NATS JetStream. Records and docs converge across instances.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-servants">Plugins</a></span></td><td data-label="Switch"><code>NATS_ENABLED=false</code></td></tr>
+      <tr><th scope="row">Room ownership</th><td data-label="What it does">GoAkt grains. One owner per room: roster, locks, supervision.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-servants">Plugins</a><a href="#layer-recipes">Features</a></span></td><td data-label="Switch"><code>GOAKT_ENABLED=false</code></td></tr>
     </tbody>
   </table>
   </div>
@@ -715,8 +715,8 @@
     <p class="offline-kicker">Offline-capable writes are a mode, not one of the seven</p>
     <p><strong>Writes go offline; reads stay server-owned.</strong> A mutation is stored in a durable outbox before it leaves the tab, and replayed on reconnect; the server dedupes by <code>idem_key</code>. Reads are queries — a view you never synced is refused, not answered from a stale replica. The desktop build is the exception: it has its own local database and loopback server, so reads work offline; the NATS leaf carries live CRUD, and offline replay is a follow-up.</p>
     <p class="offline-switch"><span class="label">Switch</span> <code>OFFLINE_SYNC_ENABLED=false</code> disables the Service Worker app-shell cache and the NATS CRUD proxy together. The outbox is never gated — losing a queued write is worse than the cache it protects.</p>
-    <p class="offline-meta"><span class="label">Lives in</span> <a href="#layer-features">Features</a> <a href="#layer-plugins">Plugins</a> <a href="#layer-core">Core</a> · <span class="label">Try it</span> disconnect, edit, reconnect.</p>
-    <p class="offline-unit">On the SCOPE axis, <a href="#layer-plugins">offline-sync</a> is a plugin unit; on this async axis it is the mode above, not one of the seven.</p>
+    <p class="offline-meta"><span class="label">Lives in</span> <a href="#layer-recipes">Features</a> <a href="#layer-servants">Plugins</a> <a href="#layer-core">Core</a> · <span class="label">Try it</span> disconnect, edit, reconnect.</p>
+    <p class="offline-unit">On the SCOPE axis, <a href="#layer-servants">offline-sync</a> is a plugin unit; on this async axis it is the mode above, not one of the seven.</p>
   </aside>
 
   <p class="async-fine">One <code>make build</code>. No build tags, no stub files, no matrix.</p>
