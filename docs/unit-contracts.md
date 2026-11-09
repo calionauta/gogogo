@@ -350,7 +350,7 @@ signed-in summary page; the dashboard.card slot host
 
 - **Owned:** `features/dashboard`
 - **Routes:** `/dashboard`
-- **Store calls:** `dbgen.CountUnreadInApp`, `dbgen.ListTodosByOwner`
+- **Store calls:** `dbgen.CountUnreadInApp`, `dbgen.ListBoards`, `dbgen.ListNotes`, `dbgen.ListNotificationsForOwner`, `dbgen.ListTodosByOwner`
 - **Why that class:** Host page for dashboard.card: one unit mounts itself through the recipe seam. Remove manually (delete the unit, its two policy rows, its Modules entry).
 
 ## `landing` — feature

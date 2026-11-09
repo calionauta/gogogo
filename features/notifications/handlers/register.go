@@ -20,6 +20,9 @@ func Register(reg *recipe.Registry, d register.Deps) {
 	bus := notifications.NewBus()
 	h := NewHandler(d.Auth, d.Cfg, d.Queries, bus, buildRouter(d))
 	reg.Add(h.Recipe())
+	if d.Panels != nil {
+		*d.Panels = append(*d.Panels, NewInboxPanel(d.Queries))
+	}
 	if d.InboxRef != nil {
 		d.InboxRef.Bus = bus
 		d.InboxRef.Deliver = func(ctx context.Context, dd any) error {

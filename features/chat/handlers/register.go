@@ -2,6 +2,7 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/calionauta/gogogo/features/chat/store"
@@ -34,8 +35,27 @@ func Register(reg *recipe.Registry, d register.Deps) {
 		panic(verr)
 	}
 	chatRouter := NewRouter(d.Cfg)
+	memStore := store.NewMemStore()
 	h := NewHandler(d.Cfg, d.Auth, d.Queue, hub,
-		store.NewMemStore(), ResponderFromLLM(d.RealLLM, d.SimulatedLLM, chatRouter, chatSurfaces))
+		memStore, ResponderFromLLM(d.RealLLM, d.SimulatedLLM, chatRouter, chatSurfaces))
+	if d.ChatRef != nil {
+		d.ChatRef.Count = func(ctx context.Context, owner string) (int, int, error) {
+			msgs, err := memStore.List(ctx, owner)
+			if err != nil {
+				return 0, 0, err
+			}
+			human := 0
+			for _, m := range msgs {
+				if m.Role == "user" { //nolint:gocritic // chat message role (user/assistant), not an RBAC role
+					human++
+				}
+			}
+			return len(msgs), human, nil
+		}
+	}
+	if d.Panels != nil {
+		*d.Panels = append(*d.Panels, NewChatPanel(memStore))
+	}
 	h.SetModelLeg(d.RealLLM, d.SimulatedLLM, chatRouter, chatSurfaces)
 	h.RegisterHandlers(d.Queue.Registry())
 	reg.Add(h.Recipe())

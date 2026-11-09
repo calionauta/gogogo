@@ -3,12 +3,20 @@ package components
 
 import "encoding/json"
 
-// Signals seeds the dashboard page data-signals. Only the open-todo count
-// is seeded here: the unread count is already owned by the shell
-// ($inboxUnread, see internal/ui/shellSignals) so the inbox odometer
-// reuses that signal instead of carrying a second copy of the same count.
+// Signals seeds the dashboard page data-signals for the metric odometers.
+// $inboxUnread stays shell-owned (see internal/ui/shellSignals) and is not
+// duplicated here.
 type Signals struct {
-	OpenTodos int `json:"openTodos"`
+	OpenTodos   int `json:"openTodos"`
+	DoneTodos   int `json:"doneTodos"`
+	TotalTodos  int `json:"totalTodos"`
+	SharedTodos int `json:"sharedTodos"`
+	TotalInbox  int `json:"totalInbox"`
+	ChatTotal   int `json:"chatTotal"`
+	ChatHuman   int `json:"chatHuman"`
+	NotesCount  int `json:"notesCount"`
+	BoardsCount int `json:"boardsCount"`
+	CreditsBal  int `json:"creditsBal"`
 }
 
 // MarshalSignals renders Signals for data-signals. Never fails the page:
