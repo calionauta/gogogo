@@ -15,6 +15,20 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.66.0 (2026-11-09)
+
+## What's Changed
+* fix(nav): dashboard to rail below inbox + config badges/components filter by @calionauta in https://github.com/calionauta/gogogo/pull/388
+* feat(dashboard,genui): metrics for every data recipe; panels for notes/whiteboard/inbox/chat by @calionauta in https://github.com/calionauta/gogogo/pull/390
+* feat(recipe): declared metrics + panel spec, scaffolded panel skeleton by @calionauta in https://github.com/calionauta/gogogo/pull/391
+* feat(recipe): structured recipe evaluator and declarative refinements by @calionauta in https://github.com/calionauta/gogogo/pull/392
+* feat(recipe): run recipe health in doctor and CI by @calionauta in https://github.com/calionauta/gogogo/pull/393
+* docs: compact AGENTS.md to 89 lines, close recipe pendentes and audit docs/skills by @calionauta in https://github.com/calionauta/gogogo/pull/394
+* fix(recipe): scaffold starts healthy in recipe check by @calionauta in https://github.com/calionauta/gogogo/pull/395
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.65.0...v0.66.0
+
 ## 0.65.0 (2026-11-09)
 
 ## What's Changed
