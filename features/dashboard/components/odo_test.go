@@ -26,13 +26,12 @@ func renderOdo(t *testing.T, value int, signal string) string {
 
 func TestOdoRendersFinalValue(t *testing.T) {
 	html := renderOdo(t, 1284, "openTodos")
-	// The needle spells the effect in its SSR form: templ HTML-escapes the
-	// single quotes inside the data-effect attribute value (&#39;), and the
-	// HTML parser decodes them back before Datastar evaluates the expression.
+	// The effect names the element with the expression's own `el` (the one
+	// variable Datastar binds beside $-signals) — never $el, which the
+	// engine would rewrite to $['el'] (a signal named "el").
 	for _, want := range []string{
 		`class="odo"`,
-		`id="odo-openTodos"`,
-		`data-effect="window.__gogogoOdo(document.getElementById(&#39;odo-openTodos&#39;), $openTodos)"`,
+		`data-effect="window.__gogogoOdo(el, $openTodos)"`,
 		`aria-label="1284"`,
 		"translateY(-1em)",
 		"translateY(-2em)",
@@ -63,16 +62,11 @@ func TestOdoZeroIsSingleDigit(t *testing.T) {
 
 func TestOdoSingleDigit(t *testing.T) {
 	html := renderOdo(t, 7, "inboxUnread")
-	needle := `data-effect="window.__gogogoOdo(` +
-		`document.getElementById(&#39;odo-inboxUnread&#39;), $inboxUnread)"`
-	if !strings.Contains(html, needle) {
+	if !strings.Contains(html, `data-effect="window.__gogogoOdo(el, $inboxUnread)"`) {
 		t.Fatalf("Odo(7) missing inbox signal effect in %s", html)
 	}
 	if got := strings.Count(html, `class="odo-digit"`); got != 1 {
 		t.Fatalf("Odo(7) has %d odo-digit slots, want 1", got)
-	}
-	if got := strings.Count(html, `id="odo-inboxUnread"`); got != 1 {
-		t.Fatalf("Odo(7) must carry exactly one id for its signal")
 	}
 }
 
