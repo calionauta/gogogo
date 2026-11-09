@@ -162,7 +162,11 @@ func (h *Handler) declaredMetrics(ctx context.Context, owner string) map[string]
 		id := p.ID()
 		for _, m := range p.Declaration().Metrics {
 			var n int
-			if err := h.db.QueryRowContext(ctx, m.Query, owner).Scan(&n); err != nil {
+			args := []any{owner}
+			if !m.BindsOwner() {
+				args = nil
+			}
+			if err := h.db.QueryRowContext(ctx, m.Query, args...).Scan(&n); err != nil {
 				continue
 			}
 			signal := m.Signal

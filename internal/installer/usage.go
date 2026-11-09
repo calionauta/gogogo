@@ -76,10 +76,11 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
 
     go run ./cmd/gogogo recipe outdated --dir ./my-app
 
-  Discover recipes headlessly (CLI and MCP read the same registry + receipts):
+  Discover and evaluate recipes headlessly (CLI and MCP read the same registry + receipts):
 
     go run ./cmd/gogogo recipe list --dir ./my-app --format json
     go run ./cmd/gogogo recipe describe pomodoro --dir ./my-app --format json
+    go run ./cmd/gogogo recipe check pomodoro --dir ./my-app --format json
 
   Invoke one declared verb against a running server (loopback only):
 

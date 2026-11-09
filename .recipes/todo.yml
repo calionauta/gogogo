@@ -102,6 +102,15 @@ files:
   features/todo/service/service_test.go: bc098d22c16539b21c6add270cd2f8fe9ba0a955c1928f1d825e24e328fda6f6
   features/todo/todo_test.go: 4f5de39286fd79f2e52a2a17a12ac63e74e944ef87dff86a37a23f489a89c971
 declaration:
+  metrics:
+  - {label: Open, query: "SELECT COUNT(*) FROM todos WHERE owner = ? AND completed = 0", signal: openTodos}
+  - {label: Done, query: "SELECT COUNT(*) FROM todos WHERE owner = ? AND completed = 1", signal: doneTodos}
+  - {label: Total, query: "SELECT COUNT(*) FROM todos WHERE owner = ?", signal: totalTodos}
+  - {label: Shared, query: "SELECT COUNT(*) FROM todos WHERE owner = ? AND visibility = 'public'", signal: sharedTodos}
+  panel:
+    component: "todo_list"
+    prompt: "todo_list {filter: open|done|all} whenever the request involves the user's OWN todos or tasks"
+    writable: [filter]
   tables:
   - ext_todo_todos
   routes:

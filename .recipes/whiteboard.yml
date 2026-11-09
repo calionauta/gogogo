@@ -28,6 +28,12 @@ files:
   features/whiteboard/static/rough.min.js: d5d561189ea0ad7a2818d586dc964d84fa4751124a5270c6b267a41e53796e45
   features/whiteboard/static/whiteboard.js: 576891f40cf7070b95bbcd61e7e4bc2be899f92d5dd632bbc5c57d30892aada3
 declaration:
+  metrics:
+  - {label: Boards, query: "SELECT COUNT(*) FROM boards WHERE owner = ?", signal: boardsCount}
+  panel:
+    component: "boards_list"
+    prompt: "boards_list {scope: all|mine} whenever the request involves the shared whiteboards"
+    writable: [scope]
   routes:
   - method: GET
     pattern: /whiteboard

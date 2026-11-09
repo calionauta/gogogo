@@ -93,20 +93,47 @@ type Declaration struct {
 }
 
 // Metric is one dashboard count a recipe declares: a label for the
-// user, a COUNT(*) query (one `?` — the viewing owner), and the
-// odometer signal name (default: derived from the label).
+// user, a COUNT(*) query, and the odometer signal name (default:
+// derived from the label).
+//
+// OwnerBinds reports whether the query scopes to the viewing owner
+// (one `?`). It defaults to TRUE (convention: a per-user dashboard);
+// a recipe counting global rows (shared docs, instance totals) sets
+// false. The rule is fail-fast: exactly one `?` when OwnerBinds, none
+// otherwise.
 type Metric struct {
-	Label  string `yaml:"label"`
-	Query  string `yaml:"query"`
-	Signal string `yaml:"signal,omitempty"`
+	Label      string `yaml:"label"`
+	Query      string `yaml:"query"`
+	Signal     string `yaml:"signal,omitempty"`
+	OwnerBinds *bool  `yaml:"ownerBinds,omitempty"`
 }
 
-// PanelSpec names the chat answer slice a recipe offers. Writable is
-// the model-chosen slice (never the rows — Fill owns those).
+// BindsOwner reports whether the metric is owner-scoped. nil means
+// the convention default (true).
+func (m Metric) BindsOwner() bool {
+	if m.OwnerBinds == nil {
+		return true
+	}
+	return *m.OwnerBinds
+}
+
+// WithoutOwner is the global-rows spelling (OwnerBinds=false).
+func WithoutOwner() *bool {
+	f := false
+	return &f
+}
+
+// PanelSpec names the chat answer slice a recipe offers. Component is
+// the model-facing name (snake_case); Values is the closed slice enum
+// (e.g. [open done all]); Writable lists the props the MODEL may set —
+// by convention exactly one, the slice prop. Fill/Render stay in code
+// (they must call the page's own component); this is the name, the
+// prompt, and the closed vocabulary the model is given.
 type PanelSpec struct {
 	Component string   `yaml:"component"`
 	Prompt    string   `yaml:"prompt"`
 	Writable  []string `yaml:"writable"`
+	Values    []string `yaml:"values,omitempty"`
 }
 
 // Route is a declared HTTP surface. The pattern is absolute, matching the
@@ -288,7 +315,7 @@ func MetricProblems(d Declaration) []string {
 		if strings.TrimSpace(m.Label) == "" {
 			out = append(out, "metric with an empty label")
 		}
-		if err := validCount(m.Query); err != nil {
+		if err := validCount(m.Query, m.BindsOwner()); err != nil {
 			out = append(out, fmt.Sprintf("metric %q: %v", m.Label, err))
 		}
 	}
@@ -311,6 +338,23 @@ func PanelProblems(d Declaration) []string {
 	if len(d.Panel.Writable) == 0 {
 		out = append(out, fmt.Sprintf("panel %q declares no writable prop", d.Panel.Component))
 	}
+	for _, w := range d.Panel.Writable {
+		if strings.TrimSpace(w) == "" {
+			out = append(out, fmt.Sprintf("panel %q declares an empty writable prop", d.Panel.Component))
+		}
+	}
+	if len(d.Panel.Writable) > 1 {
+		out = append(out, fmt.Sprintf(
+			"panel %q declares %d writable props; by convention it is exactly one (the slice)",
+			d.Panel.Component, len(d.Panel.Writable)))
+	}
+	if len(d.Panel.Values) > 0 {
+		for _, v := range d.Panel.Values {
+			if !strings.EqualFold(v, "all") && !isClosedToken(v) {
+				out = append(out, fmt.Sprintf("panel %q value %q is not a closed token", d.Panel.Component, v))
+			}
+		}
+	}
 	return out
 }
 
@@ -318,18 +362,42 @@ func PanelProblems(d Declaration) []string {
 // the catalog validator, which applies the same boundary to a reviewed entry.
 func IsCoreTable(table string) bool { return isCoreTable(table) }
 
-// validCount reports whether query is a single COUNT(*) with one `?` — the
-// dashboard executor binds the viewing owner to it. Anything else fails fast
-// at registration, not as a broken SQL string at render time.
-func validCount(query string) error {
+// validCount reports whether query is a single COUNT(*) with one `?`
+// (owner-scoped) or none (global). Anything else fails fast at
+// registration, not as a broken SQL string at render time.
+func validCount(query string, ownerBinds bool) error {
 	q := strings.TrimSpace(strings.ToLower(query))
 	if !strings.HasPrefix(q, "select count") {
 		return fmt.Errorf("query must select count(*), got %q", query)
 	}
-	if n := strings.Count(query, "?"); n != 1 {
-		return fmt.Errorf("query must bind exactly one owner parameter (?), got %d", n)
+	n := strings.Count(query, "?")
+	want := 1
+	if !ownerBinds {
+		want = 0
+	}
+	if n != want {
+		return fmt.Errorf("query must bind %d owner parameter (?), got %d", want, n)
 	}
 	return nil
+}
+
+// isClosedToken reports whether v is one word a prompt may offer the
+// model (no spaces, no punctuation — the slice enum must be copyable
+// from the sentence into props).
+func isClosedToken(v string) bool {
+	if strings.TrimSpace(v) == "" {
+		return false
+	}
+	for _, r := range v {
+		lower := (r >= 'a' && r <= 'z')
+		upper := (r >= 'A' && r <= 'Z')
+		digit := (r >= '0' && r <= '9')
+		if lower || upper || digit || r == '_' || r == '-' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 // validPanelName reports whether name is snake_case (lowercase letters,
@@ -341,9 +409,10 @@ func validPanelName(name string) bool {
 	for _, r := range name {
 		lower := (r >= 'a' && r <= 'z')
 		digit := (r >= '0' && r <= '9')
-		if !lower && !digit && r != '_' {
-			return false
+		if lower || digit || r == '_' {
+			continue
 		}
+		return false
 	}
 	return true
 }

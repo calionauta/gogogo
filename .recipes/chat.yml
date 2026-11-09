@@ -29,6 +29,10 @@ files:
   features/chat/store/parse_test.go: e06edd57a1c273657f53ba73e52a15acf1517714c96a6fe2479df214b8383f51
   features/chat/store/store.go: a4af74c13c830f21e9469a352e9e3ee09d2d4f916e058063598698fde89d445a
 declaration:
+  panel:
+    component: "chat_history"
+    prompt: "chat_history {limit: 5|10|20} whenever the request involves the user's recent conversation"
+    writable: [limit]
   routes:
   - method: GET
     pattern: /chat

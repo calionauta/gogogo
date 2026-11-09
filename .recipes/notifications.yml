@@ -24,6 +24,13 @@ files:
   features/notifications/handlers/stream_test.go: 18316b4b246366572a6a757b520bf63e562d89df7077926270802bf4d573d06e
   features/notifications/handlers/surfaces_test.go: 9801755dc0b909ce0aa91ba0eea4b45053d067dc31244d74bac4f429727ab11c
 declaration:
+  metrics:
+  - {label: Unread, query: "SELECT COUNT(*) FROM notifications WHERE owner = ? AND read_at IS NULL", signal: inboxUnread}
+  - {label: Total, query: "SELECT COUNT(*) FROM notifications WHERE owner = ?", signal: totalInbox}
+  panel:
+    component: "inbox_list"
+    prompt: "inbox_list {scope: unread|all} whenever the request involves the user's reminders or inbox"
+    writable: [scope]
   routes:
   - method: GET
     pattern: /notifications
@@ -35,6 +42,8 @@ declaration:
     pattern: /api/notifications/read-all
   - method: POST
     pattern: /api/notifications/{id}/read
+  - method: POST
+    pattern: /api/notifications/{id}/unread
   - method: GET
     pattern: /api/notifications/badge
 register: features/notifications/handlers
