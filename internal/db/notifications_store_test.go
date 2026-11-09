@@ -118,4 +118,21 @@ func TestNotificationQueriesAreOwnerScopedAndIdempotent(t *testing.T) {
 	if unread, uerr := q.CountUnreadInApp(ctx, ada.ID); uerr != nil || unread != 0 {
 		t.Fatalf("unread after read = (%d, %v), want (0, nil)", unread, uerr)
 	}
+
+	// Mark-unread is the reverse transition, owner-scoped the same way: Bob
+	// cannot resurrect Ada's row, and a second unread is a no-op.
+	bobUnread := dbgen.MarkNotificationUnreadParams{ID: first.ID, Owner: bob.ID}
+	if n, merr := q.MarkNotificationUnread(ctx, bobUnread); merr != nil || n != 0 {
+		t.Fatalf("bob mark unread = (%d, %v), want (0, nil)", n, merr)
+	}
+	adaUnread := dbgen.MarkNotificationUnreadParams{ID: first.ID, Owner: ada.ID}
+	if n, merr := q.MarkNotificationUnread(ctx, adaUnread); merr != nil || n != 1 {
+		t.Fatalf("ada mark unread = (%d, %v), want (1, nil)", n, merr)
+	}
+	if n, merr := q.MarkNotificationUnread(ctx, adaUnread); merr != nil || n != 0 {
+		t.Fatalf("second mark unread = (%d, %v), want (0, nil)", n, merr)
+	}
+	if unread, uerr := q.CountUnreadInApp(ctx, ada.ID); uerr != nil || unread != 1 {
+		t.Fatalf("unread after unread = (%d, %v), want (1, nil)", unread, uerr)
+	}
 }

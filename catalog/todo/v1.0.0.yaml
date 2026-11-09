@@ -1,0 +1,23 @@
+id: todo
+version: v1.0.0
+source:
+  repo: github.com/calionauta/gogogo
+  ref: 2eec0d195f2574c8fc5edd1190cfec5d26b6c93d
+files:
+  features/todo/service/service.go: "71e5f45e1f6d90c5334f9d9ed78a2cd535b92e529e7c90ae67cb531d1fb62d69"
+license: MIT
+minCore: v0.62.0
+recommended: true
+register: features/todo/handlers
+slots:
+  - dashboard.card
+routes:
+  - method: GET
+    pattern: /todo
+tables:
+  - ext_todo_todos
+upstreamDeps: []
+reviewedAt: "2026-11-08"
+reviewedBy: "calionauta"
+reviewedAgainst: "master@0b5887a9"
+notes: "Official reference recipe — transport-free service shared by chi and native."

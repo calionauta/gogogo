@@ -31,6 +31,11 @@ UPDATE notifications
 SET read_at = ?
 WHERE id = ? AND owner = ? AND read_at IS NULL;
 
+-- name: MarkNotificationUnread :execrows
+UPDATE notifications
+SET read_at = NULL
+WHERE id = ? AND owner = ? AND read_at IS NOT NULL;
+
 -- name: MarkAllNotificationsRead :execrows
 UPDATE notifications
 SET read_at = ?

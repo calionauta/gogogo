@@ -5172,21 +5172,6 @@
       cursor: not-allowed;
       opacity: 30%;
     }
-    .indicator {
-      position: relative;
-      display: inline-flex;
-      width: max-content;
-    }
-    .indicator :where(.indicator-item) {
-      z-index: 1;
-      position: absolute;
-      white-space: nowrap;
-      top: var(--indicator-t, 0);
-      bottom: var(--indicator-b, auto);
-      left: var(--indicator-s, auto);
-      right: var(--indicator-e, 0);
-      translate: var(--indicator-x, 50%) var(--indicator-y, -50%);
-    }
     .table {
       font-size: 0.875rem;
       position: relative;
@@ -5258,16 +5243,6 @@
       .table :where(thead tr :is(td, th), tbody tr:not(:last-child) :is(td, th)) {
         border-bottom: var(--border) solid color-mix(in oklch, var(--color-base-content) 5%, #0000);
       }
-    }
-    .indicator :where(.indicator-item) {
-      z-index: 1;
-      position: absolute;
-      white-space: nowrap;
-      top: var(--indicator-t, 0);
-      bottom: var(--indicator-b, auto);
-      left: var(--indicator-s, auto);
-      right: var(--indicator-e, 0);
-      translate: var(--indicator-x, 50%) var(--indicator-y, -50%);
     }
     .steps .step {
       display: grid;
@@ -8208,6 +8183,37 @@
       --btn-inset: 0 0 0 0 oklch(0% 0 0/0);
       --btn-shadow: 0 0 0 0 oklch(0% 0 0/0);
     }
+    .btn-soft {
+      --btn-bg: var(--btn-color, var(--color-base-content));
+    }
+    @supports (color: color-mix(in lab, red, red)) {
+      .btn-soft {
+        --btn-bg: color-mix(
+      in oklab,
+      var(--btn-color, var(--color-base-content)) 8%,
+      var(--btn-soft-bg, var(--color-base-100))
+    );
+      }
+    }
+    .btn-soft {
+      color: var(--btn-rest-fg, var(--btn-color, var(--color-base-content)));
+      --btn-border: var(--btn-color, var(--color-base-content));
+    }
+    @supports (color: color-mix(in lab, red, red)) {
+      .btn-soft {
+        --btn-border: color-mix(
+      in oklab,
+      var(--btn-color, var(--color-base-content)) 10%,
+      var(--btn-soft-bg, var(--color-base-100))
+    );
+      }
+    }
+    .btn-soft {
+      --btn-border-style: solid;
+      background-image: none;
+      --btn-inset: 0 0 0 0 oklch(0% 0 0/0);
+      --btn-shadow: 0 0 0 0 oklch(0% 0 0/0);
+    }
     .btn-ghost {
       --btn-bg: #0000;
       color: var(--btn-rest-fg, var(--btn-color, var(--color-base-content, currentColor)));
@@ -8887,6 +8893,12 @@
   .slide-in-from-left-4 {
     animation-name: motion-slide-in-left;
   }
+  .slide-in-from-top-2 {
+    animation-name: motion-slide-in-top;
+  }
+  .slide-in-from-bottom-1 {
+    animation-name: motion-slide-in-bottom;
+  }
   .zoom-in-95 {
     animation-name: motion-zoom-in;
   }
@@ -8906,6 +8918,26 @@
     to {
       opacity: 1;
       transform: translateX(0);
+    }
+  }
+  @keyframes motion-slide-in-top {
+    from {
+      opacity: 0;
+      transform: translateY(-0.5rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes motion-slide-in-bottom {
+    from {
+      opacity: 0;
+      transform: translateY(0.25rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
     }
   }
   @keyframes motion-zoom-in {
@@ -8931,6 +8963,31 @@
   }
 }
 @layer components {
+  .odo {
+    display: inline-flex;
+    font-variant-numeric: tabular-nums;
+    line-height: 1em;
+  }
+  .odo-digit {
+    display: inline-block;
+    height: 1em;
+    overflow: hidden;
+  }
+  .odo-strip {
+    display: flex;
+    flex-direction: column;
+    will-change: transform;
+  }
+  .odo-strip > span {
+    height: 1em;
+    line-height: 1em;
+    text-align: center;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .odo-strip {
+      transition: none;
+    }
+  }
   #toast-container {
     z-index: 100;
     position: fixed;

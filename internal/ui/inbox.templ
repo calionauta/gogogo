@@ -1,6 +1,8 @@
 // The rail's inbox entry: the one nav item with a live count.
 //
-// The badge is a DaisyUI `indicator-item` on the module icon and always renders
+// The badge sits at the END of the rail row (after the label), not on the icon:
+// in a labelled row the icon corner is close enough to the first letter of
+// "Inbox" that a wide count ("99+") would paint over it. It always renders
 // (hidden at zero) because the notifications feature patches this exact node by
 // id: a fragment that only exists when non-zero would be un-patchable back to
 // zero. The count is seeded by inboxBadgeMiddleware and replaced live by the
@@ -14,22 +16,22 @@ import (
 )
 
 // RailInboxBadge is the unread count bubble. tabular-nums keeps a count
-// change from shifting the icon; the label caps at 99+ so three digits cannot
+// change from shifting the label; the label caps at 99+ so three digits cannot
 // stretch the rail row.
 //
 // The text/visibility are bound to $inboxUnread: the server seeds it from the
 // page middleware, and session.js updates it from the leader stream's frames
 // (BroadcastChannel fans the same value out to every tab). The server-rendered
-// text is the pre-init fallback; the JS expression mirrors unreadBadgeLabel so
+// text is the pre-init fallback; the JS expression mirrors UnreadBadgeLabel so
 // the first paint and every later update agree on the 99+ cap.
 templ RailInboxBadge(unread int) {
 	<span
 		id="rail-inbox-badge"
-		class={ templ.Classes("indicator-item badge badge-primary badge-xs tabular-nums", map[string]bool{"hidden": unread <= 0}) }
+		class={ templ.Classes("badge badge-primary badge-xs tabular-nums", map[string]bool{"hidden": unread <= 0}) }
 		data-class="{'hidden': $inboxUnread <= 0}"
 		data-text="$inboxUnread > 99 ? '99+' : ($inboxUnread > 0 ? $inboxUnread : '')"
 		data-on:gogogo:unread__document="$inboxUnread = evt.detail.unread"
-	>{ unreadBadgeLabel(unread) }</span>
+	>{ UnreadBadgeLabel(unread) }</span>
 }
 
 // railInboxRefresh is the badge's refresh affordance for pages that already
@@ -59,7 +61,7 @@ templ railInboxRefresh() {
 }
 
 // railItem is one destination in the rail: same markup for every module, with
-// the inbox icon wrapped in the indicator that carries its count.
+// the inbox count badge at the end of the row, after the label.
 templ railItem(m Module, active bool, unread int) {
 	<a
 		href={ templ.SafeURL(m.URL) }
@@ -68,21 +70,19 @@ templ railItem(m Module, active bool, unread int) {
 		data-cuelume-hover="tick"
 		data-cuelume-press="toggle"
 		data-on:click="$railOpen = false">
-		if m.ID == ModuleInbox {
-			<span class="indicator">
-				@RailInboxBadge(unread)
-				@icon.Icon(m.Icon, "app-rail-icon")
-			</span>
-		} else {
-			@icon.Icon(m.Icon, "app-rail-icon")
-		}
+		@icon.Icon(m.Icon, "app-rail-icon")
 		<span class="app-rail-label">{ m.Title }</span>
+		if m.ID == ModuleInbox {
+			@RailInboxBadge(unread)
+		}
 	</a>
 }
 
-// unreadBadgeLabel is the bubble's text. Zero renders nothing (the node stays
+// UnreadBadgeLabel is the bubble's text. Zero renders nothing (the node stays
 // in the DOM for patching); past 99 the bubble says "99+" instead of growing.
-func unreadBadgeLabel(unread int) string {
+// Exported: the inbox header badge reads the same counter in the same form, so
+// the two surfaces cannot disagree on the cap.
+func UnreadBadgeLabel(unread int) string {
 	switch {
 	case unread <= 0:
 		return ""

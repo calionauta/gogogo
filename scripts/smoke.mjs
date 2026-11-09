@@ -281,7 +281,7 @@ async function verifyAccountMenu(page) {
   );
 
   // The inbox is the rail's first item, pinned above the Collab heading, with
-  // an indicator badge node the live inbox patches.
+  // a badge node at the row end the live inbox patches.
   const firstRailHref = await page
     .locator("#app-rail .app-rail-nav .app-rail-item")
     .first()
@@ -291,8 +291,8 @@ async function verifyAccountMenu(page) {
     `first rail item is ${firstRailHref}, want the inbox (/notifications)`,
   );
   check(
-    (await page.locator("#app-rail #rail-inbox-badge.indicator-item").count()) === 1,
-    "the inbox rail item has no indicator badge node",
+    (await page.locator("#app-rail #rail-inbox-badge").count()) === 1,
+    "the inbox rail item has no badge node",
   );
 
   await page.keyboard.press("Escape");
