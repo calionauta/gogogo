@@ -74,6 +74,16 @@ func runRecipeUninstall(args []string, stdout io.Writer) error {
 	if gerr := regenerateRegistration(root); gerr != nil {
 		return gerr
 	}
+	// Bundled (builtin) units mount via units.gen.go (generated from the
+	// registry), not recipes.gen.go. Uninstalling one must drop it there
+	// too, or the build imports a package that is gone. Regenerating
+	// from the registry after marking the receipt removed would still
+	// list it (the registry entry is data, not the receipt), so we
+	// re-run the bundled generator with removed ids filtered via the
+	// receipts that say Removed.
+	if gerr := regenerateBundledUnits(root); gerr != nil {
+		return gerr
+	}
 	printRecipeUninstallReceipt(stdout, opt.id, res, r, derived)
 	return nil
 }
@@ -174,4 +184,72 @@ func parseRecipeUninstallArgs(args []string) (recipeUninstallArgs, error) {
 		return opt, &ExitError{code: 1, msg: "recipe uninstall takes one recipe id"}
 	}
 	return opt, nil
+}
+
+// regenerateBundledUnits drops removed bundled units from units.gen.go.
+// Bundled units mount via that file (registry-driven), not recipes.gen.go,
+// so uninstalling one must edit it too or the build imports a gone package.
+//
+//nolint:gocyclo // one job: filter lines by two string sets, still under ~15 branches.
+func regenerateBundledUnits(root string) error {
+	genPath := filepath.Join(root, "internal/server/units.gen.go")
+	raw, err := os.ReadFile(genPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return &ExitError{code: 1, msg: "recipe uninstall: read units.gen.go: " + err.Error()}
+	}
+	ids, lerr := recipe.ListReceipts(root)
+	if lerr != nil {
+		return &ExitError{code: 1, msg: "recipe uninstall: list receipts: " + lerr.Error()}
+	}
+	removed := map[string]bool{}
+	for _, id := range ids {
+		r, lerr := recipe.LoadReceipt(root, id)
+		if lerr != nil || r.Removed == "" || r.Register == "" {
+			continue
+		}
+		removed[r.Register] = true
+	}
+	if len(removed) == 0 {
+		return nil
+	}
+	aliasToRemove := map[string]bool{}
+	for rp := range removed {
+		parts := strings.Split(strings.Trim(rp, "/"), "/")
+		tail := parts[len(parts)-1]
+		if len(parts) > 1 {
+			tail = parts[len(parts)-2] + tail
+		}
+		aliasToRemove[tail] = true
+	}
+	lines := strings.Split(string(raw), "\n")
+	kept := make([]string, 0, len(lines))
+	for _, line := range lines {
+		drop := false
+		for rp := range removed {
+			if strings.Contains(line, rp) {
+				drop = true
+				break
+			}
+		}
+		if !drop {
+			for alias := range aliasToRemove {
+				if strings.Contains(line, alias+".Register") {
+					drop = true
+					break
+				}
+			}
+		}
+		if !drop {
+			kept = append(kept, line)
+		}
+	}
+	out := strings.Join(kept, "\n")
+	//nolint:gosec // genPath stays inside the validated checkout (looksLikeTemplate).
+	if werr := os.WriteFile(genPath, []byte(out), scaffoldFileMode); werr != nil {
+		return &ExitError{code: 1, msg: "recipe uninstall: write units.gen.go: " + werr.Error()}
+	}
+	return nil
 }

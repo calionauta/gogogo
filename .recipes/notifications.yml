@@ -1,0 +1,40 @@
+id: notifications
+version: v1.0.0
+upstream:
+  repo: github.com/calionauta/gogogo
+  ref: master
+  path: features/notifications
+files:
+  features/notifications/bus.go: 16f774f92c7a5c66c6c23eadb1bfb35ee8c690bc941841acaff8ccef1ee89516
+  features/notifications/components/actions.go: cbd897734093d9c4a17c7e540217fff9bbdc296a679c6e56f9080f883692413d
+  features/notifications/components/actions_test.go: 3435fb9dbe548562ca821ba3487351cf7287326f63b5b42f430bc84ad2846e82
+  features/notifications/components/page.templ: 2946caa1a7c205fc74c9683050b7835a3b55fa3284da7efc97c2e3a58ef448e8
+  features/notifications/components/page_templ.go: d6eb444cf2c8fa03087eb94177e0fec892c012a173d9dba314b6e72004531716
+  features/notifications/components/page_test.go: 4c7c7f77a39b05b9f8f3d3edf87608ab223a4c602a1d66e0370b4eec1a81348c
+  features/notifications/components/state_panel.templ: 65d454969095c93979289d61e2f81aad0033a2ad3298627cfa3a9e42790b1f7f
+  features/notifications/components/state_panel_templ.go: 1d524e6eea1ddc3e5adb51b0d46ef6d725573926f25b38c5d43d3d6503a9cb13
+  features/notifications/delivery.go: a58369d3ed82cfbef1263f117b00109555807ed26ea928e19e2f1872a21c6709
+  features/notifications/handlers/badge_test.go: c15b0c23b179edec540b36b2d22a9e14899d5eaea51fadd13b412dd3d5340071
+  features/notifications/handlers/chi.go: 8cc523de7b2e2ee4cd2a585d314f1aa36595652c2379c759e6b03d3a65dee926
+  features/notifications/handlers/chi_test.go: aca074bc9524788dc4162ca448d6ee071a1a823c61823a9ae6d145082051f6c2
+  features/notifications/handlers/recipe.go: e52cb437d779eed5fa94951246be732fe9d7adf0682a1f73653c2dc5a71224c8
+  features/notifications/handlers/register.go: 3c5060f339d200a1ceef9eef32306619b52a988002c07702bfec2fc86ec345e8
+  features/notifications/handlers/remind.go: 281456eeca1e0411ea2d46a6bd7aad2bb8e0c17262fac5cce0e0e732e6a76384
+  features/notifications/handlers/stream.go: 36e4f4eb48bc126f6d3505d428ee79db99f8d0f30c7051a5f74b71e71ee0ebe1
+  features/notifications/handlers/stream_test.go: 18316b4b246366572a6a757b520bf63e562d89df7077926270802bf4d573d06e
+  features/notifications/handlers/surfaces_test.go: 9801755dc0b909ce0aa91ba0eea4b45053d067dc31244d74bac4f429727ab11c
+declaration:
+  routes:
+  - method: GET
+    pattern: /notifications
+  - method: GET
+    pattern: /api/notifications/stream
+  - method: POST
+    pattern: /api/notifications/remind
+  - method: POST
+    pattern: /api/notifications/read-all
+  - method: POST
+    pattern: /api/notifications/{id}/read
+  - method: GET
+    pattern: /api/notifications/badge
+register: features/notifications/handlers

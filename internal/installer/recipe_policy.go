@@ -52,6 +52,8 @@ const recipePolicyOwner = "user"
 
 // recipePolicyRows renders the receipt's routes as policy rows, one per pattern,
 // sorted. Two verbs on one pattern collapse into one row: the row allows `.*`.
+// Chi placeholders ({docID}) become `*` (the Casbin object shape: `*` spans
+// a whole segment, `{...}` is a rejected metacharacter).
 func recipePolicyRows(d recipe.Declaration) []string {
 	seen := make(map[string]bool, len(d.Routes))
 	rows := make([]string, 0, len(d.Routes))
@@ -60,7 +62,19 @@ func recipePolicyRows(d recipe.Declaration) []string {
 			continue
 		}
 		seen[route.Pattern] = true
-		rows = append(rows, fmt.Sprintf("p, %s, %s, .*", recipePolicyOwner, route.Pattern))
+		obj := route.Pattern
+		for {
+			start := strings.Index(obj, "{")
+			if start < 0 {
+				break
+			}
+			end := strings.Index(obj[start:], "}")
+			if end < 0 {
+				break
+			}
+			obj = obj[:start] + "*" + obj[start+end+1:]
+		}
+		rows = append(rows, fmt.Sprintf("p, %s, %s, .*", recipePolicyOwner, obj))
 	}
 	sort.Strings(rows)
 	return rows

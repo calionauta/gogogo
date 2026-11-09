@@ -81,36 +81,23 @@ p, anonymous, /api/auth/totp/login, POST
 p, anonymous, /api/auth/oauth/*, GET
 p, anonymous, /api/session/stream, GET
 p, user, /_ui/demo, .*
-p, user, /todo, .*
 p, user, /todo/*, .*
-p, user, /dashboard, .*
-p, user, /api/todos, .*
 p, user, /api/todos/*, .*
-p, user, /account, .*
 p, user, /account/*, .*
 p, user, /login, (GET|POST)
 p, user, /signup, (GET|POST)
 p, user, /logout, (GET|POST)
-p, user, /whiteboard, .*
-p, user, /whiteboard/*, .*
 p, user, /api/whiteboard, .*
 p, user, /api/whiteboard/*, .*
-p, user, /api/whiteboards/fragment, .*
-p, user, /notes, .*
-p, user, /notes/*, .*
 p, user, /api/notes, .*
 p, user, /api/notes/*, .*
-p, user, /room, .*
 p, user, /room/*, .*
-p, user, /chat, .*
 p, user, /chat/*, .*
 p, user, /api/chat, .*
 p, user, /api/chat/*, .*
-p, user, /review, .*
 p, user, /review/*, .*
 p, user, /api/review, .*
 p, user, /api/review/*, .*
-p, user, /api/credits, .*
 p, user, /api/credits/*, .*
 p, user, /api/ext/invoke, POST
 p, user, /api/ai/*, .*
@@ -166,7 +153,6 @@ p, admin, /debug/statsviz/*, .*
 p, admin, /debug/pprof, .*
 p, admin, /debug/pprof/*, .*
 # `gogogo new`: notifications (page + actions; add a row per route as it grows)
-p, user, /notifications, .*
 p, user, /api/notifications/*, .*
 # `gogogo new`: graph (page + probe; add a row per route as it grows)
 p, user, /graph, .*
@@ -176,3 +162,111 @@ p, user, /static/graph, .*
 p, user, /static/graph/*, .*
 p, user, /api/graph/dagnats, .*
 p, user, /api/graph/presence, .*
+# recipe:account
+# written by `gogogo recipe install`; `gogogo recipe uninstall` removes this block
+p, user, /account, .*
+p, user, /account/cloud, .*
+p, user, /account/cloud/disconnect, .*
+p, user, /account/device-token, .*
+p, user, /account/password, .*
+p, user, /account/sessions/revoke, .*
+p, user, /account/sessions/revoke-all, .*
+p, user, /account/totp/begin, .*
+p, user, /account/totp/disable, .*
+p, user, /account/totp/recovery, .*
+p, user, /account/totp/verify, .*
+p, user, /account/verify, .*
+# end recipe:account
+# recipe:chat
+# written by `gogogo recipe install`; `gogogo recipe uninstall` removes this block
+p, user, /api/chat/ask, .*
+p, user, /api/chat/clear, .*
+p, user, /api/chat/stream, .*
+p, user, /chat, .*
+# end recipe:chat
+# recipe:credits
+# written by `gogogo recipe install`; `gogogo recipe uninstall` removes this block
+p, user, /api/ai/request, .*
+p, user, /api/byok, .*
+p, user, /api/credits, .*
+p, user, /api/credits/checkout, .*
+p, user, /api/credits/stripe-webhook, .*
+# end recipe:credits
+# recipe:dashboard
+# written by `gogogo recipe install`; `gogogo recipe uninstall` removes this block
+p, user, /dashboard, .*
+# end recipe:dashboard
+# recipe:landing
+# written by `gogogo recipe install`; `gogogo recipe uninstall` removes this block
+p, user, /, .*
+# end recipe:landing
+# recipe:notes
+# written by `gogogo recipe install`; `gogogo recipe uninstall` removes this block
+p, user, /api/notes/*/caret, .*
+p, user, /api/notes/*/delete, .*
+p, user, /api/notes/*/leave, .*
+p, user, /api/notes/*/op, .*
+p, user, /api/notes/*/stream, .*
+p, user, /api/notes/*/typing, .*
+p, user, /api/notes/fragment, .*
+p, user, /notes, .*
+p, user, /notes/*, .*
+p, user, /notes/new, .*
+# end recipe:notes
+# recipe:notifications
+# written by `gogogo recipe install`; `gogogo recipe uninstall` removes this block
+p, user, /api/notifications/*/read, .*
+p, user, /api/notifications/badge, .*
+p, user, /api/notifications/read-all, .*
+p, user, /api/notifications/remind, .*
+p, user, /api/notifications/stream, .*
+p, user, /notifications, .*
+# end recipe:notifications
+# recipe:review
+# written by `gogogo recipe install`; `gogogo recipe uninstall` removes this block
+p, user, /api/review/run, .*
+p, user, /review, .*
+# end recipe:review
+# recipe:room
+# written by `gogogo recipe install`; `gogogo recipe uninstall` removes this block
+p, user, /room, .*
+p, user, /room/acquire, .*
+p, user, /room/crash, .*
+p, user, /room/heartbeat, .*
+p, user, /room/join, .*
+p, user, /room/leave, .*
+p, user, /room/release, .*
+p, user, /room/roster, .*
+p, user, /room/stream, .*
+# end recipe:room
+# recipe:todo
+# written by `gogogo recipe install`; `gogogo recipe uninstall` removes this block
+p, user, /api/todos, .*
+p, user, /api/todos/*/confirm-delete, .*
+p, user, /api/todos/*/delete, .*
+p, user, /api/todos/*/toggle, .*
+p, user, /api/todos/completed/delete, .*
+p, user, /api/todos/events, .*
+p, user, /api/todos/fragment, .*
+p, user, /api/todos/retry-demo, .*
+p, user, /api/todos/search, .*
+p, user, /api/todos/stream, .*
+p, user, /api/todos/suggest, .*
+p, user, /api/todos/suggest-simulated, .*
+p, user, /login, .*
+p, user, /logout, .*
+p, user, /signup, .*
+p, user, /todo, .*
+# end recipe:todo
+# recipe:whiteboard
+# written by `gogogo recipe install`; `gogogo recipe uninstall` removes this block
+p, user, /api/whiteboard/*/delete, .*
+p, user, /api/whiteboard/*/presence, .*
+p, user, /api/whiteboard/*/snapshot, .*
+p, user, /api/whiteboard/*/stream, .*
+p, user, /api/whiteboard/*/update, .*
+p, user, /api/whiteboards/fragment, .*
+p, user, /whiteboard, .*
+p, user, /whiteboard/*, .*
+p, user, /whiteboard/new, .*
+# end recipe:whiteboard

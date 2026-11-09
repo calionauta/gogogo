@@ -1,0 +1,50 @@
+id: whiteboard
+version: v1.0.0
+upstream:
+  repo: github.com/calionauta/gogogo
+  ref: master
+  path: features/whiteboard
+files:
+  features/whiteboard/components/board.templ: 3521afe16714d6e7e30708e7b3d8929c76f13ac512eb651aafdd81a4f1eb3074
+  features/whiteboard/components/board_templ.go: e7dd67063d954feda3003ea0f8c68582606213cf8ce1d2dfb4c678f4afadbc5c
+  features/whiteboard/components/board_test.go: 4a6dc998db694b7da81fa490b466f45d46cf82d77b6e6b19d2d0e16e3998ae16
+  features/whiteboard/embed.go: 211f94c30a286c4e7307af6344c77abf76f224a1ae949b8463ab44d86d7870d0
+  features/whiteboard/handlers/chi.go: e1265b3ad6f246fc25a0fc61f334b0782e25185ff0b8516fe0ccc4d374d67b6e
+  features/whiteboard/handlers/chi_test.go: 8c22cb5fcdbbc52bfd8f6353c3ad82c45cc47f2c6d653926bdfa8f27c400b9ab
+  features/whiteboard/handlers/page_seed_test.go: 00cf78a734a9489371c5c1cde209ec77b66e8a2596c8184cfde03253e138c0a6
+  features/whiteboard/handlers/peers.go: e80224a4fa388b997e292d650a6d493fe6f948aac42dc744fbc89c831c84f67a
+  features/whiteboard/handlers/permissions.go: 5031d113160f5b8bc1c9d1cf576212258523b76b8f3a56c0d510d30d6915589d
+  features/whiteboard/handlers/permissions_anon_test.go: 85728423951da61095bd43b8d65ec56d0b62b5b8b2d46dedb9283efffc5f72eb
+  features/whiteboard/handlers/permissions_claim_test.go: 616ddd8767d422479e81889ed3276cf68593b8e0f25702f4ae92b764f973d8ea
+  features/whiteboard/handlers/permissions_registry_test.go: 0f0583a283a3c2c52516fa12166ffc93b9fe91adeb5db76a84a5bec964e92f30
+  features/whiteboard/handlers/permissions_test.go: 3f3f0a55c947f8d3a150b2a9463211a1f51a668560dfd63acb6c0d59ea80b795
+  features/whiteboard/handlers/port_contracts_test.go: 52da67ecb6353349d8111219bd41db83271261234565409c0b61ddd47bff08f6
+  features/whiteboard/handlers/port_doc_isolation_test.go: 44797bed8923131e0102f6f54c21cbfa15e69638efea64bd7b795a0f31b2f171
+  features/whiteboard/handlers/port_test.go: e6af49f5bcdb099857d61adf094e1184209dfa13a7cf93f283931d7d43c4c5e2
+  features/whiteboard/handlers/presence_cross_instance_test.go: 5f537ae45422afdf605cd45003f9bd9efbba5880a7620affd47ac70f46c4ac96
+  features/whiteboard/handlers/presence_test.go: 31461c438b7be7eb5da5f0b95425c1821d2e3d643ac09291d5188b63af0155ad
+  features/whiteboard/handlers/recipe.go: 99ae36e4212252d662e769b556491e373f5b056c2955a27b36241b1af1130afb
+  features/whiteboard/handlers/register.go: bc25a6804d953f40048db313b4584030c3a2c329efe6f34764ff6530e7608e83
+  features/whiteboard/static/rough.min.js: d5d561189ea0ad7a2818d586dc964d84fa4751124a5270c6b267a41e53796e45
+  features/whiteboard/static/whiteboard.js: 576891f40cf7070b95bbcd61e7e4bc2be899f92d5dd632bbc5c57d30892aada3
+declaration:
+  routes:
+  - method: GET
+    pattern: /whiteboard
+  - method: GET
+    pattern: /whiteboard/new
+  - method: GET
+    pattern: /whiteboard/{docID}
+  - method: GET
+    pattern: /api/whiteboards/fragment
+  - method: GET
+    pattern: /api/whiteboard/{docID}/stream
+  - method: GET
+    pattern: /api/whiteboard/{docID}/snapshot
+  - method: POST
+    pattern: /api/whiteboard/{docID}/update
+  - method: POST
+    pattern: /api/whiteboard/{docID}/presence
+  - method: POST
+    pattern: /api/whiteboard/{docID}/delete
+register: features/whiteboard/handlers

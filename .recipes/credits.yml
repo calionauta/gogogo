@@ -1,0 +1,44 @@
+id: credits
+version: v1.0.0
+upstream:
+  repo: github.com/calionauta/gogogo
+  ref: master
+  path: features/credits
+files:
+  features/credits/biller.go: 03b98e8301137a6bb88b2aceda499a1a815045ad0be07b2c51d7ff6ba166a744
+  features/credits/biller_test.go: b445fa9f0b00304278a41e84d031e700a95780cb091e0bfc26c1dff86e149ea6
+  features/credits/credits.go: 547cb6979e416dad610112c7bdff1cc82e97b1d607d1fcebc3734aa21b92d8a7
+  features/credits/gateway.go: 3de972e627629cb3d1b49664d678836f1f08c9fe6d0a9522e4daedf4a28b83b5
+  features/credits/gateway_test.go: 05fdb0efb84bb74310aa8cee06f3e1eea68a27de26e2744388f9404848095800
+  features/credits/handlers/chi.go: ab7202af4951c3be4b4d1b5303c70a3691040ed5a2a455420354d83770fc94a9
+  features/credits/handlers/chi_test.go: ff694c632ef43dfd45477ca54e35027b73d601703815b727cb107b4062f57236
+  features/credits/handlers/driver_android.go: 0456c4150c6674aecad5b2cad51eddb04c4d4691cf2629b85b8afded40814cf7
+  features/credits/handlers/driver_other.go: f18d89b85028097ab367d5da41094e58b364eedcd76ac455ee3ac9d6902504d3
+  features/credits/handlers/recipe.go: 9429aa7fd67867fb8850b75fc3d4e4c1cc0cd7271d581a2f310b7d2b77db571e
+  features/credits/handlers/register.go: 025ed866b618536aae2c4385650aee053770f4370eef7a3e6ecd759cbeecc462
+  features/credits/lifecycle_test.go: 0a389e5131628dc2b47faaacd0614818aad6b7dae72be238bb59e1f7eab7dde4
+  features/credits/reconcile_driver_test.go: 0e9c97b01af94a7997a7d1bda74bcda578305c597ca7fca39e0cc7988823870a
+  features/credits/settlement_synctest_test.go: cce4e9ad8a006c9f48713ec9216232c46ad004feafea54de9efd04979914cff7
+  features/credits/stripe.go: 2671cb9fb21da7968b26fe044f6f7d9435d712b58d4a6423ccf6ebd85d161bf4
+  features/credits/stripe_test.go: 68768fa830f051d911774606bf4718e7cce58b2a5d2bc0a47967caa4f3bee1d0
+declaration:
+  routes:
+  - method: GET
+    pattern: /api/credits
+  - method: POST
+    pattern: /api/ai/request
+  - method: POST
+    pattern: /api/credits/checkout
+  - method: POST
+    pattern: /api/credits/stripe-webhook
+  - method: GET
+    pattern: /api/byok
+  - method: POST
+    pattern: /api/byok
+  - method: PUT
+    pattern: /api/byok
+  - method: PATCH
+    pattern: /api/byok
+  - method: DELETE
+    pattern: /api/byok
+register: features/credits/handlers

@@ -1,0 +1,41 @@
+id: account
+version: v1.0.0
+upstream:
+  repo: github.com/calionauta/gogogo
+  ref: master
+  path: features/account
+files:
+  features/account/components/page.templ: 5f28d1c69670d90d399ea66066cdee2949ac4965a518d9cf659e26e7a7b5c437
+  features/account/components/page_templ.go: 8eb28074b0cd7d7cde5cad310d8f299cc089771ac1969b0543147d812289c1da
+  features/account/handlers/chi.go: 20a08f4b41da7cf913dd48c70f60ae06e4f2957ded8d5822784dfab4e7396496
+  features/account/handlers/chi_test.go: 228a527b8310f51e3e8b3e981a289721f4122536b81def7494df329690794c13
+  features/account/handlers/cloud.go: 20747005bda44ef2516b8365a2cacc60bf4283e783e946d101e51eea83609603
+  features/account/handlers/recipe.go: ab96553aef07a6f997b4891189c12cf2713e451299bc6f2a96ce64c85134bf06
+  features/account/handlers/register.go: f3af8dea1a469a103cdcae2d68c0651cd50de812879852b0196fb7789038fa1d
+declaration:
+  routes:
+  - method: GET
+    pattern: /account
+  - method: POST
+    pattern: /account/password
+  - method: POST
+    pattern: /account/verify
+  - method: POST
+    pattern: /account/totp/begin
+  - method: POST
+    pattern: /account/totp/verify
+  - method: POST
+    pattern: /account/totp/disable
+  - method: POST
+    pattern: /account/totp/recovery
+  - method: POST
+    pattern: /account/sessions/revoke
+  - method: POST
+    pattern: /account/sessions/revoke-all
+  - method: POST
+    pattern: /account/cloud
+  - method: POST
+    pattern: /account/cloud/disconnect
+  - method: POST
+    pattern: /account/device-token
+register: features/account/handlers

@@ -1,0 +1,19 @@
+id: dashboard
+version: v1.0.0
+upstream:
+  repo: github.com/calionauta/gogogo
+  ref: master
+  path: features/dashboard
+files:
+  features/dashboard/components/page.templ: 72d0591faddf7d4e5fd1510872a6fead7d97c7fa2f16b80e9b20bd16b9bb6d8a
+  features/dashboard/components/page_templ.go: da0bf25b6f868ba7fc29911313f85e6591be77ddd947729b5ef23f740044074a
+  features/dashboard/handlers/chi.go: a7b745c9e281e338fb8e8de5c1373669381a48a7b9cc859d1abab214fac899fd
+  features/dashboard/handlers/chi_test.go: b762400b21038515e8c64230898080f32220b06bf2f595cd91a4f249a27b6947
+  features/dashboard/handlers/register.go: 463e69693e5681739fa14ef7e171c5bc32e55d5785d4c425ccd673cb3d0c4091
+declaration:
+  routes:
+  - method: GET
+    pattern: /dashboard
+  slots:
+  - dashboard.card
+register: features/dashboard/handlers

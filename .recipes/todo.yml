@@ -1,0 +1,155 @@
+id: todo
+version: v1.0.0
+upstream:
+  repo: github.com/calionauta/gogogo
+  ref: master
+  path: features/todo
+files:
+  features/todo/bus.go: 95f07776d18379911671eeb7e31a7b876298b31ea8e9c87064af003d8f1d4c4d
+  features/todo/bus_test.go: c8ed1c71f24279786257026d91eed5ab7262eb9e1791c1fbbdbd661387f79ad9
+  features/todo/components/asset_fingerprint_test.go: 6ffd7ce53e01f928518707189f9877c46db2fb5658a9ee70bd5b4e7930fe3d72
+  features/todo/components/date_filter_test.go: f4baaeffc360bdb66b6e704af266e1398c4edc9767f696fdf2c252587e1f6fbc
+  features/todo/components/disabled_attrs_test.go: cf50fa7acc3c04eb2c9eeba59614dde83d92b36a2242affaf085437d2dfa08f5
+  features/todo/components/layout.templ: b2a98b443beab91b29d8268036826ecbf1907f2fc0586c20183860c54b8a4090
+  features/todo/components/layout_sse_test.go: 8937433254d40b54b6a57e380b61da36edc33f22cebdde616da9be10e3efbf42
+  features/todo/components/layout_templ.go: 21949f70bd392e39bae4d67687553861136206d3288e47afef519898bf8a6a55
+  features/todo/components/machinery.go: 005eeaf32c743f31efadb0d4f04a68301099bb3ee91e660dca43ca40ec35fa8b
+  features/todo/components/panel.templ: beee58aeacedd6f4602dfba057c0ccd597e1430276cfd20bbea3f8866c0c1929
+  features/todo/components/panel_delete_test.go: e73884f39a67de6b91bdb6af31d3fc4dce97eeb433c38dfb11fb7b998786fe8b
+  features/todo/components/panel_gate.go: bdc1d0bf78a9da2bbbff3441cc7a47059dd5c471c38d9608ad40e906a3efdc93
+  features/todo/components/panel_gate_test.go: 9cbaea69abb76f106d58e94dd37ebde6c8598935434d6f16cd0b823e6ddbeecb
+  features/todo/components/panel_templ.go: ee9d382b7548aed9cfcc040a82616c507b576021f00b575ab92c9c5a78a61c27
+  features/todo/components/pending_row.templ: d671f71ddbaced94b123a634cb551aaae926e216bb852e90818d852b00de9ba8
+  features/todo/components/pending_row_templ.go: edd66e2997e824c4b303762afa77f00127dcd38920153d9a08cc3fa8c97322bd
+  features/todo/components/pending_row_test.go: a043b58d1ad591bfaf65ddc2af15ce1af4327f3652197ac47fd318b811b59dae
+  features/todo/components/presence.templ: 6238a9da25949724933eb47994e760356cfd7da81a8214a867a18557dd99477a
+  features/todo/components/presence_templ.go: f569e015478e0d98941c790a5644dc9d27cf8c39bbc120f067fa915db6c3f744
+  features/todo/components/realtime.templ: 985dcf541e225ec89d47bddc6bb943f008cb32d3796a4037369dc1e341cd1de3
+  features/todo/components/realtime_templ.go: 5c23d68b620c45e2f73a1df86a3fa3cabf414a266bb1cc493c76cdaa90644234
+  features/todo/components/render_regression_test.go: d4b008545ddca8e026c3dc7caac21f89c5ca8b523edc2098d52d9fdf1ef1e16a
+  features/todo/components/row_actions.go: 03f4784847d4750c000ea8644e88409e5d6e5afcc0d477cf4dd2d38a09806db3
+  features/todo/components/row_actions_test.go: 5de1f3a98ea5a22276febddb74ae126939967562f28772fec9524544ec68c76d
+  features/todo/components/state_panel.templ: affb934ccb1be53d659b697e1529c748308ac5405ff1957a3f8c8366a66c7311
+  features/todo/components/state_panel_templ.go: e954cd34d8b4c3c8f4632e73b55503deee96396abe24ab8bd66fbb1552e78a92
+  features/todo/components/todo_item.templ: 817444bc287669103ee44121ba4432e4da8be2bb12106f62336d7d9ee59ebc9b
+  features/todo/components/todo_item_templ.go: 22f6385f6f53df4a50546cfc7a669f57865eee160404069bb853b3885fb6394a
+  features/todo/components/todo_list.templ: fdb9ed79cc72e73d47c108d31f092b2df13da5122f524b121387b26b3d73f948
+  features/todo/components/todo_list_templ.go: 1c8bc08ae398f2ea380d7028f6980f4f7970ade59d301d4c6841122191984289
+  features/todo/embed.go: e6ba82d62728258995c1cfbeb21f21490ddc54d9d83e526cae52aa9aa5a93e92
+  features/todo/event.go: c5c3bd97a987ee9b71b8f2c22ac46ea4fc561f2d907cb35382dfe3a7c848eb46
+  features/todo/handlers/bench_test.go: b9a0a3d6a9fc9e038273f026c9589fe60e23fd9ca04a0bd1d1a2c94149e3a7e3
+  features/todo/handlers/bridge.go: 582edc869e5a21194bfcc24ec315cf17a549d66cbc99d7da439cf5dd374ff09b
+  features/todo/handlers/bridge_test.go: 37c2b7cb57053e755e88a973db13c7c60da7768346e706240863778c471e452c
+  features/todo/handlers/card_action.go: 9a04cc18c09a49d2fa2ad65d852fe40855da2966c1f7b34833f71d99f032cd27
+  features/todo/handlers/chi.go: aad74dd57a3fd81b1a9d7fc1a435c065f421cea0431163d234238c2b3bd9e663
+  features/todo/handlers/composer_signal_test.go: 67b25341611738fccf5bf32b88779d500b681c233f35a9ac494c2890db6efccf
+  features/todo/handlers/dagnats_ui_port_test.go: 99f3051e0478e52dce34ea78204842dc8ceb9944e6a295e7d3529205cea6987f
+  features/todo/handlers/dispatch.go: ea68383a178866038ea835349462868400de9a446ee6b1d2fbb2d8bea8d8b8d5
+  features/todo/handlers/dispatch_foreign_test.go: 2ae3345330dfc8d9bd3eba54c5049a5a78a7b14cefdde4570d731568e65c24e4
+  features/todo/handlers/event_sink.go: 5e5d42aa66e196d34b61b9f7fab76efcf9c845b3adfa0c06fba62025976add54
+  features/todo/handlers/event_sink_test.go: 07df60ea22f7107454c97c170dc345b96f6427f7399b81d371b223e48242c550
+  features/todo/handlers/events.go: 8b64f85b20ff7827c447907f4875d5474541f645fe9ae3d28e3e98c0d5b3aeec
+  features/todo/handlers/events_test.go: 6d291887ff9be4a6e38c3d2ef9b201e83a54dd2852cd8f0b0c516012a312b576
+  features/todo/handlers/failclosed_test.go: 105940dbac668b72f8d3f9eed26bcc4d6e404f12719a817371da35324aaa9597
+  features/todo/handlers/genui_owner_test.go: f53edf3d565b683a929e45f62dd54b2c22b0f125d2a43accd4161ebc3641fcd4
+  features/todo/handlers/genui_panel.go: 9845222e3d53b09721fb9143736549bdaba68206dacc7985e35ff655e85c910c
+  features/todo/handlers/genui_panel_test.go: f2af426230c35150772668b70024f3c6a9d21fee35dd2268cfb3e6857a10e4df
+  features/todo/handlers/handler_test.go: a2980b132aadd61b2fc304d216c3d7d43f5cda2296bc4420868c9519e10ceb7d
+  features/todo/handlers/idempotency.go: 1696ae5275a594494bf52f0dc3bcbee2e912e7477e2936e773fdd63d58e90056
+  features/todo/handlers/idempotency_test.go: aa3128c5d48347dfcff2f578e02382c99b350fa2e74c577a138d2f075fa4cdd0
+  features/todo/handlers/index_write.go: f8b784c4e331c71ea5d321c0e5d4f94f032f364e6dc12827f6e7fad6f31609b1
+  features/todo/handlers/invoke_test.go: 8567b968b576f34e687c6893040ebea379a375abf76804c8911a90a1cec2f8bc
+  features/todo/handlers/listing.go: 237ab35807146c73c1a6bb2a5e58dfafa4c0d3c8d5fc74ca174ff9ab11e288bd
+  features/todo/handlers/mutations.go: 610b766ee658e9f575d1aa941129698a983a958640dc89eea24dd7245d7a5a78
+  features/todo/handlers/onboarding.go: 7919892635126df857059cb5c36b8861cc3291a8d195548bfbe3f3b3e93196d5
+  features/todo/handlers/onboarding_test.go: f0b6f51c51d9d8c7a84e48ff82895cbc0d767e978b799309a08dc2abf9db40d6
+  features/todo/handlers/pages.go: cfab939bfdc27c6e8cc49d22c810c580cede57b2daaf2a9914696740700e730c
+  features/todo/handlers/pages_test.go: 45710e22e254ffd1f2c78fe9a2ca80d4276a043a3ddee5108fe0b6e409aeacd9
+  features/todo/handlers/panel_action.go: 6f5657564cb6c7f023adab480f8fb4eacb21dc5a280f15de6626397bd83d4992
+  features/todo/handlers/panel_action_test.go: 2eaf297f7666935d6c70fd98fef69daa22541a6a0c5e26ab03b9d7bee1d24bf5
+  features/todo/handlers/presence_propagation_test.go: a62a4ca0d1a6e8229e6ecc7b097b6a7064de9e0a2dd631aa57fdc10019502ba8
+  features/todo/handlers/recipe.go: 813e882fc5ddff1b4cb9b3fe8787cc5d901b6c0784cc8e75697374d0ba6bd6eb
+  features/todo/handlers/recipe_migration_test.go: 368240e27a6d5fa7dd7d5d9894954a83de5ffc4e5454bf4e6af6c124bfcbb553
+  features/todo/handlers/register.go: b9ae97dfbe9586836455e69a495468c3b2be3ebddc29a32b55332ab126bd6a39
+  features/todo/handlers/replay_propagation_test.go: 0e16618981b67ff9423fe89e5fc0c3a411a44c7e30d463c29e88681af7d45f35
+  features/todo/handlers/retry.go: 8c6e8c4647fb3553fd0a59969444343b9f47733b40dbd1eadce80ea86c867704
+  features/todo/handlers/retry_clientid_test.go: d223d20b828a94b815270951df2e6f7087d24e4ed4b72b2f3915735e8b519fa0
+  features/todo/handlers/retry_routing_test.go: 645d30a813083015c1d0ef258cc927fd59641490f1d94f8151a163483445f05d
+  features/todo/handlers/row_actions.go: f822d612ffc54bdbd7ed0f811e98d98f77909d181aaf86204dc1a4aa1e5dead8
+  features/todo/handlers/search.go: fd2a5b47d7df06237dec5588d6435108267b9745bd745d1159830f3cb22ad77d
+  features/todo/handlers/search_heal.go: 4bcc253e5f61cd1818e97f01e62a7f0f11e970a56ac184fc47577b164f72d8ac
+  features/todo/handlers/search_heal_test.go: e7f884552e6019151cf022da57345e98fc9f997b6f5883fa3629c7fc11d3d365
+  features/todo/handlers/search_layers.go: 3598db2b015e36fd57be0549633a45e8ecad983d4acb0e52320da7d1eaa741ac
+  features/todo/handlers/search_mode_test.go: f3bdf834fc165de02e2258ddc127163b136124cd2dbb8294f6dbde94a63ff8c3
+  features/todo/handlers/search_source.go: a606a3323d90c25894e2df09b2e8f09c0b6b1e6da8ef8366240a0dc401004cf6
+  features/todo/handlers/search_source_test.go: 76a2a1248a55f4bedd6aa3bc068d0260967c43e3f99af15fdd28350d351aa834
+  features/todo/handlers/search_test.go: b815c24cda59aeece6a89fc7923b6c4ad3fd6eb6fd6440c78a4b5fdc92c3389e
+  features/todo/handlers/session_signal_test.go: 2e1a0224518c6a7757eae58e02d38f2bc594221b15106512ca6f2ee5f4d414d2
+  features/todo/handlers/sharing_test.go: 3d868a6e587d0c0ca3bfeb6be319ef4ed523376de1c907e86e942eb5a5357434
+  features/todo/handlers/stream.go: 555e0d3c5a2bc6d8f14fa0623348cdb5ca14be91b9200995a48ce3a70e562300
+  features/todo/handlers/stream_propagation_test.go: 899bb3b7969e91532895e047814e090794068accd5f13de783ab2b67b65b95b9
+  features/todo/handlers/suggest.go: c352407d34a1232f9f0b3c9c9fa41096aec5433ff13efd4e0436f06890c6bcf9
+  features/todo/handlers/suggest_test.go: 733330580a7f75c0ee32c0c5ba7390e3d439335f6b9e2c595d9fc18a67ce6bc8
+  features/todo/handlers/viewer_test.go: 332d848ef36ed1db30ea487ba63322ce74362e5d5404f647075111ca7ab47033
+  features/todo/migrations/0001_init.sql: 4551df69e797fc5e19c212f96bc8c01aa24145188153cdeae3910fa37bb8f562
+  features/todo/models.go: 6256e20428ab7108ce36c493b97646e7b3b888f9a9bacbb0777c665185d4f421
+  features/todo/models_test.go: 4a112ed099633dfdfed707fdc4cc230fce70406d5188d3c59ad3b57989d195a7
+  features/todo/panel.go: fff651045abd071d7366c3b79ca77342723f508629d7e16c1d8dc4575a069427
+  features/todo/panel_filter_test.go: 4db8012769cfa9418d33cc259662a5935464cc4c02fd50fcb9e678233315eeb5
+  features/todo/service/mapping.go: a2d0f4392649e9d932b4fc64656e81375b879fd339e812e4c49d3b298e246b3a
+  features/todo/service/mutations.go: e5c4f4fd026aa0cd999e691ce8febcb854c8fbb521653c7757bf734b4ed5478c
+  features/todo/service/service.go: 71e5f45e1f6d90c5334f9d9ed78a2cd535b92e529e7c90ae67cb531d1fb62d69
+  features/todo/service/service_test.go: bc098d22c16539b21c6add270cd2f8fe9ba0a955c1928f1d825e24e328fda6f6
+  features/todo/todo_test.go: 4f5de39286fd79f2e52a2a17a12ac63e74e944ef87dff86a37a23f489a89c971
+declaration:
+  tables:
+  - ext_todo_todos
+  routes:
+  - method: GET
+    pattern: /api/todos
+  - method: GET
+    pattern: /api/todos/search
+  - method: GET
+    pattern: /api/todos/fragment
+  - method: POST
+    pattern: /api/todos
+  - method: POST
+    pattern: /api/todos/{id}/toggle
+  - method: POST
+    pattern: /api/todos/completed/delete
+  - method: POST
+    pattern: /api/todos/{id}/delete
+  - method: GET
+    pattern: /api/todos/{id}/confirm-delete
+  - method: GET
+    pattern: /api/todos/stream
+  - method: GET
+    pattern: /api/todos/events
+  - method: POST
+    pattern: /api/todos/suggest
+  - method: POST
+    pattern: /api/todos/suggest-simulated
+  - method: POST
+    pattern: /api/todos/retry-demo
+  - method: GET
+    pattern: /login
+  - method: POST
+    pattern: /login
+  - method: GET
+    pattern: /signup
+  - method: POST
+    pattern: /signup
+  - method: POST
+    pattern: /logout
+  - method: GET
+    pattern: /todo
+  actions:
+  - verb: create
+    route:
+      method: POST
+      pattern: /api/todos
+    params:
+    - title
+    - idem_key
+    - visibility
+register: features/todo/handlers

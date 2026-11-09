@@ -1,0 +1,55 @@
+id: notes
+version: v1.0.0
+upstream:
+  repo: github.com/calionauta/gogogo
+  ref: master
+  path: features/notes
+files:
+  features/notes/components/notes.templ: 3efa27623ce75aaa51fbab6b25515ae288224011f8e42d3054caf236d3b5f08d
+  features/notes/components/notes_templ.go: 71f9b98bc3bcf10daa11eff4aa12d91d3332e9f58a9cdb0dd387be2632175e25
+  features/notes/components/notes_test.go: b1b2a898ed8ca8076020610451a86b21bcc7f7e4c84fdf3be92d8cbc40e7ec66
+  features/notes/embed.go: b68a3f0837950860aef549e55bbc16e4a07bc1c9fd58b58a010a35fb987c928f
+  features/notes/handlers/chi.go: a0f9e9ab9d690962de6577734eae641bfa947acd1c15c5748f57198f878575ae
+  features/notes/handlers/chi_test.go: 90f6b5ad8e278b60c58e44547105dc20b493f9ca7fc7ccd17a776274a96cb290
+  features/notes/handlers/peers.go: 6be2d981c0185e9f82fd78060e6e72af04864200898821aac73b8c5056085f0d
+  features/notes/handlers/permissions.go: b01bfd06e6f55cad7d9da1f0e521fbdf203857ab0bd0be375d709755a2e2c586
+  features/notes/handlers/permissions_anon_test.go: 02bf3696ae9f0ecebb13343cdaae76e25c76df623e106529d164dea6df16166b
+  features/notes/handlers/permissions_claim_test.go: 62b85cd48c794abe7b4fc0cf0d655c864b44aa7ab8bf3e9e3a277dfb1c8cfe0d
+  features/notes/handlers/permissions_registry_test.go: eb3fec73047fb245e433b29cfad616c73e03dbc02b9c272df29a9911852a2361
+  features/notes/handlers/permissions_test.go: 1ac00c19175a22956e6381f48a0838d55f32b79aec2be8dd7443e5989b535e98
+  features/notes/handlers/port_doc_isolation_test.go: aba5ac6cd72b8bc3d7fa4a4778ff54466e059d43851947198cc73932f1ed70ef
+  features/notes/handlers/port_hammer_test.go: 9fec65b0594ff3e7e3ee084ceafa44aedac1f9019b8f73cc89021f5fcb87ba7c
+  features/notes/handlers/port_leave_test.go: 599dd5c27c2d75f2d30da1698a8fc38f16c7fa5edcab65e2fa7caefbb7b9c700
+  features/notes/handlers/port_presence_test.go: d12a61007f2e74ab291b2719d33de2d24b7caab4da3f1330934df5a7c5e5ecd3
+  features/notes/handlers/port_rehydrate_test.go: a6589abfc45a22ea83a3f9bb82f7edee20c269091ec575a8f0fcf115350f7355
+  features/notes/handlers/port_sync_test.go: 6090bc7b406fef30b0895beb6c59a5103a6b602173caa985e42563d6847129c0
+  features/notes/handlers/port_test.go: 0ef62a1fdf56d1580bf54826e75052764a921cad048cdd51b4d79e69c92fd0bf
+  features/notes/handlers/presence_cross_instance_test.go: d0f6f08fddf2e1c3928c9c14fde31e6c325da3170713580d85c7b789371b0ca6
+  features/notes/handlers/presence_test.go: 7c13f23f35f0a296157745e8af31bdb12022e093b3fbdaff07c364cd58b2dd38
+  features/notes/handlers/recipe.go: 55f9726310774ea520770b10449af910ebe5c2238b3140903c40be8cf16e9ff9
+  features/notes/handlers/register.go: 420e8d6bc4ebfedd24d10a12072bedf737000e6bfea16e676be9e877ffb48713
+  features/notes/handlers/wire.go: 02b22755689837bc750680d8ed9507f344ec819f828f89170a3369e065da4072
+  features/notes/static/notes.js: fbe9cce1da47a69de1fd7e3eb6687b25dd603809f9b6ddbf34e60cc45b649f51
+declaration:
+  routes:
+  - method: GET
+    pattern: /notes
+  - method: GET
+    pattern: /notes/new
+  - method: GET
+    pattern: /notes/{docID}
+  - method: GET
+    pattern: /api/notes/fragment
+  - method: POST
+    pattern: /api/notes/{docID}/delete
+  - method: GET
+    pattern: /api/notes/{docID}/stream
+  - method: POST
+    pattern: /api/notes/{docID}/op
+  - method: POST
+    pattern: /api/notes/{docID}/typing
+  - method: POST
+    pattern: /api/notes/{docID}/caret
+  - method: POST
+    pattern: /api/notes/{docID}/leave
+register: features/notes/handlers

@@ -1,0 +1,18 @@
+id: landing
+version: v1.0.0
+upstream:
+  repo: github.com/calionauta/gogogo
+  ref: master
+  path: features/landing
+files:
+  features/landing/components/index.templ: 88c6a8da8b86b1ffb12e9c74b0a4eccf6ac0d4c5e64a51ec97f39899f11ef365
+  features/landing/components/index_templ.go: 44ebb60b197c542af606da1aec94759eaf0025ae66f8ff34449833de4051f2e9
+  features/landing/handlers/chi.go: 6c7782af81268fa773a66d39f95500fed8c6adc9b643efbb16553a548ab7af84
+  features/landing/handlers/chi_test.go: 2691730b0f4560956bf89adff16dcc6fcfbd25e4fc0d15c79be004fdd76ce302
+  features/landing/handlers/recipe.go: 18e05cd232d55e714f4170c354431157a6e661cceacb867f1e93eef0b7119bc1
+  features/landing/handlers/register.go: 743f081b5f3b4ff3603d723ac597e63aad51dd77fadbbe26680380fd5e7c9c71
+declaration:
+  routes:
+  - method: GET
+    pattern: /
+register: features/landing/handlers

@@ -1,0 +1,38 @@
+id: room
+version: v1.0.0
+upstream:
+  repo: github.com/calionauta/gogogo
+  ref: master
+  path: features/room
+files:
+  features/room/components/page.templ: 8389f9bf674f0fbdd743d58af378493870900c76c67a213cc910dab92595a025
+  features/room/components/page_templ.go: e9cfe70f730e9c074f05c9a00557d7fc9e4dcb6f70e335206dc5f18da862fff1
+  features/room/handlers/chi.go: 686db8e1f00a16976c2c44ee4fcb9ffd3df6e8bddfd02a0d4c502cbf417f538a
+  features/room/handlers/chi_test.go: fc56b4e31e87370820ec2eff6a61ab4df04c1d878d34b1ade1e921b700f6477a
+  features/room/handlers/integration_test.go: 4ba22af3eea5d74e98663478d359baf5bf2c1227c124fd474edcf11145a93867
+  features/room/handlers/patch_test.go: cce186622597ded83d2bb10466780d988a4f93e97f059247868d1a44032be583
+  features/room/handlers/recipe.go: cfbeca025151035bd1fbff6e0414dd4eadb8978223239a8996308306096494f2
+  features/room/handlers/register.go: 705e696de3c30650ba864d45890c86b14efd0e75fd041f3419f06e716bff7414
+  features/room/handlers/stream.go: a74ba2bcf140de542f105f57e15274894fa245aa0fc49f5f566d64a64613004a
+  features/room/handlers/stream_test.go: 377987ea0dddf5f0d65a910a5f62ed67f3437f1f7284335cc1dbf0a3d0258471
+declaration:
+  routes:
+  - method: GET
+    pattern: /room
+  - method: GET
+    pattern: /room/roster
+  - method: GET
+    pattern: /room/stream
+  - method: POST
+    pattern: /room/heartbeat
+  - method: POST
+    pattern: /room/join
+  - method: POST
+    pattern: /room/acquire
+  - method: POST
+    pattern: /room/release
+  - method: POST
+    pattern: /room/leave
+  - method: POST
+    pattern: /room/crash
+register: features/room/handlers
