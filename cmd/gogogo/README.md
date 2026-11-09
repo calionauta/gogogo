@@ -43,7 +43,7 @@ the same engine the MCP server calls. Full contract:
 [`skills/gogogo-recipe-authoring`](../../skills/gogogo-recipe-authoring/SKILL.md).
 
 ```bash
-go run ./cmd/gogogo recipe install ./_extensions/pomodoro --dir ./my-app --yes
+go run ./cmd/gogogo recipe install ./_recipes/pomodoro --dir ./my-app --yes
 go run ./cmd/gogogo recipe status --dir ./my-app   # pristine / modified / deleted
 go run ./cmd/gogogo recipe list --dir ./my-app [--format json]
 go run ./cmd/gogogo recipe invoke todo create --dir ./my-app --param title=hi

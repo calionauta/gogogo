@@ -220,7 +220,7 @@ the `review` feature and the `genkit` plugin).
   `offline-sync`, `perf`, `search`, `sounds`.
 - **Feature (site: Recipe):** `account`, `chat`, `config-view`, `dashboard`, `landing`, `notes`, `notifications`, `review`,
   `room`, `todo`, `whiteboard` (all self-mounting via `Capability.Register`).
-  `license-activation` is a manual mount (standalone activation page, not an installable recipe).
+  `graph` and `license-activation` are Servants (manual mounts, not installable recipes: the panorama host and the standalone activation page).
 
 ## Bundled receipts (ownership, not installed registrations)
 
@@ -242,7 +242,7 @@ hosts are recipes too (they mount via `Register`). `dashboard` hosts
 `ListTodosByOwner` (open/total) and `CountUnreadInApp` (unread inbox), lists one
 card per installed recipe (its rail destination), then renders
 `SlotRegistry.Fragments(SlotDashboardCard)` for out-of-tree contributions;
-`graph` renders the capability/recipe map itself. Pomodoro (`_extensions/pomodoro`, 281 lines,
+`graph` renders the capability/recipe map itself. Pomodoro (`_recipes/pomodoro`, 281 lines,
 one table/page/write/sidebar) stays the minimal installable example;
 `features/todo` stays the in-tree reference slice. New cost: none — deleting
 a bundled unit is `recipe uninstall <id>` (see `docs/features.md`).
@@ -257,6 +257,28 @@ receipt stores pristine hashes, the drift check classifies pristine /
 modified / deleted, and `update` keeps user edits (three-way via git) while
 `uninstall` removes only pristine. That ownership is why bundled receipts
 must live in `.recipes/` even for in-tree units.
+
+What gogogo does that a copy-paste library does not — the same ownership
+pillar ("traditional libraries create dependency relationships; shadcn/ui
+creates ownership relationships"), taken further:
+
+1. **A vertical slice, not a fragment.** shadcn copies one UI component;
+   a recipe is a vertical slice — page + handlers + components + tables +
+   queue jobs + policy rows: an owned product surface, not files dropped
+   in a pile. And the declaration is *applied* by the engine (schema via
+   seal, policy rows), not merely shipped: receipt/code drift fails the
+   build (no anchors).
+2. **Receipt + drift.** shadcn has no hash check and no notion of what
+   changed after the copy; `recipe status` answers pristine / modified /
+   deleted per file, so "your edit vs upstream's edit" is never a guess,
+   and `update` keeps your edits instead of overwriting them.
+3. **A lifecycle, not add-only.** `recipe uninstall` (pristine-only),
+   `recipe status`, `recipe outdated` (the version verdict, exit 3) and
+   `recipe list` / `describe` / `invoke` — discovery and exit under the
+   same noun that installs. shadcn's own docs name the cost of ownership
+   (manual updates, you're the maintainer): gogogo prices it in. The
+   receipt stays when the recipe is removed, because the data still has
+   an owner.
 
 Trim is **not** the recipe mechanism: it is scaffold-time removal of
 Servants/Core (engines and deps the binary would otherwise keep — `nats`,

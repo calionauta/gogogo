@@ -33,12 +33,21 @@ type Handler struct {
 	// slots is the settings.section surface. Set by the composition root; nil
 	// means no recipe may contribute here, and the page renders no extra card.
 	slots *recipe.SlotRegistry
+	// providers is the recipe registry the composition root owns — the
+	// mounted set at render time. Nil (tests built without it) means
+	// every recipe reads "in" (see MarkRemovedUnits).
+	providers *recipe.Registry
 }
 
 // SetSlots attaches the slot registry the composition root owns. A setter rather
 // than a constructor argument keeps the trim's line drop and the existing
 // callers unchanged.
 func (h *Handler) SetSlots(s *recipe.SlotRegistry) { h.slots = s }
+
+// SetProviders keeps the recipe registry so the Units tab can read the
+// mounted set at render time (post-boot — the full tree, not the partial
+// state Register sees mid-boot).
+func (h *Handler) SetProviders(r *recipe.Registry) { h.providers = r }
 
 // NewHandler builds the chi config handler. Nil deps panic: wire errors
 // surface at boot, not per request. queries serves the role lookup for
@@ -78,6 +87,13 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 		role = sess.Role
 	}
 	data := components.BuildPageData(h.cfg)
+	if h.providers != nil {
+		mounted := make(map[string]bool, len(h.providers.Providers()))
+		for _, p := range h.providers.Providers() {
+			mounted[p.ID()] = true
+		}
+		components.MarkRemovedUnits(&data, mounted)
+	}
 	// Admin mutations require a fresh proof. An OAuth-only admin without a
 	// verified factor has nothing VerifyStepUp can accept; the forms say so
 	// instead of silently failing.

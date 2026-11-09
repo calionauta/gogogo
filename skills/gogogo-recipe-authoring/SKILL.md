@@ -38,7 +38,7 @@ Check in this order, and stop at the first hit:
    a receipt you can update.
 2. **The reference slice** — `features/todo` is the living in-tree example every recipe
    is derived from: handler shape, page shape, signals, policy rows, the receipt.
-   Copy it rather than inventing a structure. (`_extensions/pomodoro` is the worked
+   Copy it rather than inventing a structure. (`_recipes/pomodoro` is the worked
    out-of-tree example — a minimal installable recipe with one table, one migration,
    one page, one write and one sidebar entry — but it is **not** installed by default
    and is not a substitute for reading the `todo` slice.)

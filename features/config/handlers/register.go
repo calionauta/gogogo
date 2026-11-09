@@ -13,5 +13,6 @@ import (
 func Register(reg *recipe.Registry, d register.Deps) {
 	h := NewHandler(d.Cfg, d.Auth, d.Queries)
 	h.SetSlots(d.Slots)
+	h.SetProviders(reg)
 	reg.Add(h.Recipe())
 }

@@ -31,7 +31,7 @@ type Data struct {
 	Context     string             // header context slot: liveness, store, transport
 	Email       string             // session email ("" for guests)
 	Role        string             // session role ("admin" | "user" | "viewer" | "")
-	BuildLabel  string             // running build, shown in the sidebar footer
+	BuildLabel  string             // running build, shown in the rail brand
 	BuildCommit string             // commit, exposed via title= on the badge
 	Signals     string             // the page's own seeded signal JSON ("" = none)
 	StreamPage  bool               // marks a page that opens its own EventSource (session.js)

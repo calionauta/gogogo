@@ -231,7 +231,7 @@ func parseRecipeInstallArgs(args []string) (recipeInstallArgs, error) {
 				"./downloaded/pomodoro`)"}
 		}
 		return opt, &ExitError{code: 1, msg: "recipe install needs a recipe directory " +
-			"(`recipe install ./extensions/pomodoro`) or " +
+			"(`recipe install _recipes/pomodoro`) or " +
 			"(`recipe install pomodoro`); `gogogo --help` lists the offered units"}
 	}
 	if fs.NArg() > 1 {

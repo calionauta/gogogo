@@ -24,6 +24,9 @@ import (
 // session role and whether RBAC is actually enforcing. Before the shell existed
 // they were the second of four banner paragraphs at the top of a table page.
 templ Page(data PageData, userEmail string, userRole string, buildLabel string, buildCommit string) {
+	// No second build badge: the rail brand carries the only one (with
+	// the /health live sync), so the header actions slot stays empty —
+	// the same shape the dashboard page uses for slots it does not fill.
 	@ui.Shell(ui.Data{
 		Title:       "Config — gogogo",
 		Module:      "config",
@@ -34,7 +37,7 @@ templ Page(data PageData, userEmail string, userRole string, buildLabel string, 
 		BuildLabel:  buildLabel,
 		BuildCommit: buildCommit,
 		OfflineSync: true,
-	}, configHead(), configSound(), configActions(data), configBody(data))
+	}, configHead(), configSound(), nil, configBody(data))
 }
 
 // configHead carries the page's own <head> extras: the sound assets (so the
@@ -86,13 +89,6 @@ templ configHead() {
 // line would break the call.
 templ configSound() {
 	@sounds.SoundSwitch()
-}
-
-// configActions is the header's right-aligned build badge.
-templ configActions(data PageData) {
-	if data.BuildLabel != "" {
-		<span class="badge badge-primary badge-sm font-mono">{ data.BuildLabel }</span>
-	}
 }
 
 // configBody is the page's work area: the runtime status card, the grouped

@@ -12,7 +12,7 @@ of the file you are about to touch.
 
 ## Registry at a glance
 
-- **Units:** 48 — 16 core · 20 plugin · 12 feature
+- **Units:** 48 — 16 core · 21 plugin · 11 feature
 - **Manual removal:** 32 (core units are never removed)
 - **Source of truth:** `internal/capabilities/registry.go`; this doc is
   regenerated from it, so the counts above cannot drift.
@@ -252,6 +252,15 @@ localization seam (embedded catalogs, locale resolution, number/date formatting)
 - **Note:** Removable seam: delete internal/i18n plus this entry and the I18n config; the shell keeps rendering the English fallback. Runtime-off is the blessed path until a phase converts markup.
 - **Warning:** With the plugin off, markup stays on English fallbacks; no feature needs the locale context to render.
 
+## `license-activation` — plugin
+
+standalone /activate page for a license or account token
+
+- **Owned:** `features/license`
+- **Routes:** `/activate`
+- **Store calls:** `dbgen.CreateUser`, `dbgen.GetUser`
+- **Why that class:** Activation page; the gate is runtime-off with LICENSE_MODE=none. Removal is manual (drop the route and the page).
+
 ## `llm` — plugin
 
 GoAI LLM client behind an injectable interface
@@ -353,15 +362,6 @@ public entry page on GET / (inside the shared shell)
 - **Depends on:** sounds
 - **Why that class:** Delete the dir, its / route, and retarget the shell brand to /todo.
 - **Warning:** GET / will 404 (landing owned the only root route); the shell brand is retargeted to /todo, which is kept.
-
-## `license-activation` — feature
-
-standalone /activate page for a license or account token
-
-- **Owned:** `features/license`
-- **Routes:** `/activate`
-- **Store calls:** `dbgen.CreateUser`, `dbgen.GetUser`
-- **Why that class:** Activation page; the gate is runtime-off with LICENSE_MODE=none. Removal is manual (drop the route and the page).
 
 ## `notes` — feature
 

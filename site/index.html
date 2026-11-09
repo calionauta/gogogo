@@ -224,7 +224,7 @@
     <article class="chapter" id="layer-recipes" data-layer="recipes" data-name="Recipes" data-scope="recipe" data-line="Copied slices you own and edit.">
       <div class="chapter-head"><span class="chapter-num">02</span><span class="chapter-meta">recipe</span></div>
       <h2>Recipes</h2>
-      <p class="chapter-lede">A recipe is not a package you depend on: it is a working slice — pages, handlers, components, tables, a queue job, a policy row — copied into your repo with a receipt recording where it came from, intended to be edited. You own the code the moment it is written. The declaration (routes, tables, jobs, slots) is engine-applied; your edits survive via pristine hashes and `git merge`, never overwrite. Reference slice: <code>features/todo</code> (in-tree, always installed). Minimal installable example: <code>_extensions/pomodoro</code> (not installed by default — <code>gogogo recipe install ./_extensions/pomodoro --yes</code>, then <code>/pomodoro</code>).</p>
+      <p class="chapter-lede">A recipe is not a package you depend on: it is a working slice — pages, handlers, components, tables, a queue job, a policy row — copied into your repo with a receipt recording where it came from, intended to be edited. You own the code the moment it is written. The declaration (routes, tables, jobs, slots) is engine-applied; your edits survive via pristine hashes and `git merge`, never overwrite. And the receipt keeps it honest after the copy: `recipe status` tells pristine from edited, `update` merges instead of clobbering, and `uninstall` takes back only what you didn't touch. Reference slice: <code>features/todo</code> (in-tree, always installed). Minimal installable example: <code>_recipes/pomodoro</code> (not installed by default — <code>gogogo recipe install ./_recipes/pomodoro --yes</code>, then <code>/pomodoro</code>).</p>
 
       <div class="viz tiles">
         <!--FEATURES:START-->
@@ -346,7 +346,7 @@
         <!--PLUGINS:START-->
         <div class="trim-head">
           <span class="trim-title">Switches — runtime opt-outs</span>
-          <span class="trim-count" id="trim-count" aria-live="polite">20 of 20 kept</span>
+          <span class="trim-count" id="trim-count" aria-live="polite">21 of 21 kept</span>
         </div>
         <p class="plan-group">Common opt-outs</p>
         <label class="plan-row">
@@ -457,6 +457,12 @@
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">i18n</span><span class="plan-desc">localization seam (embedded catalogs, locale resolution, number/date formatting)</span></span>
           <span class="plan-env">I18N_ENABLED=false (already the default)</span>
+        </label>
+        <label class="plan-row">
+          <input type="checkbox" checked data-cap="license-activation">
+          <span class="plan-box" aria-hidden="true"></span>
+          <span class="plan-main"><span class="plan-name">license-activation</span><span class="plan-desc">standalone /activate page for a license or account token</span></span>
+          <span class="plan-env">manual</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="perf">
