@@ -11,7 +11,9 @@ go run ./cmd/gogogo doctor --json     # machine-readable for agents/CI
 go run ./cmd/gogogo doctor --only go.version --json
 ```
 
-Checks today: `go.version`, `go.tool.templ` (pinned), `tool.*` (ripwire, sem, cymbal, xerj, lefthook, sqlc, docker, zig warn opt-in, mygo warn opt-in — packaging only), `desktop.sdk` (xcode/GTK), `mobile.sdk` (skip unless ANDROID_HOME), `secrets.age`, `host.capacity`, `registry.fresh`, `generate.drift` (skip → `generate --check`).
+Checks today: `go.version`, `go.tool.templ` (pinned), `tool.*` (ripwire, sem, cymbal, xerj, lefthook, sqlc, docker, zig warn opt-in, mygo warn opt-in — packaging only), `desktop.sdk` (xcode/GTK), `mobile.sdk` (skip unless ANDROID_HOME), `secrets.age`, `host.capacity`, `registry.fresh`, `generate.drift` (skip → `generate --check`), `recipe.declarations` (drift, schema, policy, wiring, metrics, panels, tests, docs, complexity).
+
+`recipe check` is the recipe evaluator itself (`gogogo recipe check [id] --dir . --format json`); doctor calls the same code as one preflight item, and `make check-recipes` runs it in `ci-local-fast` and `ci-local`.
 
 ```
 go run ./cmd/gogogo generate          # templ + sqlc + css + docs, idempotent
