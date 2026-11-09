@@ -338,7 +338,7 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "\">\n\t\t\t\t\t// Drawer focus trap: Datastar owns $railOpen and every dismissal\n\t\t\t\t\t// path (Escape, backdrop, destination tap); no Datastar primitive\n\t\t\t\t\t// cycles Tab inside an open drawer or moves focus across the\n\t\t\t\t\t// boundary, so this island owns focus only. Pinned in vanillaAllow\n\t\t\t\t\t// (the keydown listener below). The ≤1024px matchMedia mirrors\n\t\t\t\t\t// the drawer breakpoint in chrome.css — on desktop the rail is a\n\t\t\t\t\t// persistent sidebar and the trap stays out of the way.\n\t\t\t\t\t// Plain script on purpose (see realtime.templ): data-effect\n\t\t\t\t\t// evaluates at Datastar init, after deferred modules load, so the\n\t\t\t\t\t// globals must exist on window before then.\n\t\t\t\t\twindow.__gogogoDrawerFocus = function (open) {\n\t\t\t\t\t\tif (!open) return;\n\t\t\t\t\t\tvar rail = document.getElementById(\"app-rail\");\n\t\t\t\t\t\tif (!rail || !window.matchMedia(\"(max-width: 1024px)\").matches) return;\n\t\t\t\t\t\tvar toggle = document.querySelector(\".app-rail-toggle\");\n\t\t\t\t\t\trail.__gogogoOpener = (document.activeElement && document.activeElement !== document.body) ? document.activeElement : toggle;\n\t\t\t\t\t\tvar first = rail.querySelector(\"a[href], button:not([disabled]), summary\");\n\t\t\t\t\t\tif (!first) return;\n\t\t\t\t\t\t// The effect can run a frame before Datastar's own morph\n\t\t\t\t\t\t// lands .is-open (which flips visibility), and focus()\n\t\t\t\t\t\t// on a visibility:hidden element is a silent no-op — so\n\t\t\t\t\t\t// retry until focus sticks. requestAnimationFrame is not\n\t\t\t\t\t\t// a guarded marker (vanillaAllow covers listeners only).\n\t\t\t\t\t\tvar tries = 0;\n\t\t\t\t\t\t(function tryFocus() {\n\t\t\t\t\t\t\tfirst.focus();\n\t\t\t\t\t\t\tif (document.activeElement !== first && tries++ < 5) {\n\t\t\t\t\t\t\t\twindow.requestAnimationFrame(tryFocus);\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t})();\n\t\t\t\t\t};\n\t\t\t\t\twindow.__gogogoDrawerReturn = function () {\n\t\t\t\t\t\tvar rail = document.getElementById(\"app-rail\");\n\t\t\t\t\t\tvar opener = rail && rail.__gogogoOpener;\n\t\t\t\t\t\tif (opener && opener.isConnected) opener.focus();\n\t\t\t\t\t\tif (rail) rail.__gogogoOpener = null;\n\t\t\t\t\t};\n\t\t\t\t\tvar __gogogoRail = document.getElementById(\"app-rail\");\n\t\t\t\t\tif (__gogogoRail) __gogogoRail.addEventListener(\"keydown\", function (e) {\n\t\t\t\t\t\tif (e.key !== \"Tab\") return;\n\t\t\t\t\t\tvar rail = e.currentTarget;\n\t\t\t\t\t\tif (!rail.classList.contains(\"is-open\")) return;\n\t\t\t\t\t\tif (!window.matchMedia(\"(max-width: 1024px)\").matches) return;\n\t\t\t\t\t\tvar items = Array.prototype.slice.call(rail.querySelectorAll(\"a[href], button:not([disabled]), summary\"));\n\t\t\t\t\t\tif (!items.length) return;\n\t\t\t\t\t\tvar first = items[0], last = items[items.length - 1];\n\t\t\t\t\t\tif (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }\n\t\t\t\t\t\telse if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }\n\t\t\t\t\t});\n\t\t\t\t\t// Version badge sync: fetch /health live build evidence.\n\t\t\t\t\t// Static BuildLabel is fallback when offline; /health is truth.\n\t\t\t\t\twindow.__gogogoSyncBadge = function () {\n\t\t\t\t\t\tvar el = document.getElementById(\"gogogo-build-badge\");\n\t\t\t\t\t\tif (!el) return;\n\t\t\t\t\t\tfetch(\"/health\", { cache: \"no-store\" })\n\t\t\t\t\t\t\t.then(function (r) { return r.text(); })\n\t\t\t\t\t\t\t.then(function (t) {\n\t\t\t\t\t\t\t\tvar b = (t || \"\").trim();\n\t\t\t\t\t\t\t\tif (!b || b === \"ok\") return;\n\t\t\t\t\t\t\t\tvar m = b.match(/^([^-]+)-/);\n\t\t\t\t\t\t\t\tif (m) el.textContent = m[1];\n\t\t\t\t\t\t\t\tel.title = b + \" (deployed, synced via /health)\";\n\t\t\t\t\t\t\t})\n\t\t\t\t\t\t\t.catch(function () { /* keep static label */ });\n\t\t\t\t\t};\n\t\t\t\t\twindow.__gogogoSyncBadge();\n\t\t\t\t\twindow.addEventListener(\"online\", window.__gogogoSyncBadge);\n\t\t\t\t\twindow.addEventListener(\"focus\", window.__gogogoSyncBadge);\n\t\t\t\t</script><div class=\"app-rail-backdrop\" style=\"display:none\" data-show=\"$railOpen\" data-on:click=\"$railOpen = false; window.__gogogoDrawerReturn()\"></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "\">\n\t\t\t\t\t// Drawer focus trap: Datastar owns $railOpen and every dismissal\n\t\t\t\t\t// path (Escape, backdrop, destination tap); no Datastar primitive\n\t\t\t\t\t// cycles Tab inside an open drawer or moves focus across the\n\t\t\t\t\t// boundary, so this island owns focus only. Pinned in vanillaAllow\n\t\t\t\t\t// (the keydown listener below). The ≤1024px matchMedia mirrors\n\t\t\t\t\t// the drawer breakpoint in chrome.css — on desktop the rail is a\n\t\t\t\t\t// persistent sidebar and the trap stays out of the way.\n\t\t\t\t\t// Plain script on purpose (see realtime.templ): data-effect\n\t\t\t\t\t// evaluates at Datastar init, after deferred modules load, so the\n\t\t\t\t\t// globals must exist on window before then.\n\t\t\t\t\twindow.__gogogoDrawerFocus = function (open) {\n\t\t\t\t\t\tif (!open) return;\n\t\t\t\t\t\tvar rail = document.getElementById(\"app-rail\");\n\t\t\t\t\t\tif (!rail || !window.matchMedia(\"(max-width: 1024px)\").matches) return;\n\t\t\t\t\t\tvar toggle = document.querySelector(\".app-rail-toggle\");\n\t\t\t\t\t\trail.__gogogoOpener = (document.activeElement && document.activeElement !== document.body) ? document.activeElement : toggle;\n\t\t\t\t\t\tvar first = rail.querySelector(\"a[href], button:not([disabled]), summary\");\n\t\t\t\t\t\tif (!first) return;\n\t\t\t\t\t\t// The effect can run a frame before Datastar's own morph\n\t\t\t\t\t\t// lands .is-open (which flips visibility), and focus()\n\t\t\t\t\t\t// on a visibility:hidden element is a silent no-op — so\n\t\t\t\t\t\t// retry until focus sticks. requestAnimationFrame is not\n\t\t\t\t\t\t// a guarded marker (vanillaAllow covers listeners only).\n\t\t\t\t\t\tvar tries = 0;\n\t\t\t\t\t\t(function tryFocus() {\n\t\t\t\t\t\t\tfirst.focus();\n\t\t\t\t\t\t\tif (document.activeElement !== first && tries++ < 5) {\n\t\t\t\t\t\t\t\twindow.requestAnimationFrame(tryFocus);\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t})();\n\t\t\t\t\t};\n\t\t\t\t\twindow.__gogogoDrawerReturn = function () {\n\t\t\t\t\t\tvar rail = document.getElementById(\"app-rail\");\n\t\t\t\t\t\tvar opener = rail && rail.__gogogoOpener;\n\t\t\t\t\t\tif (opener && opener.isConnected) opener.focus();\n\t\t\t\t\t\tif (rail) rail.__gogogoOpener = null;\n\t\t\t\t\t};\n\t\t\t\t\tvar __gogogoRail = document.getElementById(\"app-rail\");\n\t\t\t\t\tif (__gogogoRail) __gogogoRail.addEventListener(\"keydown\", function (e) {\n\t\t\t\t\t\tif (e.key !== \"Tab\") return;\n\t\t\t\t\t\tvar rail = e.currentTarget;\n\t\t\t\t\t\tif (!rail.classList.contains(\"is-open\")) return;\n\t\t\t\t\t\tif (!window.matchMedia(\"(max-width: 1024px)\").matches) return;\n\t\t\t\t\t\tvar items = Array.prototype.slice.call(rail.querySelectorAll(\"a[href], button:not([disabled]), summary\"));\n\t\t\t\t\t\tif (!items.length) return;\n\t\t\t\t\t\tvar first = items[0], last = items[items.length - 1];\n\t\t\t\t\t\tif (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }\n\t\t\t\t\t\telse if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }\n\t\t\t\t\t});\n\t\t\t\t\t// Version badge sync: fetch /health live build evidence.\n\t\t\t\t\t// Static BuildLabel is fallback when offline; /health is truth.\n\t\t\t\t\t// The live tag is the X-Gogogo-Build HEADER (the body is\n\t\t\t\t\t// always \"ok\" for the container probe). Pinned in\n\t\t\t\t\t// shell_badge_test.go.\n\t\t\t\t\twindow.__gogogoSyncBadge = function () {\n\t\t\t\t\t\tvar el = document.getElementById(\"gogogo-build-badge\");\n\t\t\t\t\t\tif (!el) return;\n\t\t\t\t\t\tfetch(\"/health\", { cache: \"no-store\" })\n\t\t\t\t\t\t\t.then(function (r) { return r.headers.get(\"X-Gogogo-Build\") || \"\"; })\n\t\t\t\t\t\t\t.then(function (t) {\n\t\t\t\t\t\t\t\tvar b = (t || \"\").trim();\n\t\t\t\t\t\t\t\tif (!b) return;\n\t\t\t\t\t\t\t\tvar m = b.match(/^([^-]+)-/);\n\t\t\t\t\t\t\t\tif (m) el.textContent = m[1];\n\t\t\t\t\t\t\t\tel.title = b + \" (deployed, synced via /health)\";\n\t\t\t\t\t\t\t})\n\t\t\t\t\t\t\t.catch(function () { /* keep static label */ });\n\t\t\t\t\t};\n\t\t\t\t\twindow.__gogogoSyncBadge();\n\t\t\t\t\twindow.addEventListener(\"online\", window.__gogogoSyncBadge);\n\t\t\t\t\twindow.addEventListener(\"focus\", window.__gogogoSyncBadge);\n\t\t\t\t</script><div class=\"app-rail-backdrop\" style=\"display:none\" data-show=\"$railOpen\" data-on:click=\"$railOpen = false; window.__gogogoDrawerReturn()\"></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -355,7 +355,7 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue("$railOpen ? 'true' : 'false'")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 216, Col: 63}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 219, Col: 63}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 		if templ_7745c5c3_Err != nil {
@@ -381,7 +381,7 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 			var templ_7745c5c3_Var13 templ.SafeURL
 			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(d.CrumbURL))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 223, Col: 44}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 226, Col: 44}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 			if templ_7745c5c3_Err != nil {
@@ -394,7 +394,7 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 			var templ_7745c5c3_Var14 string
 			templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue("Back to " + d.CrumbLabel)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 223, Col: 80}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 226, Col: 80}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 			if templ_7745c5c3_Err != nil {
@@ -407,7 +407,7 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 			var templ_7745c5c3_Var15 string
 			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(d.CrumbLabel)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 223, Col: 105}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 226, Col: 105}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 			if templ_7745c5c3_Err != nil {
@@ -425,7 +425,7 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(d.HeadingText())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 226, Col: 28}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 229, Col: 28}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 		if templ_7745c5c3_Err != nil {
@@ -443,7 +443,7 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 			var templ_7745c5c3_Var17 string
 			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(d.Context)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 228, Col: 49}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 231, Col: 49}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 			if templ_7745c5c3_Err != nil {
@@ -484,7 +484,7 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 			var templ_7745c5c3_Var20 string
 			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.ResolveAttributeValue(ariaPressed(d.Demo && d.HasState()))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 239, Col: 59}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 242, Col: 59}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 			if templ_7745c5c3_Err != nil {
@@ -497,7 +497,7 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 			var templ_7745c5c3_Var21 string
 			templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.ResolveAttributeValue(stateTitle())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 240, Col: 29}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 243, Col: 29}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
 			if templ_7745c5c3_Err != nil {
@@ -542,7 +542,7 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 			var templ_7745c5c3_Var24 string
 			templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.ResolveAttributeValue(ariaPressed(d.Demo && !d.HasState() && d.HasStack()))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 253, Col: 76}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 256, Col: 76}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
 			if templ_7745c5c3_Err != nil {
@@ -555,7 +555,7 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 			var templ_7745c5c3_Var25 string
 			templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.ResolveAttributeValue(stackTitle())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 254, Col: 29}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 257, Col: 29}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var25)
 			if templ_7745c5c3_Err != nil {
@@ -638,7 +638,7 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 			var templ_7745c5c3_Var28 string
 			templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.ResolveAttributeValue(panelVisibilitySignals(d.Demo, d.HasState(), d.HasStack()))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 274, Col: 150}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 277, Col: 150}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var28)
 			if templ_7745c5c3_Err != nil {
@@ -816,7 +816,7 @@ func dockLink(current string, id string, href string, iconName string, label str
 		var templ_7745c5c3_Var32 templ.SafeURL
 		templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(href))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 343, Col: 28}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 346, Col: 28}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 		if templ_7745c5c3_Err != nil {
@@ -842,7 +842,7 @@ func dockLink(current string, id string, href string, iconName string, label str
 		var templ_7745c5c3_Var34 string
 		templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.ResolveAttributeValue(activeCurrent(current == id))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 345, Col: 45}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 348, Col: 45}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var34)
 		if templ_7745c5c3_Err != nil {
@@ -863,7 +863,7 @@ func dockLink(current string, id string, href string, iconName string, label str
 		var templ_7745c5c3_Var35 string
 		templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 348, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 351, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 		if templ_7745c5c3_Err != nil {
@@ -910,7 +910,7 @@ func railEntry(e NavEntry) templ.Component {
 		var templ_7745c5c3_Var37 templ.SafeURL
 		templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(e.Href))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 359, Col: 30}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 362, Col: 30}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 		if templ_7745c5c3_Err != nil {
@@ -931,7 +931,7 @@ func railEntry(e NavEntry) templ.Component {
 		var templ_7745c5c3_Var38 string
 		templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(e.Label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 365, Col: 40}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 368, Col: 40}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 		if templ_7745c5c3_Err != nil {
