@@ -25,10 +25,11 @@ type Module struct {
 	// themed block. A pinned module carries no Group.
 	Pinned bool
 	// MenuOnly keeps the module out of the rail and makes it reachable from
-	// the account menu only. Platform surfaces (Config, Dashboard, Graph) are
+	// the account menu only. Platform surfaces (Config, Graph) are
 	// not daily destinations: they sit under Account, where the rest of the
-	// account surface lives. Each MenuOnly entry is hardcoded in
-	// authviews.UserMenu behind the same role gate as its route policy.
+	// account surface lives. Dashboard is Pinned below Inbox in the rail.
+	// Each MenuOnly entry is hardcoded in authviews.UserMenu behind the
+	// same role gate as its route policy.
 	MenuOnly bool
 }
 
@@ -57,7 +58,7 @@ var Modules = []Module{
 		ID: ModuleInbox, Title: "Inbox", Pinned: true,
 		Icon: "material-symbols:notifications", URL: "/notifications",
 	},
-	{ID: "dashboard", Title: "Dashboard", Icon: "material-symbols:grid-view", URL: "/dashboard", MenuOnly: true},
+	{ID: "dashboard", Title: "Dashboard", Pinned: true, Icon: "material-symbols:grid-view", URL: "/dashboard"},
 	{ID: "todo", Title: "Todo", Group: GroupCollab, Icon: "material-symbols:checklist", URL: "/todo"},
 	{ID: "whiteboard", Title: "Whiteboard", Group: GroupCollab, Icon: "material-symbols:draw", URL: "/whiteboard"},
 	{ID: "notes", Title: "Notes", Group: GroupCollab, Icon: "material-symbols:description", URL: "/notes"},

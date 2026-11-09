@@ -155,7 +155,7 @@ templ configBody(data PageData) {
 	// adjacent to the markup it drives.
 	<div
 		class="tabs tabs-box"
-		data-init="var tabs = {'#runtime': 'config-tab-runtime', '#units': 'config-tab-units-core', '#units-core': 'config-tab-units-core', '#units-servants': 'config-tab-units-servants', '#units-recipes': 'config-tab-units-recipes', '#users': 'config-tab-users', '#security-events': 'config-tab-security', '#answer-components': 'config-tab-components'}; var id = tabs[window.location.hash]; if (id) { var el = document.getElementById(id); if (el) { el.checked = true; } }"
+		data-init="var tabs = {'#runtime': 'config-tab-runtime', '#units': 'config-tab-units-core', '#units-core': 'config-tab-units-core', '#units-servants': 'config-tab-units-servants', '#units-recipes': 'config-tab-units-recipes', '#users': 'config-tab-users', '#security-events': 'config-tab-security', '#answer-components': 'config-tab-components'}; var id = tabs[window.location.hash]; if (!id && new URLSearchParams(window.location.search).has('components')) { id = 'config-tab-components'; } if (id) { var el = document.getElementById(id); if (el) { el.checked = true; } }"
 	>
 		<input type="radio" name="config_tabs" id="config-tab-runtime" class="tab" aria-label="Runtime" checked/>
 		<div class="tab-content pt-4" role="tabpanel" aria-label="Runtime settings">
@@ -211,10 +211,14 @@ templ configBody(data PageData) {
 
 		</section>
 		</div>
-		// Units: one tab per removal class, with count badge. #units stays
-		// as alias of Core for old deep links.
+		// Units: one tab per removal class, with badge count. #units stays
+		// as alias of Core for old deep links. The label wraps the radio so
+		// the count can be a <span class="badge"> (DaisyUI label:has(:checked)).
 		for _, group := range data.Units {
-			<input type="radio" name="config_tabs" id={ "config-tab-units-" + strings.ToLower(group.Label) } class="tab" aria-label={ group.Label + " (" + strconv.Itoa(len(group.Rows)) + ")" }/>
+			<label class="tab">
+				<input type="radio" name="config_tabs" id={ "config-tab-units-" + strings.ToLower(group.Label) } class="sr-only"/>
+				<span class="flex items-center gap-1.5">{ group.Label } <span class="badge badge-sm badge-soft">{ strconv.Itoa(len(group.Rows)) }</span></span>
+			</label>
 			<div class="tab-content pt-4" role="tabpanel" aria-label={ group.Label }>
 			<section class="ui-card config-group" aria-label={ group.Label }>
 				<div class="ui-card-body">
@@ -423,7 +427,7 @@ templ configBody(data PageData) {
 				What the chat model may emit. The generative catalog is fixed; recipe panels
 				render your own data (the model picks the slice, the app fills the rows).
 			</p>
-			<form method="GET" action="/config#answer-components" class="flex flex-wrap items-end gap-2 mb-3">
+			<form method="GET" action="/config" class="flex flex-wrap items-end gap-2 mb-3">
 				<label>
 					<div class="label py-1"><span class="text-xs">Show</span></div>
 					<select name="components" class="select select-sm">
@@ -462,6 +466,10 @@ templ configBody(data PageData) {
 			}
 			if data.ComponentFilter == "" || data.ComponentFilter == "panels" {
 			<h3 class="font-semibold mt-3 mb-1">Recipe panels</h3>
+			<p class="text-sm text-base-content/70 mb-2">
+				One per installed recipe — each renders that recipe's own page components with
+				real rows. <code>todo_list</code> is the todo recipe's own list, not a duplicate.
+			</p>
 			if len(data.AnswerPanels) == 0 {
 				<p class="text-sm">No recipe panels installed — answers about your own data have no component to render through.</p>
 			} else {

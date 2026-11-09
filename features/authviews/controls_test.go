@@ -54,10 +54,10 @@ func TestUserMenuLogoutActuallyPosts(t *testing.T) {
 // internal/ui/modules_test.go pins both directions (the flag and the policy's
 // admin-only route set must agree).
 
-// TestUserMenuCarriesDashboardAndGraph pins the two platform surfaces the
-// refactor moved there: Dashboard is the home surface (every signed-in role
-// reaches it), Graph is a user surface the viewer policy denies. Like Config,
-// their links are hardcoded in UserMenu — this test is their rail-side twin
+// TestUserMenuCarriesDashboardAndGraph pins the platform surface the refactor
+// moved there: Graph is a user surface the viewer policy denies. Dashboard
+// lives in the rail (Pinned below Inbox), not here. Like Config, the link is
+// hardcoded in UserMenu — this test is their rail-side twin
 // (internal/ui/modules_test.go pins the policy audiences).
 func TestUserMenuCarriesDashboardAndGraph(t *testing.T) {
 	render := func(role string) string {
@@ -70,8 +70,8 @@ func TestUserMenuCarriesDashboardAndGraph(t *testing.T) {
 		return buf.String()
 	}
 	for _, role := range []string{"viewer", "user", "admin"} {
-		if !strings.Contains(render(role), `href="/dashboard"`) {
-			t.Errorf("%s menu missing the Dashboard entry", role)
+		if strings.Contains(render(role), `href="/dashboard"`) {
+			t.Errorf("%s menu must NOT carry Dashboard (it lives in the rail below Inbox)", role)
 		}
 	}
 	for _, role := range []string{"user", "admin"} {
