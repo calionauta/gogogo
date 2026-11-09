@@ -195,7 +195,7 @@ top-level unit's dirs).
 | `features/genui/` | 🟡 PLUGIN | The rendering capability behind Chat; one bundle with `features/chat/` — delete both |
 | `features/todo/` | 🟢 FEATURE | Delete package + wiring call |
 | `features/chat/` | 🟢 FEATURE | Bundled into the `genui` unit (chat imports genui components, so both trim together) |
-| `features/review/` | 🟢 FEATURE | Delete package + `bootReview`/`reviewH` lines + `/review` mounts in `internal/server/chi.go` (+ `newReviewHandlerForTest` in its test) + `go mod tidy` (drops genkit + go-jev) |
+| `features/review/` | 🟢 FEATURE | Delete package (its Register) + regenerate `internal/server/units.gen.go` + `go mod tidy` (drops genkit + go-jev) |
 | `features/whiteboard/` | 🟢 FEATURE | Delete package + `internal/collab/` |
 | `features/notes/` | 🟢 FEATURE | Manual: delete the dir + its roots in `buildChiMux` + the `[]Module` entry in `internal/ui/modules.go` |
 | `features/room/` | 🟢 FEATURE | The room demo page; the engine behind it is the `goakt` plugin (either class is accepted for this dir — both units own it) |
@@ -218,8 +218,32 @@ the `review` feature and the `genkit` plugin).
 - **Plugin (site: Servant):** `app`, `capabilities`, `collab`, `components`, `credits`,
   `dagnats`, `datastar`, `delivery`, `desktopboot`, `genkit`, `genui`, `goakt`, `i18n`, `llm`, `nats`,
   `offline-sync`, `perf`, `search`, `sounds`.
-- **Feature (site: Recipe):** `account`, `chat`, `config-view`, `dashboard`, `graph`, `landing`, `notes`, `notifications`, `review`,
-  `room`, `todo`, `whiteboard`.
+- **Feature (site: Recipe):** `account`, `chat`, `config-view`, `dashboard`, `landing`, `notes`, `notifications`, `review`,
+  `room`, `todo`, `whiteboard` (all self-mounting via `Capability.Register`).
+  `graph` and `license-activation` are manual mounts (panorama host and
+  standalone activation page, not installable recipes).
+
+## Bundled receipts (ownership, not installed registrations)
+
+Every self-mounting bundled unit carries a receipt in `.recipes/<id>.yml`
+(front-matter declaration + pristine hashes of its `features/<id>/` tree).
+`gogogo recipe status` reports each one as pristine when the tree matches;
+`gogogo recipe uninstall <id> --yes` removes the pristine files, drops its
+policy block, regenerates `recipes.gen.go` and `units.gen.go`, and leaves a
+building tree. Because the bundled set mounts via `units.gen.go` (registry),
+`recipes.gen.go` deliberately skips bundled Register paths: bundling them
+there would double-mount and panic at the route-claim gate. `config-view`
+is the one bundled unit without a `<id>.yml` receipt: its routes are
+admin-only (`p, admin, /config…`), so the user-owned recipe policy block
+cannot express them; its declaration is documented in the registry instead.
+`graph` (panorama host) and `dashboard` (slot host) are not user recipes:
+`dashboard` hosts `dashboard.card` — it knows its numbers from
+`ListTodosByOwner` (open/total) and `CountUnreadInApp` (unread inbox), then
+renders `SlotRegistry.Fragments(SlotDashboardCard)`; `graph` renders the
+capability/recipe map itself. Pomodoro (`_extensions/pomodoro`, 281 lines,
+one table/page/write/sidebar) stays the minimal installable example;
+`features/todo` stays the in-tree reference slice. New cost: none — deleting
+a bundled unit is `recipe uninstall <id>` (see `docs/features.md`).
 
 ## Cross-package test dependencies
 

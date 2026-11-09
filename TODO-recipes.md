@@ -13,5 +13,5 @@ Sem task tool no OpenCode; este arquivo é a lista. Marcar `[x]` ao concluir, co
 - [x] Fase 3: notifications self-mounting (bootInbox) + graph/license avaliados (não são recipes — ver `docs/scope-taxonomy.md`)
 - [x] Fase 4: receipts `.recipes/<id>.yml` para todos os bundled + `recipe uninstall <builtin>` funcional
 - [x] Fase 4b: scaffold escreve receipts + TUI aceita recomendado (non-interactive já feito)
-- [ ] Fase 5: docs/site/skill/README/AGENTS/llms fechamento (glossário único)
+- [x] Fase 5: docs/site/skill/README/AGENTS/llms fechamento (glossário único)
 - [ ] Fase 6: gates finais — `go test ./internal/server -race`, `make ci-local-fast`, `make site-check`, commit final

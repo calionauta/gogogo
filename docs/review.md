@@ -111,9 +111,8 @@ is noise with confidence attached.
 ## Removal
 
 the `review` installer unit (dropped by the `minimal` and `no-ai` presets), or
-by hand: delete `features/review/` + the `bootReview` helper, `reviewH`
-lines and `/review` mounts in `internal/server/chi.go` (+ the
-`newReviewHandlerForTest` fixture in its test) + `go mod tidy`.
+by hand: delete `features/review/` (its Register), the `/review` mounts
+(`internal/server/units.gen.go` regenerates), plus `go mod tidy`.
 
 ## Why no LLM gateway (Bifrost) yet
 
