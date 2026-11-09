@@ -51,31 +51,27 @@ func buildChiMux(a string, todoH string) *Router {
 }
 `
 
-// TestEditChiGoAddsWiring proves the four edits land and the result parses.
+// TestEditChiGoAddsWiring proves the self-mounting scaffold needs no chi.go
+// edit (wiring rides the registry + units.gen.go) and the result parses.
+// Red-proof: it must NOT add the old manual MountFeature (that would
+// double-mount and panic).
 func TestEditChiGoAddsWiring(t *testing.T) {
 	out, err := editChiGo(chiFixture, "reports", "github.com/acme/app")
 	if err != nil {
 		t.Fatalf("editChiGo: %v", err)
 	}
-	for _, want := range []string{
-		`reportshandlers "github.com/acme/app/features/reports/handlers"`,
-		"reportsH := reportshandlers.NewHandler(a, cfg)",
-		`mux.MountFeature("reports", reportsH.Routes())`,
-	} {
-		if !strings.Contains(out, want) {
-			t.Errorf("wiring missing %q:\n%s", want, out)
-		}
+	if strings.Contains(out, "reportshandlers") || strings.Contains(out, `mux.MountFeature("reports"`) {
+		t.Errorf("self-mounting scaffold must not edit chi.go (double-mount):\n%s", out)
 	}
 	if _, perr := parser.ParseFile(token.NewFileSet(), "chi.go", out, parser.AllErrors); perr != nil {
 		t.Fatalf("edited chi.go does not parse: %v\n%s", perr, out)
 	}
 }
 
-// TestNewScaffoldAnchorsPresentInTemplate is the drift gate behind the
-// fixture above: the anchors `gogogo new feature` edits must exist in the
-// template's REAL composition root. Moving a mount line without updating the
-// scaffold turns the command into a refusal for every user, and a fixture
-// cannot notice.
+// TestNewScaffoldAnchorsPresentInTemplate is the drift gate: the template's
+// chi.go must still parse (self-mounting scaffolds edit no anchor there).
+// Wiring rides the registry, so moving a mount line cannot silently refuse
+// every `gogogo new` — the registry anchor is the drift gate instead.
 func TestNewScaffoldAnchorsPresentInTemplate(t *testing.T) {
 	raw, err := os.ReadFile(filepath.Join(repoRoot(t), "internal", "server", "chi.go"))
 	if err != nil {
@@ -85,21 +81,20 @@ func TestNewScaffoldAnchorsPresentInTemplate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("editChiGo against the template: %v", err)
 	}
-	for _, want := range []string{
-		`reportshandlers "github.com/calionauta/gogogo/features/reports/handlers"`,
-		`mux.MountFeature("reports", reportsH.Routes())`,
-	} {
-		if !strings.Contains(out, want) {
-			t.Errorf("scaffolded chi.go missing %q", want)
-		}
+	if strings.Contains(out, `features/reports/handlers`) {
+		t.Errorf("self-mounting scaffold must not edit chi.go:\n%s", out)
+	}
+	if _, perr := parser.ParseFile(token.NewFileSet(), "chi.go", out, parser.AllErrors); perr != nil {
+		t.Fatalf("scaffolded chi.go does not parse: %v", perr)
 	}
 }
 
-// TestEditChiGoRefusesMissingAnchor is the safety half: a moved composition
-// root must refuse before the caller writes anything.
+// TestEditChiGoRefusesMissingAnchor: an invalid chi.go (e.g. a truncated
+// file) is refused — self-mounting still validates the composition root
+// parses, even though it edits nothing.
 func TestEditChiGoRefusesMissingAnchor(t *testing.T) {
-	if _, err := editChiGo("package server\n", "reports", "github.com/acme/app"); err == nil {
-		t.Fatal("editChiGo on a tree without anchors = nil, want refusal")
+	if _, err := editChiGo("package server\nfunc @bad( {\n", "reports", "github.com/acme/app"); err == nil {
+		t.Fatal("editChiGo on unparsesable chi.go = nil, want refusal")
 	}
 }
 

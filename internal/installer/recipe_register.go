@@ -58,12 +58,16 @@ func registrationContent(root string) ([]byte, error) {
 		return nil, &ExitError{code: 1, msg: "recipe: list receipts: " + err.Error()}
 	}
 	entries := make([]registrationEntry, 0, len(ids))
+	// Bundled (in-tree) units mount via units.gen.go (registry-driven), not
+	// here. A receipt whose Register is a bundled Register is documentation/
+	// ownership only; including it here would double-mount and panic.
+	bundled := bundledRegisterPaths(root)
 	for _, id := range ids {
 		r, lerr := recipe.LoadReceipt(root, id)
 		if lerr != nil {
 			return nil, &ExitError{code: 1, msg: "recipe: read receipt " + id + ": " + lerr.Error()}
 		}
-		if r.Removed != "" || r.Register == "" {
+		if r.Removed != "" || r.Register == "" || bundled[r.Register] {
 			continue
 		}
 		entries = append(entries, registrationEntry{
@@ -79,6 +83,43 @@ func registrationContent(root string) ([]byte, error) {
 		return nil, &ExitError{code: 1, msg: "recipe: the generated registration does not parse: " + ferr.Error()}
 	}
 	return formatted, nil
+}
+
+// bundledRegisterPaths is the set of Register paths that mount via the
+// bundled registration (capabilities.Capability.Register). They are in-tree
+// units, so their receipts are ownership records, not installed
+// registrations. Read from the registry data files without importing the
+// capabilities package (avoiding a cycle) by scanning for Register lines.
+func bundledRegisterPaths(root string) map[string]bool {
+	out := map[string]bool{}
+	const dir = "internal/capabilities"
+	files := []string{
+		dir + "/registry.go",
+		dir + "/registry_dashboard.go",
+		dir + "/registry_delivery.go",
+		dir + "/registry_identity.go",
+		dir + "/registry_graph.go",
+		dir + "/registry_license.go",
+	}
+	for _, rel := range files {
+		raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
+		if err != nil {
+			continue
+		}
+		for line := range strings.SplitSeq(string(raw), "\n") {
+			s := strings.TrimSpace(line)
+			if !strings.HasPrefix(s, "Register:") {
+				continue
+			}
+			// Extract the quoted path.
+			if i := strings.Index(s, "\""); i >= 0 {
+				if j := strings.Index(s[i+1:], "\""); j >= 0 {
+					out[s[i+1:i+1+j]] = true
+				}
+			}
+		}
+	}
+	return out
 }
 
 // modulePath is the import prefix the generated file needs. It reads the tree's

@@ -348,6 +348,9 @@ func applyNew(ctx context.Context, opt newOptions, plan newPlan, stdout io.Write
 	files := map[string]string{
 		plan.paths.handler: newHandlerSource(opt.name, plan.module),
 		plan.paths.page:    newPageSource(opt.name, plan.module),
+		"features/" + opt.name + "/handlers/register.go": newRegisterSource(opt.name, plan.module),
+		"features/" + opt.name + "/handlers/recipe.go":   newRecipeSource(opt.name, plan.module),
+		".recipes/" + opt.name + ".yml":                  newReceiptSource(opt.name, plan.module),
 	}
 	for rel, src := range files {
 		full := filepath.Join(root, filepath.FromSlash(rel))
@@ -390,6 +393,12 @@ func proveNewFeature(ctx context.Context, root string, stdout io.Writer) error {
 	if out, err := runIn(ctx, root, "go", "test", "./internal/capabilities/",
 		"-run", "Test(ApiRoutes|CapabilityContracts)DocFresh", "-update", "-count=1"); err != nil {
 		return &ExitError{code: 2, msg: "generated docs regen failed:\n" + tailLines(string(out), proofBuildTailLines)}
+	}
+	// Explicitly regen the bundled registration so a self-mounting scaffold
+	// lands in units.gen.go without a hand edit.
+	if out, err := runIn(ctx, root, "go", "test", "./internal/capabilities/",
+		"-run", "TestBundledUnitRegistrationIsCurrent", "-update", "-count=1"); err != nil {
+		return &ExitError{code: 2, msg: "units.gen regen failed:\n" + tailLines(string(out), proofBuildTailLines)}
 	}
 	for _, gate := range []struct{ label, pkg string }{
 		{"check-flatdeps", "./cmd/check-flatdeps"},

@@ -2,14 +2,13 @@
 //
 // The templates are the skeleton the todo slice would give you if it were
 // writable: a chi handler with an auth-gated page and a JSON probe, the page
-// itself, and the three edits the composition root needs (import, parameter,
-// mount) plus the registry unit and the RBAC rows. Everything is plain string
-// insertion at anchors that already exist, so a moved anchor is a refusal
-// before any file is written — never a half-wired tree.
+// itself, plus the self-mounting wiring (Register + Recipe + receipt) so a
+// scaffolded feature mounts like every bundled unit. Everything is plain
+// string insertion at anchors that already exist, so a moved anchor is a
+// refusal before any file is written — never a half-wired tree.
 package installer
 
 import (
-	"fmt"
 	"go/parser"
 	"go/token"
 	"strings"
@@ -35,47 +34,45 @@ func newPageSource(name, module string) string {
 	).Replace(newPageTemplate)
 }
 
-// editChiGo adds the feature to the composition root: one import and one
-// self-contained block in BootChi (construction + mounts). Mounting in
-// BootChi instead of threading a parameter through buildChiMux keeps the
-// scaffold independent of every built-in unit — credits, landing and their
-// signature lines are all removable.
-func editChiGo(src, name, module string) (string, error) {
-	alias := name + "handlers"
-	// The import anchor is module-relative: every real checkout is renamed,
-	// so a hardcoded template path would refuse on the first `new`. The todo
-	// import is core (every trimmed tree keeps it), unlike the former config
-	// anchor (config mounts itself and no longer imports in chi.go).
-	importAnchor := "\ttodohandlers \"" + module + "/features/todo/handlers\"\n"
-	var err error
-	if src, err = insertAfter(src, importAnchor,
-		"\t"+alias+" \""+module+"/features/"+name+"/handlers\"\n"); err != nil {
-		return "", err
-	}
-	if src, err = insertAfter(src, chiBootAnchor, "\n"+newMountBlock(name)); err != nil {
-		return "", err
-	}
+// newRegisterSource renders features/<name>/handlers/register.go: the
+// self-mounting entry the generated registration calls.
+func newRegisterSource(name, module string) string {
+	return strings.NewReplacer(
+		"{{name}}", name,
+		"{{module}}", module,
+	).Replace(newRegisterTemplate)
+}
+
+// newRecipeSource renders features/<name>/handlers/recipe.go: the seam
+// declaration (routes the page + probe own).
+func newRecipeSource(name, module string) string {
+	return strings.NewReplacer(
+		"{{name}}", name,
+		"{{module}}", module,
+	).Replace(newRecipeTemplate)
+}
+
+// newReceiptSource renders .recipes/<name>.yml: the install receipt for a
+// scaffolded feature. Files are empty at scaffold time (the installer writes
+// hashes on the next `recipe install`/`status` pass); the declaration is
+// complete so drift is checked from the first boot.
+func newReceiptSource(name, module string) string {
+	return strings.NewReplacer(
+		"{{name}}", name,
+		"{{module}}", module,
+	).Replace(newReceiptTemplate)
+}
+
+// editChiGo is kept for backward compatibility with the old manual mount.
+// New scaffolds are self-mounting and need no chi.go edit: the registry's
+// Register entry plus units.gen.go regen do the wiring. This function is a
+// no-op (still validates) so old tests that call it continue to prove the
+// shape instead of refusing.
+func editChiGo(src, _, _ string) (string, error) {
 	if perr := validateGo("internal/server/chi.go", src); perr != nil {
 		return "", perr
 	}
 	return src, nil
-}
-
-// chiBootAnchor is the one fixed anchor `gogogo new` relies on. It is the
-// console mount line, which is core in every trimmed tree and sits inside
-// BootChi, where the composition router and the auth handle are in scope. The
-// import anchor is derived from the target module path instead (see
-// editChiGo).
-const chiBootAnchor = "\tmountConsoleProxy(mux, a, cfg)"
-
-// newMountBlock is the construction plus the one mount a scaffolded feature
-// needs: MountFeature flattens the feature's own router (page, subtree and
-// JSON API all declare their absolute paths there), so the root never
-// re-states a URL.
-func newMountBlock(name string) string {
-	return "\t// " + name + ": scaffolded by `gogogo new`; delete these lines to unmount.\n" +
-		"\t" + name + "H := " + name + "handlers.NewHandler(a, cfg)\n" +
-		"\tmux.MountFeature(\"" + name + "\", " + name + "H.Routes())\n"
 }
 
 // editRegistry appends one feature unit inside the []Capability literal, so
@@ -113,12 +110,15 @@ func registryInsertPoint(src string) (int, error) {
 }
 
 // newRegistryEntry is the unit metadata a scaffolded feature starts with.
+// Self-mounting: Register names the handlers package so the generated
+// registration mounts it like every bundled unit (no chi.go edit).
 func newRegistryEntry(name string) string {
 	return "\t{\n" +
 		"\t\tID:      \"" + name + "\",\n" +
 		"\t\tKind:    KindFeature,\n" +
 		"\t\tSummary: \"" + name + " feature (scaffolded by `gogogo new`)\",\n" +
 		"\t\tDirs:    []string{\"features/" + name + "\"},\n" +
+		"\t\tRegister: \"features/" + name + "/handlers\",\n" +
 		"\t\tReason:  \"Scaffolded: no built-in unit yet — removal is manual until you add the strips.\",\n" +
 		"\t},\n"
 }
@@ -139,24 +139,10 @@ func appendPolicyRows(src, name string) string {
 		"p, user, /api/" + name + "/ping, .*\n"
 }
 
-// insertAfter inserts add after the first occurrence of anchor.
-func insertAfter(src, anchor, add string) (string, error) {
-	idx := strings.Index(src, anchor)
-	if idx < 0 {
-		return "", anchorError(anchor)
-	}
-	at := idx + len(anchor)
-	return src[:at] + add + src[at:], nil
-}
-
-// anchorError names the missing anchor instead of leaving a bare "not found".
-func anchorError(anchor string) error {
-	first, _, _ := strings.Cut(strings.TrimSpace(anchor), "\n")
-	return &ExitError{code: 1, msg: fmt.Sprintf(
-		"wiring anchor not found (%q) — this checkout's composition root moved; "+
-			"scaffold by hand from features/todo and add the unit to internal/capabilities", first)}
-}
-
+// editRegistry appends one feature unit inside the []Capability literal, so
+// it lands in the slice regardless of how All is wrapped (plain literal or
+// append-wrapped across files). Inserting before the literal's close keeps a
+// moved shape a refusal before any file is written — never a half-wired tree.
 // validateGo parses a rendered source before it is written, so a template
 // mistake is a refusal in the plan phase rather than a broken tree after it.
 func validateGo(rel, src string) error {
@@ -287,4 +273,72 @@ templ body() {
 		</section>
 	</div>
 }
+`
+
+// newRegisterTemplate is the self-mounting entry for a scaffolded feature.
+// The generated registration calls it once; it builds the handler and
+// hands its provider to the seam (no root edit).
+const newRegisterTemplate = `// The {{name}} slice mounts itself through the recipe seam.
+package handlers
+
+import (
+	"{{module}}/internal/recipe"
+	"{{module}}/internal/recipe/register"
+)
+
+// Register builds the {{name}} handler and hands its declaration to the seam.
+func Register(reg *recipe.Registry, d register.Deps) {
+	reg.Add(NewHandler(d.Auth, d.Cfg).Recipe())
+}
+`
+
+// newRecipeTemplate is the seam declaration for a scaffolded feature.
+const newRecipeTemplate = `// The {{name}} unit declares its surface to the recipe seam.
+package handlers
+
+import (
+	"github.com/go-chi/chi/v5"
+
+	"{{module}}/internal/recipe"
+)
+
+// RecipeID is the recipe id the {{name}} unit declares itself under.
+const RecipeID = "{{name}}"
+
+// Recipe returns the declaration the composition root mounts through the
+// recipe seam. It lives beside the routes it describes so the two cannot drift
+// without one edit.
+func (h *Handler) Recipe() recipe.Provider { return recipeProvider{h: h} }
+
+type recipeProvider struct{ h *Handler }
+
+func (p recipeProvider) ID() string { return RecipeID }
+
+func (p recipeProvider) Declaration() recipe.Declaration {
+	return recipe.Declaration{
+		Routes: []recipe.Route{
+			{Method: "GET", Pattern: "/{{name}}"},
+			{Method: "GET", Pattern: "/api/{{name}}/ping"},
+		},
+	}
+}
+
+func (p recipeProvider) Routes() chi.Router { return p.h.Routes() }
+`
+
+// newReceiptTemplate is the install receipt a scaffolded feature starts
+// with. Files is empty until `recipe status` hashes the tree; the
+// declaration is complete so drift is checked from the first boot.
+const newReceiptTemplate = `id: {{name}}
+version: v0.1.0
+upstream:
+  repo: github.com/calionauta/gogogo
+  ref: master
+  path: features/{{name}}
+files: {}
+declaration:
+  routes:
+    - { method: GET, pattern: /{{name}} }
+    - { method: GET, pattern: /api/{{name}}/ping }
+register: features/{{name}}/handlers
 `
