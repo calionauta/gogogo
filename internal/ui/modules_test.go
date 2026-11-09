@@ -46,10 +46,11 @@ func TestAdminFlagMatchesAdminOnlyRoutes(t *testing.T) {
 	}
 }
 
-// TestMenuOnlyModulesAreAccountOnly pins the split: Config, Dashboard and
-// Graph left the rail and live in the account menu, so they must never render
-// as rail items, and each one's route must be reachable by the role its menu
-// entry allows — the menu guards the link with that role check.
+// TestMenuOnlyModulesAreAccountOnly pins the split: Config and Graph left the
+// rail and live in the account menu, so they must never render as rail items,
+// and each one's route must be reachable by the role its menu entry allows —
+// the menu guards the link with that role check. Dashboard is Pinned below
+// Inbox in the rail.
 func TestMenuOnlyModulesAreAccountOnly(t *testing.T) {
 	for _, role := range []string{"", "user", "viewer", "admin"} {
 		for _, g := range Grouped(role) {
@@ -65,9 +66,8 @@ func TestMenuOnlyModulesAreAccountOnly(t *testing.T) {
 	// route 403s for its audience is a dead link, and this is the parity the
 	// rail's visibility_policy_test.go plays for the menu side.
 	menuOnlyAudience := map[string][]string{
-		"config":    {"admin"},
-		"dashboard": {"viewer", "user", "admin"},
-		"graph":     {"user", "admin"},
+		"config": {"admin"},
+		"graph":  {"user", "admin"},
 	}
 	seen := map[string]bool{}
 	e, err := rbac.NewEnforcer()
@@ -108,8 +108,9 @@ func TestMenuOnlyModulesAreAccountOnly(t *testing.T) {
 }
 
 // TestGroupedPinsInboxFirst pins the rail order the product asked for: the
-// inbox is the first thing, above the Collab heading and without a heading of
-// its own. It is the rail's always-on surface, not a member of a themed block.
+// inbox is the first thing, Dashboard second below it, above the Collab
+// heading and without a heading of their own. They are the rail's always-on
+// surfaces, not members of a themed block.
 func TestGroupedPinsInboxFirst(t *testing.T) {
 	groups := Grouped("user")
 	if len(groups) < 2 {
@@ -118,8 +119,8 @@ func TestGroupedPinsInboxFirst(t *testing.T) {
 	if groups[0].Label != "" {
 		t.Errorf("first group label = %q, want \"\" (the pinned block renders no heading)", groups[0].Label)
 	}
-	if len(groups[0].Modules) != 1 || groups[0].Modules[0].ID != ModuleInbox {
-		t.Errorf("pinned block = %+v, want exactly the inbox", groups[0].Modules)
+	if len(groups[0].Modules) != 2 || groups[0].Modules[0].ID != ModuleInbox || groups[0].Modules[1].ID != "dashboard" {
+		t.Errorf("pinned block = %+v, want inbox then dashboard", groups[0].Modules)
 	}
 	if groups[1].Label != GroupCollab {
 		t.Errorf("second group = %q, want %q", groups[1].Label, GroupCollab)
