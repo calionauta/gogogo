@@ -3,39 +3,46 @@
 // Split from trim_features.go for the file-sizes gate, mirroring
 // trim_dagnats.go. The unit is small, but its rules are the subtlest in the
 // package: the plugin owns a package, a consumer half in the todo feature,
-// a composition-root call, and a config knob — and only SOME of those must
-// disappear for the tree to compile.
+// and the Register wiring — and only SOME of those must disappear for the
+// tree to compile.
 
 package installer
 
 // searchBuiltinUnit removes the search plugin.
 //
 // What goes: internal/search, the consumer half of the seam
-// (features/todo/handlers/search_source.go) and its tests, the boot helper
-// (internal/server/boot_search.go), and the one composition-root call that
-// references the helper. Those are exactly the files importing
-// internal/search; leaving any of them behind is a dangling import.
-//
-// What stays, on purpose: the handler's search SLICE (search.go), the
-// endpoint, the config knob and the template's box. They hold stdlib-only
-// interfaces and a bool, so they compile untouched and degrade to the plain
-// list — the removal contract the capability advertises. Dropping the
-// endpoint instead would break trim_chi_sync's route accounting.
+// (features/todo/handlers/search_source.go etc.), and the search wiring
+// inside the todo Register (which validates the mode and calls SetSearch).
+// The handler's search SLICE (search.go), the endpoint and the config knob
+// stay, on purpose: they hold stdlib-only interfaces and a bool, so they
+// compile untouched and degrade to the plain list — the removal contract
+// the capability advertises.
 var searchBuiltinUnit = []builtinUnit{
 	{
 		id: unitSearch,
-		// The composition-root call is the only remaining reference to the
-		// dropped helper. It goes as a BLOCK, not a line drop: the
-		// `if serr := ...` header alone would orphan its closing brace.
+		// The Register search wiring: validation + layers + SetSearch.
+		// Without it a trimmed tree keeps importing internal/search from
+		// the Register, which would dangle after the plugin goes.
 		extraStrips: []fileStrip{
 			{
-				path: chiGoFile,
+				path: "features/todo/handlers/register.go",
 				rules: []stripRule{
 					{
-						startMarker:       "if serr := bootSearch(bootCtx, cfg, todoH, sqlDB); serr != nil {",
+						startMarker:       "// Search wiring: every layer, mode from config. The heal is deferred",
 						endIsClosingBrace: true,
 						endBrace:          "\t}",
 					},
+				},
+			},
+		},
+		extraDrops: []fileDrop{
+			{
+				path: "features/todo/handlers/register.go",
+				substrs: []string{
+					`	"github.com/calionauta/gogogo/internal/search"`,
+					// The heal closure stays callable when search is trimmed:
+					// it degrades to a no-op in the trimmed tree (the Register
+					// keeps the field, the heal body never runs there).
 				},
 			},
 		},

@@ -133,7 +133,8 @@ func (s *Service) loop(ctx context.Context) {
 ```
 
 Wire the cancel at the composition root, exactly like the repo does
-(`bootCredits` in `internal/server/chi.go`, `bootRoomActor`, `AttachJetStream`):
+(the credits Register in `features/credits/handlers/register.go` and
+`AttachJetStream`):
 
 ```go
 ctx, cancel := context.WithCancel(context.Background())
