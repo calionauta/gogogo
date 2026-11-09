@@ -15,6 +15,19 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.64.0 (2026-11-09)
+
+## What's Changed
+* fix(graph): theme-aware colors, kind toggles, radial layout, Stack panel by @calionauta in https://github.com/calionauta/gogogo/pull/375
+* feat(recipe): official catalog with todo/graph as recommended reference recipes by @calionauta in https://github.com/calionauta/gogogo/pull/376
+* feat(ui): dynamic version badge synced via /health live build evidence by @calionauta in https://github.com/calionauta/gogogo/pull/378
+* feat(notifications): inbox read-state UX — row-end badge, header counter, tabs, mark unread by @calionauta in https://github.com/calionauta/gogogo/pull/379
+* feat(dashboard): odometer counters with count-up to the exact value by @calionauta in https://github.com/calionauta/gogogo/pull/380
+* feat: unified recipes — 12 self-mounting bundled units, receipts, scaffold, docs/site by @calionauta in https://github.com/calionauta/gogogo/pull/382
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.63.0...v0.64.0
+
 ## 0.63.0 (2026-11-08)
 
 ## What's Changed
