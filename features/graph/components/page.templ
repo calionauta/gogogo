@@ -38,21 +38,21 @@ templ body() {
 			<div class="ui-card-body">
 				<h2 class="ui-title">System panorama</h2>
 				<p class="opacity-70">
-					System map: capabilities (core/plugin/feature) + installed recipes,
+					System map: capabilities (core/servant/recipe) + installed recipes,
 					and live views of the DagNats workflows this binary owns.
 					Pan/zoom, click for detail. <span id="graph-rung" class="opacity-60">Canvas2D</span>
 				</p>
 				<div class="flex flex-wrap gap-2 items-center py-2">
 					<label class="label cursor-pointer gap-2">
-						<span class="label">core</span>
+						core
 						<input type="checkbox" checked class="toggle toggle-primary" data-graph-filter="core"/>
 					</label>
 					<label class="label cursor-pointer gap-2">
-						<span class="label">plugin</span>
+						servant
 						<input type="checkbox" checked class="toggle toggle-secondary" data-graph-filter="plugin"/>
 					</label>
 					<label class="label cursor-pointer gap-2">
-						<span class="label">feature</span>
+						recipe
 						<input type="checkbox" checked class="toggle toggle-accent" data-graph-filter="feature"/>
 					</label>
 					<button id="graph-fit" class="btn btn-sm btn-ghost">Fit</button>

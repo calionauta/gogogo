@@ -115,6 +115,8 @@ func runAllChecks(only ...string) (doctorReport, int) {
 	}
 	// zig is opt-in (wails-cross / MyGo lite) — missing is warn, not fail
 	add(checkBinaryWarn("tool.zig", "zig", "brew install zig (wails-cross / MyGo lite)", "*"))
+	// mygo CLI is opt-in (packaging only; plain go build needs no CLI) — missing is warn, not fail
+	add(checkBinaryWarn("tool.mygo", "mygo", "go tool github.com/egoist/mygo/cmd/mygo (MyGo packaging; make mygo needs no CLI)", "*"))
 	// Desktop/mobile (warn only)
 	switch runtime.GOOS {
 	case "darwin":

@@ -17,7 +17,7 @@ SMOKE_BIN ?= $(OS_TMPDIR)/gogogo-ci-local-web
 # build does not use the wails3 CLI at all — it is a plain `go build` — so no
 # copy of the version belongs here to drift from the module graph.
 
-.PHONY: all build desktop desktop-smoke desktop-sync-smoke mobile run-desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean templ fmt css css-install datastar-lint test lint check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui gui-build gui-test run-gui lint-gui check-generated install-sh-guard check-classes check-ci-scripts daisyui-lint vocabulary check-docs docs-index check-mcp site site-check
+.PHONY: all build desktop desktop-smoke desktop-sync-smoke mobile run-desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean templ fmt css css-install datastar-lint test lint check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui gui-build gui-test run-gui lint-gui mygo mygo-build mygo-test run-mygo mygo-smoke check-generated install-sh-guard check-classes check-ci-scripts daisyui-lint vocabulary check-docs docs-index check-mcp site site-check
 
 all: build
 
@@ -656,6 +656,9 @@ help:
 	@echo "  gui            Race tests + build the gogpu/ui window → build/gui/ (local only, no CI)"
 	@echo "  run-gui        Open the native gogpu/ui window"
 	@echo "  lint-gui       Full lint on cmd/gui (manual gate, never in CI)"
+	@echo "  mygo           Build the MyGo loopback shell → build/mygo/ (local only, no CI)"
+	@echo "  mygo-smoke     Build + prove the MyGo window loaded the app (local only)"
+	@echo "  run-mygo       Build then open the MyGo window"
 	@echo "  desktop-cross  Cross previews win+mac+linux via wails-cross (opt-in, unsigned)"
 	@echo "  desktop-setup-cross  One-time wails-cross Docker setup (~800MB)"
 	@echo "  fmt            Check formatting (gofumpt + goimports)"
@@ -716,6 +719,34 @@ lint-gui:
 run-gui: gui-build
 	@echo "→ Starting the native gogpu/ui window (window + GPU required)..."
 	@./build/gui/gogogo-gui
+
+# mygo builds the MyGo peer shell (loopback webview over the same flat
+# stack). Pure-Go shell name, but the backend links tursogo — CGO stays
+# on (macOS CLT / GTK-WebKit headers, like desktop). No CI job compiles
+# it; docs/research/mygo-2026-11.md carries the proof. Needs go 1.27+.
+mygo: mygo-test mygo-build
+
+# mygo-test runs the headless vet (no window needed).
+mygo-test:
+	@echo "→ Testing MyGo shell v$(VERSION) (headless)..."
+	@go vet ./cmd/mygo/...
+
+# mygo-build compiles without the tests — what opening the window needs.
+mygo-build: templ
+	@echo "→ Building MyGo shell v$(VERSION)..."
+	@mkdir -p build/mygo
+	@go build $(LDFLAGS) -o build/mygo/gogogo-mygo ./cmd/mygo
+	@echo "  → build/mygo/gogogo-mygo"
+
+run-mygo: mygo-build
+	@echo "→ Starting the MyGo window (window required)..."
+	@./build/mygo/gogogo-mygo
+
+# mygo-smoke is the GATE: build, open the window, and prove the webview
+# loaded the app (its requests reach the flat stack's access log) plus
+# first-run signup and the single-instance lock. `make mygo` only compiles.
+mygo-smoke:
+	@./scripts/mygo-smoke.sh
 
 # --- Docs site (GitHub Pages) ----------------------------------------------
 # site/index.html + descent.css + official.css + assets/ are hand-written sources; everything

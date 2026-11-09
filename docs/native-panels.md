@@ -37,7 +37,7 @@ A feature contributes one `PanelProvider` (`features/genui/components/panel.go`)
 - **`Fill`** — owner-scoped rows from the store; map the page's model.
 - **`Render`** — the feature's own component. No new markup.
 
-Boot installs the set in `bootAI` (`internal/server/boot_helpers.go`).
+Boot installs the set in the todo Register (`features/todo/handlers/register.go`).
 `Hydrate` fills a live answer; `Rehydrate` re-fills stored history, so a reload
 shows current rows. A provider that cannot fill is replaced by the honest
 "couldn't load this" placeholder, never an empty panel.

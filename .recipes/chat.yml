@@ -1,0 +1,41 @@
+id: chat
+version: v1.0.0
+upstream:
+  repo: github.com/calionauta/gogogo
+  ref: master
+  path: features/chat
+files:
+  features/chat/components/chat.templ: d407bd216e3e46c4d1228d679a6e27fa476ee8804c16f46fe38bafb6df820f5e
+  features/chat/components/chat_templ.go: 896dbbdeb39011bc1a2aa9abbc7d6ba77579e736f1f9a0d6ca21d9d45f658ad6
+  features/chat/components/signals.go: 8355006d2d1ecb0cf1c24ed94908efab2d82b1772ef5bf844c05a5e3d6057e10
+  features/chat/components/state_panel.templ: 9b07654779e63d967d7aeaa9a79a2efc42ed8eb07e7255406514c97b631f6008
+  features/chat/components/state_panel_templ.go: 9d8f408ef479d64506009101a69214444f97420d1d3ee9f3201c36ab6cfb3968
+  features/chat/components_test.go: 64806d3a3b6ace23689ab48d45b8d125ed01d295410a353e98098eff8393a548
+  features/chat/handlers/chi.go: 043fa6adb245292b2c4e4a99734bae9b1a88474e29e47f919923c0721b5f8d88
+  features/chat/handlers/chi_test.go: f75d432f5b110376df1d922f707c82425427d5907b6a05da6a4d5a065cf61fa3
+  features/chat/handlers/hydrate_test.go: 9f8d10e1c209416cc7802168745c7257a44b0aace310b27a518cd632dcdc0a7f
+  features/chat/handlers/recipe.go: d4a90cf3c73e61f9bf86111f73baef02d97c61fa2e5329cb950023e5f692fc7c
+  features/chat/handlers/register.go: 4df6a9700702a2c60974f56b24003fbafab973df8f122670b1e0305100b1c860
+  features/chat/handlers/responder.go: 414e1a6f1f2b62a37267bdf5b15c35f3348debef8948f2dd185cfe7517ab1233
+  features/chat/handlers/router.go: db8860e71f790cd1391fe82d603a09ccf5302cb5eef1ee074f8509be0d87f48f
+  features/chat/handlers/router_test.go: c193e6fb58d256bae6058dcfdd851bf26ea7876cd4a47fd7dfdede43560198b2
+  features/chat/handlers/surfaces.go: 9e3b4a41bc90b50ff9fcbd0f5a36b62bf1c6e89a407bc537c89bedbde8124c7b
+  features/chat/handlers/surfaces_test.go: 534e3e52c27b5de2843734f19de4aea456f4bfe2dbb08fe98dbf4a344edd0a81
+  features/chat/handlers/worker.go: 29229f9e777a5eac697ea8606cbf4a0ef6cac34a34308554000955d0aa01dfe9
+  features/chat/handlers/worker_test.go: 6d9fb225094a81a1c9cc0d191fdaed0bf8631f360a06dc2d9c15fa62062647d4
+  features/chat/store/main_test.go: 510a55739b013364f82ce172ce389af1dff7296c162d903228fe190cebf350aa
+  features/chat/store/memory.go: ebf9c3f1f8570326a24f84bcf065b8c3316974f894a2a8f333fbf428a4ebd243
+  features/chat/store/parse_gallery_test.go: 1c85e2c974b7fe394ce200c95e021a7eeb3231903dcd05f06df08d16d469de7f
+  features/chat/store/parse_test.go: e06edd57a1c273657f53ba73e52a15acf1517714c96a6fe2479df214b8383f51
+  features/chat/store/store.go: a4af74c13c830f21e9469a352e9e3ee09d2d4f916e058063598698fde89d445a
+declaration:
+  routes:
+  - method: GET
+    pattern: /chat
+  - method: POST
+    pattern: /api/chat/ask
+  - method: POST
+    pattern: /api/chat/clear
+  - method: GET
+    pattern: /api/chat/stream
+register: features/chat/handlers

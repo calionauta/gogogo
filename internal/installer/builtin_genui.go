@@ -2,22 +2,20 @@
 //
 // Split out of trim_features.go for the file-size gate. genui is the AI
 // bundle: chat imports genui components (no-compile without it), so the two
-// are one unit (see the genui capability entry). It grew past its
-// neighbours because a bad answer surface must fail the BOOT, which means
-// the unit owns a boot helper (bootAI) rather than a handful of lines.
+// are one unit (see the genui capability entry). Chat mounts itself via
+// Register (panels arrive through Deps.Panels); the root builds the todo
+// panel the catalog installs.
 
 package installer
 
 // genuiBuiltinUnits holds the one AI unit. A slice (not a bare literal) so
 // builtin_units.go appends it the same way it appends featureBuiltinUnits.
 //
-// The import lines are consts because the unit drops them from three files
-// (chi.go, chi_test.go and boot_helpers.go) and goconst is right that one
-// spelling beats three literals: a rename that missed one would leave a
-// dangling import in the trimmed tree.
+// The import lines are consts because the unit drops them from two files
+// (chi.go and chi_test.go) and goconst is right that one spelling beats two
+// literals: a rename that missed one would leave a dangling import in the
+// trimmed tree.
 const (
-	chathandlersImport = `chathandlers "github.com/calionauta/gogogo/features/chat/handlers"`
-	chatstoreImport    = `chatstore "github.com/calionauta/gogogo/features/chat/store"`
 	genuiComponentsImp = `comp "github.com/calionauta/gogogo/features/genui/components"`
 	// configPageTempl is the admin page both the components section and the
 	// sounds trim address: one spelling so a rename cannot strand a rule.
@@ -31,22 +29,6 @@ var genuiBuiltinUnits = []builtinUnit{
 		// genui components (no-compile without it), so one unit is the only
 		// honest shape (see internal/capabilities).
 		extraStrips: []fileStrip{
-			{
-				// bootAI's whole body goes with the unit: nothing calls it once
-				// the drop below removes the call line, and leaving it would
-				// keep every genui/chat import alive. Same shape as
-				// bootReview's strip, in the same file (boot_helpers.go) —
-				// which is also why BootChi no longer imports llm/comp/chatstore
-				// at all in a trimmed tree.
-				path: bootHelpersFile,
-				rules: []stripRule{
-					{
-						startMarker:       "// bootAI wires the Chat demo",
-						endIsClosingBrace: true,
-						endBrace:          "}",
-					},
-				},
-			},
 			{
 				// The panel branches in the todo mutations go with the unit:
 				// they answer through panel_action.go, which the unit deletes
@@ -117,37 +99,11 @@ var genuiBuiltinUnits = []builtinUnit{
 			{
 				path: chiGoFile,
 				substrs: []string{
-					// The helper call (one line) is dropped as a whole; the
-					// helper's body (including the RegisterHandlers call it
-					// now owns) goes via the strip rule above, because a
-					// multi-line construction cannot be removed by substring.
-					"chatH, err := bootAI(cfg, a, chiQ, hub, realLLM, simulatedLLM, queries, slots)",
-					// One argument per line: each drop removes exactly its
-					// feature's line, and add restores them.
-					"chatH,",
-					`r.MountFeature("chat", chatH.Routes())`,
-					chathandlersImport,
-					// chatstore and comp are NOT listed for chi.go: BootChi never
-					// imported them (bootAI owns those references), and a marker
-					// that no longer exists in the file is drift the sync test
-					// fails on. Their boot_helpers.go drops are in the fileDrop
-					// below.
-					"chatH *chathandlers.Handler,",
-				},
-			},
-			{
-				// bootAI's signature and body are the last users of these imports
-				// in boot_helpers.go, and the strip rule above removes the body —
-				// so the imports go by line. Without this the trimmed tree keeps
-				// importing packages the unit deleted.
-				path: bootHelpersFile,
-				substrs: []string{
-					chathandlersImport,
-					chatstoreImport,
-					genuiComponentsImp,
-					// The panel registry is the only reader of the slot registry
-					// in this file: with the strip above, the import is dead.
-					`"github.com/calionauta/gogogo/internal/recipe"`,
+					// The todo panel the chat unit installs globally:
+					// without genui there is no catalog, so the root stops
+					// building it and stops passing Panels.
+					"panels := []any{todohandlers.NewTodoPanel(queries, slots)}",
+					"Panels: panels,",
 				},
 			},
 			{
@@ -172,18 +128,12 @@ var genuiBuiltinUnits = []builtinUnit{
 				},
 			},
 			{
-				// The server test's chat imports and handler constructions
-				// go as line drops; the mux table's "/chat" element goes too
-				// (one element per line, so combined trims stay
-				// order-independent). The model stubs go with the unit's Files
-				// entry (a file delete, not a strip — strips on chi_test.go
-				// have no add anchor).
+				// The mux table's "/chat" element goes too (one element per
+				// line, so combined trims stay order-independent). Chat
+				// mounts via the seam now; there is no handler construction
+				// left in this test file.
 				path: chiTestFile,
 				substrs: []string{
-					chathandlersImport,
-					chatstoreImport,
-					"chathandlers.NewHandler(",
-					"stubResponder{raw: \"{}\"}),",
 					"\t\t\"/chat\",",
 				},
 			},

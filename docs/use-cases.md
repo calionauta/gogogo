@@ -1,4 +1,4 @@
-# Use cases — what each core / plugin / feature is for
+# Use cases — what each core / servant / recipe is for
 
 Who this is for: you (or your agent) described a product need and want to
 know which pieces of the template carry it — before running `advise`,
@@ -9,9 +9,10 @@ Switch-off mechanics (env flag vs deletion) are in
 about *fit*, not removal.
 
 Conventions: **core** is load-bearing (customize, never remove);
-**plugin** serves other capabilities (nothing user-facing disappears, but
-something stops working); **feature** is a terminal user surface (a page
-or journey disappears when trimmed).
+**servant** (`Kind: plugin` — wired library, site name) serves other
+capabilities (nothing user-facing disappears, but something stops working);
+**recipe** (`Kind: feature` — copied slice, site name) is a terminal user
+surface (a page or journey disappears when uninstalled).
 
 ## Core
 
@@ -53,9 +54,9 @@ Not for: API-token auth for machines (not included); BYOK accounting
 `app` (deps bundle). You never keep-or-drop these;
 skip this section when deciding.
 
-## Plugins
+## Servants (`Kind: plugin`)
 
-### `nats` — cross-process messaging (plugin, env-blessed)
+### `nats` — cross-process messaging (servant, env-blessed)
 
 What: embedded NATS JetStream — broadcast, KV, streams, leaf nodes.
 Runtime off: `NATS_ENABLED=false` (in-memory hub fallback).
@@ -68,7 +69,7 @@ Not for: single-process deployments (the hub covers fan-out; see
 "Topology profiles" below). Deletion is manual (15+ importers carry
 NATS types) — toggle, don't trim.
 
-### `dagnats` — durable multi-step workflows (plugin, offered)
+### `dagnats` — durable multi-step workflows (servant)
 
 What: DAG engine over JetStream: retries, timeouts, signals
 (suspend/resume), cron/webhook/NATS/HTTP triggers, DLQ with replay,
@@ -83,7 +84,7 @@ Not for: single fire-and-forget jobs (that is `queue`); per-step undo
 on failure — DagNats retries and replays, it does not compensate
 (see saga note below); timers owned by one entity (no owner here).
 
-### `delivery` — transport seam (plugin, manual removal)
+### `delivery` — transport seam (servant)
 
 What: one `Sender` per channel (`internal/delivery`). `DELIVERY_TRANSPORT`
 selects `off` (default), the in-process `smtp`, or an external `notify`
@@ -98,7 +99,7 @@ Not for: deciding channels or addresses. The template ships `in_app` and
 `email`; anything else is the provider's business (see
 `docs/research/notify-2026-10.md`).
 
-### `goakt` — entity actors with supervision (plugin, offered)
+### `goakt` — entity actors with supervision (servant)
 
 What: one addressable grain per room (connection-scoped roster plus an
 exactly-one presenter lock), supervised with restart budget, idle
@@ -117,7 +118,7 @@ fire-and-forget jobs (that is `queue`); multi-step DAGs with replay
 (that is `dagnats`); cross-process placement (standalone only —
 cluster mode is out of scope for this unit).
 
-### `llm` — model calls (plugin, env-blessed)
+### `llm` — model calls (servant)
 
 What: GoAI client behind an injectable interface (any OpenAI-compatible
 provider), streaming, function-field injection for tests.
@@ -133,7 +134,7 @@ Runtime off: unset `GOAI_API_KEY` (suggest button hides).
 Not for: orchestration, memory, tool loops, supervision — single
 calls only. Multi-step agent behavior is `dagnats` (pipelines), not this.
 
-### `collab` — realtime convergence (plugin, bundled with whiteboard)
+### `collab` — realtime convergence (servant, bundled with whiteboard)
 
 What: Loro CRDT DocStore, sync workers, presence transport.
 Never standalone (needs a producing feature: canvas, notes).
@@ -144,7 +145,7 @@ Never standalone (needs a producing feature: canvas, notes).
 Not for: ownership or turn-taking (CRDTs converge data; they don't
 elect owners — no locks, no presenter token).
 
-### `credits` — AI metering + BYOK ledger (plugin, offered)
+### `credits` — AI metering + BYOK ledger (servant)
 
 What: per-key usage accounting for metered LLM features.
 Runtime off: `CREDITS_ENABLED=false` (default; unmetered but working).
@@ -165,7 +166,7 @@ runtime switch.
 
 Not for: both at once per entity — one strategy per store.
 
-### `offline-sync` — offline edits that arrive later (plugin, manual removal)
+### `offline-sync` — offline edits that arrive later (servant)
 
 What: service-worker outbox + NATS CRUD proxy + idempotency.
 Runtime off: `OFFLINE_SYNC_ENABLED=false`.
@@ -176,7 +177,7 @@ Runtime off: `OFFLINE_SYNC_ENABLED=false`.
 Not for: conflict *resolution* on merge (that is `collab`); pure
 read-only offline pages (a cached shell needs none of this).
 
-### `sounds`, `datastar`, `components` (plugins)
+### `sounds`, `datastar`, `components` (servants)
 
 Small surface: UI sound cues (`sounds`, offered), rendering helpers and shared UI plumbing
 (`datastar`, `components` — manual removal). Audible feedback and

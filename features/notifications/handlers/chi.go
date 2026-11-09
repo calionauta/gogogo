@@ -32,14 +32,9 @@ import (
 // count is small enough that a second page would be interface noise.
 const listLimit = 50
 
-// RunStarter is the slice of the workflow client this feature needs. It is
-// exported so the composition root can inject the DagNats client without this
-// package importing the engine: `internal/dagnats` is a trim unit, and a
-// feature that imported it would either drag the engine along or dangle after
-// the trim.
-type RunStarter interface {
-	StartRun(ctx context.Context, workflow string, input any) (string, error)
-}
+// RunStarter is an alias for the shared contract so existing imports keep
+// working; the canonical type lives in features/notifications.
+type RunStarter = notifications.RunStarter
 
 // Handler serves the notifications feature on chi.
 type Handler struct {

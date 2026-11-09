@@ -11,8 +11,6 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/calionauta/gogogo/features/notifications"
-	notificationshandlers "github.com/calionauta/gogogo/features/notifications/handlers"
 	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/recipe"
 	"github.com/calionauta/gogogo/internal/recipe/register"
@@ -38,19 +36,6 @@ func bootRecipes(r *Router, deps register.Deps) error {
 		panic("server: " + merr.Error())
 	}
 	return nil
-}
-
-// bootInbox builds the inbox slice inside the composition instead of after it.
-//
-// The slice used to mount later because the shell's session stream shares its
-// bus, which looked like a reason to build it outside the tree. It is not: the
-// bus is just another dependency, so the root builds both here, keeps them for
-// the middleware step, and the routes travel the same seam as every other unit.
-func bootInbox(r *Router, deps register.Deps) {
-	bus := notifications.NewBus()
-	h := notificationshandlers.NewHandler(deps.Auth, deps.Cfg, deps.Queries, bus, buildDelivery(deps.Cfg))
-	r.inbox, r.inboxBus = h, bus
-	r.recipes.Add(h.Recipe())
 }
 
 // shellNav turns the nav.sidebar slot into what the rail renders.

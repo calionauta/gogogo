@@ -24,25 +24,17 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"os"
 	"path/filepath"
 	"time"
 
 	natsio "github.com/nats-io/nats.go"
 
 	"github.com/calionauta/gogogo/config"
-	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
-	confighandlers "github.com/calionauta/gogogo/features/config/handlers"
-	creditshandlers "github.com/calionauta/gogogo/features/credits/handlers"
-	landinghandlers "github.com/calionauta/gogogo/features/landing/handlers"
 	"github.com/calionauta/gogogo/features/notes"
-	noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"
-	notificationshandlers "github.com/calionauta/gogogo/features/notifications/handlers"
+	"github.com/calionauta/gogogo/features/notifications"
 	"github.com/calionauta/gogogo/features/onboarding"
-	reviewhandlers "github.com/calionauta/gogogo/features/review/handlers"
-	roomhandlers "github.com/calionauta/gogogo/features/room/handlers"
-	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 	"github.com/calionauta/gogogo/features/whiteboard"
-	wbhandlers "github.com/calionauta/gogogo/features/whiteboard/handlers"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/db"
@@ -50,6 +42,7 @@ import (
 	"github.com/calionauta/gogogo/internal/dbschema"
 	appgoakt "github.com/calionauta/gogogo/internal/goakt"
 	"github.com/calionauta/gogogo/internal/instance"
+	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/nats"
 	"github.com/calionauta/gogogo/internal/natswire"
 	"github.com/calionauta/gogogo/internal/queue"
@@ -60,6 +53,52 @@ import (
 // shutdownTimeout bounds chi-stack shutdown: in-flight SSE streams get a
 // few seconds to finish before the process exits.
 const shutdownTimeout = 5 * time.Second
+
+// TodoCreator is what the DagNats onboarding worker needs from the todo
+// slice (one method, so cmd/web stays decoupled from the handlers package
+// the root no longer imports).
+type TodoCreator interface {
+	CreateTodoForOnboarding(ctx context.Context, title, owner string) error
+}
+
+// NotificationsDeliverer is what the DagNats reminder worker needs from
+// the inbox slice (one deliver method, in features/notifications so the
+// root never imports handlers).
+type NotificationsDeliverer notifications.Deliverer
+
+// todoHandle adapts the Register-published funcs to TodoCreator.
+type todoHandle struct{ ref *register.TodoRef }
+
+func (h todoHandle) CreateTodoForOnboarding(ctx context.Context, title, owner string) error {
+	if h.ref == nil || h.ref.CreateTodoForOnboarding == nil {
+		return nil
+	}
+	return h.ref.CreateTodoForOnboarding(ctx, title, owner)
+}
+
+// inboxHandle adapts InboxRef to NotificationsDeliverer.
+type inboxHandle struct{ ref *register.InboxRef }
+
+func (h *inboxHandle) Deliver(ctx context.Context, d notifications.Delivery) error {
+	if h == nil || h.ref == nil || h.ref.Deliver == nil {
+		return nil
+	}
+	return h.ref.Deliver(ctx, d)
+}
+
+func (h *inboxHandle) SetRunStarter(r notifications.RunStarter) {
+	if h == nil || h.ref == nil || h.ref.SetRunStarter == nil {
+		return
+	}
+	h.ref.SetRunStarter(r)
+}
+
+func (h *inboxHandle) Wired() bool {
+	if h == nil || h.ref == nil || h.ref.Wired == nil {
+		return false
+	}
+	return h.ref.Wired()
+}
 
 // ChiStack is the booted flat stack, held apart so callers can attach
 // JetStream and serve in the order their boot graph requires (see the file
@@ -76,47 +115,24 @@ type ChiStack struct {
 	hub     *queue.SSEHub
 	// TodoHandler is the todo slice handle engines wire against: the
 	// DagNats onboarding worker creates example todos through it, so
-	// cmd/web passes this to startDagNats before NATS exists.
-	TodoHandler *todohandlers.Handler
+	// cmd/web passes this to startDagNats before NATS exists. Its type
+	// is the one-method interface above, filled from the Register
+	// bridge so the root never imports the handlers package.
+	TodoHandler TodoCreator
+	// todoRef is the full Register bridge (publisher + consumer) the
+	// AttachJetStream step needs; nil when the todo recipe mounted
+	// nothing (never on a stock tree).
+	todoRef *register.TodoRef
 	// NotificationsHandler is the delivery side engines wire against: the
 	// DagNats reminder worker writes the notification row through it, so
-	// cmd/web passes this to startDagNats before NATS exists.
-	NotificationsHandler *notificationshandlers.Handler
+	// cmd/web passes this to startDagNats before NATS exists. Filled from
+	// InboxRef so the root never imports the handlers package.
+	NotificationsHandler NotificationsDeliverer
+	// inboxRef is the full Register bridge (bus) the shell feed needs.
+	inboxRef *register.InboxRef
 	// presence is the roster seam both collaborative features share (created
 	// at boot, federated by AttachPresenceFederation). Nil = features trimmed.
 	presence *collab.FederatedPresence
-}
-
-// bootRoomActor starts the GoAkt actor system and returns the room grains
-// handler plus the host (nil, nil when disabled or when the engine failed
-// to start: /room then degrades to 502s, same as the previous stack with
-// its engine down — never to a failed boot). The shutdown hook is
-// registered by the caller so the Background timeout in stopRoomActor
-// lives outside a function carrying the boot ctx (that is what the
-// contextcheck rule wants, and it keeps the hook's lifetime independent).
-func bootRoomActor(
-	ctx context.Context, cfg *config.Config, a *auth.Auth, hub *queue.SSEHub,
-) (*roomhandlers.Handler, *appgoakt.Host) {
-	if !cfg.GoAkt.Enabled {
-		return nil, nil
-	}
-	host := appgoakt.New()
-	if herr := host.Start(ctx); herr != nil {
-		slog.Warn("server: goakt failed to start, room demo disabled", "error", herr)
-		return nil, nil
-	}
-	appgoakt.SetDefault(host)
-	return roomhandlers.NewHandler(cfg, a, host, hub), host
-}
-
-// stopRoomActor is the shutdown hook for the GoAkt host. Its timeout
-// starts from Background on purpose: the hook runs during stop(), while
-// the boot context may already be cancelled, and a cancelled parent would
-// make host.Stop fail instantly instead of draining grains.
-func stopRoomActor(host *appgoakt.Host) {
-	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
-	defer cancel()
-	_ = host.Stop(ctx)
 }
 
 // bootOnboarding wires the DagNats onboarding slice onto the chi stack:
@@ -126,13 +142,15 @@ func stopRoomActor(host *appgoakt.Host) {
 // boot never registers the route and the resume hook stays off. Split from
 // BootChi to keep boot under the length gate, mirroring bootCredits.
 func bootOnboarding(
-	cfg *config.Config, a *auth.Auth, todoH *todohandlers.Handler, hub *queue.SSEHub,
+	cfg *config.Config, a *auth.Auth, ref *register.TodoRef, hub *queue.SSEHub,
 ) (*onboarding.Handler, []func()) {
 	if !cfg.DagNats.Enabled {
 		return nil, nil
 	}
 	h := onboarding.NewHandler(a, cfg.DagNats.HTTPAddr, hub)
-	todoH.SetOnboarding(h)
+	if ref != nil && ref.SetOnboarding != nil {
+		ref.SetOnboarding(h)
+	}
 	return h, []func(){h.Shutdown}
 }
 
@@ -141,7 +159,7 @@ func bootOnboarding(
 // AttachJetStream runs. js-free by design — the engine owns the NATS, so
 // JetStream is attached after boot, never passed into it.
 //
-//nolint:funlen,gocyclo // composition root: one line per feature, and the installer
+//nolint:funlen // composition root: one line per feature, and the installer
 func BootChi(cfg *config.Config) (*ChiStack, error) {
 	if verr := cfg.ValidateModes(); verr != nil {
 		return nil, verr
@@ -192,76 +210,71 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		return bootFail(cancelConsumer, sqlDB, "queue", qerr)
 	}
 	hub := chiQ.Hub()
-	todoH := todohandlers.NewHandler(queries, a, hub)
-	// Set before any route serves: the idempotency receipt transacts on it.
-	todoH.SetDatabase(sqlDB)
-	wireTodoDisplay(todoH, cfg)
-	if serr := bootSearch(bootCtx, cfg, todoH, sqlDB); serr != nil {
-		return bootFail(cancelConsumer, sqlDB, "search", serr)
-	}
-
 	// Shutdown hooks stop independent things: stepper, actor, queue,
-	// ledger. The order is arbitrary.
+	// ledger. The order is arbitrary. onShutdown is handed to Deps so
+	// self-mounting units (credits ledger, room host) register theirs
+	// without the root knowing their types.
 	shutdown := []func(){chiQ.Close}
+	onShutdown := func(f func()) { shutdown = append(shutdown, f) }
 
-	// Onboarding wires before the actor boot so its hook lands first.
-	onboardingH, onbShutdown := bootOnboarding(cfg, a, todoH, hub)
-	shutdown = append(shutdown, onbShutdown...)
+	// Todo handle holder: the todo Register fills it during bootRecipes
+	// so engines (JetStream, onboarding, DagNats worker) wire without the
+	// root importing the handlers package.
+	todoRef := &register.TodoRef{}
+	inboxRef := &register.InboxRef{}
 
-	roomH, roomHost := bootRoomActor(bootCtx, cfg, a, hub)
-	if roomHost != nil {
-		shutdown = append(shutdown, func() { stopRoomActor(roomHost) })
+	// LLM clients are built once here and shared by the todo and chat
+	// Registers (same clients BootChi used to hand each handler).
+	realLLM := llm.New(cfg.GoAI.APIKey)
+	var simulatedLLM *llm.Client
+	if os.Getenv("SIMULATE_LLM") != "false" {
+		simulatedLLM = llm.NewSimulated()
 	}
-
 	// One slot registry for the boot: the AI panel renders the SAME row.
 	slots := recipe.NewSlotRegistry()
-	realLLM, simulatedLLM := wireTodoLLM(todoH, chiQ, cfg)
-	// Retained for the trimmed tree: the genui trim drops the constructions
-	// below, and an unused local would not compile there.
-	_, _ = realLLM, simulatedLLM
-	chatH, err := bootAI(cfg, a, chiQ, hub, realLLM, simulatedLLM, queries, slots)
-	if err != nil {
-		cancelConsumer()
-		return nil, err
-	}
-	reviewH := bootReview(cfg, a, realLLM)
 	chiQ.StartWorkers()
-
-	creditsH, shutdown, err := bootCredits(bootCtx, cfg, shutdown, sqlDB, cancelConsumer, a)
-	if err != nil {
-		return nil, err
-	}
 
 	persister, docs, perr := bootCollab(cfg, queries)
 	if perr != nil {
 		return bootFail(cancelConsumer, sqlDB, "collab snapshots", perr)
 	}
-	wbH := wbhandlers.NewHandler(queries, a, hub, persister, docs, cfg)
-	notesH := noteshandlers.NewHandler(queries, a, hub, persister, docs, cfg)
 	// Collaborator presence: ONE local seam for both features (the actor when
 	// GoAkt runs, the in-process PeerSet otherwise), so a deployment cannot end
 	// up with two rosters that disagree about the same tab. It is federated
 	// across instances in AttachPresenceFederation once NATS exists.
 	federated := bootPresence(hub)
-	// trim:presence-actor
-	if roomHost != nil {
-		upgradePresenceToActor(federated, appgoakt.NewDocPresence(roomHost))
-	}
-	wbH.SetPresence(federated)
-	notesH.SetPresence(federated)
 	// One argument per line: a trim drops its features' lines, nothing else.
-	mux := buildChiMux(a, register.Deps{Cfg: cfg, Auth: a, Queries: queries, Hub: hub, Slots: slots, SQLDB: sqlDB}, todoH,
-		landinghandlers.NewHandler(cfg, a),
-		confighandlers.NewHandler(cfg, a, queries),
-		wbH,
-		notesH,
-		roomH,
-		chatH,
-		reviewH,
-		creditsH,
+	mux := buildChiMux(a,
+		register.Deps{
+			Cfg: cfg, Auth: a, Queries: queries, Hub: hub, Queue: chiQ,
+			RealLLM: realLLM, SimulatedLLM: simulatedLLM,
+			OnShutdown: onShutdown, Slots: slots, SQLDB: sqlDB,
+			Persister: persister, DocStore: docs, Presence: federated,
+			TodoRef: todoRef, InboxRef: inboxRef,
+		},
 	)
 	if mux.recipeErr != nil {
 		return bootFail(cancelConsumer, sqlDB, "recipes", mux.recipeErr)
+	}
+	if todoRef.HealSearch != nil {
+		if herr := todoRef.HealSearch(bootCtx); herr != nil {
+			return bootFail(cancelConsumer, sqlDB, "search", herr)
+		}
+	}
+	// Onboarding wires after the recipe step: TodoRef.SetOnboarding is
+	// filled by the todo Register, so the resumer lands on the handler the
+	// seam mounted.
+	onboardingH, onbShutdown := bootOnboarding(cfg, a, todoRef, hub)
+	shutdown = append(shutdown, onbShutdown...)
+	// roomHost is read by the graph mount and the presence upgrade from
+	// the process default (room Register set it during bootRecipes above);
+	// nil when the room recipe registered nothing (GoAkt off or host start
+	// failed). The upgrade mutates the shared federated object the two
+	// collab handlers already hold, so ordering after buildChiMux is correct.
+	roomHost := appgoakt.Default()
+	// trim:presence-actor
+	if roomHost != nil {
+		upgradePresenceToActor(federated, appgoakt.NewDocPresence(roomHost))
 	}
 	mountOnboarding(mux, onboardingH)
 	// Distribution axes (open auth + activation gate). Mounted here because
@@ -277,8 +290,9 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	mountGraph(mux, a, cfg, roomHost)
 	// Runtime dashboard: opt-in, operator-only, mounted before applyRBAC (internal/server/perf.go).
 	perfH := bootPerf(mux, a, cfg, &shutdown)
-	// Inbox is an optional surface next to the console.
-	notificationsH := mountInbox(mux, a, queries)
+	// Inbox bus feed (the inbox itself mounted via the seam).
+	mountInbox(a, queries, inboxRef)
+	notificationsH := &inboxHandle{ref: inboxRef}
 
 	// RBAC is wired, not optional plumbing: one enforcer built here and the
 	// middleware wraps the whole mux (pass-through when disabled, enforced
@@ -304,11 +318,13 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		appName:        cfg.AppName,
 		queries:        queries,
 		hub:            hub,
-		TodoHandler:    todoH,
+		TodoHandler:    todoHandle{ref: todoRef},
+		todoRef:        todoRef,
 		// NotificationsHandler is the delivery side engines wire against: the
 		// DagNats reminder worker writes the notification row through it, so
 		// cmd/web passes this to startDagNats before NATS exists.
 		NotificationsHandler: notificationsH,
+		inboxRef:             inboxRef,
 		presence:             federated,
 	}, nil
 }
@@ -331,8 +347,20 @@ func (s *ChiStack) AttachJetStream(
 		pub.SetCore(nc)
 	}
 	slog.Info("server: crud wire attached", "leafEdge", leafEdge, "publisher", pub != nil)
-	s.TodoHandler.SetPublisher(pub)
-	startCrudConsumer(ctx, js, s.appName, s.TodoHandler)
+	if s.todoRef != nil && s.todoRef.SetPublisher != nil {
+		s.todoRef.SetPublisher(pub)
+	}
+	if s.todoRef != nil && s.todoRef.RunCrudConsumer != nil {
+		run := s.todoRef.RunCrudConsumer
+		go func() {
+			if err := run(ctx, js, s.appName, instance.ID()); err != nil {
+				slog.Error("server: crud consumer stopped", "error", err)
+			}
+		}()
+		return
+	}
+	// Fallback for callers that built the stack without a TodoRef (tests).
+	slog.Warn("server: crud wire without todo bridge, consumer skipped")
 }
 
 // srvHandler wraps the mux for serveChiOnListener (kept separate so the
@@ -418,24 +446,12 @@ func mountOnboarding(r *Router, onboardingH *onboarding.Handler) {
 // The landing router is also the not-found handler, so an unknown path lands
 // on the same page every unmatched URL already has.
 func buildChiMux(
-	a *auth.Auth, deps register.Deps, todoH *todohandlers.Handler,
-	landingH *landinghandlers.Handler,
-	configH *confighandlers.Handler,
-	wbH *wbhandlers.Handler,
-	notesH *noteshandlers.Handler,
-	roomH *roomhandlers.Handler,
-	chatH *chathandlers.Handler,
-	reviewH *reviewhandlers.Handler,
-	creditsH *creditshandlers.Handler,
+	a *auth.Auth, deps register.Deps,
 ) *Router {
 	r := NewRouter()
 	// A panic in a handler answers 500 instead of dropping the connection and
 	// taking an SSE stream down with it.
 	r.Use(recoveryMiddleware)
-	// The landing page is also the not-found surface: an unknown path is a
-	// route the tree does not have, and the landing page is what a browser
-	// (and its smoke tests) expect there.
-	r.NotFound(landingH.Routes().ServeHTTP)
 
 	// Auth is a flat feature like every other surface: its router owns the
 	// absolute paths, the methods (405 at the router) and the OAuth provider
@@ -445,27 +461,13 @@ func buildChiMux(
 	// long-lived SSE the banner holds open and it only hears about changes.
 	MountPath(r, "/api/session/stream", a.SessionStreamHandler())
 
-	r.MountFeature("chat", chatH.Routes())
-	// Installed recipes mount through the seam; a trim drops the line with its import.
+	// Installed recipes mount through the seam.
 	r.recipes = &recipe.Registry{}
-	r.recipes.Add(reviewH.Recipe())
-	r.recipes.Add(creditsH.Recipe())
-	r.recipes.Add(configH.Recipe())
-	r.recipes.Add(roomH.Recipe())
-	r.recipes.Add(todoH.Recipe())
-	r.recipes.Add(notesH.Recipe())
-	r.recipes.Add(wbH.Recipe())
-	r.recipes.Add(landingH.Recipe())
 	// Units that mount themselves (Capability.Register) are registered by the
 	// generated list in units.gen.go, not constructed here.
-	bootInbox(r, deps)
 	// Installed recipes register through the generated file, then their own
 	// migrations run, then they mount: one step, in that order (recipe_surface.go).
 	r.recipeErr = bootRecipes(r, deps)
-	// settings.section: recipes contribute content, this page renders it.
-	configH.SetSlots(deps.Slots)
-	// record.row-actions: copied once, when the registry is complete.
-	todoH.RowActions = todohandlers.RowActionsFrom(deps.Slots)
 
 	// Static: the core bundle, then the Service Worker at the ROOT URL so its
 	// scope is "/" (see static.go). HEAD rides GET per HTTP semantics.
@@ -492,7 +494,7 @@ func buildChiMux(
 	mountExtInvoke(r)
 	r.Claim("core", "GET", "/health")
 	r.Claim("core", "HEAD", "/health")
-	r.Get("/health", healthHandler(todoH))
-	r.Head("/health", healthHandler(todoH))
+	r.Get("/health", healthHandler(deps.Cfg))
+	r.Head("/health", healthHandler(deps.Cfg))
 	return r
 }

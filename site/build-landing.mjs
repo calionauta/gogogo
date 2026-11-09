@@ -113,7 +113,7 @@ const featureNotes = {
   review: "writer · critic · judge",
   room: "roster · presenter lock",
   notifications: "durable · live",
-  landing: "this page is a feature",
+  landing: "this page is a recipe",
   "config-view": "operator surface",
   account: "security page",
 };
@@ -172,6 +172,9 @@ const weights = `<div class="weights">
       </div>`;
 
 // ---------- plugins: all fifteen, grouped by the common opt-outs ----------
+// Kind stays core/plugin/feature in the registry (removal taxonomy); the
+// landing presents it as Core / Servants / Recipes. Filtering below still
+// reads Kind — presentation vocabulary differs, source does not.
 
 const commonPlugins = ["nats", "dagnats", "goakt", "llm", "collab", "offline-sync", "search"];
 const pluginOrder = [...commonPlugins, ...units.filter((u) => u.kind === "plugin" && !commonPlugins.includes(u.id)).map((u) => u.id)];
@@ -192,15 +195,15 @@ const planCommon = commonPlugins.map(planRow).join("\n        ");
 const planRest = pluginOrder.filter((id) => !commonPlugins.includes(id)).map(planRow).join("\n        ");
 
 const plugins = `<div class="trim-head">
-          <span class="trim-title">Trim plan</span>
+          <span class="trim-title">Switches — runtime opt-outs</span>
           <span class="trim-count" id="trim-count" aria-live="polite">${pluginOrder.length} of ${pluginOrder.length} kept</span>
         </div>
         <p class="plan-group">Common opt-outs</p>
         ${planCommon}
         <p class="plan-group">The rest</p>
         ${planRest}
-        <p class="trim-summary" id="trim-summary" aria-live="polite">Every plugin unit on. The binary still builds.</p>
-        <p class="trim-note">Every plugin unit from the unit contracts. A preview, not a live switch; the real switch is the env var or the trim.</p>`;
+        <p class="trim-summary" id="trim-summary" aria-live="polite">Every servant on. The binary still builds.</p>
+        <p class="trim-note">Every servant from the unit contracts (Kind plugin). A preview, not a live switch; the real switch is the env var. Servants are wired libraries, not installable recipes — see Recipes.</p>`;
 
 // ---------- core: four anchors + nine bricks ----------
 

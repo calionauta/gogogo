@@ -13,23 +13,14 @@ import (
 	"time"
 
 	"github.com/calionauta/gogogo/config"
-	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
-	chatstore "github.com/calionauta/gogogo/features/chat/store"
-	confighandlers "github.com/calionauta/gogogo/features/config/handlers"
-	creditshandlers "github.com/calionauta/gogogo/features/credits/handlers"
-	landinghandlers "github.com/calionauta/gogogo/features/landing/handlers"
-	noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"
-	reviewhandlers "github.com/calionauta/gogogo/features/review/handlers"
-	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
-	wbhandlers "github.com/calionauta/gogogo/features/whiteboard/handlers"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
-	appgoakt "github.com/calionauta/gogogo/internal/goakt"
 	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/queue"
+	"github.com/calionauta/gogogo/internal/recipe"
 	"github.com/calionauta/gogogo/internal/recipe/register"
 )
 
@@ -160,19 +151,6 @@ func (j *cookieJar) Cookies(_ *url.URL) []*http.Cookie {
 	return j.cookies
 }
 
-// fakeRooms is the deterministic grain stand-in for mux tests.
-type fakeRooms struct{}
-
-func (fakeRooms) Roster(_ context.Context, _ string) (appgoakt.Roster, error) {
-	return appgoakt.Roster{}, nil
-}
-
-func (fakeRooms) Acquire(_ context.Context, _, _ string) (appgoakt.AcquireResult, error) {
-	return appgoakt.AcquireResult{}, nil
-}
-
-func (fakeRooms) Tell(_ context.Context, _ string, _ any) error { return nil }
-
 // chiQForTest opens an isolated queue (no workers needed for routing).
 func chiQForTest(t *testing.T) *queue.Queue {
 	t.Helper()
@@ -184,19 +162,10 @@ func chiQForTest(t *testing.T) *queue.Queue {
 	return q
 }
 
-// newReviewHandlerForTest builds the review handler with an unconfigured
-// LLM (no network on construction): routing-only, like chiQForTest. The
-// review trim strips this helper plus both call sites below.
-func newReviewHandlerForTest(cfg *config.Config, a *auth.Auth) *reviewhandlers.Handler {
-	g := reviewhandlers.NewGenkit()
-	client := llm.New("")
-	return reviewhandlers.NewHandler(cfg, a, &reviewhandlers.Runner{
-		G:            g,
-		Model:        reviewhandlers.DefineReviewModel(g, client),
-		Judge:        reviewhandlers.NewJudgeClient(cfg),
-		Threshold:    cfg.Review.ConfidenceThreshold,
-		JudgeTimeout: cfg.Review.Timeout,
-	}, client)
+// newReviewHandlerForTestLLM builds the unconfigured LLM the review
+// Register needs in the mux fixtures: no network on construction.
+func newReviewHandlerForTestLLM() *llm.Client {
+	return llm.New("")
 }
 
 // TestBuildChiMuxRoomDisabledPinsRouteAbsence is the port of the router
@@ -227,17 +196,16 @@ func TestBuildChiMuxRoomDisabledPinsRouteAbsence(t *testing.T) {
 	}
 	docs := collab.NewDocStore()
 	hub := queue.NewSSEHub()
-	reviewH := newReviewHandlerForTest(cfg, a)
-	mux := buildChiMux(a, register.Deps{Cfg: cfg, Auth: a, Queries: q, Hub: hub}, todohandlers.NewHandler(q, a, hub),
-		landinghandlers.NewHandler(cfg, a),
-		confighandlers.NewHandler(cfg, a, dbgen.New(sqlDB)),
-		wbhandlers.NewHandler(q, a, hub, persister, docs, cfg),
-		noteshandlers.NewHandler(q, a, hub, persister, docs, cfg),
-		nil, // roomHandler: engine disabled
-		chathandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(),
-			stubResponder{raw: "{}"}),
-		reviewH,
-		creditshandlers.NewHandler(a, nil))
+	slots := recipe.NewSlotRegistry()
+	mux := buildChiMux(
+		a,
+		register.Deps{
+			Cfg: cfg, Auth: a, Queries: q, Hub: hub,
+			RealLLM: newReviewHandlerForTestLLM(), Persister: persister, DocStore: docs,
+			Queue: chiQForTest(t), Slots: slots,
+			TodoRef: &register.TodoRef{}, InboxRef: &register.InboxRef{},
+		},
+	)
 
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/room", nil))

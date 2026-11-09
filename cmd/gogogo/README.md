@@ -12,6 +12,43 @@ go run github.com/calionauta/gogogo/cmd/gogogo@latest --run
 go run ./cmd/gogogo --name my-app --owner myorg --no-tui
 ```
 
+## Preflight & codegen (doctor / generate)
+
+Two deterministic entrypoints for LLM-era work (ported from
+`mygo doctor` / `mygo generate` pattern). Read-only `doctor`,
+deterministic `generate`, no LLM in the path. Full reference:
+[`docs/doctor-generate.md`](../../docs/doctor-generate.md).
+
+```bash
+go run ./cmd/gogogo doctor --json     # preflight for agents/CI (exit 0 ok / 4 fail)
+go run ./cmd/gogogo generate --check  # CI gate: exit 1 on drift
+go run ./cmd/gogogo generate          # fix drift yourself (templ+sqlc+css+docs)
+```
+
+Checks: `go.version`, `go.tool.templ`, `tool.*` (ripwire/sem/cymbal/xerj/
+lefthook/sqlc/docker; `zig` and `mygo` warn opt-in — `mygo` CLI is
+packaging only, `make mygo` needs no CLI), `desktop.sdk` (xcode/GTK
+warn-only), `mobile.sdk` (skip unless `ANDROID_HOME`), `secrets.age`,
+`host.capacity`, `registry.fresh`, `generate.drift` (skip → `generate --check`).
+
+LLM workflow: run `doctor --json` first when starting work; run
+`generate --check` before opening a PR; if drift, run `generate` and
+commit the regenerated files.
+
+## Recipes & extensions
+
+A recipe is a copied slice (code + declaration + receipt), not a
+dependency. Install, update, status and uninstall ride the same engine
+the MCP server calls. Full contract:
+[`skills/gogogo-recipe-authoring`](../../skills/gogogo-recipe-authoring/SKILL.md).
+
+```bash
+go run ./cmd/gogogo recipe install ./_extensions/pomodoro --dir ./my-app --yes
+go run ./cmd/gogogo recipe status --dir ./my-app   # pristine / modified / deleted
+go run ./cmd/gogogo extension list --dir ./my-app [--format json]
+go run ./cmd/gogogo extension invoke todo create --dir ./my-app --param title=hi
+```
+
 ## What it does, in order
 
 1. Shows the plan with every consequence (never silent).
@@ -76,6 +113,16 @@ tursogo for `ncruces/go-sqlite3` behind `android` build tags, and the APK is
 local-only (no CI). Prerequisites, limits and the emulator recipe:
 [`docs/desktop-mobile.md`](../../docs/desktop-mobile.md#mobile-android-opt-in-target-not-supported).
 
+## MyGo shell
+
+The MyGo peer shell is `cmd/mygo` (loopback webview over `StartChi`, same
+flat stack as desktop). Build it with `make mygo` (plain `go build`, no
+CLI needed; packaging via `go tool github.com/egoist/mygo/cmd/mygo`
+needs the `mygo` CLI — `doctor` check `tool.mygo` is warn-only). Proof,
+driver matrix and automation limits:
+[`docs/research/mygo-2026-11.md`](../../docs/research/mygo-2026-11.md),
+[`docs/desktop-mobile.md#mygo-shell-peer-shell-over-the-flat-stack`](../../docs/desktop-mobile.md).
+
 ## CLI contract (humans + agents)
 
 `--help` prints the full matrix (units, flags, exit codes). The fast paths:
@@ -130,7 +177,7 @@ wants a smaller tree, guided by the unit card in `docs/unit-contracts.md`.
 | `config-view` | `features/config/` | Drop the `confighandlers.NewHandler` line, its import and the `/config` mounts; Config `[]Module` entry stripped |
 | `credits` | `features/credits/` | Drop the `bootCredits` line and the `/api/credits` + `/api/ai` + `/api/byok` mounts in `internal/server/chi.go`; drop `ai-credits` (+ `stripe-go` if unused) from `go.mod`. Warns: AI Suggest becomes unmetered |
 | `sounds` | `features/sounds/`, `web/resources/static/cuelume.js`, `web/resources/static/cuelume/` | `@sounds.*` calls + `features/sounds` imports stripped from all 5 page layouts (whichever remain); `go tool templ generate` re-runs automatically. Warns: `data-cuelume-*` attrs stay, inert |
-| `genui` | `features/genui/`, `features/chat/`, `internal/server/genui_stubs_test.go` | Drop the `chatH` handler line and the `/chat` mount in `internal/server/chi.go`; Chat `[]Module` entry stripped; mux target table shrinks (re-add by hand, see follow-ups). Warns: `SMOKE_FEATURES` must drop `genui` |
+| `genui` | `features/genui/`, `features/chat/` | Drop the `panels` line and the `Panels` Deps field in `internal/server/chi.go`; Chat `[]Module` entry stripped; mux target table shrinks (re-add by hand, see follow-ups). Warns: `SMOKE_FEATURES` must drop `genui` |
 | `review` | `features/review/` | Drop the `bootReview` helper + `reviewH` line and the `/review` + `/api/review/` mounts in `internal/server/chi.go` (+ the `newReviewHandlerForTest` fixture in its test); Review `[]Module` entry stripped; `go mod tidy` drops `genkit` + `go-jev`. Warns: `SMOKE_FEATURES` must drop `review` |
 | `search` | `internal/search/` | Delete the package and the capability entry. A consumer keeps working with the SQL-only substring layer (it holds a `Searcher`), and `features/todo/handlers/search_source.go` goes with the unit because it exists only to feed the plugin |
 | `perf` | `internal/perf/`, `internal/server/perf.go` (+ its test), `internal/ui/perf.go` | Drop the `bootPerf`/`closePerf` lines and the `perfPageMiddleware`/menu entry; remove `PerfEnabled` and the `/debug/*` policy rows; drop `arl/statsviz` from `go.mod`. Manual deletion; the runtime switch keeps it off in production |

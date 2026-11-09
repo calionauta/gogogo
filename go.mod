@@ -20,6 +20,7 @@ require (
 	github.com/calionauta/daisyui-lint v0.2.1
 	github.com/casbin/casbin/v3 v3.11.0
 	github.com/danmestas/dagnats v0.0.30
+	github.com/egoist/mygo v0.8.3
 	github.com/firebase/genkit/go v1.13.1
 	github.com/go-chi/chi/v5 v5.5.0
 	github.com/gogpu/gg v0.52.3

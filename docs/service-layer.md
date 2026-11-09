@@ -1,7 +1,7 @@
 # Service Layer (transport-free)
 
 > One rule per frontend fact. HTTP, Datastar, native window, offline
-> replay and a future MyGo shell all call the same `Service`.
+> replay and the MyGo shell all call the same `Service`.
 
 ## Convention for a new recipe with writes
 
@@ -38,7 +38,7 @@ Rules:
   it now also fails when a feature with writes has no `service` package
   (see `serviceLayerFeatures` in `cmd/check-flatdeps/main.go`).
 - `desktopboot` (`internal/desktopboot`) is the shared boot for every
-  native shell (Wails `cmd/desktop`, gogpu/ui `cmd/gui`, future MyGo):
+  native shell (Wails `cmd/desktop`, gogpu/ui `cmd/gui`, MyGo `cmd/mygo`):
   `MigrateAll`, `NewAuth` (TOTP seal-key), `EnsureDemo`,
   `ScopeInstanceIdentity`/`SingleInstanceID`, `PortOf`, `WebviewURL`.
   Shells never copy the boot sequence.
@@ -63,8 +63,10 @@ toggle divergence) comes back.
 
 ## MyGo note
 
-A MyGo desktop shell boots through `desktopboot` and points its webview
-at `WebviewURL()` (loopback Datastar/Templ, no `frontendDist`/Vite/Bun
-needed) or opens `ui.View(serviceView)` for native UI calling the same
-`Service` directly — no HTTP, no cookie, no Vite SPA required. `Bind`
-is the optional RPC path, not the core path.
+`cmd/mygo` boots through `desktopboot` and points its webview at
+`WebviewURL()` (loopback Datastar/Templ, no `frontendDist`/Vite/Bun
+needed) — the shipped v1 shell. The native follow-up opens
+`ui.View(serviceView)` calling the same `Service` directly (no HTTP, no
+cookie, no Vite SPA required) over `ncruces` + `desktopboot`; `Bind` is
+the optional RPC path, not the core path. Evidence and build recipe:
+[MyGo: the spike and the shell](research/mygo-2026-11.md).

@@ -12,8 +12,8 @@ of the file you are about to touch.
 
 ## Registry at a glance
 
-- **Units:** 48 — 15 core · 20 plugin · 13 feature
-- **Manual removal:** 33 (core units are never removed)
+- **Units:** 48 — 16 core · 19 plugin · 13 feature
+- **Manual removal:** 32 (core units are never removed)
 - **Source of truth:** `internal/capabilities/registry.go`; this doc is
   regenerated from it, so the counts above cannot drift.
 
@@ -105,6 +105,13 @@ RBAC with Casbin (embedded model + policy, enforced at the mux)
 - **Store calls:** `dbgen.CountCasbinRules`, `dbgen.DeleteAllCasbinRules`, `dbgen.DeleteCasbinRule`, `dbgen.DeleteCasbinRuleByID`, `dbgen.InsertCasbinRule`, `dbgen.ListCasbinRules`
 - **Note:** Wired middleware, not a dormant package: BootChi builds one enforcer and wraps the whole mux (pass-through when RBAC_ENABLED=false, enforced denies with 403 + warn log when true). Roles come from users.role (migration 0008, ADMIN_EMAILS promotes existing rows at boot). /config is admin-only in the handler too (rbac.RequireAdmin), so RBAC_ENABLED=false does not expose it; the console adds an ADMIN_EMAILS allowlist. The policy test pins every mux route for user-or-admin.
 
+## `recipe` — core
+
+recipe engine: declaration seam, receipt and drift check for installable extensions
+
+- **Owned:** `internal/recipe`
+- **Note:** Core: every route-owning unit mounts through recipe.Registry (plus an installed recipe's generated registration), so deleting it breaks the web build too. docs/research/extensibility-2026-11.md records why it stays.
+
 ## `secrets` — core
 
 age-decrypted env loader
@@ -163,7 +170,7 @@ shared UI helpers (Toast + OfflineBanner)
 
 AI credits + BYOK ledger (ai-credits)
 
-- **Owned:** `features/credits`, `internal/server/boot_credits.go`
+- **Owned:** `features/credits`
 - **Routes:** `/api/ai/request`, `/api/byok/*`, `/api/credits`, `/api/credits/checkout`, `/api/credits/stripe-webhook`
 - **Runtime off:** `CREDITS_ENABLED=false (already the default)`
 - **Note:** If Stripe top-ups were the only stripe-go user, `go mod tidy` drops stripe-go too.
@@ -212,7 +219,7 @@ typed AI flows (Genkit Go): orchestration + traces above internal/llm
 
 generative UI: the Chat demo renders LLM answers as Templ directives over the SSE hub
 
-- **Owned:** `features/genui`, `internal/server/genui_stubs_test.go`, `features/todo/handlers/genui_panel.go`, `features/todo/handlers/genui_panel_test.go`, `features/todo/handlers/genui_owner_test.go`, `features/todo/handlers/panel_action.go`, `features/todo/handlers/panel_action_test.go`, `features/config/components/safe_view_catalog_test.go`, `features/todo/panel.go`, `features/todo/panel_filter_test.go`, `features/todo/components/panel.templ`, `features/todo/components/panel_templ.go`, `features/todo/components/panel_delete_test.go`, `web/resources/static/pele.global.js`, `web/resources/static/diagram.js`
+- **Owned:** `features/genui`, `features/todo/handlers/genui_panel.go`, `features/todo/handlers/genui_panel_test.go`, `features/todo/handlers/genui_owner_test.go`, `features/todo/handlers/panel_action.go`, `features/todo/handlers/panel_action_test.go`, `features/config/components/safe_view_catalog_test.go`, `features/todo/panel.go`, `features/todo/panel_filter_test.go`, `features/todo/components/panel.templ`, `features/todo/components/panel_templ.go`, `features/todo/components/panel_delete_test.go`, `web/resources/static/pele.global.js`, `web/resources/static/diagram.js`
 - **Store calls:** `dbgen.ListTodosByOwner`
 - **Note:** Deletion removes the Chat demo (one bundle: chat imports genui components, so chat without genui does not compile — same honest shape as whiteboard+collab+notes). The Chat sidebar entry is stripped automatically.
 - **Warning:** ci-local smoke: export SMOKE_FEATURES without genui (e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the trimmed route.
@@ -272,18 +279,11 @@ opt-in operator diagnostics: statsviz dashboard + stdlib pprof
 - **Note:** Fenced like /console: session + admin + an ADMIN_EMAILS match. statsviz is net/http only (no second HTTP stack); pprof is stdlib. The installer drops the dependency with the unit.
 - **Warning:** One-way trim: removal is a hand edit and re-adding is manual.
 
-## `recipe` — plugin
-
-recipe engine: declaration seam, receipt and drift check for installable extensions
-
-- **Owned:** `internal/recipe`
-- **Note:** Manual removal, and no longer free: the composition root mounts every route-owning unit through recipe.Registry, and an installed recipe's generated registration calls it too, so deleting the package breaks the web build as well as cmd/gogogo. docs/research/extensibility-2026-11.md records why it stays.
-
 ## `search` — plugin
 
 search layers (substring, fuzzy, BM25) behind one seam
 
-- **Owned:** `internal/search`, `features/todo/handlers/search_source.go`, `features/todo/handlers/search_source_test.go`, `features/todo/handlers/search_test.go`, `features/todo/handlers/search_mode_test.go`, `features/todo/handlers/search_heal.go`, `features/todo/handlers/search_heal_test.go`, `internal/search/sqlindex_inventory.go`, `internal/server/boot_search.go`
+- **Owned:** `internal/search`, `features/todo/handlers/search_source.go`, `features/todo/handlers/search_source_test.go`, `features/todo/handlers/search_test.go`, `features/todo/handlers/search_mode_test.go`, `features/todo/handlers/search_heal.go`, `features/todo/handlers/search_heal_test.go`, `internal/search/sqlindex_inventory.go`, `features/todo/handlers/register.go`
 - **Store calls:** `dbgen.ListTodosForIndex`, `dbgen.ListVisibleTodos`, `dbgen.SearchTodosVisible`
 - **Note:** No external engine on purpose: this driver ships no FTS5 and no Turso native FTS (tursogo v0.8.2/v0.8.3/v0.9.0-pre.1), and a second index store would put a row's truth in two places.
 - **Warning:** A consumer that loses this keeps the SQL substring layer: it holds a search.Searcher and degrades (that is why it is swappable).
@@ -371,7 +371,8 @@ shared plain-text notes (server-owned Loro Text + SSE)
 - **Routes:** `/api/notes/fragment`, `/api/notes/{docID}/caret`, `/api/notes/{docID}/delete`, `/api/notes/{docID}/leave`, `/api/notes/{docID}/op`, `/api/notes/{docID}/stream`, `/api/notes/{docID}/typing`, `/notes`, `/notes/new`, `/notes/{docID}`
 - **Store calls:** `dbgen.DeleteNote`, `dbgen.GetNoteMeta`, `dbgen.ListNotes`, `dbgen.UpsertNote`
 - **Depends on:** collab, sounds
-- **Note:** Manual removal (or trim the whiteboard unit, which covers whiteboard+collab+notes): delete the dir + the notes roots in buildChiMux (internal/server/chi.go), remove the Notes sidebar entry in internal/ui/modules.go, and remove this entry.
+- **Why that class:** Delete the dir, the routes it mounts through the seam, and the Notes entry in internal/ui/modules.go.
+- **Warning:** The Notes sidebar entry is removed by hand with the unit.
 
 ## `notifications` — feature
 

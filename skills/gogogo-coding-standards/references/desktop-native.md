@@ -1,6 +1,6 @@
-# Native targets: desktop (Wails) and window (gogpu/ui)
+# Native targets: desktop (Wails), window (gogpu/ui), and MyGo
 
-Two binaries sit outside the web build. Neither is compiled by any CI job, so a
+Three binaries sit outside the web build. None is compiled by any CI job, so a
 change that breaks one fails **nowhere** until someone builds it. That makes the
 build a discipline, not a formality: run the target before pushing.
 
@@ -10,6 +10,10 @@ build a discipline, not a formality: run the target before pushing.
 - `cmd/gui` — gogpu/ui window. Draws native widgets, no HTTP, no webview. Proves
   the domain layer is transport-agnostic. Pure Go, `CGO_ENABLED=0`, ships in
   releases as `gogogo-gui`.
+- `cmd/mygo` — MyGo peer shell. Same loopback webview over `StartChi` as
+  desktop, drawn by MyGo (`URL` window at `desktopboot.WebviewURL`). Needs CGO
+  (tursogo link, like desktop); `mygo` CLI is packaging only. Proof and
+  automation limits: `docs/research/mygo-2026-11.md`.
 
 ## Why there is no CI job
 
@@ -36,6 +40,8 @@ it instead of a workflow, so treat a missed build as a missed gate.
 make desktop        # → build/desktop/gogogo-desktop  (CGO + webview headers)
 make desktop-smoke  # THE GATE: build + prove the WINDOW loaded the app
 make run-desktop    # build, then open the window
+make mygo           # → build/mygo/gogogo-mygo (vet + build, CGO on)
+make run-mygo       # build, then open the MyGo window
 make gui            # race tests, then → build/gui/gogogo-gui (CGO off)
 make run-gui        # open the native window (needs a display + GPU)
 make lint-gui       # manual full-lint pass on cmd/gui; never in CI
@@ -58,7 +64,8 @@ before pushing any `cmd/desktop` change; `SKIP_BUILD=1` reuses the binary and
 use `scripts/web-packages.sh`, which excludes the two targets.
 
 **Touching `cmd/desktop` means running `make desktop-smoke`.** There is no CI
-job to catch a broken shell. Same for `cmd/gui` and `make gui`.
+job to catch a broken shell. Same for `cmd/gui` (`make gui`) and `cmd/mygo`
+(`make mygo`).
 
 **The Wails pin lives in `go.mod`.** No Makefile variable, no workflow copy to
 keep in sync.

@@ -80,7 +80,7 @@ calmly, once, not re-derived by every agent under deadline pressure. The
 procedure and the removal plan are in [exception-to-go](exception-to-go.md).
 
 Install it, ask the LLM to build, no infrastructure to run. Core is opinionated;
-plugins and features strip away at install. The live capability list is in
+servants switch off at runtime and recipes uninstall by receipt. The live capability list is in
 [features](features.md).
 
 ## Core: opinionated
@@ -95,7 +95,7 @@ the criteria above:
 
 ## Plugins and features: disable or remove whatever you want
 
-Plugins switch off with an env var; features delete with the package.
+Servants switch off with an env var; recipes uninstall by receipt.
 Snapshot of Oct 2026 — the live list with opt-outs is
 [features](features.md):
 

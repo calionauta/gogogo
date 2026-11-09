@@ -11,7 +11,7 @@ go run ./cmd/gogogo doctor --json     # machine-readable for agents/CI
 go run ./cmd/gogogo doctor --only go.version --json
 ```
 
-Checks today: `go.version`, `go.tool.templ` (pinned), `tool.*` (ripwire, sem, cymbal, xerj, lefthook, sqlc, docker, zig), `desktop.sdk` (xcode/GTK), `mobile.sdk` (skip unless ANDROID_HOME), `secrets.age`, `host.capacity`, `registry.fresh`, `generate.drift` (skip → `generate --check`).
+Checks today: `go.version`, `go.tool.templ` (pinned), `tool.*` (ripwire, sem, cymbal, xerj, lefthook, sqlc, docker, zig warn opt-in, mygo warn opt-in — packaging only), `desktop.sdk` (xcode/GTK), `mobile.sdk` (skip unless ANDROID_HOME), `secrets.age`, `host.capacity`, `registry.fresh`, `generate.drift` (skip → `generate --check`).
 
 ```
 go run ./cmd/gogogo generate          # templ + sqlc + css + docs, idempotent

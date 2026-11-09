@@ -4,7 +4,17 @@ package server
 
 import (
 	accounthandlers "github.com/calionauta/gogogo/features/account/handlers"
+	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
+	confighandlers "github.com/calionauta/gogogo/features/config/handlers"
+	creditshandlers "github.com/calionauta/gogogo/features/credits/handlers"
 	dashboardhandlers "github.com/calionauta/gogogo/features/dashboard/handlers"
+	landinghandlers "github.com/calionauta/gogogo/features/landing/handlers"
+	noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"
+	notificationshandlers "github.com/calionauta/gogogo/features/notifications/handlers"
+	reviewhandlers "github.com/calionauta/gogogo/features/review/handlers"
+	roomhandlers "github.com/calionauta/gogogo/features/room/handlers"
+	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
+	whiteboardhandlers "github.com/calionauta/gogogo/features/whiteboard/handlers"
 
 	"github.com/calionauta/gogogo/internal/recipe"
 	"github.com/calionauta/gogogo/internal/recipe/register"
@@ -15,7 +25,17 @@ import (
 // naming its package in the registry — the file that already owns its identity.
 var bundledUnits = []register.Func{
 	accounthandlers.Register,
+	chathandlers.Register,
+	confighandlers.Register,
+	creditshandlers.Register,
 	dashboardhandlers.Register,
+	landinghandlers.Register,
+	noteshandlers.Register,
+	notificationshandlers.Register,
+	reviewhandlers.Register,
+	roomhandlers.Register,
+	todohandlers.Register,
+	whiteboardhandlers.Register,
 }
 
 // registerBundledUnits is the one generated call the composition root makes for

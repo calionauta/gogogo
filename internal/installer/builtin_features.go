@@ -1,9 +1,12 @@
 // Installer engine: the feature built-in units (data only)
 //
-// Whiteboard, landing, config-view, credits and genui: each wires into the
-// composition root, so their trims edit the shared signature, call site and
-// composition test. Grouped here so builtin_units.go stays under the
-// file-sizes gate; the grouping is by size, not by domain.
+// Whiteboard, landing, config-view, credits and genui: each is a
+// self-mounting bundled unit (Capability.Register, registry-driven).
+// Trimming one deletes its directory (via the capability Dirs), drops
+// its nav entry and 404-pins its routes in the mux test; the generated
+// registration refreshes from the registry during the trim proof. The
+// only composition-root wiring left for whiteboard+notes is the shared
+// collab wiring in BootChi feeding Deps.
 
 package installer
 
@@ -21,44 +24,21 @@ var featureBuiltinUnits = []builtinUnit{
 		id: unitWhiteboard,
 		// Bundle rationale lives in the collab capability entry: one
 		// unit is the only honest shape (see internal/capabilities).
+		// Self-mounting now: the handlers register through units.gen.go.
 		extraDrops: []fileDrop{
 			{
 				path: chiGoFile,
 				substrs: []string{
-					// Single-argument lines: dropping removes exactly that
-					// argument, and the signature loses the parameters in
-					// replaces below, so both sides agree.
-					"wbH := wbhandlers.NewHandler(queries, a, hub, persister, docs, cfg)",
-					"wbH,",
-					// The shared presence seam: the comment block that explains it,
-					// the construction, and BOTH SetPresence calls. Notes is part of
-					// this same unit, so dropping the pair is consistent — the seam
-					// exists only while at least one collaborative feature does.
+					// The shared collab wiring fed into Deps.
+					"persister, docs, perr := bootCollab(cfg, queries)",
+					"federated := bootPresence(hub)",
+					"Persister: persister, DocStore: docs, Presence: federated,",
 					"// Collaborator presence: ONE local seam for both features (the actor when",
 					"// GoAkt runs, the in-process PeerSet otherwise), so a deployment cannot end",
 					"// up with two rosters that disagree about the same tab. It is federated",
 					"// across instances in AttachPresenceFederation once NATS exists.",
-					"federated := bootPresence(hub)",
-					"upgradePresenceToActor(federated, appgoakt.NewDocPresence(roomHost))",
-					"wbH.SetPresence(federated)",
-					"notesH.SetPresence(federated)",
 					"presence:             federated,",
-					// bootPresence is the only collab consumer left in chi.go
-					// once whiteboard+notes are trimmed, so its import goes too.
-					`	"github.com/calionauta/gogogo/internal/collab"`,
-					// Two distinct lines: the construction assignment and the
-					// buildChiMux argument. The trailing comma is what tells them
-					// apart, so both must be listed.
-					"notesH := noteshandlers.NewHandler(queries, a, hub, persister, docs, cfg)",
-					"notesH,",
-					// One mount line for the feature's own router (see
-					// MountFeature), plus the feature's own static subtree: the
-					// core /static/ mount never serves whiteboard.js or notes.js,
-					// so each feature owns its line and its import. The comment
-					// above the two asset mounts goes with them, or the trim
-					// leaves prose about absent code.
-					"r.recipes.Add(wbH.Recipe())",
-					"r.recipes.Add(notesH.Recipe())",
+					"upgradePresenceToActor(federated, appgoakt.NewDocPresence(roomHost))",
 					`MountSubtree(r, whiteboard.AssetPath, whiteboard.StaticHandler())`,
 					`MountSubtree(r, notes.AssetPath, notes.StaticHandler())`,
 					"// Features that embed their OWN assets (whiteboard.js + rough.min.js,",
@@ -66,51 +46,22 @@ var featureBuiltinUnits = []builtinUnit{
 					"// serves them. A feature trim drops its line and its import.",
 					`	"github.com/calionauta/gogogo/features/whiteboard"`,
 					`	"github.com/calionauta/gogogo/features/notes"`,
-					`	wbhandlers "github.com/calionauta/gogogo/features/whiteboard/handlers"`,
-					`	noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"`,
-					"wbH *wbhandlers.Handler,",
-					"notesH *noteshandlers.Handler,",
 				},
 			},
 			{
-				// The collab import moved with bootCollab (boot_helpers.go
-				// holds the store and its persister now): the helper is
-				// stripped below, so its import drops here.
 				path: bootHelpersFile,
 				substrs: []string{
 					`	"github.com/calionauta/gogogo/internal/collab"`,
 				},
 			},
-			{
-				// The server test's collab imports and handler constructions
-				// go as line drops; the persister setup (two identical
-				// blocks) goes as a strip below, since its `if perr` check
-				// would survive drops.
-				path: chiTestFile,
-				substrs: []string{
-					`"github.com/calionauta/gogogo/internal/collab"`,
-					`wbhandlers "github.com/calionauta/gogogo/features/whiteboard/handlers"`,
-					`noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"`,
-					"wbhandlers.NewHandler(",
-					"noteshandlers.NewHandler(",
-				},
-			},
 		},
 		mainStrips: []stripRule{
 			{
-				// The federation call and the comment block that explains it: with
-				// the collaborative features gone there is no roster to federate, and
-				// prose about an absent seam would contradict the tree. The end is the
-				// `if` body's own closing brace.
 				startMarker:       "// The FRAMES crossing instances (above) are not enough for the \"X online\"",
 				endIsClosingBrace: true,
 				endBrace:          "\t}",
 			},
 		},
-		// The nat handle stays: startTransport feeds the desktop's realtime
-		// connection, not collab alone. The Phase C demo is a deferred call
-		// plus its own function; both go with the unit. Context stays (the
-		// first-run signup uses it); time goes with the demo.
 		desktopStrips: []stripRule{
 			{
 				startMarker: "// Edge sync (Phase C): a demo publish keeps the edge path exercised.",
@@ -120,21 +71,12 @@ var featureBuiltinUnits = []builtinUnit{
 				startMarker:       "// publishDemoCollab exercises the edge-sync publish paths end to end",
 				endIsClosingBrace: true,
 				endBrace:          "}",
-				// findAnchor matches WHOLE lines, so the pin is the full
-				// comment: pinning the shorter prefix silently never
-				// matched and `add` refused with "cannot locate insertion
-				// anchor" (caught by TestEveryDeclaredAddAnchorIsLive).
-				addBefore: "// desktopConfig loads config and applies the shell's overrides. Split out of",
+				addBefore:         "// desktopConfig loads config and applies the shell's overrides. Split out of",
 			},
 		},
 		desktopDropLines: []string{`internal/collab"`, `"time"`},
-		// No runtimeOff: the whiteboard has no boot-costly servers, so
-		// deletion is the off switch (a flag would be config surface
-		// with no benefit).
 		extraStrips: []fileStrip{
 			{
-				// The sidebar renders []Module, so a trimmed destination is one
-				// dropped entry — not a link to patch out of a template.
 				path: modulesFile,
 				rules: []stripRule{
 					{startMarker: `{ID: "whiteboard"`, endMarker: "},"},
@@ -142,11 +84,6 @@ var featureBuiltinUnits = []builtinUnit{
 				},
 			},
 			{
-				// The collab wiring: bootCollab returns the store and its
-				// persister as a pair, so the call site and the error check
-				// go as one block — piecemeal leaves `perr` referencing
-				// nothing. The end marker is the block's own closing brace:
-				// it is the only tab-indented brace between the call and it.
 				path: chiGoFile,
 				rules: []stripRule{
 					{
@@ -156,8 +93,6 @@ var featureBuiltinUnits = []builtinUnit{
 				},
 			},
 			{
-				// The helper itself, in the file the funlen/file-size gates
-				// moved it to. Nothing calls it once the block above is gone.
 				path: bootHelpersFile,
 				rules: []stripRule{
 					{
@@ -168,12 +103,6 @@ var featureBuiltinUnits = []builtinUnit{
 				},
 			},
 			{
-				// The `presence` field the two callers filled, plus its doc
-				// comment (or the struct keeps prose about absent code).
-				// bootPresence / upgradePresenceToActor / AttachPresenceFederation
-				// and their imports live in internal/server/presence.go, which
-				// this unit DELETES (capability Files), so no strip is needed for
-				// them.
 				path: chiGoFile,
 				rules: []stripRule{
 					{
@@ -182,62 +111,18 @@ var featureBuiltinUnits = []builtinUnit{
 					},
 				},
 			},
-			{
-				// Same block in the composition test (two identical copies;
-				// the rule matches every occurrence, so one rule covers
-				// both call sites).
-				path: chiTestFile,
-				rules: []stripRule{
-					{
-						startMarker: "persister, perr := collab.NewTursoPersister(",
-						endMarker:   "docs := collab.NewDocStore()",
-					},
-				},
-			},
 		},
 	},
 	{
 		id: unitLanding,
-		extraDrops: []fileDrop{
-			{
-				// One argument per line in both the call and the signature,
-				// so each drop removes exactly its feature's line — and the
-				// add path restores the call line from these same drops
-				// (see routerCallLines).
-				path: chiGoFile,
-				substrs: []string{
-					// The declaration's mount line goes with the unit: the param
-					// drop below is what makes leaving it behind a compile error.
-					"r.recipes.Add(landingH.Recipe())",
-					"landinghandlers.NewHandler(cfg, a),",
-					"landingH *landinghandlers.Handler,",
-					`landinghandlers "github.com/calionauta/gogogo/features/landing/handlers"`,
-					`r.NotFound(landingH.Routes().ServeHTTP)`,
-				},
-			},
-			{
-				path: chiTestFile,
-				substrs: []string{
-					`landinghandlers "github.com/calionauta/gogogo/features/landing/handlers"`,
-					"landinghandlers.NewHandler(cfg, a),",
-				},
-			},
-		},
 		replaces: []fileReplace{
 			{
-				// Without the landing page GET / is a 404, so the shell's brand
-				// (the only remaining link to "/") has to point at the module
-				// list instead.
 				path:        shellTempl,
 				matchSubstr: `class="app-rail-brand"`,
 				old:         `href="/"`,
 				newStr:      `href="/todo"`,
 			},
 			{
-				// Landing owned the only root route: without it GET /
-				// 404s (pinned here, warned in the capability). One-way
-				// (add leaves the 404 pin): re-assert 200 by hand, see
-				// portFollowUps.
 				path:        chiTestFile,
 				matchSubstr: "landingRec.Code != http.StatusOK",
 				old:         "http.StatusOK",
@@ -253,38 +138,12 @@ var featureBuiltinUnits = []builtinUnit{
 	},
 	{
 		id: unitConfigView,
-		extraDrops: []fileDrop{
-			{
-				// One argument per line, same as landing: drops remove
-				// exactly their feature's lines, and add restores them.
-				path: chiGoFile,
-				substrs: []string{
-					"confighandlers.NewHandler(cfg, a, queries),",
-					"configH.SetSlots(deps.Slots)",
-					"configH *confighandlers.Handler,",
-					`confighandlers "github.com/calionauta/gogogo/features/config/handlers"`,
-					// The route mount moved to the recipe seam: the Add
-					// line goes, and the import with it.
-					"r.recipes.Add(configH.Recipe())",
-				},
-			},
-			{
-				path: chiTestFile,
-				substrs: []string{
-					`confighandlers "github.com/calionauta/gogogo/features/config/handlers"`,
-					"confighandlers.NewHandler(cfg, a, dbgen.New(sqlDB)),",
-				},
-			},
-		},
 		extraStrips: []fileStrip{
 			{
 				path:  modulesFile,
 				rules: []stripRule{{startMarker: `{ID: "config"`, endMarker: "},"}},
 			},
 			{
-				// The account menu's Config entry is the second way into the
-				// route. Without the unit it would open a 404 from the one
-				// menu every signed-in admin uses.
 				path: "features/authviews/controls.templ",
 				rules: []stripRule{{
 					startMarker: "<!-- trim:config-view removes this entry",
@@ -294,11 +153,6 @@ var featureBuiltinUnits = []builtinUnit{
 		},
 		replaces: []fileReplace{
 			{
-				// The mux contract test pins anon /config as the
-				// admin fence (403). Without the unit the route must 404
-				// (same rule as credits/landing: absence says "not
-				// here"). One-way (add leaves the 404 pin): re-assert
-				// 403 by hand, see portFollowUps.
 				path:        chiTestFile,
 				matchSubstr: "configRec.Code != http.StatusForbidden",
 				old:         "http.StatusForbidden",
@@ -314,61 +168,8 @@ var featureBuiltinUnits = []builtinUnit{
 	},
 	{
 		id: unitCredits,
-		extraDrops: []fileDrop{
-			{
-				path: chiGoFile,
-				substrs: []string{
-					// The route mount moved to the recipe seam: the Add
-					// line goes, and the import with it.
-					"r.recipes.Add(creditsH.Recipe())",
-					`creditshandlers "github.com/calionauta/gogogo/features/credits/handlers"`,
-					"creditsH *creditshandlers.Handler,",
-					// Two tabs: the buildChiMux ARGUMENT line only. The
-					// generic "creditsH," also matched the boot call
-					// (one tab, `creditsH, shutdown, err := ...`), which
-					// deleted the line the strip below needs and left the
-					// feature's import dangling.
-					"\t\tcreditsH,",
-				},
-			},
-			{
-				// The import goes as a line drop. The two constructions do
-				// not: each carries buildChiMux's own closing paren, so a
-				// drop would take it with it. Two identical replaces, one
-				// per call site — each matches the next remaining
-				// occurrence, so both land.
-				path: chiTestFile,
-				substrs: []string{
-					`creditshandlers "github.com/calionauta/gogogo/features/credits/handlers"`,
-				},
-			},
-		},
 		replaces: []fileReplace{
 			{
-				// The two composition call sites construct the handler
-				// inline, and each line carries buildChiMux's own closing
-				// paren — so a drop would take it with it. Two identical
-				// replaces, one per site: each matches the next remaining
-				// occurrence, so both land. (The chi.go signature and call
-				// lines are one-arg-per-line, so those go as drops above.)
-				path:        chiTestFile,
-				matchSubstr: creditsCallLine,
-				old:         creditsCallLine,
-				newStr:      ")",
-			},
-			{
-				path:        chiTestFile,
-				matchSubstr: creditsCallLine,
-				old:         creditsCallLine,
-				newStr:      ")",
-			},
-			{
-				// The mux contract test pins the credits route present
-				// (anon → 401 JSON). Without the unit the route must 404 —
-				// a dead route answering anything else is worse than one
-				// that says "not here" (same rule as the room-disabled
-				// test). One-way (add leaves the 404 pin): re-assert 401
-				// by hand, see portFollowUps.
 				path:        chiTestFile,
 				matchSubstr: "creditsRec.Code != http.StatusUnauthorized",
 				old:         "http.StatusUnauthorized",
@@ -381,98 +182,15 @@ var featureBuiltinUnits = []builtinUnit{
 				newStr:      muxWant404,
 			},
 		},
-		extraStrips: []fileStrip{
-			{
-				path: chiGoFile,
-				rules: []stripRule{
-					{
-						startMarker:       "creditsH, shutdown, err := bootCredits(",
-						endIsClosingBrace: true,
-						endBrace:          "\t}",
-					},
-				},
-			},
-		},
 		goModDrops: []string{"github.com/calionauta/ai-credits"},
 	},
 	{
 		id: unitReview,
-		// Bundle rationale lives in the unitCaps comment above: the
-		// review page is genkit's only consumer, so trimming the page
-		// plus `go mod tidy` is the whole removal (goModDrops below).
-		extraDrops: []fileDrop{
-			{
-				// The boot helper's feature import: the strip below
-				// removes its only consumer, so the import goes too
-				// (same rule as the chi.go import drops).
-				path: bootHelpersFile,
-				substrs: []string{
-					reviewImportSuffix,
-				},
-			},
-			{
-				path: chiGoFile,
-				substrs: []string{
-					// Construction is one line; the signature loses the
-					// parameter in the bootReview strip below.
-					"reviewH := bootReview(cfg, a, realLLM)",
-					// One argument per line: each drop removes exactly
-					// its feature's line, and add restores them.
-					"reviewH,",
-					// The route mount moved to the recipe seam: the Add
-					// line goes, and the import with it.
-					"r.recipes.Add(reviewH.Recipe())",
-					reviewImportSuffix,
-					"reviewH *reviewhandlers.Handler,",
-				},
-			},
-			{
-				// The composition test's import, helper call sites and
-				// mux-table element go as line drops; the helper itself
-				// goes as a strip below (its body would survive drops).
-				path: chiTestFile,
-				substrs: []string{
-					reviewImportSuffix,
-					`	"github.com/calionauta/gogogo/internal/llm"`,
-					"reviewH := newReviewHandlerForTest(cfg, a)",
-					"reviewH,",
-					"\t\t\"/review\",",
-				},
-			},
-		},
 		extraStrips: []fileStrip{
 			{
 				path:  modulesFile,
 				rules: []stripRule{{startMarker: `{ID: "review"`, endMarker: "},"}},
 			},
-			{
-				// The whole boot helper (lives in boot_helpers.go for the
-				// file-size gate): nothing calls it once the call line is
-				// dropped (same shape as the bootCredits strip).
-				path: bootHelpersFile,
-				rules: []stripRule{
-					{
-						startMarker:       "// bootReview wires the Genkit review-loop slice",
-						endIsClosingBrace: true,
-						endBrace:          "}",
-					},
-				},
-			},
-			{
-				// The composition-test helper: same rule, test file.
-				path: chiTestFile,
-				rules: []stripRule{
-					{
-						startMarker:       "// newReviewHandlerForTest builds the review handler",
-						endIsClosingBrace: true,
-						endBrace:          "}",
-					},
-				},
-			},
 		},
-		// genkit goes with the page (review is its only consumer). go-jev
-		// stays: the Chat router (features/chat/handlers) imports it too, so dropping
-		// the require would leave `trim review` with an unresolvable import.
-		goModDrops: []string{"github.com/firebase/genkit/go"},
 	},
 }

@@ -1,7 +1,4 @@
-// Capability registry entries (data only)
-//
-// Split from capabilities.go for the file-sizes gate: the type + API live
-// there, the table here. A growing slice moves to its own file.
+// Capability registry entries (data only), split from capabilities.go.
 package capabilities
 
 // All is the full capability map. Installer units cover a subset (see
@@ -17,14 +14,12 @@ var All = append([]Capability{
 	},
 	{
 		ID:      "recipe",
-		Kind:    KindPlugin,
+		Kind:    KindCore,
 		Summary: "recipe engine: declaration seam, receipt and drift check for installable extensions",
 		Dirs:    []string{"internal/recipe"},
-		Note: "Manual removal, and no longer free: the composition root mounts " +
-			"every route-owning unit through recipe.Registry, and an installed " +
-			"recipe's generated registration calls it too, so deleting the " +
-			"package breaks the web build as well as cmd/gogogo. " +
-			"docs/research/extensibility-2026-11.md records why it stays.",
+		Note: "Core: every route-owning unit mounts through recipe.Registry " +
+			"(plus an installed recipe's generated registration), so deleting it " +
+			"breaks the web build too. docs/research/extensibility-2026-11.md records why it stays.",
 	},
 	{
 		ID:      "queue",
@@ -232,11 +227,10 @@ var All = append([]Capability{
 		Kind:    KindPlugin,
 		Summary: "generative UI: the Chat demo renders LLM answers as Templ directives over the SSE hub",
 		Dirs:    []string{"features/genui"},
-		// Owned by no dir: the composition test's model stubs, and the todo
-		// feature's half of the panel seam (all of them would otherwise outlive
-		// the unit and trip the deadcode or import gate).
+		// Owned by no dir: the todo feature's half of the panel seam
+		// (all of them would otherwise outlive the unit and trip the
+		// deadcode or import gate).
 		Files: []string{
-			"internal/server/genui_stubs_test.go",
 			// The panel seam: four files that exist ONLY to let the app answer
 			// with its own todos through this catalog. Nothing else in
 			// features/todo references them, so without genui they are dead code
@@ -291,10 +285,7 @@ var All = append([]Capability{
 		Summary:    "AI credits + BYOK ledger (ai-credits)",
 		RuntimeOff: "CREDITS_ENABLED=false (already the default)",
 		Dirs:       []string{"features/credits"},
-		// Owned by no dir: the boot helper is the engine's only
-		// composition-root seam. Deleting it with the unit is what keeps
-		// the trimmed tree free of unused imports.
-		Files: []string{"internal/server/boot_credits.go"},
+		Register:   "features/credits/handlers",
 		Warns: []string{
 			"Todo AI Suggest becomes unmetered (still works with " +
 				"GOAI_API_KEY, no ledger).",
@@ -335,7 +326,7 @@ var All = append([]Capability{
 			"features/todo/handlers/search_heal.go",
 			"features/todo/handlers/search_heal_test.go",
 			"internal/search/sqlindex_inventory.go",
-			"internal/server/boot_search.go",
+			"features/todo/handlers/register.go",
 		},
 		Warns: []string{
 			"A consumer that loses this keeps the SQL substring layer: it " +
@@ -358,11 +349,13 @@ var All = append([]Capability{
 		Reason: "Spans a config struct field, the outbox, the worker, and templ registration; deletion is manual.",
 	},
 	{
-		ID:      "todo",
-		Kind:    KindFeature,
-		Summary: "Todo MVC demo (reference implementation)",
-		Dirs:    []string{"features/todo"},
-		Actions: []string{"create"},
+		ID:          "todo",
+		Kind:        KindFeature,
+		Recommended: true,
+		Summary:     "Todo MVC demo (reference implementation)",
+		Dirs:        []string{"features/todo"},
+		Register:    "features/todo/handlers",
+		Actions:     []string{"create"},
 		ActionParams: map[string][]string{
 			"create": {"title", "idem_key", "visibility"},
 		},
@@ -374,6 +367,7 @@ var All = append([]Capability{
 		Summary:   "conversation demo (persisted history + catalog answers on genui)",
 		DependsOn: []string{"genui"},
 		Dirs:      []string{"features/chat"},
+		Register:  "features/chat/handlers",
 		Reason: "Bundled into the genui unit: chat imports genui components " +
 			"(no-compile without it) — one unit is the honest shape, same as " +
 			"whiteboard+collab+notes.",
@@ -384,6 +378,7 @@ var All = append([]Capability{
 		Summary:   "review loop demo (writer → critic → classifier judge, streamed verdict)",
 		DependsOn: []string{"genkit"},
 		Dirs:      []string{"features/review"},
+		Register:  "features/review/handlers",
 		Warns: []string{
 			"The Review sidebar entry is stripped automatically.",
 			"ci-local smoke: export SMOKE_FEATURES without review " +
@@ -428,11 +423,12 @@ var All = append([]Capability{
 			"mainStrips.",
 	},
 	{
-		ID:      "room",
-		Kind:    KindFeature,
-		Summary: "room presence demo (one grain per room, crash hook included)",
-		Dirs:    []string{"features/room"},
-		Reason:  "Delete the dir, the routes it mounts through the seam, and the Room entry in internal/ui/modules.go.",
+		ID:       "room",
+		Kind:     KindFeature,
+		Summary:  "room presence demo (one grain per room, crash hook included)",
+		Dirs:     []string{"features/room"},
+		Register: "features/room/handlers",
+		Reason:   "Delete the dir, the routes it mounts through the seam, and the Room entry in internal/ui/modules.go.",
 		Warns: []string{
 			"The Room sidebar entry is removed by hand with the unit.",
 		},
@@ -445,7 +441,8 @@ var All = append([]Capability{
 			depCollab,
 			depSounds,
 		},
-		Dirs: []string{"features/whiteboard"},
+		Dirs:     []string{"features/whiteboard"},
+		Register: "features/whiteboard/handlers",
 		// The presence wiring is whiteboard+notes infrastructure: with both
 		// gone there is no seam to build, no roster to federate, and no
 		// collab import left in the server package.
@@ -467,12 +464,13 @@ var All = append([]Capability{
 			depCollab,
 			depSounds,
 		},
-		Dirs: []string{"features/notes"},
-		Note: "Manual removal (or trim the whiteboard unit, which covers " +
-			"whiteboard+collab+notes): delete the dir + the notes roots in " +
-			"buildChiMux (internal/server/chi.go), remove the Notes " +
-			"sidebar entry in internal/ui/modules.go, and remove " +
-			"this entry.",
+		Dirs:     []string{"features/notes"},
+		Register: "features/notes/handlers",
+		Reason: "Delete the dir, the routes it mounts through the seam, and the " +
+			"Notes entry in internal/ui/modules.go.",
+		Warns: []string{
+			"The Notes sidebar entry is removed by hand with the unit.",
+		},
 	},
 	{
 		ID:      "landing",
@@ -481,8 +479,9 @@ var All = append([]Capability{
 		DependsOn: []string{
 			depSounds,
 		},
-		Dirs:   []string{"features/landing"},
-		Reason: "Delete the dir, its / route, and retarget the shell brand to /todo.",
+		Dirs:     []string{"features/landing"},
+		Register: "features/landing/handlers",
+		Reason:   "Delete the dir, its / route, and retarget the shell brand to /todo.",
 		Warns: []string{
 			"GET / will 404 (landing owned the only root route); " +
 				"the shell brand is retargeted to /todo, which is kept.",

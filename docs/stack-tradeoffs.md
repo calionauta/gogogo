@@ -395,7 +395,7 @@ it:
 - **The installer works on wiring that only exists in the demos.** `trim`
   and `new` edit markers in real files — the call lines in `cmd/web/main.go`, the
   route lines in `internal/server/chi.go`, the module registry entry, the unit
-  rows in `internal/capabilities`. With no demo in the tree, `--features none` has nothing to strip
+  rows in `internal/capabilities`. With no demo in the tree, the recipes stay installed — there is nothing to strip
   (the retired restore command has nothing to restore either), so "ship everything, delete what you
   do not want" loses its input.
 - **The gates walk units that exist.** `registry-conformance` and

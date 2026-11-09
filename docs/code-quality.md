@@ -301,7 +301,7 @@ for {
 - Bind the lifetime at WIRING time, not per request. In the composition root the
   shape is `ctx, cancel := context.WithCancel(context.Background())` bound to the
   stack's shutdown and drained via the `stop` func `Serve` returns,
-  then hand `ctx` to the worker. See `bootCredits` in `internal/server/chi.go`,
+  then hand `ctx` to the worker. See the credits Register in `features/credits/handlers/register.go`,
   `AttachJetStream`, and `internal/queue/` (worker stop path).
 - **Never** store `context.Context` in a struct: the `containedctx` linter
   rejects it, and it is the usual cause of a context outliving its scope. Pass

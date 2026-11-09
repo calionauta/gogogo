@@ -1,14 +1,10 @@
-// README page index generated from the site manifest.
+// README page index — RETIRED 2026-11-09.
 //
-// The README's page index duplicates the docs site manifest. It drifted twice
-// before this file existed (it covered 23 of 43 pages, and still claimed to
-// mirror `site/build.mjs` after the manifest moved to the site config), because
-// nothing recomputed it: a new page was added to the manifest, published, and
-// never linked from the one page a GitHub visitor reads first.
-//
-// Rule: the index is a generated fact, like the counts. The manifest is the
-// source; `-write` regenerates the block between the markers and the check
-// fails on any other edit.
+// The README is a landing page, not a manual: the docs index lives in the
+// site (`site/docsite.config.mjs` → published at /docs/). Duplicating it
+// in README drifted twice and doubled maintenance. The check and the
+// writer below are now no-ops when the README has no markers (the
+// default); if a future README re-adds markers, the old contract applies.
 package main
 
 import (
@@ -83,7 +79,8 @@ func renderIndex(pages []sitePage) string {
 	return b.String()
 }
 
-// readmeIndex returns the current block, markers included.
+// readmeIndex returns the current block, markers included. A README
+// without markers is clean by design (link-only) — not an error.
 func readmeIndex(root string) (string, error) {
 	raw, err := os.ReadFile(filepath.Join(root, "README.md"))
 	if err != nil {
@@ -93,12 +90,13 @@ func readmeIndex(root string) (string, error) {
 	start := strings.Index(text, indexBegin)
 	end := strings.Index(text, indexEnd)
 	if start < 0 || end < start {
-		return "", fmt.Errorf("README.md: page index markers %s / %s missing", indexBegin, indexEnd)
+		return "", nil
 	}
 	return text[start : end+len(indexEnd)+1], nil
 }
 
-// checkReadmeIndex reports a stale or missing index.
+// checkReadmeIndex reports a stale index only when the README still
+// carries one (legacy). A clean README (no markers) skips.
 func checkReadmeIndex(root string) []string {
 	pages, err := manifestPages(root)
 	if err != nil {
@@ -108,6 +106,9 @@ func checkReadmeIndex(root string) []string {
 	if err != nil {
 		return []string{err.Error()}
 	}
+	if got == "" {
+		return nil
+	}
 	if got != renderIndex(pages) {
 		return []string{"README.md: page index does not match " + siteConfig +
 			" — run `go run ./cmd/check-docs -write` (the index is generated, never hand-edited)"}
@@ -116,7 +117,7 @@ func checkReadmeIndex(root string) []string {
 }
 
 // writeReadmeIndex replaces the block in place, so `make docs-index` is the
-// one path that updates it.
+// one path that updates it. No markers = nothing to write.
 func writeReadmeIndex(root string) error {
 	pages, err := manifestPages(root)
 	if err != nil {
@@ -138,7 +139,7 @@ func writeReadmeIndex(root string) error {
 	start := strings.Index(text, indexBegin)
 	end := strings.Index(text, indexEnd)
 	if start < 0 || end < start {
-		return fmt.Errorf("%s: page index markers %s / %s missing", rel, indexBegin, indexEnd)
+		return nil
 	}
 	updated := text[:start] + renderIndex(pages) + text[end+len(indexEnd)+1:]
 	if updated == text {

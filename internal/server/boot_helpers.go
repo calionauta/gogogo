@@ -14,23 +14,13 @@ import (
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/authviews"
-	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
-	chatstore "github.com/calionauta/gogogo/features/chat/store"
-	comp "github.com/calionauta/gogogo/features/genui/components"
-	reviewhandlers "github.com/calionauta/gogogo/features/review/handlers"
-	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/collab"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/demo"
-	"github.com/calionauta/gogogo/internal/instance"
-	"github.com/calionauta/gogogo/internal/llm"
-	"github.com/calionauta/gogogo/internal/nats"
 	"github.com/calionauta/gogogo/internal/observability"
-	"github.com/calionauta/gogogo/internal/queue"
 	"github.com/calionauta/gogogo/internal/rbac"
-	"github.com/calionauta/gogogo/internal/recipe"
 )
 
 // seedDemoAccounts signs the advertised demo pair up and stamps their
@@ -254,39 +244,6 @@ func applyRBAC(
 	return rbac.MiddlewareWithPermissive(a, enforcer, cfg.RBACEnabled, cfg.RBACPermissive)(mux), nil
 }
 
-// wireTodoDisplay copies the display-time config into the todo handler:
-// version badge, offline label and realtime label. Extracted from BootChi
-// to keep boot under the function-length gate; it is plain assignment with
-// no control flow of its own.
-func wireTodoDisplay(todoH *todohandlers.Handler, cfg *config.Config) {
-	todoH.BuildLabel = cfg.BuildLabel
-	todoH.BuildCommit = cfg.BuildCommit
-	todoH.OfflineSyncEnabled = cfg.OfflineSync.Enabled
-	todoH.NATSEnabled = cfg.NATS.Enabled
-	todoH.DemoAccounts = cfg.DemoAccounts
-	todoH.SignupEnabled = cfg.SignupEnabled
-}
-
-// wireTodoLLM builds the LLM clients and attaches the todo slice's queue,
-// suggest and retry handlers. Split out of BootChi for the funlen gate.
-// The clients are both consumed here (todo wiring, always compiled) and
-// returned for the chat construction in BootChi (dropped by the
-// genui trim): either side alone keeps the composition green.
-func wireTodoLLM(todoH *todohandlers.Handler, chiQ *queue.Queue, cfg *config.Config) (real, simulated *llm.Client) {
-	real = llm.New(cfg.GoAI.APIKey)
-	if v := os.Getenv("SIMULATE_LLM"); v != "false" {
-		simulated = llm.NewSimulated()
-	}
-	todoH.SetQueue(chiQ)
-	todoH.SetLLMClient(real)
-	if simulated != nil {
-		todoH.SetSimulatedLLMClient(simulated)
-	}
-	todoH.RegisterSuggestHandlers(chiQ.Registry())
-	todoH.RegisterRetryHandlers(chiQ.Registry())
-	return real, simulated
-}
-
 // promoteAdmins sets users.role='admin' for existing rows matching the
 // operator list (ADMIN_EMAILS). Promotion only, never provisioning: unknown
 // addresses are skipped silently (anyone can claim an unowned address, so
@@ -343,45 +300,6 @@ func wireTOTPKey(a *auth.Auth, cfg *config.Config) error {
 	return nil
 }
 
-// bootReview wires the Genkit review-loop slice: one shared Genkit
-// instance, the gogogo/llm model action over the real LLM client (metered
-// exactly like todo suggest when a Biller is set), and the jev-compatible
-// judge from JEV_* env. Lives here (not chi.go) for the file-size gate;
-// the review trim strips this whole block (see the installer unit).
-func bootReview(
-	cfg *config.Config, a *auth.Auth, realLLM *llm.Client,
-) *reviewhandlers.Handler {
-	g := reviewhandlers.NewGenkit()
-	runner := &reviewhandlers.Runner{
-		G:            g,
-		Model:        reviewhandlers.DefineReviewModel(g, realLLM),
-		Judge:        reviewhandlers.NewJudgeClient(cfg),
-		Threshold:    cfg.Review.ConfidenceThreshold,
-		JudgeTimeout: cfg.Review.Timeout,
-	}
-	h := reviewhandlers.NewHandler(cfg, a, runner, realLLM)
-	h.RegisterFlows()
-	return h
-}
-
-// startCrudConsumer runs the JetStream CRUD consumer for cross-instance
-// convergence until the boot context is cancelled. It is nil-safe on js
-// (RunCrudConsumer no-ops when NATS is disabled). Split from chi.go for
-// the file-sizes gate; the CRUD indexer it threads through must match the
-// one the HTTP path uses or the two write paths diverge.
-func startCrudConsumer(
-	ctx context.Context, js nats.JetStreamLike, appName string,
-	todoH *todohandlers.Handler,
-) {
-	go func() {
-		if cerr := todohandlers.RunCrudConsumer(
-			ctx, js, appName, instance.ID(), todoH.Q, todoH.Index, todoH.DB, todoH.Bus(),
-		); cerr != nil {
-			slog.Error("server: chi crud consumer stopped", "error", cerr)
-		}
-	}()
-}
-
 // bootFail tears down the two resources every mid-boot failure must release
 // (the consumer goroutine and the pool) and wraps the cause. Every early
 // return in BootChi goes through it: the pair was repeated seven times, which
@@ -404,74 +322,4 @@ func bootCollab(cfg *config.Config, queries *dbgen.Queries) (collab.Persister, *
 	docs := collab.NewDocStore()
 	docs.SetPersister(persister)
 	return persister, docs, nil
-}
-
-// bootAI wires the Chat demo: one surface set, one interaction shape. The
-// Ask one-shot leg is gone — its demonstrable behaviors (catalog-only
-// strictness via surfaces, fail-closed repair, router lead pick) live in
-// Chat through the same responder/router/prompt stack.
-//
-// The whole body has to stay in ONE function so the installer can strip it as
-// one brace-matched block (see the genui unit's extraStrips rule). It lives
-// here rather than inline in BootChi for the statement budget.
-func bootAI(
-	cfg *config.Config, a *auth.Auth, chiQ *queue.Queue, hub *queue.SSEHub,
-	realLLM, simulatedLLM *llm.Client, queries *dbgen.Queries, slots *recipe.SlotRegistry,
-) (chatH *chathandlers.Handler, err error) {
-	// Built-ins as installed recipes: todo declares dashboard.card so the
-	// official unit shows as an installed recipe on /dashboard.
-	if slots != nil {
-		_ = slots.Add(recipe.Contribution{Fragments: map[recipe.SlotID]recipe.Fragment{
-			recipe.SlotDashboardCard: {Title: "Todo", Render: func() string { return `<a href="/todo">Open todos</a>` }},
-		}})
-	}
-	// Chat answer surfaces (GENUI_CHAT_SURFACES, absent = the documented
-	// default). An unknown name is a BOOT error, not a logged warning.
-	chatSurfaces, err := comp.ParseSurfaces(cfg.GenUI.ChatSurfaces, comp.DefaultSurfacesChat)
-	if err != nil {
-		return nil, fmt.Errorf("config: GENUI_CHAT_SURFACES: %w", err)
-	}
-	// The env path rejects an unknown name above; this is the same assertion
-	// for the set as it arrives here, so a future caller building one from
-	// literals cannot slip an unnamed band past the prompt (NormalizeSurfaces
-	// drops it silently, which would read as "the band did nothing").
-	if verr := comp.ValidateSurfaces(chatSurfaces); verr != nil {
-		return nil, verr
-	}
-	// panels: the data half of the AI components. Installed as the process
-	// catalog — this is the ONE place that decides which of the app's own data
-	// is answerable, and it comes from the same providers Hydrate will use, so
-	// the advertised vocabulary and the renderable one cannot drift.
-	panels := []comp.PanelProvider{todohandlers.NewTodoPanel(queries, slots)}
-	if perr := comp.InstallPanelRegistry(panels); perr != nil {
-		return nil, perr
-	}
-	// actions: what the app offers to model-authored cards. Same providers,
-	// same reasoning as the panel registry above — a feature declares the
-	// action next to the route that implements it, and this is the one place
-	// that collects them. Without this the model is told nothing and invents a
-	// path (the button then 404s), or is told everything and can aim at any
-	// route; the declaration is what makes neither happen.
-	var actionProviders []comp.ActionProvider
-	for _, p := range panels {
-		if ap, ok := p.(comp.ActionProvider); ok {
-			actionProviders = append(actionProviders, ap)
-		}
-	}
-	if aerr := comp.InstallActionRegistry(actionProviders); aerr != nil {
-		return nil, aerr
-	}
-	// One router for the Chat leg: deciding which component should lead is
-	// still a classifier decision, now owned by the chat slice.
-	chatRouter := chathandlers.NewRouter(cfg)
-	chatH = chathandlers.NewHandler(cfg, a, chiQ, hub,
-		chatstore.NewMemStore(), chathandlers.ResponderFromLLM(realLLM, simulatedLLM, chatRouter, chatSurfaces))
-	// Per-request surfaces: the tab toggles its own vocabulary on the job,
-	// so the worker rebuilds the leg from these plus the toggles.
-	chatH.SetModelLeg(realLLM, simulatedLLM, chatRouter, chatSurfaces)
-	// Registered here, not by the caller: BootChi needs only the handler for
-	// the mux, and hoisting registration keeps its error path to one line
-	// (the statement budget this helper exists to respect).
-	chatH.RegisterHandlers(chiQ.Registry())
-	return chatH, nil
 }

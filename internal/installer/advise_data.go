@@ -198,7 +198,7 @@ var adviseRules = []string{
 		"locally present skill. Audit new deps with `go mod why` + " +
 		"`govulncheck ./...` before adding.",
 	"Fitting units to a use-case: docs/use-cases.md maps every " +
-		"core/plugin/feature to business-language cases, decision pairs " +
+		"core/servant/recipe to business-language cases, decision pairs " +
 		"(jobs vs workflows, sql rows vs crdt docs), and what has no unit yet " +
 		"(https://calionauta.github.io/gogogo/docs/use-cases/).",
 	"UI work reads the gogogo-ui skill first (skills/gogogo-ui/SKILL.md in " +

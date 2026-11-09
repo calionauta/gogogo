@@ -36,11 +36,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/internal/recipe"
-
-	"github.com/calionauta/gogogo/features/notifications"
-	notificationshandlers "github.com/calionauta/gogogo/features/notifications/handlers"
-	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 )
 
 // routeKey identifies one registration: a method on a pattern.
@@ -84,10 +81,6 @@ type Router struct {
 	// while the composed tree is still being built, like every other
 	// boot-phase error it cannot answer requests yet.
 	invokeOut http.Handler
-	// inbox is the notifications slice the root built inside the composition,
-	// kept because the shell middleware and the session stream share its bus.
-	inbox    *notificationshandlers.Handler
-	inboxBus *notifications.Bus
 	// recipeErr is a failure from the recipe step (registration, schema, mount).
 	// It rides the tree instead of the return list because buildChiMux takes one
 	// parameter per feature, and an error return would make every trimmed test
@@ -144,14 +137,14 @@ func MountSubtree(r chi.Router, prefix string, h http.Handler) {
 
 // healthHandler answers the scratch image's `app health` probe (a GET on
 // 127.0.0.1:PORT) and the Playwright smoke, both of which match the body.
-func healthHandler(todoH *todohandlers.Handler) http.HandlerFunc {
+func healthHandler(cfg *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		// The build tag is what a tab open across a deploy compares against
 		// (stale-tab reload). The body stays "ok". no-store: an intermediary
 		// caching this response would serve a stale tag and fake a mismatch
 		// the other way (see session.js buildCheck).
 		w.Header().Set("Cache-Control", "no-store")
-		w.Header().Set("X-Gogogo-Build", todoH.BuildLabel+"-"+todoH.BuildCommit)
+		w.Header().Set("X-Gogogo-Build", cfg.BuildLabel+"-"+cfg.BuildCommit)
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	}

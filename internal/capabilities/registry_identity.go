@@ -28,8 +28,9 @@ var identityUnits = []Capability{
 		DependsOn: []string{
 			depSounds,
 		},
-		Dirs:   []string{"features/config"},
-		Reason: "Delete the dir and its routes with the account-menu Config entry.",
+		Dirs:     []string{"features/config"},
+		Register: "features/config/handlers",
+		Reason:   "Delete the dir and its routes with the account-menu Config entry.",
 		Warns: []string{
 			"The Config rail and account-menu entries are removed by hand with the unit.",
 		},

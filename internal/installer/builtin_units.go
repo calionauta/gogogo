@@ -224,19 +224,11 @@ const (
 	// deleting: it builds one handler per feature, so trimming any of
 	// them means editing its imports and call sites.
 	chiTestFile = "internal/server/chi_test.go"
-	// creditsCallLine is the inlined credits construction both composition
-	// call sites share, closing paren included (a drop would take it).
-	creditsCallLine = "creditshandlers.NewHandler(a, nil))"
 )
 
 // Import suffixes dropped from handler dispatch when their unit trims.
 const (
 	soundsImportSuffix = `features/sounds"`
-	// reviewImportSuffix is the review feature import dropped from every
-	// composition file wiring the handler (route root, boot helper,
-	// composition test): one const so the repeated literal is not a
-	// goconst finding, mirroring soundsImportSuffix.
-	reviewImportSuffix = `features/review/handlers"`
 )
 
 // builtinUnits is every offered unit in canonical menu order. The order is
@@ -287,33 +279,14 @@ var baseBuiltinUnits = []builtinUnit{
 		// Bundle rationale, same as whiteboard+collab: the room demo
 		// without the engine does not compile, and the engine without
 		// the demo is unproven surface — one unit is the honest shape.
+		// Room is self-mounting now (Register in room/handlers); trimming
+		// deletes the dir + the engine files (capability Files) and
+		// regenerates units.gen. What stays at the root is the presence
+		// upgrade branch reading the default host (nil when gone).
 		extraDrops: []fileDrop{
 			{
-				path: chiGoFile,
-				substrs: []string{
-					"roomH, roomHost := bootRoomActor(bootCtx, cfg, a, hub)",
-					// One argument per line: each drop removes exactly its
-					// feature's line, and add restores them.
-					"roomH *roomhandlers.Handler,",
-					"roomH,",
-					// The route mount moved to the recipe seam: the Add
-					// line goes, and the import with it.
-					"r.recipes.Add(roomH.Recipe())",
-					`appgoakt "github.com/calionauta/gogogo/internal/goakt"`,
-					`roomhandlers "github.com/calionauta/gogogo/features/room/handlers"`,
-				},
-			},
-			{
-				// The server test's room call sites go as line drops; the
-				// multi-line fakeRooms fixture goes as a block strip below.
-				// The mux table's "/room" element goes too (one element per
-				// line, so combined trims stay order-independent).
 				path: chiTestFile,
 				substrs: []string{
-					`appgoakt "github.com/calionauta/gogogo/internal/goakt"`,
-					`roomhandlers "github.com/calionauta/gogogo/features/room/handlers"`,
-					"nil, // roomHandler: engine disabled",
-					"roomhandlers.NewHandler(cfg, a, fakeRooms{}, queue.NewSSEHub()),",
 					"\t\t\"/room\",",
 				},
 			},
@@ -341,32 +314,13 @@ var baseBuiltinUnits = []builtinUnit{
 				rules: []stripRule{{startMarker: `{ID: "room"`, endMarker: "},"}},
 			},
 			{
-				// The shutdown hook block and the two actor helpers:
-				// dropping an `if` line alone would leave the closing brace
-				// behind, so each goes as a block. The feature mount itself
-				// is a single line in extraDrops.
+				// The presence-actor upgrade branch is the only appgoakt
+				// use left at the root once the engine is gone; it degrades
+				// to nil (PeerSet fallback). Drop it so a trimmed tree has
+				// no goakt import at all.
 				path: chiGoFile,
 				rules: []stripRule{
 					{
-						startMarker:        "if roomHost != nil {",
-						endIsClosingBrace:  true,
-						endBrace:           "\t}",
-						alsoDeleteContains: []string{"// trim:whiteboard-presence"},
-					},
-					{
-						startMarker:       "// bootRoomActor starts the GoAkt actor system",
-						endIsClosingBrace: true,
-						endBrace:          "}",
-					},
-					{
-						startMarker:       "// stopRoomActor is the shutdown hook",
-						endIsClosingBrace: true,
-						endBrace:          "}",
-					},
-					{
-						// Presence keeps working, its actor upgrade does not: this
-						// branch is the only appgoakt use left once the engine is
-						// gone, and bootPresence's PeerSet is the fallback.
 						startMarker:        "// trim:presence-actor",
 						endIsClosingBrace:  true,
 						endBrace:           "\t}",

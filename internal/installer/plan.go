@@ -48,6 +48,11 @@ type scaffoldPlan struct {
 	Keep         []keptUnit `json:"keepUnits"`
 	Drop         []planUnit `json:"drop"`
 	DryRun       bool       `json:"dryRun"`
+	// Recommend lists the recipes the registry advises at scaffold time.
+	// Install lists the ones the operator accepted (via --install-recommended
+	// or --install); empty means recommend-only.
+	Recommend []string `json:"recommend,omitempty"`
+	Install   []string `json:"install,omitempty"`
 }
 
 func buildPlan(name, owner, dir string, dryRun bool) scaffoldPlan {
@@ -77,6 +82,9 @@ func buildPlan(name, owner, dir string, dryRun bool) scaffoldPlan {
 			p.KeepFeatures = append(p.KeepFeatures, c)
 		}
 		p.Keep = append(p.Keep, kept)
+		if capability.Recommended {
+			p.Recommend = append(p.Recommend, c)
+		}
 	}
 	return p
 }
@@ -87,6 +95,12 @@ func printPlanText(w io.Writer, p scaffoldPlan) {
 
 	fmt.Fprintf(w, "  capabilities:   %s\n", strings.Join(p.KeepPlugins, ", ")+"; "+strings.Join(p.KeepFeatures, ", "))
 	fmt.Fprintln(w, "  removal:        none (full template)")
+	if len(p.Recommend) > 0 {
+		fmt.Fprintf(w, "  recommend:      %s (accept with --install-recommended)\n", strings.Join(p.Recommend, ", "))
+	}
+	if len(p.Install) > 0 {
+		fmt.Fprintf(w, "  install:        %s\n", strings.Join(p.Install, ", "))
+	}
 }
 
 func printPlanJSON(w io.Writer, p scaffoldPlan) error {
@@ -109,4 +123,20 @@ func printEnvelopeJSON(w io.Writer, e envelope) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	return enc.Encode(e)
+}
+
+// applyInstallSelection resolves the recommendation: Install needs
+// explicit acceptance (--install-recommended or --install ids).
+func applyInstallSelection(p *scaffoldPlan, opt options) {
+	if opt.installRecommended {
+		p.Install = append(p.Install, p.Recommend...)
+	}
+	for id := range strings.SplitSeq(opt.installIDs, ",") {
+		if id = strings.TrimSpace(id); id != "" {
+			p.Install = append(p.Install, id)
+		}
+	}
+	if opt.skipRecommended {
+		p.Recommend = nil
+	}
 }

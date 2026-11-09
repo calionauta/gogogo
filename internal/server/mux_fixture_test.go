@@ -11,21 +11,13 @@ import (
 	"testing"
 
 	"github.com/calionauta/gogogo/config"
-	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
-	chatstore "github.com/calionauta/gogogo/features/chat/store"
-	confighandlers "github.com/calionauta/gogogo/features/config/handlers"
-	creditshandlers "github.com/calionauta/gogogo/features/credits/handlers"
-	landinghandlers "github.com/calionauta/gogogo/features/landing/handlers"
-	noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"
-	roomhandlers "github.com/calionauta/gogogo/features/room/handlers"
-	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
-	wbhandlers "github.com/calionauta/gogogo/features/whiteboard/handlers"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/queue"
+	"github.com/calionauta/gogogo/internal/recipe"
 	"github.com/calionauta/gogogo/internal/recipe/register"
 )
 
@@ -50,7 +42,6 @@ func buildMuxFixture(t *testing.T) *muxFixture {
 	if aerr != nil {
 		t.Fatalf("auth new: %v", aerr)
 	}
-	todoH := todohandlers.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub())
 	cfg := config.Load()
 	// Retained for combined trims (same rule as the bootCtx retain in chi.go).
 	_ = cfg
@@ -59,7 +50,7 @@ func buildMuxFixture(t *testing.T) *muxFixture {
 		t.Fatalf("persister: %v", perr)
 	}
 	docs := collab.NewDocStore()
-	reviewH := newReviewHandlerForTest(cfg, a)
+	slots := recipe.NewSlotRegistry()
 	// SQLDB is what the recipe step migrates: without it a recipe that ships
 	// DDL cannot apply its schema, and the composition below would be built
 	// with the recipe step failed and every seam-mounted route (todo's
@@ -67,16 +58,12 @@ func buildMuxFixture(t *testing.T) *muxFixture {
 	mux := buildChiMux(a, register.Deps{
 		Cfg: cfg, Auth: a, Queries: dbgen.New(sqlDB),
 		Hub: queue.NewSSEHub(), SQLDB: sqlDB,
-	}, todoH,
-		landinghandlers.NewHandler(cfg, a),
-		confighandlers.NewHandler(cfg, a, dbgen.New(sqlDB)),
-		wbhandlers.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister, docs, cfg),
-		noteshandlers.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister, docs, cfg),
-		roomhandlers.NewHandler(cfg, a, fakeRooms{}, queue.NewSSEHub()),
-		chathandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(),
-			stubResponder{raw: "{}"}),
-		reviewH,
-		creditshandlers.NewHandler(a, nil))
+		RealLLM:   newReviewHandlerForTestLLM(),
+		Persister: persister, DocStore: docs,
+		Queue: chiQForTest(t), Slots: slots,
+		TodoRef: &register.TodoRef{}, InboxRef: &register.InboxRef{},
+	},
+	)
 	if mux.recipeErr != nil {
 		t.Fatalf("recipe boot: %v", mux.recipeErr)
 	}

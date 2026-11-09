@@ -88,6 +88,7 @@ with the same flags (always tracks the latest commit; releases pin a version).
 - `make desktop` / `make desktop-smoke` — Wails shell (local, no CI).
 - `make mobile` — Android APK (local, no CI; `cmd/mobile`, ncruces driver).
 - `make gui` — native window (local, no CI).
+- `make mygo` — MyGo loopback shell (local, no CI; `cmd/mygo`, tursogo; see [MyGo research](research/mygo-2026-11.md)).
 
 The MCP `build_prerequisites` tool returns the same desktop/mobile text, so an
 agent asked to build either target does not have to guess.
