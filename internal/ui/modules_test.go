@@ -1,7 +1,11 @@
 // Shell registry contract.
 package ui
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/calionauta/gogogo/internal/rbac"
+)
 
 // adminOnlyIDs are the modules whose ROUTES are admin-only in the RBAC policy
 // (internal/auth policy + the admin gate on /config). Kept explicit, not read
@@ -42,10 +46,10 @@ func TestAdminFlagMatchesAdminOnlyRoutes(t *testing.T) {
 	}
 }
 
-// TestMenuOnlyModulesAreAccountOnly pins the split this revision introduced:
-// Config left the rail and lives in the account menu, so it must never render
-// as a rail item, and it must stay an admin route (the menu guards the link
-// with `userRole == "admin"` — a non-admin route there would 403 on click).
+// TestMenuOnlyModulesAreAccountOnly pins the split: Config, Dashboard and
+// Graph left the rail and live in the account menu, so they must never render
+// as rail items, and each one's route must be reachable by the role its menu
+// entry allows — the menu guards the link with that role check.
 func TestMenuOnlyModulesAreAccountOnly(t *testing.T) {
 	for _, role := range []string{"", "user", "viewer", "admin"} {
 		for _, g := range Grouped(role) {
@@ -56,19 +60,50 @@ func TestMenuOnlyModulesAreAccountOnly(t *testing.T) {
 			}
 		}
 	}
-	seen := 0
+	// menuOnlyAudience is the account-menu audience per MenuOnly module, read
+	// off the route policy instead of the UserMenu markup: a menu entry whose
+	// route 403s for its audience is a dead link, and this is the parity the
+	// rail's visibility_policy_test.go plays for the menu side.
+	menuOnlyAudience := map[string][]string{
+		"config":    {"admin"},
+		"dashboard": {"viewer", "user", "admin"},
+		"graph":     {"user", "admin"},
+	}
+	seen := map[string]bool{}
+	e, err := rbac.NewEnforcer()
+	if err != nil {
+		t.Fatalf("new enforcer: %v", err)
+	}
 	for _, m := range Modules {
 		if !m.MenuOnly {
 			continue
 		}
-		seen++
-		if !m.Admin || !adminOnlyIDs[m.ID] {
-			t.Errorf("menu-only module %q must be an admin route: "+
-				"the account menu guards it with userRole == admin", m.ID)
+		seen[m.ID] = true
+		audience, ok := menuOnlyAudience[m.ID]
+		if !ok {
+			t.Errorf("menu-only module %q has no recorded account-menu audience", m.ID)
+			continue
+		}
+		for _, role := range audience {
+			allow, err := rbac.EnforceWith(e, role, m.URL, "GET")
+			if err != nil || !allow {
+				t.Errorf("menu-only module %q (%s) denies its menu audience %q: the entry would 403",
+					m.ID, m.URL, role)
+			}
+		}
+		// The admin half stays explicit: Config is the only admin route, and
+		// a future admin MenuOnly module must carry Admin + this list entry.
+		if m.Admin && !adminOnlyIDs[m.ID] {
+			t.Errorf("menu-only module %q carries Admin but is not in adminOnlyIDs", m.ID)
 		}
 	}
-	if seen == 0 {
-		t.Fatal("no MenuOnly module: Config is meant to live in the account menu, not the rail")
+	for id := range menuOnlyAudience {
+		if !seen[id] {
+			t.Errorf("module %q lost MenuOnly but still has a menu audience recorded", id)
+		}
+	}
+	if len(seen) == 0 {
+		t.Fatal("no MenuOnly module: platform surfaces are meant to live in the account menu, not the rail")
 	}
 }
 

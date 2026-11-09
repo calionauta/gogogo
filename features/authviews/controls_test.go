@@ -54,6 +54,36 @@ func TestUserMenuLogoutActuallyPosts(t *testing.T) {
 // internal/ui/modules_test.go pins both directions (the flag and the policy's
 // admin-only route set must agree).
 
+// TestUserMenuCarriesDashboardAndGraph pins the two platform surfaces the
+// refactor moved there: Dashboard is the home surface (every signed-in role
+// reaches it), Graph is a user surface the viewer policy denies. Like Config,
+// their links are hardcoded in UserMenu — this test is their rail-side twin
+// (internal/ui/modules_test.go pins the policy audiences).
+func TestUserMenuCarriesDashboardAndGraph(t *testing.T) {
+	render := func(role string) string {
+		t.Helper()
+		var buf bytes.Buffer
+		if err := authviews.UserMenu("demo1@demo.app", role, nil, false, false).
+			Render(context.Background(), &buf); err != nil {
+			t.Fatalf("render user menu (%s): %v", role, err)
+		}
+		return buf.String()
+	}
+	for _, role := range []string{"viewer", "user", "admin"} {
+		if !strings.Contains(render(role), `href="/dashboard"`) {
+			t.Errorf("%s menu missing the Dashboard entry", role)
+		}
+	}
+	for _, role := range []string{"user", "admin"} {
+		if !strings.Contains(render(role), `href="/graph"`) {
+			t.Errorf("%s menu missing the Graph entry", role)
+		}
+	}
+	if strings.Contains(render("viewer"), `href="/graph"`) {
+		t.Error("viewer is offered /graph (the policy denies it: a click 403s)")
+	}
+}
+
 // TestUserMenuCarriesConfigOnlyForAdmins pins the account menu's operator
 // entry. Config is MenuOnly in the module registry (it has no rail item), so
 // this menu is its one entry point — and a plain user must not be offered a

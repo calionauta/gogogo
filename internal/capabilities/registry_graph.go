@@ -6,7 +6,7 @@ package capabilities
 var graphUnits = []Capability{
 	{
 		ID:      "graph",
-		Kind:    KindFeature,
+		Kind:    KindPlugin,
 		Summary: "panorama graph (capabilities + recipes)",
 		Dirs:    []string{"features/graph", "internal/graph"},
 		Reason:  "Delete dirs + MountFeature line.",
