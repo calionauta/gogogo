@@ -148,7 +148,25 @@ type UnitGroup struct {
 type UnitRow struct {
 	ID      string
 	Summary string
-	Status  string // "in" | "opt-out: <switch>"
+	Status  string // "in" | "opt-out: <switch>" | "removed"
+	Kind    capabilities.Kind
+}
+
+// MarkRemovedUnits corrects the registry's default for what the binary
+// actually mounted: a recipe with no provider in this build is not "in" —
+// it was uninstalled (its registry row stays as removal-class data) or
+// switched off at boot. Switch-gated rows keep their opt-out text: for
+// them, unmounted is the documented off state, not a removal. Recipes only —
+// Core/Servants are always wired when the row exists.
+func MarkRemovedUnits(data *PageData, mounted map[string]bool) {
+	for i := range data.Units {
+		for j := range data.Units[i].Rows {
+			row := &data.Units[i].Rows[j]
+			if row.Kind == capabilities.KindFeature && !mounted[row.ID] && row.Status == "in" {
+				row.Status = "removed"
+			}
+		}
+	}
 }
 
 // buildUnits inventories the capability registry by removal class. A unit
@@ -175,7 +193,7 @@ func buildUnits() []UnitGroup {
 			status = "opt-out: " + u.RuntimeOff
 		}
 		groups[idx].Rows = append(groups[idx].Rows, UnitRow{
-			ID: u.ID, Summary: u.Summary, Status: status,
+			ID: u.ID, Summary: u.Summary, Status: status, Kind: u.Kind,
 		})
 	}
 	for i := range groups {

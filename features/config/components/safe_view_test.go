@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/calionauta/gogogo/config"
+	"github.com/calionauta/gogogo/internal/capabilities"
 )
 
 // TestBuildPageData_MasksAdminToken asserts that the literal admin
@@ -260,6 +261,37 @@ func TestBuildPageData_MasksJevKey(t *testing.T) {
 	fallbackModel := findRow(t, pd, "review", "FallbackModel")
 	if fallbackModel.Display != "fallback-classifier" {
 		t.Fatalf("FallbackModel Display = %q, want surfaced raw", fallbackModel.Display)
+	}
+}
+
+// TestMarkRemovedUnits pins the mounted-set correction: a recipe with no
+// provider in this build (uninstalled — its registry row stays as
+// removal-class data) must not read "in". Servants keep their status
+// (a servant's off state is its switch, not a removal), and mounted
+// recipes stay "in".
+func TestMarkRemovedUnits(t *testing.T) {
+	pd := BuildPageData(&config.Config{})
+	mounted := map[string]bool{}
+	for _, c := range capabilities.All {
+		if c.ID != "todo" {
+			mounted[c.ID] = true
+		}
+	}
+	MarkRemovedUnits(&pd, mounted)
+	rows := map[string]UnitRow{}
+	for _, g := range pd.Units {
+		for _, r := range g.Rows {
+			rows[r.ID] = r
+		}
+	}
+	if got := rows["todo"].Status; got != "removed" {
+		t.Errorf("todo row status = %q, want removed (unmounted recipe)", got)
+	}
+	if got := rows["notes"].Status; got != "in" {
+		t.Errorf("notes row status = %q, want in (mounted)", got)
+	}
+	if got := rows["goakt"].Status; !strings.HasPrefix(got, "opt-out:") {
+		t.Errorf("goakt row status = %q, want its opt-out text (servants keep status)", got)
 	}
 }
 
