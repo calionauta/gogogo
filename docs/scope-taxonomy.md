@@ -238,9 +238,10 @@ admin-only (`p, admin, /config…`), so the user-owned recipe policy block
 cannot express them; its declaration is documented in the registry instead.
 `graph` (panorama host) and `dashboard` (slot host) are not user recipes:
 `dashboard` hosts `dashboard.card` — it knows its numbers from
-`ListTodosByOwner` (open/total) and `CountUnreadInApp` (unread inbox), then
-renders `SlotRegistry.Fragments(SlotDashboardCard)`; `graph` renders the
-capability/recipe map itself. Pomodoro (`_extensions/pomodoro`, 281 lines,
+`ListTodosByOwner` (open/total) and `CountUnreadInApp` (unread inbox), lists one
+card per installed recipe (its rail destination), then renders
+`SlotRegistry.Fragments(SlotDashboardCard)` for out-of-tree contributions;
+`graph` renders the capability/recipe map itself. Pomodoro (`_extensions/pomodoro`, 281 lines,
 one table/page/write/sidebar) stays the minimal installable example;
 `features/todo` stays the in-tree reference slice. New cost: none — deleting
 a bundled unit is `recipe uninstall <id>` (see `docs/features.md`).

@@ -27,14 +27,14 @@ func renderShellRole(ctx context.Context, t *testing.T, role string) string {
 	return buf.String()
 }
 
-// TestRailRendersExtensionEntries pins the nav.sidebar slot: a contributed
+// TestRailRendersRecipeEntries pins the nav.sidebar slot: a contributed
 // destination reaches the rail with its own href, under its own heading, and
 // nothing in the markup names the recipe that contributed it.
-func TestRailRendersExtensionEntries(t *testing.T) {
+func TestRailRendersRecipeEntries(t *testing.T) {
 	ctx := WithNav(context.Background(), []NavEntry{{Label: "Pomodoro", Href: "/pomodoro"}})
 	html := renderShell(ctx, t)
 
-	for _, want := range []string{"Extensions", "Pomodoro", `href="/pomodoro"`} {
+	for _, want := range []string{"Recipes", "Pomodoro", `href="/pomodoro"`} {
 		if !strings.Contains(html, want) {
 			t.Errorf("rail missing %q", want)
 		}
@@ -44,11 +44,11 @@ func TestRailRendersExtensionEntries(t *testing.T) {
 	}
 }
 
-// TestRailWithoutExtensionsRendersNoGroup keeps the empty case honest: a build
+// TestRailWithoutRecipesRendersNoGroup keeps the empty case honest: a build
 // with no contribution must not leave a stray heading behind.
-func TestRailWithoutExtensionsRendersNoGroup(t *testing.T) {
-	if html := renderShell(context.Background(), t); strings.Contains(html, "Extensions") {
-		t.Error("a shell with no extension entry must not render the Extensions group")
+func TestRailWithoutRecipesRendersNoGroup(t *testing.T) {
+	if html := renderShell(context.Background(), t); strings.Contains(html, "Recipes") {
+		t.Error("a shell with no recipe entry must not render the Recipes group")
 	}
 }
 

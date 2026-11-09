@@ -1,15 +1,15 @@
 // HTTP dashboard page: the host for the `dashboard.card` slot.
 //
-// Two halves, on purpose. The page itself is real (a signed-in user's
-// summary: open todos, inbox) so that hosting the slot is not the whole
-// page; the grid below it is the slot — content a recipe declares, laid out
-// in a fixed grid and named by no recipe id. A project with no contributions
-// still has a dashboard, and the grid renders its empty state rather than a
-// promise of an extension that is not installed.
+// Two halves, on purpose. The page itself is real (a signed-in user's grid
+// of installed recipes, with live counters for the headline two) so that
+// hosting the slot is not the whole page; slot fragments — content a recipe
+// declares — fill the same grid. A build with no recipes installed renders
+// the empty state instead of pretending otherwise.
 package handlers
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 
@@ -18,6 +18,7 @@ import (
 	"github.com/calionauta/gogogo/internal/auth"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/recipe"
+	"github.com/calionauta/gogogo/internal/ui"
 )
 
 // Handler serves GET /dashboard.
@@ -101,6 +102,7 @@ func (h *Handler) index(w http.ResponseWriter, r *http.Request) {
 		OpenTodos:      open,
 		TotalTodos:     len(rows),
 		UnreadInbox:    int(unread),
+		Cards:          buildCards(ui.Visible(sess.Role), open, len(rows), int(unread)),
 		DashboardCards: cards,
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -109,4 +111,38 @@ func (h *Handler) index(w http.ResponseWriter, r *http.Request) {
 	_ = components.Page(
 		data, h.cfg.BuildLabel, h.cfg.BuildCommit,
 	).Render(r.Context(), w)
+}
+
+// buildCards lists the recipes installed in this build — one card per rail
+// destination the role may see. Platform surfaces (the dashboard itself, the
+// graph panorama, the admin config) are not recipes and never become a card;
+// Config is already absent via MenuOnly, the other two are excluded here by
+// id until the nav moves them out of the rail entirely. The headline two
+// (todo, inbox) carry their live counters; the rest are static link cards.
+func buildCards(mods []ui.Module, open, total, unread int) []components.Card {
+	cards := make([]components.Card, 0, len(mods))
+	for _, m := range mods {
+		if m.ID == "dashboard" || m.ID == "graph" {
+			continue
+		}
+		card := components.Card{Title: m.Title, URL: m.URL}
+		switch m.ID {
+		case "todo":
+			card.Stat = &components.Stat{
+				Value:  open,
+				Signal: "openTodos",
+				Desc:   "of " + strconv.Itoa(total) + " total",
+				Cta:    "Open Todo",
+			}
+		case ui.ModuleInbox:
+			card.Stat = &components.Stat{
+				Value:  unread,
+				Signal: "inboxUnread",
+				Desc:   "unread messages",
+				Cta:    "Open Inbox",
+			}
+		}
+		cards = append(cards, card)
+	}
+	return cards
 }
