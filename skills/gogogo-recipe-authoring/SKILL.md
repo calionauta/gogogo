@@ -13,6 +13,15 @@ code the moment it is written.
 That single fact decides everything below. Read this before creating a recipe, before
 editing a recipe's copied code, and before declaring anything in a receipt.
 
+## When to Use
+
+Activate when: adding a feature to a gogogo project, installing or editing a recipe,
+filling a slot (dashboard card, settings section, row actions), declaring routes/tables/
+jobs in a receipt, updating a recipe after editing it, submitting one to the catalog.
+
+Do NOT activate for: dependency bumps, DaisyUI styling (use `gogogo-ui`), Go concurrency
+or lint gates (use `gogogo-coding-standards`), supply-chain or research questions.
+
 ## The three parts of a recipe, and who owns each
 
 | Part | Lives in | Owner | Edit it? |
@@ -276,3 +285,76 @@ Say so rather than bending it. Three cases where it genuinely does not:
 - **You need install without a rebuild.** Then you need an out-of-process seam, which this
   project deliberately does not ship as the default: a local socket round trip measures
   ~22 µs, which is unusable in a per-row render path. Ask before building it.
+
+## Examples
+
+### Example 1: Scaffold a new recipe
+
+**Input:** "Add a pomodoro timer recipe."
+
+**Steps:**
+1. Run `gogogo new feature pomodoro` — writes handler, page, wiring, capability row, RBAC rows, proves the build.
+2. Declare `metrics` (COUNT) and `panel` (PanelSpec) if the recipe has a list slice; add
+   `genui_panel.go` on `comp.SlicePanel` (the scaffold emits the skeleton).
+3. Run `gogogo recipe check pomodoro --format json` — fix errors before boot.
+
+**Output:** "pomodoro installed with dashboard metric + chat panel; recipe check healthy (score 100)."
+
+### Example 2: Declare a metric and panel
+
+**Input:** "My recipe stores `ext_notes` rows; show a count on /dashboard and a `notes_list` in chat."
+
+**Steps:**
+1. Add to `Declaration`: `Metrics: [{Label: "Notes", Query: "SELECT COUNT(*) FROM ext_notes WHERE owner = ?"}]`
+   and `Panel: &PanelSpec{Component: "notes_list", Prompt: "notes_list {scope: all|mine} …", Writable: []string{"scope"}}`.
+2. Implement `genui_panel.go` calling the feature's own page component (never a copy).
+3. Mirror the same in `.recipes/<id>.yml` so drift check passes.
+
+**Output:** "dashboard card appears with zero dashboard edits; chat can emit notes_list."
+
+## Edge Cases
+
+### Declared route the code never registers
+- `recipe status` / drift reports a **failure** (nav entry to nowhere). Fix the code or the
+  declaration — do not downgrade to a warning.
+
+### Table claimed but no CREATE in the recipe's SQL
+- The gate fails: a declared table must appear in the recipe's own SQL. Add the migration
+  under `migrations/` or drop the claim.
+
+### Core table claimed (`users`, `sessions`, `todos`…)
+- Refused. Own a side table keyed by the core entity's id instead. The built-in `todo`
+  exception (`ext_todo_todos`) is the only sanctioned shape — runtime queries may target
+  only that table.
+
+### Slot with no host page in this build
+- Refused at registration and by `recipe install` before any file is copied. Check the slot
+  list against the build's rendered surfaces.
+
+### Non-COUNT metric or multi-writable panel
+- `MetricProblems` / `PanelProblems` fail fast at boot: use `SELECT COUNT(*)` with exactly
+  one `?` when owner-scoped, a snake_case component, and exactly one writable prop (the slice).
+
+### Uncommitted edits before `recipe update`
+- The update path needs commits as the merge base. Commit first; an uncommitted blob
+  throws away the only honest three-way input.
+
+### Page digests go red after sidebar install
+- Expected. Reinstall moved shell markup — re-bless with
+  `PAGES_DIGEST=update go test ./internal/server -run TestPagesDigest` after reading the diff.
+
+## Test Cases
+
+### Should activate
+- "Add a feature to a gogogo project"
+- "Install this recipe into my checkout"
+- "Override the todo list in my fork"
+- "Declare routes/tables/jobs for my slice"
+- "Fill the dashboard.card slot"
+- "Submit my recipe to the catalog"
+
+### Should NOT activate
+- "Bump a Go dependency" (dependency principles, not recipes)
+- "Render a new DaisyUI component style" (use `gogogo-ui`)
+- "Add a goroutine in an existing handler" (use `gogogo-coding-standards`)
+- "Explain the supply-chain scan" (research, not recipe authoring)
