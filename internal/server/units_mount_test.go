@@ -14,6 +14,8 @@ import (
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
+	"github.com/calionauta/gogogo/internal/llm"
+	"github.com/calionauta/gogogo/internal/queue"
 	"github.com/calionauta/gogogo/internal/recipe"
 	"github.com/calionauta/gogogo/internal/recipe/register"
 )
@@ -43,8 +45,17 @@ func TestBundledUnitsMountThroughTheSeam(t *testing.T) {
 	if !cfg.GoAkt.Enabled {
 		cfg.GoAkt.Enabled = true
 	}
+	chiQ, qerr := queue.NewAt(t.TempDir() + "/chi")
+	if qerr != nil {
+		t.Fatalf("queue: %v", qerr)
+	}
+	t.Cleanup(chiQ.Close)
 	reg := &recipe.Registry{}
-	registerBundledUnits(reg, register.Deps{Cfg: cfg, Auth: a, Queries: q, SQLDB: sqlDB})
+	registerBundledUnits(reg, register.Deps{
+		Cfg: cfg, Auth: a, Queries: q, SQLDB: sqlDB,
+		Queue: chiQ, RealLLM: llm.New(""), SimulatedLLM: llm.NewSimulated(),
+		Hub: chiQ.Hub(),
+	})
 
 	providers := reg.Providers()
 	if len(providers) == 0 {
@@ -54,23 +65,31 @@ func TestBundledUnitsMountThroughTheSeam(t *testing.T) {
 		t.Fatalf("the bundled unit set is invalid: %v", conflicts)
 	}
 
-	// account is the converted unit, and the assertion names it: a test that only
-	// counted providers would pass if the list mounted the wrong one.
-	var found bool
+	// Every bundled unit must arrive as a provider with routes. The list is
+	// the registry's 12 self-mounting units (config-view is admin-only and
+	// mounts via the same seam). A test that only counted providers would
+	// pass if the list mounted the wrong one; pinning each id makes a
+	// dropped Register fail for the right reason (red-proof: delete one
+	// Register from units.gen.go and its id goes missing here).
+	wantIDs := []string{
+		"account", "chat", "config-view", "credits", "dashboard", "landing",
+		"notes", "notifications", "review", "room", "todo", "whiteboard",
+	}
+	got := map[string]recipe.Provider{}
 	for _, p := range providers {
-		if p.ID() != "account" {
-			continue
+		got[p.ID()] = p
+	}
+	for _, id := range wantIDs {
+		p, ok := got[id]
+		if !ok {
+			t.Fatalf("%s did not mount: providers = %v", id, providerIDs(providers))
 		}
-		found = true
 		if len(p.Declaration().Routes) == 0 {
-			t.Fatalf("account mounted with no declared routes: the provider is not the page's")
+			t.Fatalf("%s mounted with no declared routes: the provider is not the page's", id)
 		}
 		if p.Routes() == nil {
-			t.Fatalf("account mounted with a nil router: MountFeature would silently skip it")
+			t.Fatalf("%s mounted with a nil router: MountFeature would silently skip it", id)
 		}
-	}
-	if !found {
-		t.Fatalf("account did not mount: providers = %v", providerIDs(providers))
 	}
 }
 
