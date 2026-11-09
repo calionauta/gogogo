@@ -245,6 +245,28 @@ one table/page/write/sidebar) stays the minimal installable example;
 `features/todo` stays the in-tree reference slice. New cost: none — deleting
 a bundled unit is `recipe uninstall <id>` (see `docs/features.md`).
 
+## Trim vs recipe: what shadcn does and what we do
+
+shadcn's registry is distribution only: `add` copies files and records
+deps; there is **no uninstall** (remove = delete files by hand) and no hash
+receipt — an update is an overwrite (`--overwrite`), so local edits are
+clobbered without a three-way merge. gogogo goes further on purpose: the
+receipt stores pristine hashes, the drift check classifies pristine /
+modified / deleted, and `update` keeps user edits (three-way via git) while
+`uninstall` removes only pristine. That ownership is why bundled receipts
+must live in `.recipes/` even for in-tree units.
+
+Trim is **not** the recipe mechanism: it is scaffold-time removal of
+Servants/Core (engines and deps the binary would otherwise keep — `nats`,
+`dagnats`, `collab`, `search`, `goakt`, `genui`). For Features, trim
+overlaps `recipe uninstall <builtin>`; keeping both confuses, so Features go
+via `uninstall` and Trim keeps only Servants. `graph` fits neither label:
+it is a Feature by removal class (the page disappears) but a manual mount,
+not an installable recipe — making the panorama itself a recipe would be
+recursive (it renders the recipe map). `dashboard` is a Recipe by kind but a
+host by role: hosts are recipes too (they mount via `Register`), they just
+contribute slots instead of owning content.
+
 ## Cross-package test dependencies
 
 Tests come along with the package you remove, **except** when a test in
