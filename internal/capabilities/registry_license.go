@@ -2,8 +2,9 @@
 //
 // The desktop distribution gate (LICENSE_MODE=license|account) is core wiring:
 // the token verifier and sync.json reader are load-bearing when the gate is
-// on, and runtime-off when it is not. The activation page is a feature (a
-// standalone screen, no shell), so it stays in the manual-removal class.
+// on, and runtime-off when it is not. The activation page is a Servant (a
+// standalone screen, no shell; not installable — like graph, it renders no
+// recipe map and carries no receipt), so it sits in the manual-removal class.
 package capabilities
 
 var licenseUnits = []Capability{
@@ -25,7 +26,7 @@ var licenseUnits = []Capability{
 	},
 	{
 		ID:      "license-activation",
-		Kind:    KindFeature,
+		Kind:    KindPlugin,
 		Summary: "standalone /activate page for a license or account token",
 		Dirs:    []string{"features/license"},
 		Reason: "Activation page; the gate is runtime-off with LICENSE_MODE=none. " +

@@ -220,7 +220,7 @@ the `review` feature and the `genkit` plugin).
   `offline-sync`, `perf`, `search`, `sounds`.
 - **Feature (site: Recipe):** `account`, `chat`, `config-view`, `dashboard`, `landing`, `notes`, `notifications`, `review`,
   `room`, `todo`, `whiteboard` (all self-mounting via `Capability.Register`).
-  `license-activation` is a manual mount (standalone activation page, not an installable recipe).
+  `graph` and `license-activation` are Servants (manual mounts, not installable recipes: the panorama host and the standalone activation page).
 
 ## Bundled receipts (ownership, not installed registrations)
 

@@ -346,7 +346,7 @@
         <!--PLUGINS:START-->
         <div class="trim-head">
           <span class="trim-title">Switches — runtime opt-outs</span>
-          <span class="trim-count" id="trim-count" aria-live="polite">20 of 20 kept</span>
+          <span class="trim-count" id="trim-count" aria-live="polite">21 of 21 kept</span>
         </div>
         <p class="plan-group">Common opt-outs</p>
         <label class="plan-row">
@@ -457,6 +457,12 @@
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">i18n</span><span class="plan-desc">localization seam (embedded catalogs, locale resolution, number/date formatting)</span></span>
           <span class="plan-env">I18N_ENABLED=false (already the default)</span>
+        </label>
+        <label class="plan-row">
+          <input type="checkbox" checked data-cap="license-activation">
+          <span class="plan-box" aria-hidden="true"></span>
+          <span class="plan-main"><span class="plan-name">license-activation</span><span class="plan-desc">standalone /activate page for a license or account token</span></span>
+          <span class="plan-env">manual</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="perf">
