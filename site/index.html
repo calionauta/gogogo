@@ -186,7 +186,7 @@
                 <li><code>doctor --json</code><span>Read-only preflight; JSON for agents/CI.</span></li>
                 <li><code>generate --check</code><span>Deterministic codegen gate (templ+sqlc+css+docs).</span></li>
                 <li><code>recipe install</code><span>Copy a recipe in: code + declaration + receipt.</span></li>
-                <li><code>extension list</code><span>What is installed, built-in, or removed.</span></li>
+                <li><code>recipe list</code><span>What is installed, built-in, or removed.</span></li>
                 <li><code>advise</code><span>Which lib or language fits the use case.</span></li>
                 <li><code>--dry-run</code><span>Preview the plan as JSON, zero changes.</span></li>
                 <li><code>--yes</code><span>Scaffold, prove it builds.</span></li>
@@ -201,7 +201,7 @@
                 <li><code>advise_stack</code><span>Same guidance as advise, over MCP.</span></li>
                 <li><code>capabilities_list</code><span>The full unit registry.</span></li>
                 <li><code>recipe_status</code><span>Receipt drift: pristine / modified / deleted.</span></li>
-                <li><code>extension_invoke</code><span>Headless verb on a declared route.</span></li>
+                <li><code>recipe_invoke</code><span>Headless verb on a declared route.</span></li>
                 <li><code>check_tree</code><span>Drift verdict per unit.</span></li>
                 <li><code>version_status</code><span>Is the tool or the project behind?</span></li>
                 <li><code>migrate_plan</code><span>Releases between your base and latest.</span></li>
@@ -331,9 +331,9 @@
 
       <div class="chapter-foot">
         <p class="foot-line"><span class="label">Inside</span> recipes · <code>features/todo</code> <code>features/notes</code> <code>features/whiteboard</code> <code>features/chat</code> <code>features/review</code> <code>features/room</code> <code>features/landing</code> <code>features/config</code> <code>features/account</code> <code>features/dashboard</code></p>
-        <p class="foot-line"><span class="label">Proof</span> <code>gogogo recipe install</code> · <code>gogogo recipe status</code> (drift) · <code>gogogo extension list</code></p>
+        <p class="foot-line"><span class="label">Proof</span> <code>gogogo recipe install</code> · <code>gogogo recipe status</code> (drift) · <code>gogogo recipe list</code></p>
         <p class="foot-line remove"><span class="label">Remove it</span> Uninstall unwires; receipt stays so data still has an owner. The route disappears; nothing below moves.</p>
-        <p class="foot-line doc"><a href="./docs/features/">Feature catalog</a> · <a href="./docs/scope-taxonomy/">Scope taxonomy</a> · <a href="./docs/research/extensibility/">Recipes &amp; extensions</a> · <a href="./docs/unit-contracts/">Unit contracts</a></p>
+        <p class="foot-line doc"><a href="./docs/features/">Feature catalog</a> · <a href="./docs/scope-taxonomy/">Scope taxonomy</a> · <a href="./docs/research/extensibility/">Extensibility</a> · <a href="./docs/unit-contracts/">Unit contracts</a></p>
       </div>
     </article>
 
@@ -757,7 +757,7 @@
     <div class="principle">
       <span class="principle-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20.59 13.41 13.4 20.6a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82Z"/><circle cx="7" cy="7" r="1.2"/></svg></span>
       <h3>SCOPE on every file</h3>
-      <p>Core, Plugin or Feature — agents know what is safe to trim.</p>
+      <p>Core, Servant or Recipe — agents know what is safe to trim.</p>
     </div>
     <div class="principle">
       <span class="principle-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg></span>

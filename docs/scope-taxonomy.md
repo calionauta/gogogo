@@ -60,7 +60,7 @@ Removal class answers *what disappears*. The former scaffold prompt
 is **retired**: recipes are installed from the catalog / local directories
 (`gogogo recipe install`), not chosen at scaffold time. Every non-core unit
 now carries a manual-removal `Reason` in the registry — that text is the
-installer surface (`gogogo extension describe` / MCP `capabilities_list`).
+installer surface (`gogogo recipe describe` / MCP `capabilities_list`).
 
 ## Where the class lives
 

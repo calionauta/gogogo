@@ -76,14 +76,14 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
 
     go run ./cmd/gogogo recipe outdated --dir ./my-app
 
-  Discover extensions headlessly (CLI and MCP read the same registry + receipts):
+  Discover recipes headlessly (CLI and MCP read the same registry + receipts):
 
-    go run ./cmd/gogogo extension list --dir ./my-app --format json
-    go run ./cmd/gogogo extension describe pomodoro --dir ./my-app --format json
+    go run ./cmd/gogogo recipe list --dir ./my-app --format json
+    go run ./cmd/gogogo recipe describe pomodoro --dir ./my-app --format json
 
   Invoke one declared verb against a running server (loopback only):
 
-    gogogo extension invoke todo create --server http://127.0.0.1:18099 \
+    gogogo recipe invoke todo create --server http://127.0.0.1:18099 \
         --session "$GOGOGO_SESSION" --param title="Ship it"
 
   Opinions, not changes (for LLMs deciding what to use — reads nothing, changes nothing):

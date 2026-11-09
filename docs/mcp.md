@@ -67,9 +67,9 @@ JSON-config clients take the Claude Code block verbatim.
 | `recipe_update` | Yes (`confirm:true`) | Update one installed recipe from a directory or catalog entry (dry-run previews) |
 | `recipe_uninstall` | Yes (`confirm:true`) | Remove one installed recipe by id; deletes only pristine files and keeps edited files |
 | `recipe_status` | No | Read-only recipe drift report: pristine vs edited files, generated/schema/policy state |
-| `extension_list` | No | Extension discovery: built-in capabilities plus user-installed recipes, with origin/lifecycle and invocable verbs |
-| `extension_describe` | No | Describe one extension by id (including its invocable verbs) |
-| `extension_invoke` | Yes | Invoke one declared mutating verb against a running server (loopback only) under the operator session token |
+| `recipe_list` | No | Recipe discovery: built-in capabilities plus user-installed recipes, with origin/lifecycle and invocable verbs |
+| `recipe_describe` | No | Describe one recipe by id (including its invocable verbs) |
+| `recipe_invoke` | Yes | Invoke one declared mutating verb against a running server (loopback only) under the operator session token |
 | `build_prerequisites` | No | How to build the desktop shell or the Android target: prerequisites, `make desktop`/`make mobile`, the smoke gates, the Android driver swap (tursogo → ncruces) and the mobile limits. `platform` is `desktop` or `mobile`; empty returns both. Same text as `gogogo --help` |
 | `sync_prerequisites` | No | Desktop↔server sync prerequisites: a reachable NATS leaf listener, `NATS_TOKEN`, `CLOUD_SYNC_URL`, account identity, and a private overlay before public exposure |
 
@@ -133,7 +133,7 @@ the verdict into work, use the CLI's `gogogo migrate` — see
    the full map).
 2. `trim_plan` to preview the plan.
 3. `trim_apply` with `confirm:true` to execute.
-4. For extensions: `recipe_status` first, then `recipe_install`, `recipe_update`, or `recipe_uninstall` with `confirm:true` (or `dryRun:true` for install/update).
+4. For recipes: `recipe_status` first, then `recipe_install`, `recipe_update`, or `recipe_uninstall` with `confirm:true` (or `dryRun:true` for install/update).
 
 Full catalog with parameter shapes: [`cmd/gogogo-mcp`](https://github.com/calionauta/gogogo/tree/master/cmd/gogogo-mcp).
 Agent strategies and the scripted CLI equivalent: [getting-started](getting-started.md#0b-opinions-before-changes-advise).

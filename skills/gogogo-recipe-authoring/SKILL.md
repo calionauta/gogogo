@@ -1,6 +1,6 @@
 ---
 name: gogogo-recipe-authoring
-description: "Authoring and owning a gogogo recipe — the copy-and-evolve extension model. Triggers when: adding a feature to a gogogo project, installing or editing a recipe, filling a slot (dashboard card, settings section, row actions), declaring routes/tables/jobs in a receipt, updating a recipe after editing it, or submitting one to the catalog. Covers what a recipe may own, what it must never touch, and how to stay upgradeable once you have changed the code."
+description: "Authoring and owning a gogogo recipe — the copy-and-evolve recipe model. Triggers when: adding a feature to a gogogo project, installing or editing a recipe, filling a slot (dashboard card, settings section, row actions), declaring routes/tables/jobs in a receipt, updating a recipe after editing it, or submitting one to the catalog. Covers what a recipe may own, what it must never touch, and how to stay upgradeable once you have changed the code."
 ---
 
 # gogogo recipe authoring
@@ -67,7 +67,7 @@ slot; its own policy rows.
    `DROP`s, indexes, seeds or triggers a core table is refused at boot, while a foreign key
    that merely *references* one (`REFERENCES users(id)`) is the correct way to scope your rows.
 2. **Add a step inside a core handler.** No hook that runs "when the user saves a todo".
-   If you need that, the hook belongs in the extension surface as a real seam — or the
+   If you need that, the hook belongs in the recipe surface as a real seam — or the
    feature does not belong in a recipe yet.
 3. **Render a page's frame.** Fill a slot with content; the owning page owns the card,
    the grid and the layout. A recipe that draws its own frame breaks when the page changes
@@ -132,7 +132,7 @@ upstream fix.
 
 ## Submitting to the catalog — optional, always
 
-An extension is usable the moment it builds. A catalog entry is **a review, not a licence
+A recipe is usable the moment it builds. A catalog entry is **a review, not a licence
 to exist**. Submit when you want the claim "this was read, its declaration matches its
 code, and it behaves under these installed sets".
 
@@ -149,7 +149,7 @@ you submit:
 ## Actions: which routes need a headless verb
 
 A user who builds on gogogo does not open your UI to work — an agent does,
-headless, through `gogogo extension invoke` / MCP `extension_invoke`.
+headless, through `gogogo recipe invoke` / MCP `recipe_invoke`.
 Every mutating route (POST/PUT/PATCH/DELETE) and read route (GET) your
 recipe declares must either:
 

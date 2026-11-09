@@ -218,9 +218,9 @@ func TestRecipeStatusJSONCarriesVersionVerdict(t *testing.T) {
 	}
 }
 
-func TestExtensionDescribeShowsVersion(t *testing.T) {
+func TestRecipeDescribeShowsVersion(t *testing.T) {
 	root := installVersioned(t, "v1.2.0")
-	exts, err := extensionDescriptors(root)
+	exts, err := recipeDescriptors(root)
 	if err != nil {
 		t.Fatalf("descriptors: %v", err)
 	}

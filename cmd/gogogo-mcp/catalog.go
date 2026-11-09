@@ -116,22 +116,22 @@ var toolCatalog = []toolDef{
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeOutdated) },
 	},
 	{
-		"extension_list",
-		"Read-only extension discovery: every built-in capability plus every user-installed recipe, with " +
+		"recipe_list",
+		"Read-only recipe discovery: every built-in capability plus every user-installed recipe, with " +
 			"origin, kind, installed/removed state and the available lifecycle verbs. Changes nothing.",
-		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleExtensionList) },
+		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeList) },
 	},
 	{
-		"extension_describe",
-		"Describe one extension by id: kind, origin, summary, registration surface, dependencies and available lifecycle verbs. Changes nothing.",
-		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleExtensionDescribe) },
+		"recipe_describe",
+		"Describe one recipe by id: kind, origin, summary, registration surface, dependencies and available lifecycle verbs. Changes nothing.",
+		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeDescribe) },
 	},
 	{
-		"extension_invoke",
-		"Invoke one declared mutating verb of an extension against a running server (loopback only): " +
+		"recipe_invoke",
+		"Invoke one declared mutating verb of a recipe against a running server (loopback only): " +
 			"runs the verb through the server's own session and policy stack with the operator token. " +
-			"Mutates state: confirm the id/verb first via extension_describe.",
-		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleExtensionInvoke) },
+			"Mutates state: confirm the id/verb first via recipe_describe.",
+		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeInvoke) },
 	},
 	{
 		"advise_stack",

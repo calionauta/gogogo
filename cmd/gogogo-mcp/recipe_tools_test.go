@@ -171,31 +171,31 @@ func TestRecipeOutdatedVerdictIsNotAnError(t *testing.T) {
 	}
 }
 
-func TestExtensionListDescribesBuiltIns(t *testing.T) {
-	res, _, err := handleExtensionList(context.Background(), nil, extensionArgs{
+func TestRecipeListDescribesBuiltIns(t *testing.T) {
+	res, _, err := handleRecipeList(context.Background(), nil, recipeListArgs{
 		Dir: filepath.Join("..", ".."), Format: "json",
 	})
 	if err != nil {
-		t.Fatalf("extension list: %v", err)
+		t.Fatalf("recipe list: %v", err)
 	}
 	text := toolText(t, res)
 	for _, want := range []string{`"todo"`, `"kind":"feature"`, `"origin":"capability"`} {
 		if !strings.Contains(text, want) {
-			t.Errorf("extension list missing %s: %s", want, text[:1000])
+			t.Errorf("recipe list missing %s: %s", want, text[:1000])
 		}
 	}
-	describe, _, err := handleExtensionDescribe(context.Background(), nil, extensionDescribeArgs{
+	describe, _, err := handleRecipeDescribe(context.Background(), nil, recipeDescribeArgs{
 		ID: "dashboard", Dir: filepath.Join("..", ".."), Format: "json",
 	})
 	if err != nil {
-		t.Fatalf("extension describe: %v", err)
+		t.Fatalf("recipe describe: %v", err)
 	}
 	if text := toolText(t, describe); !strings.Contains(text, "dashboard") || !strings.Contains(text, "feature") {
 		t.Errorf("describe output misses id/kind: %s", text)
 	}
 }
 
-func TestExtensionInvokeForwardsToLoopback(t *testing.T) {
+func TestRecipeInvokeForwardsToLoopback(t *testing.T) {
 	var gotPath string
 	var gotCookie string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -208,12 +208,12 @@ func TestExtensionInvokeForwardsToLoopback(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	res, _, err := handleExtensionInvoke(context.Background(), nil, extensionInvokeArgs{
+	res, _, err := handleRecipeInvoke(context.Background(), nil, recipeInvokeArgs{
 		ID: "todo", Verb: "create", Server: srv.URL, Session: "tok-7",
 		Params: map[string]string{"title": "Via MCP"}, Dir: filepath.Join("..", ".."), Format: "json",
 	})
 	if err != nil {
-		t.Fatalf("extension invoke: %v", err)
+		t.Fatalf("recipe invoke: %v", err)
 	}
 	if text := toolText(t, res); !strings.Contains(text, "invoked ok") {
 		t.Errorf("invoke output missing server body: %s", text)
