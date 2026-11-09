@@ -15,6 +15,17 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.65.0 (2026-11-09)
+
+## What's Changed
+* feat(dashboard): recipes grid, taxonomy, version badge, odometer, verb unification by @calionauta in https://github.com/calionauta/gogogo/pull/383
+* fix: badge header, odometer el, _recipes paths, license-activation Servant, inbox privacy pin, shadcn positioning by @calionauta in https://github.com/calionauta/gogogo/pull/385
+* docs: AGENTS.md Kind/nav/verb facts current by @calionauta in https://github.com/calionauta/gogogo/pull/386
+* feat(ui): site readability, no-flash alerts, dashboard metrics, config tabs, graph panorama by @calionauta in https://github.com/calionauta/gogogo/pull/387
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.64.0...v0.65.0
+
 ## 0.64.0 (2026-11-09)
 
 ## What's Changed
