@@ -158,7 +158,7 @@ templ configBody(data PageData) {
 	// adjacent to the markup it drives.
 	<div
 		class="tabs tabs-box"
-		data-init="var tabs = {'#runtime': 'config-tab-runtime', '#users': 'config-tab-users', '#security-events': 'config-tab-security', '#answer-components': 'config-tab-components'}; var id = tabs[window.location.hash]; if (id) { var el = document.getElementById(id); if (el) { el.checked = true; } }"
+		data-init="var tabs = {'#runtime': 'config-tab-runtime', '#units': 'config-tab-units', '#users': 'config-tab-users', '#security-events': 'config-tab-security', '#answer-components': 'config-tab-components'}; var id = tabs[window.location.hash]; if (id) { var el = document.getElementById(id); if (el) { el.checked = true; } }"
 	>
 		<input type="radio" name="config_tabs" id="config-tab-runtime" class="tab" aria-label="Runtime" checked/>
 		<div class="tab-content pt-4" role="tabpanel" aria-label="Runtime settings">
@@ -213,6 +213,45 @@ templ configBody(data PageData) {
 	}
 
 		</section>
+		</div>
+		<input type="radio" name="config_tabs" id="config-tab-units" class="tab" aria-label="Units"/>
+		<div class="tab-content pt-4" role="tabpanel" aria-label="Units">
+		// The inventory: every unit this binary ships, grouped by removal
+		// class with its status. Core/Servants carry the platform; recipes
+		// carry the user's surfaces (also listed on the dashboard grid).
+		for _, group := range data.Units {
+			<section class="ui-card config-group" aria-label={ group.Label }>
+				<div class="ui-card-body">
+					<h2 class="ui-title">{ group.Label }</h2>
+					<div class="overflow-x-auto">
+						<table class="table table-sm">
+							<thead>
+								<tr>
+									<th>Unit</th>
+									<th>Status</th>
+									<th class="hidden md:table-cell">Summary</th>
+								</tr>
+							</thead>
+							<tbody>
+								for _, row := range group.Rows {
+									<tr>
+										<td class="font-mono">{ row.ID }</td>
+										<td>
+											if row.Status == "in" {
+												<span class="badge badge-sm badge-success">in</span>
+											} else {
+												<span class="badge badge-sm badge-warning">{ row.Status }</span>
+											}
+										</td>
+										<td class="hidden md:table-cell text-sm text-base-content/70">{ row.Summary }</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</section>
+		}
 		</div>
 		<input type="radio" name="config_tabs" id="config-tab-users" class="tab" aria-label="Users"/>
 		<div class="tab-content pt-4" role="tabpanel" aria-label="Users">

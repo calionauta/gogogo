@@ -15,10 +15,13 @@ package components
 
 import (
 	"os"
+	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/calionauta/gogogo/config"
 	comp "github.com/calionauta/gogogo/features/genui/components"
+	"github.com/calionauta/gogogo/internal/capabilities"
 	"github.com/calionauta/gogogo/internal/recipe"
 )
 
@@ -75,6 +78,11 @@ type PageData struct {
 	// RBACEnabled mirrors cfg.RBACEnabled: pass-through when false,
 	// enforced denies when true.
 	RBACEnabled bool
+	// Units is the inventory of everything this binary ships, grouped by
+	// removal class (Core / Servants / Recipes). Status is "in" (always
+	// shipped) or the unit's RuntimeOff switch text (opt-out); whether a
+	// switch is currently off is the Runtime tab's job, not guessed here.
+	Units []UnitGroup
 	// Users is the admin-only account table. Empty in BuildPageData; the
 	// handler fills it from the user store.
 	Users            []UserRow
@@ -128,6 +136,56 @@ type Group struct {
 	Note string // optional HTML-safe note (e.g. sensitivity caveat)
 }
 
+// UnitGroup is one removal-class group on the Units tab: Core, Servants or
+// Recipes (prose names — the Kind values stay in the registry).
+type UnitGroup struct {
+	Label string
+	Rows  []UnitRow
+}
+
+// UnitRow is one unit in the inventory: its id, a one-line summary and its
+// status.
+type UnitRow struct {
+	ID      string
+	Summary string
+	Status  string // "in" | "opt-out: <switch>"
+}
+
+// buildUnits inventories the capability registry by removal class. A unit
+// with a RuntimeOff switch is opt-out (the switch text says how); the rest
+// are always in. Sorted by id per group so renders are stable.
+func buildUnits() []UnitGroup {
+	groups := []UnitGroup{
+		{Label: "Core"},
+		{Label: "Servants"},
+		{Label: "Recipes"},
+	}
+	byKind := map[capabilities.Kind]int{
+		capabilities.KindCore:    0,
+		capabilities.KindPlugin:  1,
+		capabilities.KindFeature: 2,
+	}
+	for _, u := range capabilities.All {
+		idx, ok := byKind[u.Kind]
+		if !ok {
+			continue
+		}
+		status := "in"
+		if u.RuntimeOff != "" {
+			status = "opt-out: " + u.RuntimeOff
+		}
+		groups[idx].Rows = append(groups[idx].Rows, UnitRow{
+			ID: u.ID, Summary: u.Summary, Status: status,
+		})
+	}
+	for i := range groups {
+		slices.SortFunc(groups[i].Rows, func(a, b UnitRow) int {
+			return strings.Compare(a.ID, b.ID)
+		})
+	}
+	return groups
+}
+
 // BuildPageData reads the runtime *config.Config and produces a
 // redacted view. SAFE — never returns the original value of a
 // masked field. No DB and no writes; the only filesystem touch is a
@@ -153,6 +211,7 @@ func BuildPageData(cfg *config.Config) PageData {
 		StatusGroups:  groupStatus(status),
 		AnswerCatalog: catalogInfos(),
 		AnswerPanels:  panelInfos(),
+		Units:         buildUnits(),
 	}
 
 	// App group — never secret. Direct passthrough.
@@ -239,6 +298,14 @@ func BuildPageData(cfg *config.Config) PageData {
 
 	// Secrets group — boolean-only. AGE_SECRET_KEY literally never
 	// leaves the host process.
+	pd = appendSecretsGroup(pd, ageSet)
+
+	return pd
+}
+
+// appendSecretsGroup adds the age-secrets row: boolean-only, the value never
+// leaves the process.
+func appendSecretsGroup(pd PageData, ageSet bool) PageData {
 	pd.Groups = append(pd.Groups, Group{
 		Name: secretsGroup,
 		Rows: []Row{
@@ -253,7 +320,6 @@ func BuildPageData(cfg *config.Config) PageData {
 		},
 		Note: "The value of AGE_SECRET_KEY is not exposed by design. To rotate it, edit the file at ~/.secrets/<APP_NAME>.env.age.", //nolint:lll // single-line readability over column budget
 	})
-
 	return pd
 }
 

@@ -262,3 +262,64 @@ func TestBuildPageData_MasksJevKey(t *testing.T) {
 		t.Fatalf("FallbackModel Display = %q, want surfaced raw", fallbackModel.Display)
 	}
 }
+
+// TestBuildPageDataUnits pins the /config inventory: every shipped unit,
+// grouped by removal class, with an honest status. graph is a Servant, so
+// it must group there (not with the recipes), and a switch-gated unit (goakt)
+// must read opt-out, never plain "in".
+func TestBuildPageDataUnits(t *testing.T) {
+	pd := BuildPageData(&config.Config{})
+	byLabel := map[string][]UnitRow{}
+	total := 0
+	for _, g := range pd.Units {
+		byLabel[g.Label] = g.Rows
+		total += len(g.Rows)
+	}
+	if len(byLabel) != 3 {
+		t.Fatalf("Units groups = %v, want Core/Servants/Recipes", byLabelKeys(byLabel))
+	}
+	if total == 0 {
+		t.Fatal("Units inventory is empty")
+	}
+	find := func(label, id string) *UnitRow {
+		for i := range byLabel[label] {
+			if byLabel[label][i].ID == id {
+				return &byLabel[label][i]
+			}
+		}
+		return nil
+	}
+	if graph := find("Servants", "graph"); graph == nil {
+		t.Error("graph is not in the Servants inventory (Kind: plugin decision)")
+	}
+	if goakt := find("Servants", "goakt"); goakt == nil || !strings.HasPrefix(goakt.Status, "opt-out:") ||
+		!strings.Contains(goakt.Status, "GOAKT_ENABLED") {
+		t.Errorf("goakt row = %+v, want opt-out: GOAKT_ENABLED=...", goakt)
+	}
+	// Some core unit is always in (no switch).
+	inCore := false
+	for _, r := range byLabel["Core"] {
+		if r.Status == "in" {
+			inCore = true
+			break
+		}
+	}
+	if !inCore {
+		t.Error("no always-in core unit in the inventory")
+	}
+	// Rows are id-sorted within a group (stable renders).
+	rows := byLabel["Servants"]
+	for i := 1; i < len(rows); i++ {
+		if rows[i-1].ID > rows[i].ID {
+			t.Fatalf("Servants unsorted: %q before %q", rows[i-1].ID, rows[i].ID)
+		}
+	}
+}
+
+func byLabelKeys(m map[string][]UnitRow) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
+}
