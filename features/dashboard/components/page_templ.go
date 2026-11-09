@@ -136,7 +136,7 @@ func dashboardHead() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\">\n\t\t// Odometer count-up (Odo). No Datastar primitive counts from one\n\t\t// value to another with easing and per-digit roll, so this island\n\t\t// owns the animation only; data-effect remains the trigger and\n\t\t// runs it on load and whenever the signal changes. The value is\n\t\t// stored on the element so a later patch animates from the number\n\t\t// currently on screen, not from zero again. Plain script on purpose:\n\t\t// data-effect evaluates at Datastar init, so the global must exist\n\t\t// before then (deferred modules would run too late).\n\t\twindow.__gogogoOdo = function (el, target) {\n\t\t\tif (!el) return;\n\t\t\ttarget = Math.max(0, Math.floor(Number(target) || 0));\n\t\t\tvar prev = el.dataset.value ? Number(el.dataset.value) : 0;\n\t\t\tvar slots = el.querySelectorAll('.odo-digit');\n\t\t\tvar want = String(target).length;\n\t\t\t// Rebuild the slots when the digit count grows (9 -> 100) so\n\t\t\t// the strips can display the longer number at all.\n\t\t\tif (slots.length !== want) {\n\t\t\t\tel.textContent = '';\n\t\t\t\twhile (el.querySelectorAll('.odo-digit').length < want) {\n\t\t\t\t\tvar d = document.createElement('span');\n\t\t\t\t\td.classList.add('odo-digit');\n\t\t\t\t\td.setAttribute('aria-hidden', 'true');\n\t\t\t\t\tvar strip = document.createElement('span');\n\t\t\t\t\tstrip.classList.add('odo-strip');\n\t\t\t\t\tfor (var n = 0; n < 10; n++) {\n\t\t\t\t\t\tvar s = document.createElement('span');\n\t\t\t\t\t\ts.textContent = String(n);\n\t\t\t\t\t\tstrip.appendChild(s);\n\t\t\t\t\t}\n\t\t\t\t\td.appendChild(strip);\n\t\t\t\t\tel.appendChild(d);\n\t\t\t\t}\n\t\t\t}\n\t\t\tel.dataset.value = String(target);\n\t\t\tel.setAttribute('aria-label', String(target));\n\t\t\tvar strips = el.querySelectorAll('.odo-strip');\n\t\t\tvar render = function (n) {\n\t\t\t\tvar s = String(Math.max(0, Math.floor(n))).padStart(strips.length, '0');\n\t\t\t\tfor (var i = 0; i < strips.length; i++) {\n\t\t\t\t\tstrips[i].style.transform = 'translateY(-' + s[i] + 'em)';\n\t\t\t\t}\n\t\t\t};\n\t\t\tif (window.matchMedia('(prefers-reduced-motion: reduce)').matches || prev === target) {\n\t\t\t\trender(target);\n\t\t\t\treturn;\n\t\t\t}\n\t\t\t// Cancel a still-running count from a previous patch so two\n\t\t\t// rAF loops never fight over the same strips.\n\t\t\tif (el.__gogogoOdoRaf) cancelAnimationFrame(el.__gogogoOdoRaf);\n\t\t\tvar dist = Math.abs(target - prev);\n\t\t\tvar dur = Math.min(1500, 600 + Math.log10(Math.max(dist, 1)) * 350);\n\t\t\tvar t0 = performance.now();\n\t\t\tvar tick = function (now) {\n\t\t\t\tvar p = Math.min(1, (now - t0) / dur);\n\t\t\t\tvar eased = 1 - Math.pow(1 - p, 3);\n\t\t\t\trender(prev + (target - prev) * eased);\n\t\t\t\tif (p < 1) {\n\t\t\t\t\tel.__gogogoOdoRaf = requestAnimationFrame(tick);\n\t\t\t\t} else {\n\t\t\t\t\trender(target);\n\t\t\t\t\tel.__gogogoOdoRaf = null;\n\t\t\t\t}\n\t\t\t};\n\t\t\tel.__gogogoOdoRaf = requestAnimationFrame(tick);\n\t\t};\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\">\n\t\t// Odometer count-up (Odo). No Datastar primitive counts from one\n\t\t// value to another with easing and per-digit roll, so this island\n\t\t// owns the animation only; data-effect remains the trigger and\n\t\t// runs it on load and whenever the signal changes. The value is\n\t\t// stored on the element so a later patch animates from the number\n\t\t// currently on screen, not from zero again. Plain script on purpose:\n\t\t// data-effect evaluates at Datastar init, so the global must exist\n\t\t// before then (deferred modules would run too late).\n\t\twindow.__gogogoOdo = function (el, target) {\n\t\t\tif (!el) return;\n\t\t\ttarget = Math.max(0, Math.floor(Number(target) || 0));\n\t\t\tvar prev = el.dataset.value ? Number(el.dataset.value) : 0;\n\t\t\tvar slots = el.querySelectorAll('.odo-digit');\n\t\t\tvar want = String(target).length;\n\t\t\t// Rebuild the slots when the digit count grows (9 -> 100) so\n\t\t\t// the strips can display the longer number at all.\n\t\t\tif (slots.length !== want) {\n\t\t\t\tel.textContent = '';\n\t\t\t\twhile (el.querySelectorAll('.odo-digit').length < want) {\n\t\t\t\t\tvar d = document.createElement('span');\n\t\t\t\t\td.classList.add('odo-digit');\n\t\t\t\t\td.setAttribute('aria-hidden', 'true');\n\t\t\t\t\tvar strip = document.createElement('span');\n\t\t\t\t\tstrip.classList.add('odo-strip');\n\t\t\t\t\tfor (var n = 0; n < 10; n++) {\n\t\t\t\t\t\tvar s = document.createElement('span');\n\t\t\t\t\t\ts.textContent = String(n);\n\t\t\t\t\t\tstrip.appendChild(s);\n\t\t\t\t\t}\n\t\t\t\t\td.appendChild(strip);\n\t\t\t\t\tel.appendChild(d);\n\t\t\t\t}\n\t\t\t}\n\t\t\tel.dataset.value = String(target);\n\t\t\tel.setAttribute('aria-label', String(target));\n\t\t\tvar strips = el.querySelectorAll('.odo-strip');\n\t\t\tvar render = function (n) {\n\t\t\t\tvar s = String(Math.max(0, Math.floor(n))).padStart(strips.length, '0');\n\t\t\t\tfor (var i = 0; i < strips.length; i++) {\n\t\t\t\t\tstrips[i].style.transform = 'translateY(-' + s[i] + 'em)';\n\t\t\t\t}\n\t\t\t};\n\t\t\tif (window.matchMedia('(prefers-reduced-motion: reduce)').matches || prev === target) {\n\t\t\t\trender(target);\n\t\t\t\treturn;\n\t\t\t}\n\t\t\t// Cancel a still-running count from a previous patch so two\n\t\t\t// rAF loops never fight over the same strips.\n\t\t\tif (el.__gogogoOdoRaf) cancelAnimationFrame(el.__gogogoOdoRaf);\n\t\t\tvar dist = Math.abs(target - prev);\n\t\t\t// Expo-out: fast start, long settle. The last digits settle\n\t\t\t// exponentially slower — the 1900 case rolls fast then lands.\n\t\t\tvar dur = Math.min(1100, 420 + Math.log10(Math.max(dist, 1)) * 280);\n\t\t\tvar t0 = performance.now();\n\t\t\tvar tick = function (now) {\n\t\t\t\tvar p = Math.min(1, (now - t0) / dur);\n\t\t\t\tvar eased = p >= 1 ? 1 : (1 - Math.pow(2, -10 * p));\n\t\t\t\trender(prev + (target - prev) * eased);\n\t\t\t\tif (p < 1) {\n\t\t\t\t\tel.__gogogoOdoRaf = requestAnimationFrame(tick);\n\t\t\t\t} else {\n\t\t\t\t\trender(target);\n\t\t\t\t\tel.__gogogoOdoRaf = null;\n\t\t\t\t}\n\t\t\t};\n\t\t\tel.__gogogoOdoRaf = requestAnimationFrame(tick);\n\t\t};\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -199,7 +199,7 @@ func dashboardBody(data PageData) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(MarshalSignals(Signals{OpenTodos: data.OpenTodos}))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 140, Col: 96}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 142, Col: 96}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 		if templ_7745c5c3_Err != nil {
@@ -223,7 +223,7 @@ func dashboardBody(data PageData) templ.Component {
 					var templ_7745c5c3_Var7 string
 					templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(c.Title)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 153, Col: 42}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 154, Col: 42}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 					if templ_7745c5c3_Err != nil {
@@ -244,7 +244,7 @@ func dashboardBody(data PageData) templ.Component {
 					var templ_7745c5c3_Var8 string
 					templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(c.Stat.Desc)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 155, Col: 45}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 156, Col: 45}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 					if templ_7745c5c3_Err != nil {
@@ -257,7 +257,7 @@ func dashboardBody(data PageData) templ.Component {
 					var templ_7745c5c3_Var9 templ.SafeURL
 					templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinURLErrs(c.URL)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 157, Col: 25}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 158, Col: 25}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 					if templ_7745c5c3_Err != nil {
@@ -270,7 +270,7 @@ func dashboardBody(data PageData) templ.Component {
 					var templ_7745c5c3_Var10 string
 					templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(c.Stat.Cta)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 157, Col: 71}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 158, Col: 71}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 					if templ_7745c5c3_Err != nil {
@@ -288,7 +288,7 @@ func dashboardBody(data PageData) templ.Component {
 					var templ_7745c5c3_Var11 string
 					templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(c.Title)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 161, Col: 38}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 162, Col: 38}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 					if templ_7745c5c3_Err != nil {
@@ -301,7 +301,7 @@ func dashboardBody(data PageData) templ.Component {
 					var templ_7745c5c3_Var12 templ.SafeURL
 					templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinURLErrs(c.URL)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 163, Col: 24}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 164, Col: 24}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 					if templ_7745c5c3_Err != nil {
@@ -314,7 +314,7 @@ func dashboardBody(data PageData) templ.Component {
 					var templ_7745c5c3_Var13 string
 					templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs("Open " + c.Title)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 163, Col: 65}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 164, Col: 65}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 					if templ_7745c5c3_Err != nil {
@@ -338,7 +338,7 @@ func dashboardBody(data PageData) templ.Component {
 				var templ_7745c5c3_Var14 string
 				templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(f.Title)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 172, Col: 37}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 173, Col: 37}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 				if templ_7745c5c3_Err != nil {
@@ -358,7 +358,7 @@ func dashboardBody(data PageData) templ.Component {
 				}
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<div class=\"ui-card md:col-span-2\"><div class=\"ui-card-body text-center\"><p class=\"text-base-content/70\">No recipes installed yet. Install a recipe to add its card here.</p></div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<div class=\"ui-card md:col-span-2\"><div class=\"ui-card-body text-center\"><p class=\"text-base-content/70\">No metrics yet. Add a todo or check your inbox.</p></div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

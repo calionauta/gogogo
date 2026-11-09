@@ -7538,6 +7538,9 @@
   .h-32 {
     height: calc(var(--spacing) * 32);
   }
+  .h-auto {
+    height: auto;
+  }
   .h-full {
     height: 100%;
   }
@@ -8398,6 +8401,9 @@
   .break-all {
     word-break: break-all;
   }
+  .whitespace-normal {
+    white-space: normal;
+  }
   .whitespace-pre-wrap {
     white-space: pre-wrap;
   }
@@ -8723,6 +8729,12 @@
     }
     .toggle-secondary[aria-checked="true"] {
       --input-color: var(--color-secondary);
+    }
+    .toggle-sm:is([type="checkbox"]) {
+      --size: calc(var(--size-selector, 0.25rem) * 5);
+    }
+    .toggle-sm:has([type="checkbox"]) {
+      --size: calc(var(--size-selector, 0.25rem) * 5);
     }
     .toggle-xs:is([type="checkbox"]) {
       --size: calc(var(--size-selector, 0.25rem) * 4);

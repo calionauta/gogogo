@@ -224,7 +224,13 @@
     <article class="chapter" id="layer-recipes" data-layer="recipes" data-name="Recipes" data-scope="recipe" data-line="Copied slices you own and edit.">
       <div class="chapter-head"><span class="chapter-num">02</span><span class="chapter-meta">recipe</span></div>
       <h2>Recipes</h2>
-      <p class="chapter-lede">A recipe is not a package you depend on: it is a working slice — pages, handlers, components, tables, a queue job, a policy row — copied into your repo with a receipt recording where it came from, intended to be edited. You own the code the moment it is written. The declaration (routes, tables, jobs, slots) is engine-applied; your edits survive via pristine hashes and `git merge`, never overwrite. And the receipt keeps it honest after the copy: `recipe status` tells pristine from edited, `update` merges instead of clobbering, and `uninstall` takes back only what you didn't touch. Reference slice: <code>features/todo</code> (in-tree, always installed). Minimal installable example: <code>_recipes/pomodoro</code> (not installed by default — <code>gogogo recipe install ./_recipes/pomodoro --yes</code>, then <code>/pomodoro</code>).</p>
+      <p class="chapter-lede">A recipe is a working slice you copy in and own — not a package you depend on.</p>
+      <ul class="chapter-points">
+        <li>Copied with a receipt: pages, handlers, tables, jobs, policy rows.</li>
+        <li>Your edits survive: pristine hashes + <code>git merge</code>, never overwrite.</li>
+        <li>Receipt keeps it honest: <code>recipe status</code>, <code>update</code>, <code>uninstall</code>.</li>
+      </ul>
+      <p class="chapter-lede">Reference: <code>features/todo</code>. Try: <code>gogogo recipe install ./_recipes/pomodoro --yes</code></p>
 
       <div class="viz tiles">
         <!--FEATURES:START-->
@@ -306,17 +312,16 @@
         <!--FEATURES:END-->
       </div>
 
-      <div class="viz slots" id="slots">
-        <p class="plan-group">Slots — what a recipe fills, never what it owns</p>
-        <p class="plan-note">The page owns the frame; the recipe supplies content. Only a slot with a host page in this build can be filled — offering one without a host is refused at registration, install, and review.</p>
+      <details class="viz slots" id="slots">
+        <summary class="plan-group">How a recipe plugs in</summary>
+        <p class="plan-note">The page owns the frame; the recipe supplies content. Only slots with a host page in this build can be filled.</p>
         <div class="slot-table">
-          <p><code>settings.section</code><span>Form section in <code>/config</code> + its own save endpoint.</span></p>
-          <p><code>nav.sidebar</code><span>Destination in the shell rail (label + href, never a fragment).</span></p>
-          <p><code>record.row-actions</code><span>Declarative row actions on the todo row (label, verb, href — not a component).</span></p>
-          <p><code>dashboard.card</code><span>One grid cell on <code>/dashboard</code> (title + content; the grid stays the page's).</span></p>
+          <p><code>settings.section</code><span>Form section in <code>/config</code>.</span></p>
+          <p><code>nav.sidebar</code><span>Destination in the shell rail.</span></p>
+          <p><code>record.row-actions</code><span>Declarative row actions on the todo row.</span></p>
+          <p><code>dashboard.card</code><span>One metric cell on <code>/dashboard</code>.</span></p>
         </div>
-        <p class="trim-note">A recipe never owns a core table/column, never adds a step inside a core handler, never renders a page's frame. Schema is declared and engine-applied; code is copied.</p>
-      </div>
+      </details>
 
       <!--WEIGHTS:START-->
         <div class="weights">
@@ -340,7 +345,12 @@
     <article class="chapter" id="layer-servants" data-layer="servants" data-name="Servants" data-scope="servant" data-line="Wired libraries with a runtime switch.">
       <div class="chapter-head"><span class="chapter-num">03</span><span class="chapter-meta">servant</span></div>
       <h2>Servants</h2>
-      <p class="chapter-lede">The wired libraries behind the recipes: NATS, DagNats, GoAkt, the LLM client, Loro collab, search. They serve other capabilities — nothing user-facing disappears when one is off, but something stops working. Each has a runtime switch; the binary keeps building without it. They are not installable recipes: the catalog does not sell them, and their closure is most of the binary.</p>
+      <p class="chapter-lede">Wired libraries behind the recipes — NATS, DagNats, GoAkt, LLM, Loro, search.</p>
+      <ul class="chapter-points">
+        <li>Turn one off: something stops, nothing disappears from the UI.</li>
+        <li>Runtime switch per servant; the binary still builds.</li>
+        <li>Not installable — the catalog does not sell them.</li>
+      </ul>
 
       <div class="viz trim" id="trim">
         <!--PLUGINS:START-->
@@ -492,7 +502,11 @@
     <article class="chapter" id="layer-core" data-layer="core" data-name="Core" data-scope="core" data-line="The load-bearing walls.">
       <div class="chapter-head"><span class="chapter-num">04</span><span class="chapter-meta">core</span></div>
       <h2>Core</h2>
-      <p class="chapter-lede">The core units: boot, config, database, auth, RBAC, the shell, observability, and the recipe engine itself. The anchors — database, auth, server, queue — plus the bricks. Customize them as much as you want; remove one and the binary stops building (or the recipe seam goes with it).</p>
+      <p class="chapter-lede">The load-bearing units: boot, config, database, auth, RBAC, shell, recipe engine.</p>
+      <ul class="chapter-points">
+        <li>Anchors: database, auth, server, queue — plus the bricks.</li>
+        <li>Customize freely; remove one and the binary stops building.</li>
+      </ul>
 
       <div class="viz core-viz" id="core-viz">
         <!--CORE:START-->

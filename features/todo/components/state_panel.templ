@@ -100,7 +100,7 @@ templ TodoStatePanel(signals todo.Signals) {
 								title="Enqueue a hard-coded job (goqite) that runs through retry-go: failure → retry → success">
 								<span class="inline-flex items-center gap-2">
 									<span data-show="!$suggestPending">Run queue + retry demo</span>
-									<span data-show="$suggestPending" class="inline-flex items-center gap-1.5">
+									<span style="display:none" data-show="$suggestPending" class="inline-flex items-center gap-1.5">
 										<span class="loading loading-spinner loading-xs"></span>
 										<span>Running demo…</span>
 									</span>
@@ -109,6 +109,7 @@ templ TodoStatePanel(signals todo.Signals) {
 								</form>
 
 							<div
+								style="display:none"
 								class="mt-2 flex items-center gap-1.5 text-xs text-success transition-all duration-500"
 								data-show="$aiStep >= 3 && !$aiPending && $aiPhase !== 'error'"
 								data-init__delay.4s="$aiStep = 0"
@@ -154,7 +155,7 @@ templ TodoStatePanel(signals todo.Signals) {
 											<path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"/>
 										</svg>
 										<span data-show="!$aiPending">AI Suggest</span>
-										<span data-show="$aiPending" class="inline-flex items-center gap-1.5">
+										<span style="display:none" data-show="$aiPending" class="inline-flex items-center gap-1.5">
 													<span class="loading loading-spinner loading-xs"></span>
 													<span>Asking AI…</span>
 										</span>
@@ -162,6 +163,7 @@ templ TodoStatePanel(signals todo.Signals) {
 								</button>
 
 								<div
+									style="display:none"
 									class="mt-2 flex items-center gap-1.5 text-xs text-success transition-all duration-500"
 									data-show="$aiStep >= 3 && !$aiPending && $aiPhase !== 'error'"
 									data-init__delay.4s="$aiStep = 0"
@@ -194,6 +196,7 @@ templ TodoStatePanel(signals todo.Signals) {
 @ui.StepList(workflowSteps())
 
 									<div
+										style="display:none"
 										class="mb-3 p-2 rounded-lg bg-accent/10 text-accent text-xs flex items-center gap-2 transition-all duration-500 animate-in fade-in"
 										data-show="$onboardingActive && !$workflowCompleted && $onboardingStep === 2"
 									>
@@ -215,7 +218,7 @@ templ TodoStatePanel(signals todo.Signals) {
 												</svg>
 												Run durable workflow
 											</span>
-											<span data-show="$onboardingActive && !$workflowCompleted" class="inline-flex items-center gap-1.5">
+											<span style="display:none" data-show="$onboardingActive && !$workflowCompleted" class="inline-flex items-center gap-1.5">
 												<span class="loading loading-spinner loading-xs"></span>
 												<span data-text="'Running ' + ($onboardingStep || 1) + '/' + ($onboardingTotal || 6) + '…'"></span>
 											</span>

@@ -113,11 +113,13 @@ templ dashboardHead() {
 			// rAF loops never fight over the same strips.
 			if (el.__gogogoOdoRaf) cancelAnimationFrame(el.__gogogoOdoRaf);
 			var dist = Math.abs(target - prev);
-			var dur = Math.min(1500, 600 + Math.log10(Math.max(dist, 1)) * 350);
+			// Expo-out: fast start, long settle. The last digits settle
+			// exponentially slower — the 1900 case rolls fast then lands.
+			var dur = Math.min(1100, 420 + Math.log10(Math.max(dist, 1)) * 280);
 			var t0 = performance.now();
 			var tick = function (now) {
 				var p = Math.min(1, (now - t0) / dur);
-				var eased = 1 - Math.pow(1 - p, 3);
+				var eased = p >= 1 ? 1 : (1 - Math.pow(2, -10 * p));
 				render(prev + (target - prev) * eased);
 				if (p < 1) {
 					el.__gogogoOdoRaf = requestAnimationFrame(tick);
@@ -139,10 +141,9 @@ templ dashboardSound() {
 templ dashboardBody(data PageData) {
 	<div class="ui-page ui-stack" data-signals={ MarshalSignals(Signals{OpenTodos: data.OpenTodos}) }>
 		<h2 class="ui-title">Welcome back</h2>
-		// The dashboard grid: one cell per installed recipe, then the
-		// dashboard.card slot fragments for recipes that declare one. The
-		// page owns the grid; the cells are the recipes' content, so the
-		// grid lists what is installed instead of promising what is not.
+		// The dashboard is a summary surface: only metric cards (todo,
+		// inbox) plus dashboard.card slot fragments a recipe declares.
+		// Navigation lives in the sidebar; inventory lives in /config.
 		<section class="grid grid-cols-1 md:grid-cols-2 gap-4" aria-label="Your recipes">
 			if len(data.Cards) > 0 || len(data.DashboardCards) > 0 {
 				for _, c := range data.Cards {
@@ -177,7 +178,7 @@ templ dashboardBody(data PageData) {
 			} else {
 				<div class="ui-card md:col-span-2">
 					<div class="ui-card-body text-center">
-						<p class="text-base-content/70">No recipes installed yet. Install a recipe to add its card here.</p>
+						<p class="text-base-content/70">No metrics yet. Add a todo or check your inbox.</p>
 					</div>
 				</div>
 			}

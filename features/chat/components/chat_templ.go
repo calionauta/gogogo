@@ -204,7 +204,22 @@ func chatBody(msgs []store.MessageView, catalogOn bool, customOn bool, nativeOn 
 			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"ui-page ui-page-narrow chat-layout\" data-class=\"{'is-empty': $chat_empty}\"><div class=\"flex items-center justify-end\" data-show=\"!$chat_empty\"><button type=\"button\" class=\"btn btn-ghost btn-xs gap-1.5\" data-attr:disabled=\"!!$chat_thinking\" data-on:click=\"document.getElementById('confirm-new-chat').showModal()\" title=\"Clear this conversation and start a new one\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-3.5 w-3.5\" viewBox=\"0 0 20 20\" fill=\"currentColor\" aria-hidden=\"true\"><path fill-rule=\"evenodd\" d=\"M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z\" clip-rule=\"evenodd\"></path></svg> <span>New chat</span></button></div><div class=\"flex-1\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"ui-page ui-page-narrow chat-layout\" data-class=\"{'is-empty': $chat_empty}\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if len(msgs) == 0 {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"flex items-center justify-end\" style=\"display:none\" data-show=\"!$chat_empty\"><button type=\"button\" class=\"btn btn-ghost btn-xs gap-1.5\" data-attr:disabled=\"!!$chat_thinking\" data-on:click=\"document.getElementById('confirm-new-chat').showModal()\" title=\"Clear this conversation and start a new one\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-3.5 w-3.5\" viewBox=\"0 0 20 20\" fill=\"currentColor\" aria-hidden=\"true\"><path fill-rule=\"evenodd\" d=\"M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z\" clip-rule=\"evenodd\"></path></svg> <span>New chat</span></button></div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"flex items-center justify-end\" data-show=\"!$chat_empty\"><button type=\"button\" class=\"btn btn-ghost btn-xs gap-1.5\" data-attr:disabled=\"!!$chat_thinking\" data-on:click=\"document.getElementById('confirm-new-chat').showModal()\" title=\"Clear this conversation and start a new one\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-3.5 w-3.5\" viewBox=\"0 0 20 20\" fill=\"currentColor\" aria-hidden=\"true\"><path fill-rule=\"evenodd\" d=\"M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z\" clip-rule=\"evenodd\"></path></svg> <span>New chat</span></button></div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"flex-1\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -216,50 +231,50 @@ func chatBody(msgs []store.MessageView, catalogOn bool, customOn bool, nativeOn 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</div><form id=\"chat-composer\" class=\"composer-dock\" data-on:submit__prevent=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div><form id=\"chat-composer\" class=\"composer-dock\" data-on:submit__prevent=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue("$chat_thinking = true; $chat_error = ''; $chat_working = ''; $chat_empty = false; var sent = $chatPrompt; @post('/api/chat/ask?clientID=' + encodeURIComponent($clientID || window.__gogogoClientID || ''), {contentType: 'form'}).then(() => { if ($chatPrompt === sent) $chatPrompt = ''; }).catch(() => { $chat_thinking = false })")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/chat.templ`, Line: 122, Col: 357}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/chat.templ`, Line: 139, Col: 357}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" data-on:datastar-fetch=\"evt.detail.el && evt.detail.el.id === 'chat-composer' && (evt.detail.type === 'error' || evt.detail.type === 'retries-failed') ? ($chat_thinking = false, $chat_error = 'Request failed \\u2014 check your connection and try again.') : null\" data-cuelume=\"send\"><div class=\"mb-2 space-y-1\" role=\"group\" aria-label=\"Answer components\"><span class=\"block text-xs text-base-content/60\">Answer components</span><div class=\"flex flex-wrap items-center gap-x-4 gap-y-1\"><input type=\"hidden\" name=\"surfaces\" value=\"\"> <label class=\"label cursor-pointer gap-1.5 p-0\" title=\"Fixed components: notes, cards, tables, charts\"><span class=\"text-xs\">catalog</span> <input type=\"checkbox\" name=\"surfaces\" value=\"catalog\" class=\"toggle toggle-xs\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\" data-on:datastar-fetch=\"evt.detail.el && evt.detail.el.id === 'chat-composer' && (evt.detail.type === 'error' || evt.detail.type === 'retries-failed') ? ($chat_thinking = false, $chat_error = 'Request failed \\u2014 check your connection and try again.') : null\" data-cuelume=\"send\"><div class=\"mb-2 space-y-1\" role=\"group\" aria-label=\"Answer components\"><span class=\"block text-xs text-base-content/60\">Answer components</span><div class=\"flex flex-wrap items-center gap-x-4 gap-y-1\"><input type=\"hidden\" name=\"surfaces\" value=\"\"> <label class=\"label cursor-pointer gap-1.5 p-0\" title=\"Fixed components: notes, cards, tables, charts\"><span class=\"text-xs\">catalog</span> <input type=\"checkbox\" name=\"surfaces\" value=\"catalog\" class=\"toggle toggle-xs\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if catalogOn {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, " checked")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, " checked")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "></label> <label class=\"label cursor-pointer gap-1.5 p-0\" title=\"Visuals the model invents for this answer, sanitized before display\"><span class=\"text-xs\">custom</span> <input type=\"checkbox\" name=\"surfaces\" value=\"custom\" class=\"toggle toggle-xs\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "></label> <label class=\"label cursor-pointer gap-1.5 p-0\" title=\"Visuals the model invents for this answer, sanitized before display\"><span class=\"text-xs\">custom</span> <input type=\"checkbox\" name=\"surfaces\" value=\"custom\" class=\"toggle toggle-xs\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if customOn {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, " checked")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, " checked")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "></label> <label class=\"label cursor-pointer gap-1.5 p-0\" title=\"Your own data panels, filled from the app (e.g. todo_list)\"><span class=\"text-xs\">native</span> <input type=\"checkbox\" name=\"surfaces\" value=\"native\" class=\"toggle toggle-xs\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "></label> <label class=\"label cursor-pointer gap-1.5 p-0\" title=\"Your own data panels, filled from the app (e.g. todo_list)\"><span class=\"text-xs\">recipe</span> <input type=\"checkbox\" name=\"surfaces\" value=\"native\" class=\"toggle toggle-xs\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if nativeOn {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, " checked")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, " checked")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "></label></div></div><label for=\"chat-prompt\" class=\"sr-only\">Message</label><div class=\"join w-full\"><input id=\"chat-prompt\" name=\"prompt\" data-bind=\"chatPrompt\" type=\"text\" required minlength=\"1\" maxlength=\"2000\" autocomplete=\"off\" inputmode=\"search\" enterkeyhint=\"send\" placeholder=\"e.g. what are my open todos?\" data-attr:placeholder=\"$chat_ready ? 'e.g. what are my open todos?' : 'Connecting…'\" data-attr:disabled=\"!!($chat_thinking || !$chat_ready)\" class=\"input input-md sm:input-sm join-item grow\"> <button type=\"submit\" class=\"btn btn-primary btn-md sm:btn-sm join-item\" data-attr:disabled=\"!!($chat_thinking || !$chat_ready)\"><span data-show=\"!$chat_thinking && $chat_ready\">Send</span> <span data-show=\"!$chat_thinking && !$chat_ready\">Wait</span> <span data-show=\"$chat_thinking\" class=\"loading loading-spinner loading-xs\" aria-hidden=\"true\"></span></button></div></form><div data-show=\"!$chat_ready && !$chat_error\" class=\"flex items-center gap-2 text-xs text-base-content/60\" role=\"status\"><span class=\"loading loading-spinner loading-xs\" aria-hidden=\"true\"></span> <span>Connecting to the live stream…</span> <button type=\"button\" class=\"btn btn-ghost btn-xs\" data-on:click=\"window.__gogogoSSERefresh && window.__gogogoSSERefresh('chat-stream-opener')\">Reconnect</button></div><div data-show=\"$chat_error\" class=\"alert alert-error alert-soft mt-2\" role=\"alert\"><span class=\"text-sm\" data-text=\"$chat_error\"></span><div class=\"flex gap-1\"><button type=\"submit\" form=\"chat-composer\" class=\"btn btn-xs\">Try again</button> <button type=\"button\" class=\"btn btn-ghost btn-xs\" data-on:click=\"window.__gogogoSSERefresh && window.__gogogoSSERefresh('chat-stream-opener')\">Reconnect</button></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "></label></div></div><label for=\"chat-prompt\" class=\"sr-only\">Message</label><div class=\"join w-full\"><input id=\"chat-prompt\" name=\"prompt\" data-bind=\"chatPrompt\" type=\"text\" required minlength=\"1\" maxlength=\"2000\" autocomplete=\"off\" inputmode=\"search\" enterkeyhint=\"send\" placeholder=\"e.g. what are my open todos?\" data-attr:placeholder=\"$chat_ready ? 'e.g. what are my open todos?' : 'Connecting…'\" data-attr:disabled=\"!!($chat_thinking || !$chat_ready)\" class=\"input input-md sm:input-sm join-item grow\"> <button type=\"submit\" class=\"btn btn-primary btn-md sm:btn-sm join-item\" data-attr:disabled=\"!!($chat_thinking || !$chat_ready)\"><span style=\"display:none\" data-show=\"!$chat_thinking && $chat_ready\">Send</span> <span data-show=\"!$chat_thinking && !$chat_ready\">Wait</span> <span style=\"display:none\" data-show=\"$chat_thinking\" class=\"loading loading-spinner loading-xs\" aria-hidden=\"true\"></span></button></div></form><div data-show=\"!$chat_ready && !$chat_error\" class=\"flex items-center gap-2 text-xs text-base-content/60\" role=\"status\"><span class=\"loading loading-spinner loading-xs\" aria-hidden=\"true\"></span> <span>Connecting to the live stream…</span> <button type=\"button\" class=\"btn btn-ghost btn-xs\" data-on:click=\"window.__gogogoSSERefresh && window.__gogogoSSERefresh('chat-stream-opener')\">Reconnect</button></div><div style=\"display:none\" data-show=\"$chat_error\" class=\"alert alert-error alert-soft mt-2\" role=\"alert\"><span class=\"text-sm\" data-text=\"$chat_error\"></span><div class=\"flex gap-1\"><button type=\"submit\" form=\"chat-composer\" class=\"btn btn-xs\">Try again</button> <button type=\"button\" class=\"btn btn-ghost btn-xs\" data-on:click=\"window.__gogogoSSERefresh && window.__gogogoSSERefresh('chat-stream-opener')\">Reconnect</button></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -271,7 +286,7 @@ func chatBody(msgs []store.MessageView, catalogOn bool, customOn bool, nativeOn 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -306,7 +321,7 @@ func newChatModal() templ.Component {
 			templ_7745c5c3_Var6 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<dialog id=\"confirm-new-chat\" class=\"modal\"><div class=\"modal-box\"><h3 class=\"font-bold text-lg\">Start a new chat?</h3><p class=\"py-4 text-sm\">This clears your current conversation. It can't be undone.</p><div class=\"modal-action\"><button type=\"button\" class=\"btn btn-ghost btn-sm\" data-on:click=\"document.getElementById('confirm-new-chat').close()\">Keep chatting</button> <button type=\"button\" class=\"btn btn-error btn-sm\" data-attr:disabled=\"!!$chat_thinking\" data-on:click=\"$chatPrompt = ''; $chat_error = ''; document.getElementById('confirm-new-chat').close(); @post('/api/chat/clear?clientID=' + encodeURIComponent(window.__gogogoClientID || ''))\">Start new</button></div></div><form method=\"dialog\" class=\"modal-backdrop\"><button data-on:click=\"document.getElementById('confirm-new-chat').close()\">close</button></form></dialog>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<dialog id=\"confirm-new-chat\" class=\"modal\"><div class=\"modal-box\"><h3 class=\"font-bold text-lg\">Start a new chat?</h3><p class=\"py-4 text-sm\">This clears your current conversation. It can't be undone.</p><div class=\"modal-action\"><button type=\"button\" class=\"btn btn-ghost btn-sm\" data-on:click=\"document.getElementById('confirm-new-chat').close()\">Keep chatting</button> <button type=\"button\" class=\"btn btn-error btn-sm\" data-attr:disabled=\"!!$chat_thinking\" data-on:click=\"$chatPrompt = ''; $chat_error = ''; document.getElementById('confirm-new-chat').close(); @post('/api/chat/clear?clientID=' + encodeURIComponent(window.__gogogoClientID || ''))\">Start new</button></div></div><form method=\"dialog\" class=\"modal-backdrop\"><button data-on:click=\"document.getElementById('confirm-new-chat').close()\">close</button></form></dialog>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -344,15 +359,26 @@ func ChatList(msgs []store.MessageView, errMsg string) templ.Component {
 			templ_7745c5c3_Var7 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<div id=\"chat-messages\" class=\"flex flex-col gap-3 pb-6\" aria-live=\"polite\"><div id=\"chat-empty\" data-show=\"$chat_empty\" class=\"chat-hero\"><h2>Ask your app anything</h2><p>Ask in plain words — answers render as visuals, tables, plans, or your own data when that's what you asked for.</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<div id=\"chat-messages\" class=\"flex flex-col gap-3 pb-6\" aria-live=\"polite\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
+		}
+		if len(msgs) == 0 {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div id=\"chat-empty\" data-show=\"$chat_empty\" class=\"chat-hero\"><h2>Ask your app anything</h2><p>Ask in plain words — answers render as visuals, tables, plans, or your own data when that's what you asked for.</p></div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<div id=\"chat-empty\" style=\"display:none\" data-show=\"$chat_empty\" class=\"chat-hero\"><h2>Ask your app anything</h2><p>Ask in plain words — answers render as visuals, tables, plans, or your own data when that's what you asked for.</p></div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 		}
 		templ_7745c5c3_Err = ChatThread(msgs, errMsg).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -385,7 +411,7 @@ func ChatThinking() templ.Component {
 			templ_7745c5c3_Var8 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<div id=\"chat-thinking\" data-show=\"$chat_thinking\" class=\"chat chat-start\"><div class=\"chat-bubble flex items-center gap-2\"><span class=\"loading loading-dots loading-sm\" aria-hidden=\"true\"></span> <span class=\"text-sm\" data-text=\"$chat_working || 'Thinking…'\">Thinking…</span></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<div id=\"chat-thinking\" style=\"display:none\" data-show=\"$chat_thinking\" class=\"chat chat-start\"><div class=\"chat-bubble flex items-center gap-2\"><span class=\"loading loading-dots loading-sm\" aria-hidden=\"true\"></span> <span class=\"text-sm\" data-text=\"$chat_working || 'Thinking…'\">Thinking…</span></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -421,7 +447,7 @@ func LiveThread(msgs []store.MessageView, errMsg string) templ.Component {
 			templ_7745c5c3_Var9 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<div data-init=\"$chat_messages++\" aria-hidden=\"true\"></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<div data-init=\"$chat_messages++\" aria-hidden=\"true\"></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -465,69 +491,69 @@ func ChatThread(msgs []store.MessageView, errMsg string) templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		if errMsg != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"chat chat-start\"><div class=\"chat-bubble chat-bubble-error\" role=\"alert\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<div class=\"chat chat-start\"><div class=\"chat-bubble chat-bubble-error\" role=\"alert\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(errMsg)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/chat.templ`, Line: 280, Col: 67}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/chat.templ`, Line: 304, Col: 67}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		for _, m := range msgs {
 			if m.Role == "user" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<div class=\"chat chat-end\"><div class=\"chat-bubble chat-bubble-primary\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<div class=\"chat chat-end\"><div class=\"chat-bubble chat-bubble-primary\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var12 string
 				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(m.Text)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/chat.templ`, Line: 286, Col: 57}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/chat.templ`, Line: 310, Col: 57}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</div></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</div></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<div class=\"chat chat-start\"><div class=\"chat-bubble\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<div class=\"chat chat-start\"><div class=\"chat-bubble\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if m.Text != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<p class=\"text-sm\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<p class=\"text-sm\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var13 string
 					templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(m.Text)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/chat.templ`, Line: 292, Col: 33}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/chat.templ`, Line: 316, Col: 33}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</p>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</p>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
 				for _, comp := range m.Components {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<div class=\"mt-2\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "<div class=\"mt-2\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -535,12 +561,12 @@ func ChatThread(msgs []store.MessageView, errMsg string) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</div>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "</div>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</div></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "</div></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

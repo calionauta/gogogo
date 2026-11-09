@@ -208,11 +208,21 @@ code {
 
 .chapter-lede {
   max-width: 56ch;
-  margin: 0 0 24px;
+  margin: 0 0 16px;
   font-size: 17px;
   line-height: 1.62;
   color: var(--muted);
 }
+.chapter-points {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 16px 20px;
+  padding: 0;
+  max-width: 56ch;
+}
+.chapter-points li::marker { color: var(--accent); }
+.viz.slots { margin-top: 40px; }
+.viz.slots > summary { cursor: pointer; }
 
 .chapter-foot {
   display: grid;

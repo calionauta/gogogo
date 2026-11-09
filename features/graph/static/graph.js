@@ -51,7 +51,14 @@
   load('panorama');
 
   document.querySelectorAll('[data-graph-source]').forEach((btn) => {
-    btn.addEventListener('click', () => load(btn.getAttribute('data-graph-source')));
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-graph-source]').forEach((b) => {
+        const active = b === btn;
+        b.setAttribute('aria-pressed', active ? 'true' : 'false');
+        b.classList.toggle('btn-primary', active);
+      });
+      load(btn.getAttribute('data-graph-source'));
+    });
   });
 
   document.querySelectorAll('[data-graph-filter]').forEach((chk) => {
@@ -147,7 +154,27 @@
       const n = pick(e.offsetX, e.offsetY);
       state.selected = n ? n.id : null;
       const el = document.getElementById('graph-detail');
-      if (el) el.textContent = n ? (n.label + ' · ' + n.kind + (n.meta ? ' — ' + n.meta : '')) : 'Select a node.';
+      if (el) {
+        if (n) {
+          const kind = n.kind === 'plugin' ? 'Servant' : (n.kind === 'feature' ? 'Recipe' : (n.kind || 'Node'));
+          const meta = n.meta ? ' — ' + n.meta : (n.status ? ' — ' + n.status : '');
+          // Link to the module page when the id maps to a known route (recipes).
+          const routes = { todo: '/todo', notes: '/notes', whiteboard: '/whiteboard', chat: '/chat', inbox: '/notifications', room: '/room', review: '/review', dashboard: '/dashboard', config: '/config', graph: '/graph', landing: '/' };
+          const href = routes[n.id];
+          el.innerHTML = '';
+          const title = document.createElement('strong');
+          title.textContent = n.label || n.id;
+          el.appendChild(title);
+          el.appendChild(document.createTextNode(' · ' + kind + meta + (href ? ' — ' : '')));
+          if (href) {
+            const a = document.createElement('a');
+            a.href = href; a.textContent = 'Open ' + (n.label || n.id); a.className = 'link link-primary';
+            el.appendChild(a);
+          }
+        } else {
+          el.textContent = 'No node selected.';
+        }
+      }
       draw();
     }
     drag = null;
@@ -158,15 +185,23 @@
     state.scale = Math.min(6, Math.max(0.2, state.scale * f));
     draw();
   }, { passive: false });
-  document.getElementById('graph-fit')?.addEventListener('click', () => {
-    state.scale = 1; state.offX = 0; state.offY = 0; draw();
-  });
-  window.addEventListener('resize', draw);
-
-  if (navigator.gpu) {
-    navigator.gpu.requestAdapter().then((a) => {
-      const el = document.getElementById('graph-rung');
-      if (el) el.textContent = a ? 'WebGPU available' : 'WebGPU present, no adapter (fallback)';
-    }).catch(() => {});
+  function fitToNodes() {
+    const visible = state.nodes.filter((n) => state.filters[n.kind] !== false);
+    if (!visible.length) { state.scale = 1; state.offX = 0; state.offY = 0; draw(); return; }
+    const rect = canvas.getBoundingClientRect();
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const n of visible) {
+      const x = n._nx || n.x || 0, y = n._ny || n.y || 0;
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+    }
+    const w = Math.max(1, maxX - minX), h = Math.max(1, maxY - minY);
+    const pad = 60;
+    state.scale = Math.min(6, Math.max(0.2, Math.min((rect.width - pad * 2) / w, (rect.height - pad * 2) / h)));
+    state.offX = -((minX + maxX) / 2) * state.scale;
+    state.offY = -((minY + maxY) / 2) * state.scale;
+    draw();
   }
+  document.getElementById('graph-fit')?.addEventListener('click', fitToNodes);
+  window.addEventListener('resize', draw);
 })();

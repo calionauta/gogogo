@@ -98,6 +98,7 @@ type PageData struct {
 	AuditAlert       string
 	Notice           string
 	Error            string
+	ComponentFilter  string
 }
 
 // UserRow is one row of the admin user table.

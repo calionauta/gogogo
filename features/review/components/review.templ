@@ -101,10 +101,10 @@ templ reviewBody(signals Signals) {
 						<div class="mt-3 flex items-center gap-3">
 							<button type="submit" class="btn btn-primary" data-attr:disabled="!!$review_pending">
 								<span data-show="!$review_pending">Run review</span>
-								<span data-show="$review_pending" class="loading loading-spinner loading-sm" aria-hidden="true"></span>
-								<span data-show="$review_pending">Reviewing…</span>
+								<span style="display:none" data-show="$review_pending" class="loading loading-spinner loading-sm" aria-hidden="true"></span>
+								<span style="display:none" data-show="$review_pending">Reviewing…</span>
 							</button>
-							<span data-show="$review_pending" class="text-sm text-base-content/60">Phase: <span data-text="$review_phase"></span></span>
+							<span style="display:none" data-show="$review_pending" class="text-sm text-base-content/60">Phase: <span data-text="$review_phase"></span></span>
 						</div>
 					</form>
 				} else {
@@ -112,7 +112,7 @@ templ reviewBody(signals Signals) {
 						<span>Review needs a configured LLM. Set GOAI_API_KEY on the server, then reload.</span>
 					</div>
 				}
-				<div class="mt-2 text-sm text-error" data-show="$review_error !== ''" data-text="$review_error" role="alert"></div>
+				<div class="mt-2 text-sm text-error" style="display:none" data-show="$review_error !== ''" data-text="$review_error" role="alert"></div>
 				<div class="mt-6" id="review-result"></div>
 	</div>
 }

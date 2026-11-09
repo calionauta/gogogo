@@ -243,7 +243,7 @@ func remindForm(data PageData) templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		if data.Wired {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<section class=\"ui-card\"><div class=\"ui-card-body ui-stack\"><h2 class=\"ui-title\">Remind me</h2><form id=\"remind-form\" class=\"w-full\" data-on:submit__prevent=\"if (!$reminding) { $reminding = true; @post('/api/notifications/remind', {contentType: 'form'}).then(() => { $remindText = ''; $reminding = false; }).catch(() => { $reminding = false; }); }\"><div class=\"join w-full\"><input type=\"text\" name=\"text\" class=\"input input-sm join-item grow\" placeholder=\"What should I remember?\" aria-label=\"Reminder text\" maxlength=\"280\" data-bind=\"remindText\"> <select class=\"select select-sm join-item\" name=\"delay\" aria-label=\"Delay\"><option value=\"1m\">in 1 minute</option> <option value=\"1h\">in 1 hour</option> <option value=\"24h\">in 1 day</option></select> <button type=\"submit\" class=\"btn btn-primary btn-sm join-item\" data-attr:disabled=\"!!($reminding || !$remindText.trim())\"><span class=\"inline-flex items-center gap-2\">Schedule <span class=\"loading loading-spinner loading-xs\" data-show=\"$reminding\"></span></span></button></div></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<section class=\"ui-card\"><div class=\"ui-card-body ui-stack\"><h2 class=\"ui-title\">Remind me</h2><form id=\"remind-form\" class=\"w-full\" data-on:submit__prevent=\"if (!$reminding) { $reminding = true; @post('/api/notifications/remind', {contentType: 'form'}).then(() => { $remindText = ''; $reminding = false; }).catch(() => { $reminding = false; }); }\"><div class=\"join w-full\"><input type=\"text\" name=\"text\" class=\"input input-sm join-item grow\" placeholder=\"What should I remember?\" aria-label=\"Reminder text\" maxlength=\"280\" data-bind=\"remindText\"> <select class=\"select select-sm join-item\" name=\"delay\" aria-label=\"Delay\"><option value=\"1m\">in 1 minute</option> <option value=\"1h\">in 1 hour</option> <option value=\"24h\">in 1 day</option></select> <button type=\"submit\" class=\"btn btn-primary btn-sm join-item\" data-attr:disabled=\"!!($reminding || !$remindText.trim())\"><span class=\"inline-flex items-center gap-2\">Schedule <span class=\"loading loading-spinner loading-xs\" style=\"display:none\" data-show=\"$reminding\"></span></span></button></div></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -443,7 +443,7 @@ func Inbox(data PageData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, " <div class=\"ui-empty\" data-show=\"$notificationFilter === 'unread' && $inboxUnread === 0\"><p class=\"ui-empty-title\">All caught up.</p><p class=\"ui-empty-body\">New reminders arrive here when their delay ends.</p></div><ul class=\"divide-y divide-base-200\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, " <div style=\"display:none\" class=\"ui-empty\" data-show=\"$notificationFilter === 'unread' && $inboxUnread === 0\"><p class=\"ui-empty-title\">All caught up.</p><p class=\"ui-empty-body\">New reminders arrive here when their delay ends.</p></div><ul class=\"divide-y divide-base-200\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

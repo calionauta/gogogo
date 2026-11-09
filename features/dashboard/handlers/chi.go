@@ -113,36 +113,31 @@ func (h *Handler) index(w http.ResponseWriter, r *http.Request) {
 	).Render(r.Context(), w)
 }
 
-// buildCards lists the recipes installed in this build — one card per rail
-// destination the role may see. Platform surfaces (the dashboard itself, the
-// graph panorama, the admin config) are not recipes and never become a card;
-// Config is already absent via MenuOnly, the other two are excluded here by
-// id until the nav moves them out of the rail entirely. The headline two
-// (todo, inbox) carry their live counters; the rest are static link cards.
+// buildCards lists the metric cards for this build: only recipes that
+// report a live counter (todo, inbox) become a card. The dashboard is a
+// summary surface, not a second nav — sidebar owns destinations and
+// /config owns inventory, so link-only cards do not render here.
 func buildCards(mods []ui.Module, open, total, unread int) []components.Card {
 	cards := make([]components.Card, 0, len(mods))
 	for _, m := range mods {
-		if m.ID == "dashboard" || m.ID == "graph" {
-			continue
-		}
-		card := components.Card{Title: m.Title, URL: m.URL}
 		switch m.ID {
 		case "todo":
-			card.Stat = &components.Stat{
-				Value:  open,
-				Signal: "openTodos",
-				Desc:   "of " + strconv.Itoa(total) + " total",
-				Cta:    "Open Todo",
-			}
+			cards = append(cards, components.Card{
+				Title: m.Title, URL: m.URL,
+				Stat: &components.Stat{
+					Value: open, Signal: "openTodos",
+					Desc: "of " + strconv.Itoa(total) + " total", Cta: "Open Todo",
+				},
+			})
 		case ui.ModuleInbox:
-			card.Stat = &components.Stat{
-				Value:  unread,
-				Signal: "inboxUnread",
-				Desc:   "unread messages",
-				Cta:    "Open Inbox",
-			}
+			cards = append(cards, components.Card{
+				Title: m.Title, URL: m.URL,
+				Stat: &components.Stat{
+					Value: unread, Signal: "inboxUnread",
+					Desc: "unread messages", Cta: "Open Inbox",
+				},
+			})
 		}
-		cards = append(cards, card)
 	}
 	return cards
 }

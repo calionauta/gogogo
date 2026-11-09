@@ -18,6 +18,7 @@ import (
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/config/components"
+	comp "github.com/calionauta/gogogo/features/genui/components"
 	"github.com/calionauta/gogogo/internal/auth"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
@@ -87,6 +88,8 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 		role = sess.Role
 	}
 	data := components.BuildPageData(h.cfg)
+	data.ComponentFilter = strings.TrimSpace(r.URL.Query().Get("components"))
+	applyComponentFilter(&data)
 	if h.providers != nil {
 		mounted := make(map[string]bool, len(h.providers.Providers()))
 		for _, p := range h.providers.Providers() {
@@ -145,6 +148,23 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	_ = components.Page(
 		data, email, role, h.cfg.BuildLabel, h.cfg.BuildCommit,
 	).Render(r.Context(), w)
+}
+
+// applyComponentFilter narrows AnswerCatalog to the requested Kind when the
+// ?components filter names a generative band (catalog/container/custom).
+func applyComponentFilter(data *components.PageData) {
+	switch data.ComponentFilter {
+	case "catalog", "container", "custom":
+	default:
+		return
+	}
+	var filtered []comp.ComponentInfo
+	for _, info := range data.AnswerCatalog {
+		if string(info.Kind) == data.ComponentFilter {
+			filtered = append(filtered, info)
+		}
+	}
+	data.AnswerCatalog = filtered
 }
 
 // loadAudit fills the panel: 24h aggregates, the filtered page and the

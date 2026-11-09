@@ -1,5 +1,7 @@
 # Native panels: Chat answers with the app's own data
 
+> UI label: **recipe panels** in Chat and /config. `native` is the surface name (`GENUI_CHAT_SURFACES`, model prompt); recipe is the human word for the same thing.
+
 A **native panel** is a Chat answer component whose content the app owns. The
 model picks the component name and a slice; the server fills the rows from the
 store and renders the feature's own UI. `todo_list` is the reference.
