@@ -92,6 +92,22 @@ templ UserMenu(userEmail string, userRole string, prefs templ.Component, operato
 						Account
 					</a>
 				</li>
+				<!-- trim:dashboard removes this entry (dashboard is a platform surface: its entry point is the account menu, not the rail) -->
+				<li>
+					<a href="/dashboard" class="flex items-center gap-2">
+						@icon.Icon("material-symbols:grid-view", "app-menu-icon")
+						Dashboard
+					</a>
+				</li>
+				<!-- trim:graph removes this entry (graph is a Servant: its entry point is the account menu, not the rail; the policy grants user+, so a viewer would only 403) -->
+				if userRole != "viewer" {
+					<li>
+						<a href="/graph" class="flex items-center gap-2">
+							@icon.Icon("material-symbols:share", "app-menu-icon")
+							Graph
+						</a>
+					</li>
+				}
 				<!-- trim:config-view removes this entry (config is operator-only; the route goes with the unit) -->
 				if userRole == "admin" {
 					<li>

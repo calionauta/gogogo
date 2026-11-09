@@ -32,8 +32,9 @@ live on pages without a feature stream by the leader session stream
 a second SSE connection would exhaust the browser's per-host budget at five
 same-user tabs. Every tab that hears a new count broadcasts it over the
 BroadcastChannel; the badge binds the value to `$inboxUnread` and always
-exists, hidden at zero. Config is `MenuOnly`: an operator surface, reached
-from the account menu right under Account, never a daily rail destination.
+exists, hidden at zero. Config, Dashboard and Graph are `MenuOnly`:
+platform surfaces, reached from the account menu right under Account,
+never daily rail destinations (the rail lists recipes only).
 
 **`Panel` is nil for a reason.** A page passes a panel only when it has a
 pipeline that runs *beside* the page — a queue, a model call, phases. `/config`,

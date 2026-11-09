@@ -119,7 +119,7 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 							}
 						}
 						if entries := visibleNav(ctx, d.Role); len(entries) > 0 {
-							<p class="app-rail-group">Extensions</p>
+							<p class="app-rail-group">Recipes</p>
 							for _, e := range entries {
 								@railEntry(e)
 							}
@@ -181,14 +181,17 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 					});
 					// Version badge sync: fetch /health live build evidence.
 					// Static BuildLabel is fallback when offline; /health is truth.
+					// The live tag is the X-Gogogo-Build HEADER (the body is
+					// always "ok" for the container probe). Pinned in
+					// shell_badge_test.go.
 					window.__gogogoSyncBadge = function () {
 						var el = document.getElementById("gogogo-build-badge");
 						if (!el) return;
 						fetch("/health", { cache: "no-store" })
-							.then(function (r) { return r.text(); })
+							.then(function (r) { return r.headers.get("X-Gogogo-Build") || ""; })
 							.then(function (t) {
 								var b = (t || "").trim();
-								if (!b || b === "ok") return;
+								if (!b) return;
 								var m = b.match(/^([^-]+)-/);
 								if (m) el.textContent = m[1];
 								el.title = b + " (deployed, synced via /health)";

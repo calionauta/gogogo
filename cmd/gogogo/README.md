@@ -35,18 +35,18 @@ LLM workflow: run `doctor --json` first when starting work; run
 `generate --check` before opening a PR; if drift, run `generate` and
 commit the regenerated files.
 
-## Recipes & extensions
+## Recipes
 
 A recipe is a copied slice (code + declaration + receipt), not a
-dependency. Install, update, status and uninstall ride the same engine
-the MCP server calls. Full contract:
+dependency. Discover, install, update, status, invoke and uninstall ride
+the same engine the MCP server calls. Full contract:
 [`skills/gogogo-recipe-authoring`](../../skills/gogogo-recipe-authoring/SKILL.md).
 
 ```bash
 go run ./cmd/gogogo recipe install ./_extensions/pomodoro --dir ./my-app --yes
 go run ./cmd/gogogo recipe status --dir ./my-app   # pristine / modified / deleted
-go run ./cmd/gogogo extension list --dir ./my-app [--format json]
-go run ./cmd/gogogo extension invoke todo create --dir ./my-app --param title=hi
+go run ./cmd/gogogo recipe list --dir ./my-app [--format json]
+go run ./cmd/gogogo recipe invoke todo create --dir ./my-app --param title=hi
 ```
 
 ## What it does, in order

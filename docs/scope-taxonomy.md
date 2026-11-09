@@ -60,7 +60,7 @@ Removal class answers *what disappears*. The former scaffold prompt
 is **retired**: recipes are installed from the catalog / local directories
 (`gogogo recipe install`), not chosen at scaffold time. Every non-core unit
 now carries a manual-removal `Reason` in the registry — that text is the
-installer surface (`gogogo extension describe` / MCP `capabilities_list`).
+installer surface (`gogogo recipe describe` / MCP `capabilities_list`).
 
 ## Where the class lives
 
@@ -216,12 +216,11 @@ the `review` feature and the `genkit` plugin).
   `hostgate`, `instance`, `observability`, `queue`, `rbac`, `recipe`, `secrets`,
   `server`, `shell` (plus `cloudcfg`, `license` — see registry).
 - **Plugin (site: Servant):** `app`, `capabilities`, `collab`, `components`, `credits`,
-  `dagnats`, `datastar`, `delivery`, `desktopboot`, `genkit`, `genui`, `goakt`, `i18n`, `llm`, `nats`,
+  `dagnats`, `datastar`, `delivery`, `desktopboot`, `genkit`, `genui`, `goakt`, `graph`, `i18n`, `llm`, `nats`,
   `offline-sync`, `perf`, `search`, `sounds`.
 - **Feature (site: Recipe):** `account`, `chat`, `config-view`, `dashboard`, `landing`, `notes`, `notifications`, `review`,
   `room`, `todo`, `whiteboard` (all self-mounting via `Capability.Register`).
-  `graph` and `license-activation` are manual mounts (panorama host and
-  standalone activation page, not installable recipes).
+  `license-activation` is a manual mount (standalone activation page, not an installable recipe).
 
 ## Bundled receipts (ownership, not installed registrations)
 
@@ -236,11 +235,14 @@ there would double-mount and panic at the route-claim gate. `config-view`
 is the one bundled unit without a `<id>.yml` receipt: its routes are
 admin-only (`p, admin, /config…`), so the user-owned recipe policy block
 cannot express them; its declaration is documented in the registry instead.
-`graph` (panorama host) and `dashboard` (slot host) are not user recipes:
-`dashboard` hosts `dashboard.card` — it knows its numbers from
-`ListTodosByOwner` (open/total) and `CountUnreadInApp` (unread inbox), then
-renders `SlotRegistry.Fragments(SlotDashboardCard)`; `graph` renders the
-capability/recipe map itself. Pomodoro (`_extensions/pomodoro`, 281 lines,
+`graph` is a Servant (the panorama is a wired capability over the registry,
+not a copyable slice), and `dashboard` is a recipe by kind but a host by role:
+hosts are recipes too (they mount via `Register`). `dashboard` hosts
+`dashboard.card` — it knows its numbers from
+`ListTodosByOwner` (open/total) and `CountUnreadInApp` (unread inbox), lists one
+card per installed recipe (its rail destination), then renders
+`SlotRegistry.Fragments(SlotDashboardCard)` for out-of-tree contributions;
+`graph` renders the capability/recipe map itself. Pomodoro (`_extensions/pomodoro`, 281 lines,
 one table/page/write/sidebar) stays the minimal installable example;
 `features/todo` stays the in-tree reference slice. New cost: none — deleting
 a bundled unit is `recipe uninstall <id>` (see `docs/features.md`).
@@ -260,12 +262,13 @@ Trim is **not** the recipe mechanism: it is scaffold-time removal of
 Servants/Core (engines and deps the binary would otherwise keep — `nats`,
 `dagnats`, `collab`, `search`, `goakt`, `genui`). For Features, trim
 overlaps `recipe uninstall <builtin>`; keeping both confuses, so Features go
-via `uninstall` and Trim keeps only Servants. `graph` fits neither label:
-it is a Feature by removal class (the page disappears) but a manual mount,
-not an installable recipe — making the panorama itself a recipe would be
-recursive (it renders the recipe map). `dashboard` is a Recipe by kind but a
-host by role: hosts are recipes too (they mount via `Register`), they just
-contribute slots instead of owning content.
+via `uninstall` and Trim keeps only Servants. `graph` is a Servant, not a
+recipe: it renders the recipe map, so making the panorama itself installable
+would be recursive, and it carries no receipt, so `recipe uninstall graph`
+could never honor a Feature contract. Servant fits — the binary works without
+it and loses the panorama capability — and Trim can remove it at scaffold
+time. The rail lists recipes only; Servant/Core surfaces (graph, config,
+dashboard-the-host) live in the account menu.
 
 ## Cross-package test dependencies
 

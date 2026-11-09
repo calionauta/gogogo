@@ -12,7 +12,7 @@ of the file you are about to touch.
 
 ## Registry at a glance
 
-- **Units:** 48 — 16 core · 19 plugin · 13 feature
+- **Units:** 48 — 16 core · 20 plugin · 12 feature
 - **Manual removal:** 32 (core units are never removed)
 - **Source of truth:** `internal/capabilities/registry.go`; this doc is
   regenerated from it, so the counts above cannot drift.
@@ -234,6 +234,14 @@ entity actors (GoAkt: room lease + collaborative presence)
 - **Note:** Deletion removes the engine + room demo; collaborative presence (whiteboard AND notes) falls back to the in-process PeerSet behind the same seam, so the cross-instance roster still works. The Room sidebar entry is stripped automatically; main.go boot lines go with the unit's mainStrips.
 - **Warning:** Runtime alternative (no deletion): GOAKT_ENABLED=false.
 
+## `graph` — plugin
+
+panorama graph (capabilities + recipes)
+
+- **Owned:** `features/graph`, `internal/graph`
+- **Routes:** `/api/graph/dagnats`, `/api/graph/panorama`, `/api/graph/ping`, `/api/graph/presence`, `/graph`
+- **Why that class:** Delete dirs + MountFeature line.
+
 ## `i18n` — plugin
 
 localization seam (embedded catalogs, locale resolution, number/date formatting)
@@ -335,14 +343,6 @@ signed-in summary page; the dashboard.card slot host
 - **Routes:** `/dashboard`
 - **Store calls:** `dbgen.CountUnreadInApp`, `dbgen.ListTodosByOwner`
 - **Why that class:** Host page for dashboard.card: one unit mounts itself through the recipe seam. Remove manually (delete the unit, its two policy rows, its Modules entry).
-
-## `graph` — feature
-
-panorama graph (capabilities + recipes)
-
-- **Owned:** `features/graph`, `internal/graph`
-- **Routes:** `/api/graph/dagnats`, `/api/graph/panorama`, `/api/graph/ping`, `/api/graph/presence`, `/graph`
-- **Why that class:** Delete dirs + MountFeature line.
 
 ## `landing` — feature
 

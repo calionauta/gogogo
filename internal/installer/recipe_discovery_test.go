@@ -9,19 +9,19 @@ import (
 	"github.com/calionauta/gogogo/internal/capabilities"
 )
 
-// TestExtensionDescriptorsCarryDependentsAndState is the inverse-property gate:
+// TestRecipeDescriptorsCarryDependentsAndState is the inverse-property gate:
 // every DependsOn edge must appear flipped in someone's Dependents, and every
 // descriptor must carry a non-empty State. A descriptor that omits either is a
 // discovery surface an agent cannot plan from.
-func TestExtensionDescriptorsCarryDependentsAndState(t *testing.T) {
-	exts, err := extensionDescriptors(filepath.Join("..", ".."))
+func TestRecipeDescriptorsCarryDependentsAndState(t *testing.T) {
+	exts, err := recipeDescriptors(filepath.Join("..", ".."))
 	if err != nil {
 		t.Fatalf("descriptors: %v", err)
 	}
 	if len(exts) == 0 {
 		t.Fatal("no descriptors")
 	}
-	byID := map[string]extensionDescriptor{}
+	byID := map[string]recipeDescriptor{}
 	for _, e := range exts {
 		byID[e.ID] = e
 		if e.State == "" {
@@ -44,12 +44,12 @@ func TestExtensionDescriptorsCarryDependentsAndState(t *testing.T) {
 	}
 }
 
-// TestExtensionDescriptorsAdvertiseBuiltinVerbs proves the built-in half
+// TestRecipeDescriptorsAdvertiseBuiltinVerbs proves the built-in half
 // of discovery: the registry mirror (capability Actions) reaches the
 // descriptor even without a receipt, so an agent needs no source read to
 // learn that todo can be invoked headless.
-func TestExtensionDescriptorsAdvertiseBuiltinVerbs(t *testing.T) {
-	exts, err := extensionDescriptors(filepath.Join("..", ".."))
+func TestRecipeDescriptorsAdvertiseBuiltinVerbs(t *testing.T) {
+	exts, err := recipeDescriptors(filepath.Join("..", ".."))
 	if err != nil {
 		t.Fatalf("descriptors: %v", err)
 	}
@@ -68,10 +68,10 @@ func TestExtensionDescriptorsAdvertiseBuiltinVerbs(t *testing.T) {
 	t.Fatal("todo descriptor not found")
 }
 
-// TestExtensionDescriptorsExposeReceiptSurface proves the receipt half:
+// TestRecipeDescriptorsExposeReceiptSurface proves the receipt half:
 // a declaration stored in a receipt must reach the descriptor (routes,
 // tables, jobs, slots), or discovery lies about what the recipe claims.
-func TestExtensionDescriptorsExposeReceiptSurface(t *testing.T) {
+func TestRecipeDescriptorsExposeReceiptSurface(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(dir, ".recipes"), 0o755); err != nil {
 		t.Fatal(err)
@@ -89,7 +89,7 @@ declaration:
 	if err := os.WriteFile(filepath.Join(dir, ".recipes", "probe.yml"), []byte(yml), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	exts, err := extensionDescriptors(dir)
+	exts, err := recipeDescriptors(dir)
 	if err != nil {
 		t.Fatalf("descriptors: %v", err)
 	}

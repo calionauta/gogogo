@@ -7752,19 +7752,6 @@
     .stats-horizontal .stat:not(:last-child) {
       border-block-end: none;
     }
-    .stats-vertical {
-      grid-auto-flow: row;
-      overflow-y: auto;
-    }
-    .stats-vertical .stat:not(:last-child) {
-      border-inline-end: none;
-      border-block-end: var(--border) dashed currentColor;
-    }
-    @supports (color: color-mix(in lab, red, red)) {
-      .stats-vertical .stat:not(:last-child) {
-        border-block-end: var(--border) dashed color-mix(in oklab, currentColor 10%, #0000);
-      }
-    }
   }
   .grid-cols-1 {
     grid-template-columns: repeat(1, minmax(0, 1fr));
@@ -8819,23 +8806,6 @@
     }
     .sm\:w-36 {
       width: calc(var(--spacing) * 36);
-    }
-    @layer daisyui.l1.l2 {
-      .sm\:stats-horizontal {
-        grid-auto-flow: column;
-        overflow-x: auto;
-      }
-      .sm\:stats-horizontal .stat:not(:last-child) {
-        border-inline-end: var(--border) dashed currentColor;
-      }
-      @supports (color: color-mix(in lab, red, red)) {
-        .sm\:stats-horizontal .stat:not(:last-child) {
-          border-inline-end: var(--border) dashed color-mix(in oklab, currentColor 10%, #0000);
-        }
-      }
-      .sm\:stats-horizontal .stat:not(:last-child) {
-        border-block-end: none;
-      }
     }
     .sm\:grid-cols-2 {
       grid-template-columns: repeat(2, minmax(0, 1fr));

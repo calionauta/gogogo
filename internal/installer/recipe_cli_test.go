@@ -4,6 +4,7 @@ package installer
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"go/format"
 	"os"
@@ -75,10 +76,11 @@ func newRecipeDir(t *testing.T, ref string, files map[string]string, register ..
 func runRecipeCLI(t *testing.T, args ...string) (string, error) {
 	t.Helper()
 	var buf bytes.Buffer
-	err := runRecipe(args, &buf)
+	err := runRecipe(context.Background(), args, &buf)
 	return buf.String(), err
 }
 
+// TestRecipeInstallWithoutYesChangesNothing pins the no-change step.
 func TestRecipeInstallWithoutYesChangesNothing(t *testing.T) {
 	root := newRecipeCheckout(t)
 	src := newRecipeDir(t, "v1", map[string]string{

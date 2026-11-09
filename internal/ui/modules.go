@@ -25,9 +25,10 @@ type Module struct {
 	// themed block. A pinned module carries no Group.
 	Pinned bool
 	// MenuOnly keeps the module out of the rail and makes it reachable from
-	// the account menu only. Config is an operator surface, not a daily
-	// destination: it sits under Account, where the rest of the account
-	// surface lives.
+	// the account menu only. Platform surfaces (Config, Dashboard, Graph) are
+	// not daily destinations: they sit under Account, where the rest of the
+	// account surface lives. Each MenuOnly entry is hardcoded in
+	// authviews.UserMenu behind the same role gate as its route policy.
 	MenuOnly bool
 }
 
@@ -56,14 +57,14 @@ var Modules = []Module{
 		ID: ModuleInbox, Title: "Inbox", Pinned: true,
 		Icon: "material-symbols:notifications", URL: "/notifications",
 	},
-	{ID: "dashboard", Title: "Dashboard", Group: GroupCollab, Icon: "material-symbols:grid-view", URL: "/dashboard"},
+	{ID: "dashboard", Title: "Dashboard", Icon: "material-symbols:grid-view", URL: "/dashboard", MenuOnly: true},
 	{ID: "todo", Title: "Todo", Group: GroupCollab, Icon: "material-symbols:checklist", URL: "/todo"},
 	{ID: "whiteboard", Title: "Whiteboard", Group: GroupCollab, Icon: "material-symbols:draw", URL: "/whiteboard"},
 	{ID: "notes", Title: "Notes", Group: GroupCollab, Icon: "material-symbols:description", URL: "/notes"},
 	{ID: "chat", Title: "Chat", Group: GroupAI, Icon: "material-symbols:forum", URL: "/chat"},
 	{ID: "review", Title: "Review", Group: GroupAI, Icon: "material-symbols:fact-check", URL: "/review"},
 	{ID: "room", Title: "Room", Group: GroupOperate, Icon: "material-symbols:groups", URL: "/room"},
-	{ID: "graph", Title: "Graph", Group: GroupOperate, Icon: "material-symbols:share", URL: "/graph"},
+	{ID: "graph", Title: "Graph", Group: GroupOperate, Icon: "material-symbols:share", URL: "/graph", MenuOnly: true},
 	{ID: "config", Title: "Config", Admin: true, MenuOnly: true, Icon: "material-symbols:settings", URL: "/config"},
 }
 

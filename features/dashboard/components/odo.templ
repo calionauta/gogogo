@@ -9,6 +9,12 @@
 // shown value to the current signal on load and on every change, so the
 // digits roll up from a smaller number to the exact value instead of
 // jumping to it.
+//
+// The effect resolves the element by id, never by $el: in Datastar v1 an
+// expression's $foo is rewritten to $['foo'] (a signal named foo), so $el is
+// an undefined signal, not the element — the count silently no-ops and the
+// SSR final value stands. Id lookup is the repo's established pattern
+// (document.getElementById everywhere).
 package components
 
 import "strconv"
@@ -18,8 +24,9 @@ import "strconv"
 // drives the counter; the component does not know where the signal lives.
 templ Odo(value int, signal string) {
 	<span
+		id={ "odo-" + signal }
 		class="odo"
-		data-effect={ "window.__gogogoOdo($el, $" + signal + ")" }
+		data-effect={ "window.__gogogoOdo(document.getElementById('odo-" + signal + "'), $" + signal + ")" }
 		aria-live="polite"
 		aria-label={ strconv.Itoa(value) }
 	>

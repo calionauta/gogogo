@@ -12,10 +12,10 @@ import (
 	"testing"
 )
 
-// TestExtensionInvokeRefusesUnknownIDBeforeDialing proves the fail-fast
+// TestRecipeInvokeRefusesUnknownIDBeforeDialing proves the fail-fast
 // half: an extension the checkout does not know never reaches the
 // network.
-func TestExtensionInvokeRefusesUnknownIDBeforeDialing(t *testing.T) {
+func TestRecipeInvokeRefusesUnknownIDBeforeDialing(t *testing.T) {
 	hits := 0
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		hits++
@@ -24,22 +24,22 @@ func TestExtensionInvokeRefusesUnknownIDBeforeDialing(t *testing.T) {
 	defer srv.Close()
 
 	var buf bytes.Buffer
-	if err := runExtensionInvoke(context.Background(), []string{
+	if err := runRecipeInvoke(context.Background(), []string{
 		"--dir", filepath.Join("..", ".."),
 		"--server", srv.URL, "--session", "tok",
 		"ghost", "create",
 	}, &buf); err == nil {
-		t.Fatal("unknown extension must refuse before dialing")
+		t.Fatal("unknown recipe must refuse before dialing")
 	}
 	if hits != 0 {
 		t.Fatalf("unknown-id invoke dialed %d times", hits)
 	}
 }
 
-// TestExtensionInvokeForwardsAndParses proves the happy path: POST to
+// TestRecipeInvokeForwardsAndParses proves the happy path: POST to
 // /api/ext/invoke with the session cookie, JSON body, and a 2xx answer
 // echoed back to stdout.
-func TestExtensionInvokeForwardsAndParses(t *testing.T) {
+func TestRecipeInvokeForwardsAndParses(t *testing.T) {
 	var gotCookie string
 	var gotPath string
 	var gotBody string
@@ -58,7 +58,7 @@ func TestExtensionInvokeForwardsAndParses(t *testing.T) {
 	// "todo" is a capability id known to the checkout, so the run reaches
 	// the server (its verb check is server-side for built-ins).
 	var buf bytes.Buffer
-	if err := runExtensionInvoke(context.Background(), []string{
+	if err := runRecipeInvoke(context.Background(), []string{
 		"--dir", filepath.Join("..", ".."),
 		"--server", srv.URL, "--session", "tok-9",
 		"--param", "title=Ship it",
@@ -81,11 +81,11 @@ func TestExtensionInvokeForwardsAndParses(t *testing.T) {
 	}
 }
 
-// TestExtensionInvokeRefusesNonLoopback proves the SSRF guard: a public
+// TestRecipeInvokeRefusesNonLoopback proves the SSRF guard: a public
 // host is refused before any dial.
-func TestExtensionInvokeRefusesNonLoopback(t *testing.T) {
+func TestRecipeInvokeRefusesNonLoopback(t *testing.T) {
 	var buf bytes.Buffer
-	if err := runExtensionInvoke(context.Background(), []string{
+	if err := runRecipeInvoke(context.Background(), []string{
 		"--dir", filepath.Join("..", ".."),
 		"--server", "http://example.com:8080", "--session", "tok",
 		"todo", "create",
@@ -94,10 +94,10 @@ func TestExtensionInvokeRefusesNonLoopback(t *testing.T) {
 	}
 }
 
-// TestExtensionInvokeRefusesReceiptVerbNotDeclared proves the local verb
+// TestRecipeInvokeRefusesReceiptVerbNotDeclared proves the local verb
 // check: a receipt recipe that declares no "explode" verb refuses before
 // dialing.
-func TestExtensionInvokeRefusesReceiptVerbNotDeclared(t *testing.T) {
+func TestRecipeInvokeRefusesReceiptVerbNotDeclared(t *testing.T) {
 	dir := t.TempDir()
 	yml := `id: probe
 upstream: {repo: "github.com/x/y", ref: "v1"}
@@ -121,7 +121,7 @@ declaration:
 	defer srv.Close()
 
 	var buf bytes.Buffer
-	if err := runExtensionInvoke(context.Background(), []string{
+	if err := runRecipeInvoke(context.Background(), []string{
 		"--dir", dir,
 		"--server", srv.URL, "--session", "tok",
 		"probe", "explode",

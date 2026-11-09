@@ -18,6 +18,7 @@ import (
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/recipe"
+	"github.com/calionauta/gogogo/internal/ui"
 )
 
 type fixture struct {
@@ -108,25 +109,55 @@ func TestDashboardRendersSummaryAndCards(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("GET /dashboard = %d, want 200", rec.Code)
 	}
+	// Installed recipes are cards: the headline stats (todo/inbox with live
+	// counters), the other sidebar destinations, AND slot contributions.
 	body := rec.Body.String()
-	for _, want := range []string{"Welcome back", "Pomodoro", "focus", `data-slot="dashboard.card"`} {
+	for _, want := range []string{
+		"Welcome back", "Todo", "Inbox", "Whiteboard",
+		"Pomodoro", "focus", `data-slot="dashboard.card"`,
+	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("body missing %q", want)
 		}
 	}
 }
 
-func TestDashboardEmptyStateWithoutCards(t *testing.T) {
-	f := newFixture(t)
-	cookie := f.signup(t, "empty@example.com")
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/dashboard", nil)
-	req.AddCookie(cookie)
-	rec := httptest.NewRecorder()
-	f.r.ServeHTTP(rec, req)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("GET /dashboard = %d, want 200", rec.Code)
+// TestBuildCardsListsInstalledRecipes pins the dashboard's "one card per
+// installed recipe" contract: every sidebar destination becomes a card,
+// headline recipes (todo/inbox) carry their live counter, the rest are static
+// link cards. Platform surfaces (dashboard itself, graph panorama, admin
+// config) are not recipes and never become a card.
+func TestBuildCardsListsInstalledRecipes(t *testing.T) {
+	mods := []ui.Module{
+		{ID: ui.ModuleInbox, Title: "Inbox", URL: "/notifications"},
+		{ID: "dashboard", Title: "Dashboard", URL: "/dashboard"},
+		{ID: "todo", Title: "Todo", URL: "/todo"},
+		{ID: "whiteboard", Title: "Whiteboard", URL: "/whiteboard"},
+		{ID: "graph", Title: "Graph", URL: "/graph"},
 	}
-	if !strings.Contains(rec.Body.String(), "No extensions installed yet") {
-		t.Fatalf("empty grid must render its empty state")
+	cards := buildCards(mods, 3, 7, 1)
+	if len(cards) != 3 {
+		t.Fatalf("buildCards = %d cards, want 3 (inbox, todo, whiteboard)", len(cards))
+	}
+	if cards[0].Title != "Inbox" || cards[0].Stat == nil ||
+		cards[0].Stat.Signal != "inboxUnread" || cards[0].Stat.Value != 1 {
+		t.Errorf("inbox card = %+v, want stat {Value:1, Signal:inboxUnread}", cards[0])
+	}
+	if cards[1].Title != "Todo" || cards[1].Stat == nil ||
+		cards[1].Stat.Signal != "openTodos" || cards[1].Stat.Value != 3 {
+		t.Errorf("todo card = %+v, want stat {Value:3, Signal:openTodos}", cards[1])
+	}
+	if cards[2].Title != "Whiteboard" || cards[2].Stat != nil || cards[2].URL != "/whiteboard" {
+		t.Errorf("whiteboard card = %+v, want a static link card", cards[2])
+	}
+}
+
+// TestBuildCardsEmptyPinsTheDegenerateBuild pins the only case the grid's
+// empty state may fire: no recipes installed (a fully trimmed build). A
+// build with bundled recipes always has cards, so the old message — "no
+// extensions installed" while todo/inbox were on screen — cannot return.
+func TestBuildCardsEmptyPinsTheDegenerateBuild(t *testing.T) {
+	if cards := buildCards(nil, 0, 0, 0); len(cards) != 0 {
+		t.Fatalf("buildCards(nil) = %v, want empty", cards)
 	}
 }

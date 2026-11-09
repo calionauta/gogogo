@@ -12,6 +12,7 @@
 package installer
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -56,12 +57,14 @@ type recipeManifest struct {
 }
 
 // runRecipe is the `recipe` subcommand group. A subcommand (not a top-level
-// verb) because the noun is what the user names, and update/uninstall are the
-// same noun with a different verb.
-func runRecipe(args []string, stdout io.Writer) error {
+// verb) because the noun is what the user names: lifecycle verbs
+// (install/update/status/uninstall/outdated) and discovery verbs
+// (list/describe/invoke) are the same noun with different verbs.
+func runRecipe(ctx context.Context, args []string, stdout io.Writer) error {
 	if len(args) == 0 {
 		return &ExitError{code: 1, msg: "recipe needs a subcommand: " +
-			"`recipe install <dir>`, `recipe status [id]`, `recipe outdated [id]` or `recipe uninstall <id>`"}
+			"`recipe install <dir>`, `recipe status [id]`, `recipe outdated [id]`, " +
+			"`recipe uninstall <id>`, `recipe list`, `recipe describe <id>` or `recipe invoke <id> <verb>`"}
 	}
 	switch args[0] {
 	case "install":
@@ -74,9 +77,15 @@ func runRecipe(args []string, stdout io.Writer) error {
 		return runRecipeOutdated(args[1:], stdout)
 	case "uninstall":
 		return runRecipeUninstall(args[1:], stdout)
+	case "list":
+		return runRecipeList(args[1:], stdout)
+	case "describe", "show":
+		return runRecipeDescribe(args[1:], stdout)
+	case "invoke":
+		return runRecipeInvoke(ctx, args[1:], stdout)
 	}
 	return &ExitError{code: 1, msg: fmt.Sprintf(
-		"unknown recipe subcommand %q (want install|status|outdated|uninstall)", args[0])}
+		"unknown recipe subcommand %q (want install|status|outdated|uninstall|list|describe|invoke)", args[0])}
 }
 
 // loadRecipeSource reads and validates a recipe directory: the manifest first

@@ -142,9 +142,7 @@ func runSubcommand(ctx context.Context, args []string, stdin io.Reader, stdout i
 	case "export":
 		return true, runExport(args[1:], stdout)
 	case "recipe":
-		return true, runRecipe(args[1:], stdout)
-	case "extension":
-		return true, runExtension(ctx, args[1:], stdout)
+		return true, runRecipe(ctx, args[1:], stdout)
 	case "doctor":
 		return true, runDoctor(args[1:], stdout)
 	case "generate":

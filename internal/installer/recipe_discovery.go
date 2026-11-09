@@ -30,7 +30,7 @@ const (
 	extRecipeUninstall = "recipe uninstall"
 )
 
-type extensionDescriptor struct {
+type recipeDescriptor struct {
 	ID           string              `json:"id"`
 	Version      string              `json:"version,omitempty"`
 	Kind         string              `json:"kind"`
@@ -64,7 +64,7 @@ func descriptorState(installed, removed bool, origin string) string {
 	return "unknown"
 }
 
-func applyReceiptSurface(desc *extensionDescriptor, r recipe.Receipt) {
+func applyReceiptSurface(desc *recipeDescriptor, r recipe.Receipt) {
 	desc.Version = r.Version
 	desc.Tables = append([]string(nil), r.Declaration.Tables...)
 	desc.Jobs = append([]string(nil), r.Declaration.Jobs...)
@@ -86,10 +86,10 @@ func applyReceiptSurface(desc *extensionDescriptor, r recipe.Receipt) {
 	}
 }
 
-func extensionDescriptors(dir string) ([]extensionDescriptor, error) {
+func recipeDescriptors(dir string) ([]recipeDescriptor, error) {
 	receiptIDs, err := recipe.ListReceipts(dir)
 	if err != nil {
-		return nil, &ExitError{code: 1, msg: "extension list: " + err.Error()}
+		return nil, &ExitError{code: 1, msg: "recipe list: " + err.Error()}
 	}
 	receiptSet := map[string]bool{}
 	receiptMap := map[string]recipe.Receipt{}
@@ -99,7 +99,7 @@ func extensionDescriptors(dir string) ([]extensionDescriptor, error) {
 			receiptMap[id] = r
 		}
 	}
-	out := make([]extensionDescriptor, 0, len(capabilities.All)+len(receiptIDs))
+	out := make([]recipeDescriptor, 0, len(capabilities.All)+len(receiptIDs))
 	seen := map[string]bool{}
 	dependents := map[string][]string{}
 	for _, cap := range capabilities.All {
@@ -109,7 +109,7 @@ func extensionDescriptors(dir string) ([]extensionDescriptor, error) {
 	}
 	for _, cap := range capabilities.All {
 		seen[cap.ID] = true
-		desc := extensionDescriptor{
+		desc := recipeDescriptor{
 			ID: cap.ID, Kind: string(cap.Kind), Summary: cap.Summary,
 			Origin: "capability", Installed: receiptSet[cap.ID],
 			Register: cap.Register, DependsOn: append([]string(nil), cap.DependsOn...),
@@ -139,7 +139,7 @@ func extensionDescriptors(dir string) ([]extensionDescriptor, error) {
 			continue
 		}
 		r := receiptMap[id]
-		desc := extensionDescriptor{
+		desc := recipeDescriptor{
 			ID: id, Kind: extRecipeKindName, Summary: r.Upstream.Repo,
 			Origin: "recipe", Installed: true, Register: r.Register,
 			Removed: r.Removed != "", Actions: []string{extRecipeInstall, extRecipeUpdate, extRecipeStatus, extRecipeUninstall},
@@ -152,34 +152,18 @@ func extensionDescriptors(dir string) ([]extensionDescriptor, error) {
 	return out, nil
 }
 
-func runExtension(ctx context.Context, args []string, stdout io.Writer) error {
-	if len(args) == 0 {
-		return &ExitError{code: 1, msg: "extension needs a subcommand: list | describe | invoke"}
-	}
-	switch args[0] {
-	case "list":
-		return runExtensionList(args[1:], stdout)
-	case "describe", "show":
-		return runExtensionShow(args[1:], stdout)
-	case "invoke":
-		return runExtensionInvoke(ctx, args[1:], stdout)
-	default:
-		return &ExitError{code: 1, msg: fmt.Sprintf("unknown extension subcommand %q (want list|describe|invoke)", args[0])}
-	}
-}
-
-func runExtensionList(args []string, stdout io.Writer) error {
-	fs := flag.NewFlagSet("extension list", flag.ContinueOnError)
+func runRecipeList(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("recipe list", flag.ContinueOnError)
 	dir := fs.String("dir", ".", "target checkout directory")
 	format := fs.String("format", planFormatText, "output format: text|json")
 	fs.SetOutput(io.Discard)
 	if err := fs.Parse(args); err != nil || fs.NArg() != 0 {
-		return &ExitError{code: 1, msg: "extension list takes no positional arguments"}
+		return &ExitError{code: 1, msg: "recipe list takes no positional arguments"}
 	}
 	if *format != planFormatText && *format != planFormatJSON {
 		return &ExitError{code: 1, msg: fmt.Sprintf("unknown --format %q (want text|json)", *format)}
 	}
-	exts, err := extensionDescriptors(*dir)
+	exts, err := recipeDescriptors(*dir)
 	if err != nil {
 		return err
 	}
@@ -192,27 +176,38 @@ func runExtensionList(args []string, stdout io.Writer) error {
 	return nil
 }
 
-func runExtensionShow(args []string, stdout io.Writer) error {
-	fs := flag.NewFlagSet("extension describe", flag.ContinueOnError)
+func runRecipeDescribe(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("recipe describe", flag.ContinueOnError)
 	dir := fs.String("dir", ".", "target checkout directory")
 	format := fs.String("format", planFormatText, "output format: text|json")
 	fs.SetOutput(io.Discard)
-	if err := fs.Parse(args); err != nil {
-		return &ExitError{code: 1, msg: "extension describe: " + err.Error()}
+	// A leading positional is the id; one after the flags is accepted too,
+	// but two ids is an error either way (the documented shape is
+	// `describe <id> --dir <proj>`, which the flag parser cannot handle
+	// after the first positional).
+	ids := []string{}
+	rest := args
+	if len(rest) > 0 && !strings.HasPrefix(rest[0], "-") {
+		ids = append(ids, rest[0])
+		rest = rest[1:]
 	}
-	ids := fs.Args()
+	if err := fs.Parse(rest); err != nil {
+		return &ExitError{code: 1, msg: "recipe describe: " + err.Error()}
+	}
+	ids = append(ids, fs.Args()...)
 	if len(ids) != 1 {
-		return &ExitError{code: 1, msg: "extension describe needs exactly one extension id"}
+		return &ExitError{code: 1, msg: "recipe describe needs exactly one recipe id"}
 	}
+	id := ids[0]
 	if *format != planFormatText && *format != planFormatJSON {
 		return &ExitError{code: 1, msg: fmt.Sprintf("unknown --format %q (want text|json)", *format)}
 	}
-	exts, err := extensionDescriptors(*dir)
+	exts, err := recipeDescriptors(*dir)
 	if err != nil {
 		return err
 	}
 	for _, e := range exts {
-		if e.ID != ids[0] {
+		if e.ID != id {
 			continue
 		}
 		if *format == planFormatJSON {
@@ -221,12 +216,12 @@ func runExtensionShow(args []string, stdout io.Writer) error {
 		printDescribe(stdout, e)
 		return nil
 	}
-	return &ExitError{code: 1, msg: "extension " + ids[0] + " not found"}
+	return &ExitError{code: 1, msg: "recipe " + id + " not found"}
 }
 
 // printDescribe renders one descriptor as text. Extracted so
-// runExtensionShow stays under the complexity gate and the nestif gate.
-func printDescribe(stdout io.Writer, e extensionDescriptor) {
+// runRecipeDescribe stays under the complexity gate and the nestif gate.
+func printDescribe(stdout io.Writer, e recipeDescriptor) {
 	fmt.Fprintf(stdout, "%s\n  kind: %s\n  origin: %s\n  state: %s\n",
 		e.ID, e.Kind, e.Origin, e.State)
 	fmt.Fprintf(stdout, "  summary: %s\n", e.Summary)
@@ -272,8 +267,8 @@ func (p *invokeParams) Set(v string) error {
 	return nil
 }
 
-// runExtensionInvoke runs one declared verb against the operator-supplied
-// session on a running server: `extension invoke <id> <verb> --server
+// runRecipeInvoke runs one declared verb against the operator-supplied
+// session on a running server: `recipe invoke <id> <verb> --server
 // <loopback-url> --session <token> --param k=v ...`. The server URL is
 // operator config (flag or env), restricted to loopback for the headless
 // client — a remote URL is a different trust decision and a future phase.
@@ -281,8 +276,8 @@ func (p *invokeParams) Set(v string) error {
 // (unknown id fails before any dial); the verb is validated against the
 // receipt's Actions when those are visible, otherwise the server's
 // registry is the source of truth and decides.
-func runExtensionInvoke(ctx context.Context, args []string, stdout io.Writer) error {
-	fs := flag.NewFlagSet("extension invoke", flag.ContinueOnError)
+func runRecipeInvoke(ctx context.Context, args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("recipe invoke", flag.ContinueOnError)
 	dir := fs.String("dir", ".", "target checkout directory")
 	server := fs.String("server", strEnv("GOGOGO_SERVER"), "running server base URL (loopback only)")
 	session := fs.String("session", strEnv("GOGOGO_SESSION"), "operator session token (or GOGOGO_SESSION)")
@@ -290,15 +285,24 @@ func runExtensionInvoke(ctx context.Context, args []string, stdout io.Writer) er
 	fs.Var(&params, "param", "form field k=v (repeatable)")
 	format := fs.String("format", planFormatText, "output format: text|json")
 	fs.SetOutput(io.Discard)
-	if err := fs.Parse(args); err != nil {
-		return &ExitError{code: 1, msg: "extension invoke: " + err.Error()}
+	// Leading positionals are id + verb; ones after the flags are accepted
+	// too. Matches the documented shape (`invoke <id> <verb> --server ...`),
+	// which the flag parser cannot handle after the first positional.
+	ids := []string{}
+	rest := args
+	for len(rest) > 0 && !strings.HasPrefix(rest[0], "-") {
+		ids = append(ids, rest[0])
+		rest = rest[1:]
 	}
-	ids := fs.Args()
+	if err := fs.Parse(rest); err != nil {
+		return &ExitError{code: 1, msg: "recipe invoke: " + err.Error()}
+	}
+	ids = append(ids, fs.Args()...)
 	if len(ids) != 2 {
-		return &ExitError{code: 1, msg: "extension invoke needs exactly an extension id and a verb"}
+		return &ExitError{code: 1, msg: "recipe invoke needs exactly a recipe id and a verb"}
 	}
 	if *session == "" {
-		return &ExitError{code: 1, msg: "extension invoke needs a session (--session or GOGOGO_SESSION)"}
+		return &ExitError{code: 1, msg: "recipe invoke needs a session (--session or GOGOGO_SESSION)"}
 	}
 	if _, err := invokeTarget(*dir, ids[0], ids[1]); err != nil {
 		return err
@@ -313,7 +317,7 @@ func runExtensionInvoke(ctx context.Context, args []string, stdout io.Writer) er
 		"params": stringMap(params),
 	})
 	if err != nil {
-		return &ExitError{code: 1, msg: "extension invoke: " + err.Error()}
+		return &ExitError{code: 1, msg: "recipe invoke: " + err.Error()}
 	}
 	return invokeCall(ctx, endpoint, *session, payload, *format, stdout)
 }
@@ -322,8 +326,8 @@ func runExtensionInvoke(ctx context.Context, args []string, stdout io.Writer) er
 // verb the same way the run measures: receipt-visible actions are
 // checked locally; server-side registries (built-ins) are authoritative
 // and checked by the server.
-func invokeTarget(dir, id, verb string) (*extensionDescriptor, error) {
-	exts, err := extensionDescriptors(dir)
+func invokeTarget(dir, id, verb string) (*recipeDescriptor, error) {
+	exts, err := recipeDescriptors(dir)
 	if err != nil {
 		return nil, err
 	}
@@ -333,22 +337,22 @@ func invokeTarget(dir, id, verb string) (*extensionDescriptor, error) {
 		}
 		target := &exts[i]
 		if len(target.Invoke) > 0 && !slices.Contains(target.Invoke, verb) {
-			return nil, &ExitError{code: 1, msg: "extension " + id + " declares no invocable action " + verb}
+			return nil, &ExitError{code: 1, msg: "recipe " + id + " declares no invocable action " + verb}
 		}
 		return target, nil
 	}
-	return nil, &ExitError{code: 1, msg: "extension " + id + " not found"}
+	return nil, &ExitError{code: 1, msg: "recipe " + id + " not found"}
 }
 
 // invokeCall sends the payload to the validated loopback endpoint and
-// renders the answer. Extracted from runExtensionInvoke for the
+// renders the answer. Extracted from runRecipeInvoke for the
 // complexity gate.
 func invokeCall(
 	ctx context.Context, endpoint, session string, payload []byte, format string, stdout io.Writer,
 ) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
 	if err != nil {
-		return &ExitError{code: 1, msg: "extension invoke: " + err.Error()}
+		return &ExitError{code: 1, msg: "recipe invoke: " + err.Error()}
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.AddCookie(&http.Cookie{
@@ -361,15 +365,15 @@ func invokeCall(
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return &ExitError{code: 1, msg: "extension invoke: " + err.Error()}
+		return &ExitError{code: 1, msg: "recipe invoke: " + err.Error()}
 	}
 	defer func() { _ = resp.Body.Close() }()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return &ExitError{code: 1, msg: "extension invoke: " + err.Error()}
+		return &ExitError{code: 1, msg: "recipe invoke: " + err.Error()}
 	}
 	if resp.StatusCode >= http.StatusMultipleChoices {
-		return &ExitError{code: 1, msg: "extension invoke: server answered " +
+		return &ExitError{code: 1, msg: "recipe invoke: server answered " +
 			resp.Status + ": " + strings.TrimSpace(string(body))}
 	}
 	if format == planFormatJSON {
@@ -386,18 +390,18 @@ func strEnv(key string) string { return os.Getenv(key) }
 // any dial — the SSRF guard for v1.
 func invokeURL(raw string) (string, error) {
 	if raw == "" {
-		return "", &ExitError{code: 1, msg: "extension invoke needs --server (or GOGOGO_SERVER)"}
+		return "", &ExitError{code: 1, msg: "recipe invoke needs --server (or GOGOGO_SERVER)"}
 	}
 	u, err := url.Parse(raw)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
-		return "", &ExitError{code: 1, msg: "extension invoke: --server must be http/https"}
+		return "", &ExitError{code: 1, msg: "recipe invoke: --server must be http/https"}
 	}
 	host := u.Hostname()
 	if host != "localhost" && net.ParseIP(host) == nil {
-		return "", &ExitError{code: 1, msg: "extension invoke: --server must be loopback (v1)"}
+		return "", &ExitError{code: 1, msg: "recipe invoke: --server must be loopback (v1)"}
 	}
 	if ip := net.ParseIP(host); ip != nil && !ip.IsLoopback() {
-		return "", &ExitError{code: 1, msg: "extension invoke: --server must be loopback (v1)"}
+		return "", &ExitError{code: 1, msg: "recipe invoke: --server must be loopback (v1)"}
 	}
 	u.Path = strings.TrimSuffix(u.Path, "/") + "/api/ext/invoke"
 	return u.String(), nil

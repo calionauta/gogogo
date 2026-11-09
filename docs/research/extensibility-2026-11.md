@@ -1902,7 +1902,7 @@ live endpoint — which has the server's `Registry` — serves them for
 module closure of a build (Spike 7: 57.5% of the binary), hash-verified at
 install; it is not a graph between units and is vacuous for the in-module
 tier. Unit dependencies live in `Capability.DependsOn` and read through
-`extension describe` (`depends on` / `dependents`).
+`recipe describe` (`depends on` / `dependents`).
 
 ### Next task — headless extension discovery (not a per-feature MCP tool) — **DONE (2026-11-07)**
 
@@ -1910,13 +1910,13 @@ Invocation slice (2026-11-07): `Declaration.InvokeAction` (verb → declared
 route, gated two-way), `recipe.ResolveAction` + `recipe.Invoke` (in-process
 bridge reusing the session cookie via `OpenSession`; empty token is 401
 before the handler), `todo`'s `create` verb (proved headless: resolve →
-invoke → row in `ext_todo_todos`), and `extension describe` advertising the
+invoke → row in `ext_todo_todos`), and `recipe describe` advertising the
 `invoke` verbs alongside lifecycle. Live dispatch (same session):
 `POST /api/ext/invoke` (policy row `user` + RBAC re-serve through the
 wrapped handler, so each target route is policy-checked for the caller's
-role), `gogogo extension invoke` (loopback-only SSRF guard, `--param`
+role), `gogogo recipe invoke` (loopback-only SSRF guard, `--param`
 k=v forwarded, verb validated locally for receipt-installs) and MCP
-`extension_invoke` — both Proved end-to-end. Param schema followed
+`recipe_invoke` — both Proved end-to-end. Param schema followed
 (2026-11-07): `Actions[].Params` is a closed set of top-level form
 fields; unknown keys are refused loud naming the allowed set (no
 typed coercion — handlers parse values at the boundary), GET reads
@@ -1935,7 +1935,7 @@ jobs/slots). The worthwhile automation for agents is a **single discovery
 surface**, not one MCP tool per feature and not one extra CLI verb per
 feature:
 
-- `gogogo extension list` / `gogogo extension describe <id>` and the matching
+- `gogogo recipe list` / `gogogo recipe describe <id>` and the matching
   MCP tools enumerate built-in capabilities plus `.recipes/` entries with
   origin, kind, installed/removed state, registration surface, dependencies,
   and the existing lifecycle verbs.
