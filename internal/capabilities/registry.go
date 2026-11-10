@@ -4,7 +4,7 @@ package capabilities
 // All is the full capability map. Installer units cover a subset (see
 // Offered); the rest are env-blessed, core, or manual-removal with the
 // reason recorded.
-var All = append([]Capability{
+var baseUnits = []Capability{
 	{
 		ID:      "capabilities",
 		Kind:    KindPlugin,
@@ -355,9 +355,13 @@ var All = append([]Capability{
 		Summary:     "Todo MVC demo (reference implementation)",
 		Dirs:        []string{"features/todo"},
 		Register:    "features/todo/handlers",
-		Actions:     []string{"create"},
+		Actions:     []string{"create", "toggle", "delete", "clear_completed"},
 		ActionParams: map[string][]string{
 			"create": {"title", "idem_key", "visibility"},
+		},
+		ActionPathParams: map[string][]string{
+			"toggle": {"id"},
+			"delete": {"id"},
 		},
 		Reason: "Reference implementation — remove manually later per docs/scope-taxonomy.md.",
 	},
@@ -423,9 +427,12 @@ var All = append([]Capability{
 			"mainStrips.",
 	},
 	{
-		ID:       "room",
-		Kind:     KindFeature,
-		Summary:  "room presence demo (one grain per room, crash hook included)",
+		ID:      "room",
+		Kind:    KindFeature,
+		Summary: "room presence demo (one grain per room, crash hook included)",
+		DependsOn: []string{
+			depSounds,
+		},
 		Dirs:     []string{"features/room"},
 		Register: "features/room/handlers",
 		Reason:   "Delete the dir, the routes it mounts through the seam, and the Room entry in internal/ui/modules.go.",
@@ -487,13 +494,4 @@ var All = append([]Capability{
 				"the shell brand is retargeted to /todo, which is kept.",
 		},
 	},
-}, append(
-	append(
-		append(
-			append(append([]Capability{}, coreExtraUnits...), identityUnits...),
-			deliveryUnits...,
-		),
-		licenseUnits...,
-	),
-	append(append(append(perfUnits, dashboardUnits...), i18nUnit), graphUnits...)...,
-)...)
+}

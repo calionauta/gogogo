@@ -20,6 +20,7 @@ import (
 	"net/url"
 	"strconv"
 
+	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/internal/components"
 	appgoakt "github.com/calionauta/gogogo/internal/goakt"
 )
@@ -103,7 +104,21 @@ templ Page(email string, userRole string, roomID string, roster appgoakt.Roster,
 			{Name: "supervision", Note: "crashed grains restart"},
 			{Name: "SSE push", Note: "roster arrives on change"},
 		},
-	}, nil, nil, nil, roomBody(roomID, roster, email))
+	}, roomHead(), roomSound(), nil, roomBody(roomID, roster, email))
+}
+
+// roomHead carries the page's own <head> extras: the sound assets, so
+// the rail's mute control works here too.
+templ roomHead() {
+	@sounds.SoundAssets()
+}
+
+// roomSound is the shell's mute control for this page. It is a
+// one-line templ wrapper on purpose: the installer's sounds trim drops the
+// @sounds.SoundSwitch() line, leaving an empty wrapper that still satisfies
+// the shell's slot (the import goes with it).
+templ roomSound() {
+	@sounds.SoundSwitch()
 }
 
 // roomBody is the work area: the seeded lock signals, the card the stream

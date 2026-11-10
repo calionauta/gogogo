@@ -241,7 +241,12 @@ func applyRBAC(
 	} else if n > 0 {
 		slog.Info("server: rbac admin promotion", "rows", n)
 	}
-	return rbac.MiddlewareWithPermissive(a, enforcer, cfg.RBACEnabled, cfg.RBACPermissive)(mux), nil
+	// The refusal wears the app's skin: the deny page is injected here (the
+	// middleware cannot import the shell itself), so a signed-in user the
+	// policy refused lands on a page instead of a bare "forbidden" body.
+	return rbac.MiddlewareWithPermissive(
+		a, enforcer, cfg.RBACEnabled, cfg.RBACPermissive, forbiddenPage(cfg),
+	)(mux), nil
 }
 
 // promoteAdmins sets users.role='admin' for existing rows matching the

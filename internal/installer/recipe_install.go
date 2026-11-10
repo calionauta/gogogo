@@ -147,6 +147,7 @@ func applyRecipePlan(root string, manifest recipeManifest, prev recipe.Receipt,
 	}
 	next := recipe.ReceiptAfter(prev, plan)
 	next.ID = manifest.ID
+	next.Summary = manifest.Summary
 	next.Version = manifest.Version
 	next.Upstream = manifest.Upstream
 	next.Declaration = manifest.Declaration
@@ -361,7 +362,7 @@ func assertNoReceiptCollision(root, id string, upstream map[string]string) error
 // same manifest + file set, so the install path below has one shape.
 func loadInstallSource(opt recipeInstallArgs) (recipeSource, error) {
 	if opt.entry != "" {
-		return loadCatalogSource(opt.entry, opt.src)
+		return loadCatalogSource(opt.dir, opt.entry, opt.src)
 	}
 	manifest, files, err := loadRecipeSource(opt.src)
 	if err != nil {
@@ -374,11 +375,21 @@ func loadInstallSource(opt recipeInstallArgs) (recipeSource, error) {
 // planned: every reviewed file must be there and hash the same, and no
 // unreviewed file may be installed. That is the whole point of a catalog entry —
 // the review is about bytes, not about a name.
-func loadCatalogSource(entryPath, contentsDir string) (recipeSource, error) {
+func loadCatalogSource(root, entryPath, contentsDir string) (recipeSource, error) {
 	var out recipeSource
 	entry, err := recipe.LoadCatalogEntry(entryPath)
 	if err != nil {
 		return out, &ExitError{code: 1, msg: "recipe install: " + err.Error()}
+	}
+	// A reviewed entry may name a package it does not ship when that package is
+	// a bundled unit in the target tree: bundled units mount through the
+	// registry, so the receipt Register is ownership only. Anywhere else the
+	// generated registration would import a package that is not there.
+	if entry.Register != "" && !reviewedUnder(entry.Files, entry.Register) &&
+		!bundledRegisterPaths(root)[entry.Register] {
+		return out, &ExitError{code: 1, msg: fmt.Sprintf(
+			"recipe install: register names %q, but the entry ships no reviewed file under "+
+				"it and the target tree has no bundled unit at that path", entry.Register)}
 	}
 	dir, aerr := filepath.Abs(contentsDir)
 	if aerr != nil {
@@ -420,19 +431,35 @@ func loadCatalogSource(entryPath, contentsDir string) (recipeSource, error) {
 	}
 	out.manifest = recipeManifest{
 		ID:       entry.ID,
+		Summary:  entry.Summary,
 		Version:  entry.Version,
 		Upstream: entry.Source,
 		Declaration: recipe.Declaration{
-			Routes: entry.Routes,
-			Tables: entry.Tables,
-			Jobs:   entry.Jobs,
-			Slots:  entry.Slots,
+			Routes:  entry.Routes,
+			Tables:  entry.Tables,
+			Jobs:    entry.Jobs,
+			Slots:   entry.Slots,
+			Actions: entry.Actions,
+			Omitted: entry.Omitted,
+			Metrics: entry.Metrics,
+			Panel:   entry.Panel,
 		},
 		Register: entry.Register,
 		Module:   module,
 	}
 	out.files = files
 	return out, nil
+}
+
+// reviewedUnder reports whether the entry ships code under dir.
+func reviewedUnder(files map[string]string, dir string) bool {
+	prefix := strings.TrimSuffix(dir, "/") + "/"
+	for p := range files {
+		if strings.HasPrefix(p, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 // splitInstallPositional extracts the single positional argument (the recipe

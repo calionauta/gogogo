@@ -143,7 +143,7 @@ func TestRecipeOutdatedVerdictIsNotAnError(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(catalog, "v1.3.0.yaml"), []byte(
-		"id: pomodoro\nversion: v1.3.0\nsource: {repo: example.com/recipes, ref: v1.3.0}\n"+
+		"id: pomodoro\nsummary: A timer.\nversion: v1.3.0\nsource: {repo: example.com/recipes, ref: v1.3.0}\n"+
 			"files: {features/pomodoro/handlers/chi.go: sha256:"+strings.Repeat("a", 64)+"}\n"+
 			"license: MIT\nminCore: v0.56.0\nupstreamDeps: []\n"+
 			"reviewedAt: \"2026-11-14\"\nreviewedBy: calionauta\nreviewedAgainst: 3f8a1c2\n"), 0o600); err != nil {
@@ -192,6 +192,21 @@ func TestRecipeListDescribesBuiltIns(t *testing.T) {
 	}
 	if text := toolText(t, describe); !strings.Contains(text, "dashboard") || !strings.Contains(text, "feature") {
 		t.Errorf("describe output misses id/kind: %s", text)
+	}
+	// The agent-facing half: a verb name alone is not choosable. The todo
+	// receipt is the reference shape and must surface its description and
+	// per-param help through the same tool.
+	todo, _, err := handleRecipeDescribe(context.Background(), nil, recipeDescribeArgs{
+		ID: "todo", Dir: filepath.Join("..", ".."), Format: "json",
+	})
+	if err != nil {
+		t.Fatalf("recipe describe todo: %v", err)
+	}
+	todoText := toolText(t, todo)
+	for _, want := range []string{"invokeDescriptions", "Create a todo", "invokeParamHelp", "idem_key"} {
+		if !strings.Contains(todoText, want) {
+			t.Errorf("todo describe must carry %q: %s", want, todoText)
+		}
 	}
 }
 

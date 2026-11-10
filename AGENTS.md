@@ -23,6 +23,11 @@ Read the SKILL.md by name before the first matching edit (symlinks in `.agents/s
 - **Tools (enforced by `make check-agent-tools`):** `ripwire` (orient), `cymbal` (`cymbal index .`), `xerj` (docs/prose, data outside repo), `sem` (diff/history). Rule: symbol/call-graph → ripwire/cymbal; history/diff → `sem`; meaning over code+prose → xerj.
 - **Docs:** behavior changes update `docs/` + MANIFEST in the SAME commit (`sem diff` proves it; `make site-check` verifies — staleness hook advisory). Counts live only in generated `docs/unit-contracts.md`; `make check-docs` rejects hand counts, dead paths, invented subcommands. Research/evaluations → `docs/research/` (`Reviewed:` + hub row + MANIFEST + `make docs-index`).
 
+## Surfaces
+
+- **Evolution** = `cmd/gogogo` + `cmd/gogogo-mcp` (stdio). Developer only; may rewrite the checkout. Never ship the MCP to a product's users.
+- **Product** = `cmd/web` routes + `POST /api/ext/invoke`, fenced by session/RBAC. `recipe invoke` / `recipe_invoke` are developer clients of that route, not a second product surface. Loopback v1; remote via SSH/Tailscale, never public. No API-token system until a concrete consumer + threat model (`docs/mcp.md`).
+
 ## Commands
 
 | Command | Use |

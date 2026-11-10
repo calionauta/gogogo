@@ -159,29 +159,55 @@ you submit:
 
 A user who builds on gogogo does not open your UI to work — an agent does,
 headless, through `gogogo recipe invoke` / MCP `recipe_invoke`.
-Every mutating route (POST/PUT/PATCH/DELETE) and read route (GET) your
-recipe declares must either:
+Those are **developer clients of the running product**, not a product
+surface: the product's own users and agents call its routes (including
+`POST /api/ext/invoke`) under its session and RBAC. Never ship the installer
+MCP to them.
 
-- appear as an `InvokeAction` (closed verb, declared route, closed
-  `Params` set) so the call can be discovered and executed headless, or
-- be explicitly omitted: auth endpoints (login, signup, logout),
-  streaming routes (`/stream`, `/events` — they never complete headless),
-  parameterized routes (`{id}` — refused until the headless id is
-  typed), and destructive-only endpoints you do not want agents to run.
+Every mutating route (POST/PUT/PATCH/DELETE) your recipe declares must
+either:
 
-The gate enforces both directions: an action whose route is not declared
-is uncallable, and a receipt whose verbs drift from the code is a
-failure. A mutating route with no verb is *invisible* to headless
-users — that is the gap, not a style choice.
+- appear as an `InvokeAction` (closed verb, declared route, closed `Params`
+  set, a one-sentence `description`, and `paramHelp` for the params) so the
+  call can be discovered and chosen, or
+- appear under `omitted:` with the declared route and a **non-empty reason**.
+  Auth endpoints, streaming routes (`/stream`, `/events` — they never
+  complete headless), async/demo-only routes, and destructive-only endpoints
+  are the normal cases. An unexplained omission is the gap the check reports.
+
+A `{id}` route is invocable now, but v1 accepts exactly one placeholder and
+it must be a UUID (the repository's id shape). Declare it explicitly:
+
+```yaml
+actions:
+  - verb: toggle
+    description: Toggle one row; the caller must own it.
+    route: {method: POST, pattern: "/api/items/{id}/toggle"}
+    pathParams: [id]
+    paramHelp: {id: The item's UUID.}
+```
+
+The dispatcher removes `id` from the body, validates it, and substitutes it
+into the URL before the handler runs. A second placeholder or a slug is a
+future typed-format decision, not something to guess.
+
+Read routes (GET `/api/...`) may be declared when an agent needs structured
+read access; a UI page GET is not an affordance and is never required.
+The gate enforces the structural half in both directions: an action whose
+route is not declared is uncallable, and a receipt whose verbs drift from
+the code is a failure. `recipe check` reports the discovery half as
+warnings — a mutating route with no action and no declared omission is
+*invisible* to headless users, a verb with no description is a name an agent
+cannot choose between, and an installed recipe with no `summary` shows only
+its repo path. The catalog review turns the description into a requirement.
 
 ### When the deferred pieces become necessary
 
 | Piece | Trigger to build it | Signal that does **not** trigger it |
 |---|---|---|
-| **Parameterized routes (`{id}`)** | A concrete verb needs a real id headless (e.g. `todo toggle 42`) and you can name the encoding. | Guessing id from path, or a `.templ` row action already covering the UI case. |
 | **Typed param values** | A handler genuinely needs non-string input (int/bool/list) that form parsing mishandles. | Wanting JSON-schema aesthetics; names-only is enough until then. |
-| **Machine identity (API token)** | An external client must act headless without a browser login. Reuse the `Role` subject verbatim. | "I'll need auth later" with no external consumer yet. One auth pillar only. |
-| **Remote client (non-loopback)** | An operator must drive a deployed server from another host. | Adding a public URL before the machine-identity policy exists. Loopback is the v1 trust boundary. |
+| **Machine identity (API token)** | An external client must act headless without a browser login, and the threat model in `docs/mcp.md` is accepted. Reuse the `Role` subject verbatim. | "I'll need auth later" with no external consumer yet. One auth pillar only. |
+| **Remote client (non-loopback)** | An operator must drive a deployed server from another host. | Adding a public URL before the machine-identity policy exists. Loopback is the v1 trust boundary; use SSH/Tailscale. |
 
 ## The install contract
 
@@ -191,6 +217,7 @@ An installable recipe directory carries a manifest beside the tree it copies:
 # .recipe.yml — the installable half. The receipt (.recipes/<id>.yml) is
 # written by the installer; this file is what you author.
 id: pomodoro
+summary: A pomodoro timer with one page and one owner-scoped session table.
 version: v1.0.0
 upstream:
   repo: github.com/calionauta/gogogo
@@ -200,10 +227,22 @@ register: features/pomodoro/handlers
 declaration:
   routes:
     - {method: GET, pattern: /pomodoro}
+    - {method: POST, pattern: /api/pomodoro/start}
   tables: [ext_pomodoro_session]
   actions:
-    - {verb: start, route: {method: POST, pattern: /pomodoro/start}, params: [secs]}
+    - verb: start
+      description: Start a pomodoro session for the calling owner.
+      route: {method: POST, pattern: /api/pomodoro/start}
+      params: [secs]
+      paramHelp:
+        secs: Seconds to run; omit for the default.
 ```
+
+`summary` is what `recipe list` / `recipe_describe` show; without it an
+installed recipe falls back to the upstream repo path. `go run ./cmd/gogogo
+new feature <name>` writes both the summary and one described action, so a
+scaffold starts with a complete discovery surface; replace the scaffolded
+`ping` as the slice grows.
 
 `version` is the author's version claim (`vMAJOR.MINOR.PATCH`). Install
 records it in the receipt, and `recipe outdated` compares it with the latest

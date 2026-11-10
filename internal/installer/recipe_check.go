@@ -13,7 +13,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 
@@ -34,6 +33,9 @@ type RecipeCheckReport struct {
 	ProviderFiles []string              `json:"providerFiles,omitempty"`
 	Metrics       []checkMetricSummary  `json:"metrics,omitempty"`
 	Panel         *recipe.PanelSpec     `json:"panel,omitempty"`
+	// Omitted is information, not a warning: the author explained why the
+	// route is not headless, and the report shows that decision.
+	Omitted []recipe.OmittedRoute `json:"omitted,omitempty"`
 }
 
 // checkMetricSummary is the checker-facing shape of one dashboard metric.
@@ -99,6 +101,7 @@ func checkOneRecipe(root, id string) RecipeCheckReport {
 	}
 	report.Declaration = receipt.Declaration
 	report.Panel = receipt.Declaration.Panel
+	report.Omitted = append([]recipe.OmittedRoute(nil), receipt.Declaration.Omitted...)
 	for _, m := range receipt.Declaration.Metrics {
 		report.Metrics = append(report.Metrics, checkMetricSummary{
 			Label: m.Label, Query: m.Query, Signal: m.Signal, Owner: m.OwnerBinds,
@@ -132,6 +135,7 @@ func checkOneRecipe(root, id string) RecipeCheckReport {
 				"snake_case component, prompt, and exactly one writable prop")
 	}
 	report = checkRecipeRegistration(root, receipt, report)
+	report = checkRecipeHeadless(receipt, report)
 	report = checkRecipeMetricsAndPanel(root, receipt, report)
 	report, complexity := checkRecipeSource(root, receipt, report)
 	report.Complexity = complexity
@@ -207,6 +211,9 @@ func printRecipeCheck(stdout io.Writer, report RecipeCheckReport) {
 	for _, s := range report.Suggestions {
 		fmt.Fprintf(stdout, "  next: %s\n", s)
 	}
+	for _, o := range report.Omitted {
+		fmt.Fprintf(stdout, "  omitted: %s %s — %s\n", o.Route.Method, o.Route.Pattern, o.Reason)
+	}
 }
 
 func printCheckComplexity(stdout io.Writer, report RecipeCheckReport) {
@@ -226,7 +233,6 @@ func printCheckComplexity(stdout io.Writer, report RecipeCheckReport) {
 // user code: a Register path exists, it is shipped, and its source arms the
 // generated registration through the seam.
 func checkRecipeRegistration(root string, receipt recipe.Receipt, report RecipeCheckReport) RecipeCheckReport {
-	id := receipt.ID
 	if receipt.Register == "" {
 		report = reportWithWarnings(report, "no Register package: the recipe is data-only or missing its seam entry")
 		report.Suggestions = appendUnique(report.Suggestions, "add a Register package that calls reg.Add(handler.Recipe())")
@@ -255,12 +261,94 @@ func checkRecipeRegistration(root string, receipt recipe.Receipt, report RecipeC
 			"Register source does not obviously declare the recipe "+
 				"(code and receipt can drift)")
 	}
-	if _, exists := capabilities.ByID()[id]; !exists {
-		report = reportWithWarnings(report, "no capabilities row names this recipe")
-		report.Suggestions = appendUnique(report.Suggestions,
-			"add a Capability row with Register set, then regenerate units.gen.go")
-	}
 	return report
+}
+
+// checkRecipeHeadless is the headless half of the evaluator: a mutating
+// route with no action is invisible to an agent, and an action with no
+// description is a name the agent cannot choose between. These are
+// warnings, not errors: an existing recipe must keep evaluating while its
+// author fills the surface (the catalog review is where it becomes required).
+func checkRecipeHeadless(receipt recipe.Receipt, report RecipeCheckReport) RecipeCheckReport {
+	decl := receipt.Declaration
+	docProblems := recipe.ActionDocProblems(decl)
+	for _, problem := range docProblems {
+		report = reportWithWarnings(report, problem)
+	}
+	if len(docProblems) > 0 {
+		report.Suggestions = appendUnique(report.Suggestions,
+			"describe each action in one sentence and document its params (paramHelp) so an agent can choose it")
+	}
+	// A bundled unit already has a capability Summary; only an installed
+	// recipe can fall back to its repo path in discovery.
+	if _, bundled := capabilities.ByID()[receipt.ID]; !bundled && strings.TrimSpace(receipt.Summary) == "" {
+		report = reportWithWarnings(report,
+			"no summary: discovery shows the upstream repo instead of what the recipe does")
+		report.Suggestions = appendUnique(report.Suggestions,
+			"add `summary: <what the recipe does>` to .recipe.yml and reinstall")
+	}
+	invisible := headlessInvisibleRoutes(decl)
+	if len(invisible) == 0 {
+		return report
+	}
+	const maxInvisibleShown = 4
+	shown := invisible
+	if len(shown) > maxInvisibleShown {
+		shown = append(slices.Clone(shown[:maxInvisibleShown]),
+			fmt.Sprintf("+%d more", len(invisible)-maxInvisibleShown))
+	}
+	report = reportWithWarnings(report,
+		"mutating routes with no headless action: "+strings.Join(shown, ", "))
+	report.Suggestions = appendUnique(report.Suggestions,
+		"declare an InvokeAction (verb, description, params) for each mutating route, "+
+			"or omit it deliberately (auth, stream, async/demo, destructive-only)")
+	return report
+}
+
+// headlessInvisibleRoutes names the mutating routes an agent cannot call.
+// Reads are excluded: a page GET is not an affordance. Streaming routes and
+// auth endpoints stay exempt because they cannot be invoked headless at all;
+// `{id}` no longer is — it is callable now, so a `{id}` route must be either
+// an action or a declared omission like any other mutation.
+func headlessInvisibleRoutes(d recipe.Declaration) []string {
+	acted := map[recipe.Route]bool{}
+	for _, a := range d.Actions {
+		acted[a.Route] = true
+	}
+	omitted := map[recipe.Route]bool{}
+	for _, o := range d.Omitted {
+		omitted[o.Route] = true
+	}
+	var out []string
+	for _, rt := range d.Routes {
+		if acted[rt] || omitted[rt] || !mutatingMethod(rt.Method) {
+			continue
+		}
+		if strings.HasSuffix(rt.Pattern, "/stream") ||
+			strings.HasSuffix(rt.Pattern, "/events") ||
+			isAuthRoute(rt.Pattern) {
+			continue
+		}
+		out = append(out, rt.Method+" "+rt.Pattern)
+	}
+	slices.Sort(out)
+	return slices.Compact(out)
+}
+
+func mutatingMethod(method string) bool {
+	switch method {
+	case "POST", "PUT", "PATCH", "DELETE":
+		return true
+	}
+	return false
+}
+
+func isAuthRoute(pattern string) bool {
+	switch pattern {
+	case "/login", "/signup", "/logout":
+		return true
+	}
+	return strings.HasPrefix(pattern, "/api/auth/")
 }
 
 func dirExists(dir string) bool {
@@ -337,96 +425,4 @@ func recipeDocumented(root, id string) bool {
 		}
 	}
 	return false
-}
-
-// checkRecipeMetricsAndPanel cross-checks the declared dashboard and
-// chat surfaces against the tree. It fails fast on obvious contract
-// breaks and warns when the conventions that make a recipe reusable
-// are missing.
-func checkRecipeMetricsAndPanel(root string, receipt recipe.Receipt, report RecipeCheckReport) RecipeCheckReport {
-	decl := receipt.Declaration
-	seen := map[string]bool{}
-	for _, m := range decl.Metrics {
-		table := metricTable(m.Query)
-		if table != "" && !slices.Contains(decl.Tables, table) && !recipe.IsCoreTable(table) {
-			report = reportWithWarnings(report, fmt.Sprintf(
-				"metric %q reads table %q, which the declaration's Tables "+
-					"do not claim", m.Label, table))
-			report.Suggestions = appendUnique(report.Suggestions,
-				"declare owned tables in Tables (core reads stay allowed for bundled units)")
-		}
-		if seen[m.Label] {
-			report = reportWithWarnings(report, fmt.Sprintf("metric label %q is duplicated", m.Label))
-		}
-		seen[m.Label] = true
-	}
-	if len(decl.Metrics) == 0 {
-		report = reportWithWarnings(report, "no dashboard metrics declared")
-		report.Suggestions = appendUnique(report.Suggestions,
-			"declare Metrics with labels and COUNT queries (ownerBinds defaults to true)")
-	}
-	if decl.Panel == nil {
-		report = reportWithWarnings(report, "no genui panel declared")
-		report.Suggestions = appendUnique(report.Suggestions,
-			"if the recipe has a list slice, declare PanelSpec and add genui_panel.go on comp.SlicePanel")
-		return report
-	}
-	code := panelSourceUnder(root, receipt)
-	if code == "" {
-		report = reportWithErrors(report, fmt.Sprintf(
-			"panel %s is declared, but no provider source ships with the recipe",
-			decl.Panel.Component))
-		return report
-	}
-	if !strings.Contains(code, fmt.Sprintf("%q", decl.Panel.Component)) &&
-		!strings.Contains(code, decl.Panel.Component) {
-		report = reportWithWarnings(report, fmt.Sprintf(
-			"provider source does not name panel component %q", decl.Panel.Component))
-	}
-	for _, w := range decl.Panel.Writable {
-		if !strings.Contains(code, fmt.Sprintf("%q", w)) {
-			report = reportWithWarnings(report, fmt.Sprintf("provider source does not name writable prop %q", w))
-		}
-	}
-	return report
-}
-
-var sqlFromTable = regexp.MustCompile(`(?i)\bFROM\s+([a-zA-Z_][a-zA-Z0-9_]*)`)
-
-func metricTable(query string) string {
-	m := sqlFromTable.FindStringSubmatch(query)
-	if len(m) < 2 {
-		return ""
-	}
-	return strings.Trim(m[1], "\"'`[]")
-}
-
-func panelSourceUnder(root string, receipt recipe.Receipt) string {
-	paths := make([]string, 0, len(receipt.Files))
-	for p := range receipt.Files {
-		if strings.HasSuffix(p, ".go") && (strings.Contains(p, "genui") || strings.Contains(p, "panel")) {
-			paths = append(paths, p)
-		}
-	}
-	sortStrings(paths)
-	var b strings.Builder
-	for _, rel := range paths {
-		raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
-		if err == nil {
-			b.WriteString(string(raw))
-			b.WriteByte('\n')
-		}
-	}
-	if receipt.Register != "" {
-		b.WriteString(goSourceUnder(filepath.Join(root, filepath.FromSlash(receipt.Register))))
-	}
-	return b.String()
-}
-
-func sortStrings(xs []string) {
-	for i := 1; i < len(xs); i++ {
-		for j := i; j > 0 && xs[j] < xs[j-1]; j-- {
-			xs[j], xs[j-1] = xs[j-1], xs[j]
-		}
-	}
 }

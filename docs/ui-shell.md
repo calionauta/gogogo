@@ -63,8 +63,8 @@ body, and — when it has one — its panel.
 Every shell page that loads the sound runtime must render the mute switch;
 `internal/server/pages_contract_test.go` pins `app-sound-toggle` on each one, so
 a page added without it fails the contract instead of silently losing the rail's
-only global control. The room demo is the deliberate exception: its capability
-ships no sound runtime, so it passes `nil` and renders no speaker.
+only global control. The switch is beside the theme toggle in the rail brand,
+so the two global controls are always present together.
 
 The page never renders `<html>`, `<main>`, a banner stack or a toast root.
 

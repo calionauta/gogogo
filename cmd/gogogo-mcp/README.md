@@ -44,7 +44,7 @@ Claude Code (`~/.claude.json`) / Cursor (`~/.cursor/mcp.json`) / BB:
 | `recipe_outdated` | `dir`, `id?`, `catalog?`, `format?` | Read-only recipe version check: each installed recipe's recorded version vs the latest catalog version (`catalog/<id>/<version>.yaml`). Behind is a verdict (exit 3 accepted), unversioned installs and missing catalog entries report unknown |
 | `recipe_list` | `dir?`, `format?` | Discover recipes: built-in capabilities plus user-installed recipes, with origin, kind, installed/removed state, dependencies, declared surface, invocable verbs and available lifecycle verbs |
 | `recipe_describe` | `id`, `dir?`, `format?` | Describe one recipe by id: kind, origin, summary, registration surface, dependencies, declared surface, invocable verbs and available lifecycle verbs |
-| `recipe_invoke` | `id`, `verb`, `server`, `session`, `params?`, `dir?`, `format?` | Invoke one declared mutating verb against a running server (loopback only): the verb runs through the server's own session and policy stack under the operator token. Mutates state — confirm the verb via recipe_describe first |
+| `recipe_invoke` | `id`, `verb`, `server`, `session`, `params?`, `dir?`, `format?` | Developer client for one declared verb against a running server (loopback only): the verb runs through the server's own session and policy stack under the operator token. A declared `{id}` takes `params.id` as a UUID. Mutates server state — read `recipe_describe` first. Not a product MCP |
 
 Formats default to `json` on this transport (humans get text on the CLI).
 Mutating tools return the same envelopes the CLI prints, including
@@ -52,6 +52,16 @@ Mutating tools return the same envelopes the CLI prints, including
 
 Generated code follows `skills/gogogo-coding-standards/SKILL.md`
 (Go rules; `advise_stack` output cites it).
+
+## Installer surface, not product surface
+
+This server is for the developer evolving a checkout. Some tools rewrite the
+tree (`trim_apply`, `new_feature`, `recipe_install|update|uninstall`). Never
+ship it to a product's users or their agents. A product's client surface is
+the running server's API, including `POST /api/ext/invoke`, under its own
+session/RBAC. `recipe_invoke` is a client of that API, not a second product
+MCP; it stays loopback-only until a machine identity exists
+([docs/mcp.md](../../docs/mcp.md#machine-identity-design-gate-not-implemented)).
 
 ## Security notes (read before enabling)
 

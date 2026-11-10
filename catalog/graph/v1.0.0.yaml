@@ -1,4 +1,5 @@
 id: graph
+summary: "System panorama: internal graph, DagNats presence, and the live /graph page."
 version: v1.0.0
 source:
   repo: github.com/calionauta/gogogo

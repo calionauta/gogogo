@@ -55,8 +55,10 @@ Taxonomy: [scope-taxonomy](docs/scope-taxonomy.md).
 
 - [`llms.txt`](llms.txt) — what to read per task.
 - `go run ./cmd/gogogo advise|doctor|generate|recipe|export|new feature` —
-  same engine as the MCP server (`cmd/gogogo-mcp`). See
-  [cmd/gogogo/README.md](cmd/gogogo/README.md).
+  same evolution engine as the MCP server (`cmd/gogogo-mcp`). These tools are
+  for building/evolving a checkout; a product's users and agents use the
+  running server's routes (`POST /api/ext/invoke`), not the installer MCP.
+  See [docs/mcp.md](docs/mcp.md#installer-surface-vs-product-surface).
 
 ## Try it live
 

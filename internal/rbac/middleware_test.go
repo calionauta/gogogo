@@ -172,6 +172,78 @@ func assertAnonymousNavigationBounces(
 	}
 }
 
+// TestMiddlewareDenyPageRendersForNavigations pins the audience split of a
+// signed-in refusal: a browser navigation gets the injected page (the
+// skinned 403), a data request keeps the plain body. The status is 403 in
+// both cases — the page is the answer to a refusal, not a redirect.
+func TestMiddlewareDenyPageRendersForNavigations(t *testing.T) {
+	ctx := context.Background()
+	sqlDB, err := db.OpenAt(t.TempDir() + "/rbac-deny-page.db")
+	if err != nil {
+		t.Fatalf("db open: %v", err)
+	}
+	t.Cleanup(func() { sqlDB.Close() })
+	if merr := dbschema.Migrate(sqlDB); merr != nil {
+		t.Fatalf("db migrate: %v", merr)
+	}
+	a, aerr := auth.New(dbgen.New(sqlDB), false)
+	if aerr != nil {
+		t.Fatalf("auth new: %v", aerr)
+	}
+	e, err := NewEnforcer()
+	if err != nil {
+		t.Fatalf("enforcer: %v", err)
+	}
+	_, userTok, serr := a.Signup(ctx, "user@example.com", "Correct-horse-99!", "")
+	if serr != nil {
+		t.Fatalf("signup: %v", serr)
+	}
+	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	called := 0
+	deny := func(w http.ResponseWriter, _ *http.Request, _ *auth.ValidatedSession) {
+		called++
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte("skinned 403"))
+	}
+
+	// A browser navigation: the page renders.
+	navReq := httptest.NewRequestWithContext(ctx, http.MethodGet, "/config", nil)
+	navReq.Header.Set("Sec-Fetch-Mode", "navigate")
+	// #nosec G124 — test-only request cookie; never traverses a network.
+	navReq.AddCookie(&http.Cookie{Name: auth.CookieName, Value: userTok})
+	navRec := httptest.NewRecorder()
+	MiddlewareWithPermissive(a, e, true, false, deny)(next).ServeHTTP(navRec, navReq)
+	if navRec.Code != http.StatusForbidden {
+		t.Errorf("navigation /config = %d, want 403", navRec.Code)
+	}
+	if !strings.Contains(navRec.Body.String(), "skinned 403") {
+		t.Errorf("navigation body = %q, want the deny page", navRec.Body.String())
+	}
+	if called != 1 {
+		t.Errorf("deny page called %d times, want 1", called)
+	}
+
+	// A data request: the plain body, and the page is NOT rendered (a page
+	// patched into a live UI is noise).
+	xhrReq := httptest.NewRequestWithContext(ctx, http.MethodGet, "/config", nil)
+	xhrReq.Header.Set("Accept", "application/json")
+	// #nosec G124 — test-only request cookie; never traverses a network.
+	xhrReq.AddCookie(&http.Cookie{Name: auth.CookieName, Value: userTok})
+	xhrRec := httptest.NewRecorder()
+	MiddlewareWithPermissive(a, e, true, false, deny)(next).ServeHTTP(xhrRec, xhrReq)
+	if xhrRec.Code != http.StatusForbidden {
+		t.Errorf("xhr /config = %d, want 403", xhrRec.Code)
+	}
+	if strings.Contains(xhrRec.Body.String(), "skinned 403") {
+		t.Errorf("xhr body = %q, want the plain body", xhrRec.Body.String())
+	}
+	if called != 1 {
+		t.Errorf("deny page called %d times, want 1 (a data request gets no page)", called)
+	}
+}
+
 // TestIsPageNavigationPinsThePageDataSplit keeps the redirect decision on the
 // right side: page loads redirect, data requests do not. A misclassified
 // Datastar call would patch an HTML login page into the DOM; a misclassified
@@ -245,7 +317,7 @@ func TestMiddlewarePermissivePinsAuditMode(t *testing.T) {
 		// #nosec G124 — test-only request cookie; never traverses a network.
 		req.AddCookie(&http.Cookie{Name: auth.CookieName, Value: userTok})
 		rec := httptest.NewRecorder()
-		MiddlewareWithPermissive(a, e, true, permissive)(next).ServeHTTP(rec, req)
+		MiddlewareWithPermissive(a, e, true, permissive, nil)(next).ServeHTTP(rec, req)
 		return rec.Code
 	}
 	if code := drive(true); code != http.StatusOK {

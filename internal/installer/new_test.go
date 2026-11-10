@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/calionauta/gogogo/internal/recipe"
 )
 
@@ -234,6 +236,32 @@ func TestNewScaffoldStartsHealthyWithoutMetrics(t *testing.T) {
 	}
 	if strings.Contains(receipt, "files: {}") || !strings.Contains(receipt, "features/reports/handlers/chi.go: ") {
 		t.Errorf("scaffolded receipt must pin the pristine file hashes:\n%s", receipt)
+	}
+	// A scaffold is the first recipe an author sees: it must carry the
+	// discovery half (summary, one described action) or the author has to
+	// infer the headless surface from prose.
+	for _, want := range []string{"summary:", "actions:", "verb: ping", "description:"} {
+		if !strings.Contains(receipt, want) {
+			t.Errorf("scaffolded receipt must declare %q for headless discovery:\n%s", want, receipt)
+		}
+	}
+	for _, want := range []string{"Actions: []recipe.InvokeAction", "Description:", `"ping"`} {
+		if !strings.Contains(recipeSrc, want) {
+			t.Errorf("scaffolded declaration must carry %q:\n%s", want, recipeSrc)
+		}
+	}
+	if registry := newRegistryEntry("reports"); !strings.Contains(registry, `Actions: []string{"ping"}`) {
+		t.Errorf("scaffolded capability must mirror the ping verb:\n%s", registry)
+	}
+	var parsed recipe.Receipt
+	if err := yaml.Unmarshal([]byte(receipt), &parsed); err != nil {
+		t.Fatalf("scaffolded receipt is not valid YAML: %v\n%s", err, receipt)
+	}
+	if parsed.Summary == "" || len(parsed.Declaration.Actions) != 1 || parsed.Declaration.Actions[0].Verb != "ping" {
+		t.Fatalf("scaffolded receipt lost summary/action: %+v", parsed)
+	}
+	if _, err := parser.ParseFile(token.NewFileSet(), "recipe.go", recipeSrc, parser.AllErrors); err != nil {
+		t.Fatalf("scaffolded declaration does not parse: %v\n%s", err, recipeSrc)
 	}
 }
 

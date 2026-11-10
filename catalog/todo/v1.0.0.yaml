@@ -1,4 +1,5 @@
 id: todo
+summary: "Reference todo MVC: one page, one write, owner-scoped rows; the in-tree example every recipe derives from."
 version: v1.0.0
 source:
   repo: github.com/calionauta/gogogo
@@ -14,6 +15,85 @@ slots:
 routes:
   - method: GET
     pattern: /todo
+  - method: POST
+    pattern: /api/todos
+  - method: POST
+    pattern: /api/todos/{id}/toggle
+  - method: POST
+    pattern: /api/todos/{id}/delete
+  - method: POST
+    pattern: /api/todos/completed/delete
+  - method: POST
+    pattern: /api/todos/suggest
+  - method: POST
+    pattern: /api/todos/suggest-simulated
+  - method: POST
+    pattern: /api/todos/retry-demo
+actions:
+  - verb: create
+    description: Create a todo owned by the calling session.
+    route:
+      method: POST
+      pattern: /api/todos
+    params:
+      - title
+      - idem_key
+      - visibility
+    paramHelp:
+      title: The todo text.
+      idem_key: Client-generated key that makes a retry idempotent.
+      visibility: private or public.
+  - verb: toggle
+    description: Toggle a todo's completed state; the caller must own it.
+    route:
+      method: POST
+      pattern: /api/todos/{id}/toggle
+    pathParams:
+      - id
+    paramHelp:
+      id: The todo's UUID.
+  - verb: delete
+    description: Delete one of the caller's own todos; irreversible.
+    route:
+      method: POST
+      pattern: /api/todos/{id}/delete
+    pathParams:
+      - id
+    paramHelp:
+      id: The todo's UUID.
+  - verb: clear_completed
+    description: Delete every completed todo owned by the calling session.
+    route:
+      method: POST
+      pattern: /api/todos/completed/delete
+omitted:
+  - route:
+      method: POST
+      pattern: /api/todos/suggest
+    reason: asynchronous LLM job; the answer arrives through the todo stream, never synchronously
+  - route:
+      method: POST
+      pattern: /api/todos/suggest-simulated
+    reason: UI demo of the suggest stepper; the real LLM path is the suggest job
+  - route:
+      method: POST
+      pattern: /api/todos/retry-demo
+    reason: UI demo of the queue/retry stepper; it has no product outcome to invoke
+metrics:
+  - label: Open
+    query: "SELECT COUNT(*) FROM todos WHERE owner = ? AND completed = 0"
+    signal: openTodos
+  - label: Done
+    query: "SELECT COUNT(*) FROM todos WHERE owner = ? AND completed = 1"
+    signal: doneTodos
+  - label: Total
+    query: "SELECT COUNT(*) FROM todos WHERE owner = ?"
+    signal: totalTodos
+panel:
+  component: todo_list
+  prompt: "todo_list {filter: open|done|all} whenever the request involves the user's OWN todos or tasks"
+  writable:
+    - filter
 tables:
   - ext_todo_todos
 upstreamDeps: []

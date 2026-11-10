@@ -103,6 +103,52 @@ func TestInvokeEndpointRunsDeclaredVerb(t *testing.T) {
 	}
 }
 
+// TestInvokeEndpointRunsPathParamVerb proves the whole `{id}` path through
+// the live endpoint: the id is supplied as a param, validated, moved into the
+// route URL, and the handler toggles the caller's own row. This is the gap
+// that made toggle/delete impossible headless before.
+func TestInvokeEndpointRunsPathParamVerb(t *testing.T) {
+	f := buildMuxFixture(t)
+	wireInvokeOut(t, f)
+	token := signupForInvoke(t, f, "toggler@example.com")
+	created := postInvoke(t, f, token, `{"id":"todo","verb":"create","params":{"title":"Toggle me"}}`)
+	if created.Code != http.StatusOK {
+		t.Fatalf("create status = %d (%s)", created.Code, created.Body.String())
+	}
+	var id string
+	if err := f.sqlDB.QueryRowContext(context.Background(),
+		`SELECT id FROM ext_todo_todos WHERE title = 'Toggle me'`).Scan(&id); err != nil {
+		t.Fatalf("find created row: %v", err)
+	}
+	rec := postInvoke(t, f, token, `{"id":"todo","verb":"toggle","params":{"id":"`+id+`"}}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("toggle status = %d (%s)", rec.Code, rec.Body.String())
+	}
+	var done bool
+	if err := f.sqlDB.QueryRowContext(context.Background(),
+		`SELECT completed FROM ext_todo_todos WHERE id = ?`, id).Scan(&done); err != nil {
+		t.Fatalf("read toggled row: %v", err)
+	}
+	if !done {
+		t.Fatal("toggle did not complete the row")
+	}
+}
+
+// TestInvokeEndpointRefusesMalformedPathID pins the validation boundary: a
+// non-UUID id is a 400 before dispatch, and the row is untouched.
+func TestInvokeEndpointRefusesMalformedPathID(t *testing.T) {
+	f := buildMuxFixture(t)
+	wireInvokeOut(t, f)
+	token := signupForInvoke(t, f, "badid@example.com")
+	rec := postInvoke(t, f, token, `{"id":"todo","verb":"toggle","params":{"id":"not-a-uuid"}}`)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("malformed id status = %d (%s), want 400", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "UUID") {
+		t.Fatalf("refusal must name the UUID rule, got %q", rec.Body.String())
+	}
+}
+
 // TestInvokeEndpointRefusesUndeclaredVerb proves the refusal direction:
 // a verb the declaration never named is a 400 naming it, before any
 // handler runs.

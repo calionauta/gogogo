@@ -68,7 +68,7 @@ files:
   features/todo/handlers/panel_action.go: 6f5657564cb6c7f023adab480f8fb4eacb21dc5a280f15de6626397bd83d4992
   features/todo/handlers/panel_action_test.go: 2eaf297f7666935d6c70fd98fef69daa22541a6a0c5e26ab03b9d7bee1d24bf5
   features/todo/handlers/presence_propagation_test.go: a62a4ca0d1a6e8229e6ecc7b097b6a7064de9e0a2dd631aa57fdc10019502ba8
-  features/todo/handlers/recipe.go: 813e882fc5ddff1b4cb9b3fe8787cc5d901b6c0784cc8e75697374d0ba6bd6eb
+  features/todo/handlers/recipe.go: cdefbf9204037564baa03e2b97b631d0f568964bb61a6e0185ca7d1dc6eac8b8
   features/todo/handlers/recipe_migration_test.go: 368240e27a6d5fa7dd7d5d9894954a83de5ffc4e5454bf4e6af6c124bfcbb553
   features/todo/handlers/register.go: b9ae97dfbe9586836455e69a495468c3b2be3ebddc29a32b55332ab126bd6a39
   features/todo/handlers/replay_propagation_test.go: 0e16618981b67ff9423fe89e5fc0c3a411a44c7e30d463c29e88681af7d45f35
@@ -103,10 +103,10 @@ files:
   features/todo/todo_test.go: 4f5de39286fd79f2e52a2a17a12ac63e74e944ef87dff86a37a23f489a89c971
 declaration:
   metrics:
-  - {label: Open, query: "SELECT COUNT(*) FROM todos WHERE owner = ? AND completed = 0", signal: openTodos}
-  - {label: Done, query: "SELECT COUNT(*) FROM todos WHERE owner = ? AND completed = 1", signal: doneTodos}
-  - {label: Total, query: "SELECT COUNT(*) FROM todos WHERE owner = ?", signal: totalTodos}
-  - {label: Shared, query: "SELECT COUNT(*) FROM todos WHERE owner = ? AND visibility = 'public'", signal: sharedTodos}
+  - {label: Open, query: "SELECT COUNT(*) FROM ext_todo_todos WHERE (owner = ? OR visibility = 'public') AND completed = 0", signal: openTodos}
+  - {label: Done, query: "SELECT COUNT(*) FROM ext_todo_todos WHERE (owner = ? OR visibility = 'public') AND completed = 1", signal: doneTodos}
+  - {label: Total, query: "SELECT COUNT(*) FROM ext_todo_todos WHERE owner = ? OR visibility = 'public'", signal: totalTodos}
+  - {label: Shared, query: "SELECT COUNT(*) FROM ext_todo_todos WHERE visibility = 'public'", signal: sharedTodos, ownerBinds: false}
   panel:
     component: "todo_list"
     prompt: "todo_list {filter: open|done|all} whenever the request involves the user's OWN todos or tasks"
@@ -154,6 +154,7 @@ declaration:
     pattern: /todo
   actions:
   - verb: create
+    description: Create a todo owned by the calling session.
     route:
       method: POST
       pattern: /api/todos
@@ -161,4 +162,44 @@ declaration:
     - title
     - idem_key
     - visibility
+    paramHelp:
+      title: The todo text.
+      idem_key: Client-generated key that makes a retry idempotent.
+      visibility: private or public.
+  - verb: toggle
+    description: Toggle a todo's completed state; the caller must own it.
+    route:
+      method: POST
+      pattern: /api/todos/{id}/toggle
+    pathParams:
+    - id
+    paramHelp:
+      id: The todo's UUID.
+  - verb: delete
+    description: Delete one of the caller's own todos; irreversible.
+    route:
+      method: POST
+      pattern: /api/todos/{id}/delete
+    pathParams:
+    - id
+    paramHelp:
+      id: The todo's UUID.
+  - verb: clear_completed
+    description: Delete every completed todo owned by the calling session.
+    route:
+      method: POST
+      pattern: /api/todos/completed/delete
+  omitted:
+  - route:
+      method: POST
+      pattern: /api/todos/suggest
+    reason: asynchronous LLM job; the answer arrives through the todo stream, never synchronously
+  - route:
+      method: POST
+      pattern: /api/todos/suggest-simulated
+    reason: UI demo of the suggest stepper; the real LLM path is the suggest job
+  - route:
+      method: POST
+      pattern: /api/todos/retry-demo
+    reason: UI demo of the queue/retry stepper; it has no product outcome to invoke
 register: features/todo/handlers

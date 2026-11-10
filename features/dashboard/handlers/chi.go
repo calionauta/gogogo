@@ -18,6 +18,7 @@ import (
 	"github.com/calionauta/gogogo/features/dashboard/components"
 	"github.com/calionauta/gogogo/internal/auth"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/recipe"
 	"github.com/calionauta/gogogo/internal/ui"
 )
@@ -104,9 +105,12 @@ func (h *Handler) index(w http.ResponseWriter, r *http.Request) {
 		cards = h.slots.Fragments(recipe.SlotDashboardCard)
 	}
 	data := components.PageData{
-		Email:          sess.User.Email,
-		Role:           sess.Role,
-		Cards:          buildCards(ui.Visible(sess.Role), c),
+		Email: sess.User.Email,
+		Role:  sess.Role,
+		// Every recipe that reports data gets a card, whatever the role:
+		// the grid is a summary of the instance, not a menu. The button is
+		// the role's business (see buildCards).
+		Cards:          buildCards(ui.Modules, ui.Reachable(sess.Role), c),
 		DashboardCards: cards,
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -153,6 +157,10 @@ func (h *Handler) loadCounts(ctx context.Context, owner string) counts {
 // metrics for one owner. Fail-fast on a page error is the caller's
 // choice; a single bad query degrades to omitting that metric (the
 // registry Validate already proved the shape at boot).
+//
+// A failing query is LOGGED, not swallowed: the metric vanishes from the
+// grid, and a silent skip is how a dashboard loses a card and nobody
+// notices (a recipe pointing at a table that no longer exists).
 func (h *Handler) declaredMetrics(ctx context.Context, owner string) map[string][]components.Metric {
 	out := map[string][]components.Metric{}
 	if h.registry == nil || h.db == nil {
@@ -167,6 +175,9 @@ func (h *Handler) declaredMetrics(ctx context.Context, owner string) map[string]
 				args = nil
 			}
 			if err := h.db.QueryRowContext(ctx, m.Query, args...).Scan(&n); err != nil {
+				observability.Warn(ctx, "dashboard: metric query failed",
+					append(observability.WithComponent("dashboard", "core"),
+						"recipe", id, "metric", m.Label, "error", err)...)
 				continue
 			}
 			signal := m.Signal
@@ -204,23 +215,30 @@ func metricSignal(recipeID, label string) string {
 	return string(out)
 }
 
-// buildCards lists the metric cards for this build: one card per recipe
-// that reports data. Sources, in order:
+// buildCards lists the metric cards for this build: one card per rail
+// destination that reports data. Sources, in order:
 //  1. Declared COUNT metrics from the recipe's Declaration (generic
 //     path — any bundled or user-installed recipe appears with zero
 //     dashboard edits).
 //  2. Hook counts for recipes with no COUNT query (chat memory,
 //     credits ledger).
 //
+// Every recipe that reports data gets a card, whatever the role: the grid
+// is a summary of the instance, not a menu. The LINK is the role's
+// business — a destination the role cannot open (reach says so) renders
+// its numbers with no button and a note, because a button that 403s is a
+// broken promise (the same rule the rail follows through ui.Visible).
+//
 // Landing/account/config/dashboard are platform, not recipes with
 // data, and never appear here.
-func buildCards(mods []ui.Module, c counts) []components.Card {
+func buildCards(mods []ui.Module, reach map[string]bool, c counts) []components.Card {
 	cards := make([]components.Card, 0, len(mods))
 	for _, m := range mods {
 		switch m.ID {
 		case "chat":
 			cards = append(cards, components.Card{
-				Title: m.Title, URL: m.URL, Cta: "Open Chat",
+				Title: m.Title, URL: m.URL, Cta: cardCta(m, reach, "Open Chat"),
+				Locked: !reach[m.ID],
 				Metrics: []components.Metric{
 					{Label: "Messages", Value: c.chatTotal, Signal: "chatTotal"},
 					{Label: "Human", Value: c.chatHuman, Signal: "chatHuman"},
@@ -232,9 +250,20 @@ func buildCards(mods []ui.Module, c counts) []components.Card {
 				continue
 			}
 			cards = append(cards, components.Card{
-				Title: m.Title, URL: m.URL, Cta: "Open " + m.Title, Metrics: metrics,
+				Title: m.Title, URL: m.URL, Cta: cardCta(m, reach, "Open "+m.Title),
+				Locked: !reach[m.ID], Metrics: metrics,
 			})
 		}
 	}
 	return cards
+}
+
+// cardCta is the card's button: the label for a destination the role may
+// open, and nothing at all for one it may not (the card still shows its
+// numbers, marked as out of reach).
+func cardCta(m ui.Module, reach map[string]bool, label string) string {
+	if !reach[m.ID] {
+		return ""
+	}
+	return label
 }

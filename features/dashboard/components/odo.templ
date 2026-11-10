@@ -17,15 +17,28 @@
 // patch animates from the number currently on screen.
 package components
 
-import "strconv"
+import (
+	"strconv"
+
+	"github.com/calionauta/gogogo/internal/recipe"
+)
 
 // Odo is one dashboard stat value with a rolling-digit strip per digit.
 // signal is the camelCase Datastar signal name (e.g. "openTodos") that
 // drives the counter; the component does not know where the signal lives.
 templ Odo(value int, signal string) {
+	@odoValue(value, odoEffect(signal))
+}
+
+// odoValue renders the counter. effect is the count-up trigger and is empty
+// when the signal is not a JavaScript identifier — then the number stands
+// on its own (the SSR value is already final).
+templ odoValue(value int, effect string) {
 	<span
 		class="odo"
-		data-effect={ "window.__gogogoOdo(el, $" + signal + ")" }
+		if effect != "" {
+			data-effect={ effect }
+		}
 		aria-live="polite"
 		aria-label={ strconv.Itoa(value) }
 	>
@@ -37,4 +50,15 @@ templ Odo(value int, signal string) {
 			</span></span>
 		}
 	</span>
+}
+
+// odoEffect is the count-up trigger: the element animates to the signal's
+// value. A signal that is not a JavaScript identifier gets NO trigger —
+// the SSR value is already the final number, and a broken expression would
+// take the page's script down with it.
+func odoEffect(signal string) string {
+	if !recipe.IsJSIdent(signal) {
+		return ""
+	}
+	return "window.__gogogoOdo(el, $" + signal + ")"
 }

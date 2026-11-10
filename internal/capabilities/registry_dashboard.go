@@ -5,9 +5,12 @@ package capabilities
 
 var dashboardUnits = []Capability{
 	{
-		ID:       "dashboard",
-		Kind:     KindFeature,
-		Summary:  "signed-in summary page; the dashboard.card slot host",
+		ID:      "dashboard",
+		Kind:    KindFeature,
+		Summary: "signed-in summary page; the dashboard.card slot host",
+		DependsOn: []string{
+			depSounds,
+		},
 		Dirs:     []string{"features/dashboard"},
 		Register: "features/dashboard/handlers",
 		Reason: "Host page for dashboard.card: one unit mounts itself " +

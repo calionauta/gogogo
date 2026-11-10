@@ -33,8 +33,14 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 		doc  = "/api/notes/{docID}"
 	)
 	return recipe.Declaration{
+		// Notes are SHARED (see internal/db/queries/collab.sql): the list
+		// page shows every note, whoever wrote it. So "Total" counts them
+		// all — the global spelling, no owner binding — and "Mine" counts
+		// the ones this account wrote. Counting only your own rows would
+		// make the dashboard disagree with the list beside it.
 		Metrics: []recipe.Metric{
-			{Label: "Notes", Query: "SELECT COUNT(*) FROM notes WHERE owner = ?", Signal: "notesCount"},
+			{Label: "Total", Query: "SELECT COUNT(*) FROM notes", Signal: "notesTotal", OwnerBinds: recipe.WithoutOwner()},
+			{Label: "Mine", Query: "SELECT COUNT(*) FROM notes WHERE owner = ?", Signal: "notesMine"},
 		},
 		Panel: &recipe.PanelSpec{
 			Component: "notes_list",

@@ -9,6 +9,8 @@
 package components
 
 import (
+	"github.com/calionauta/gogogo/features/sounds"
+	"github.com/calionauta/gogogo/internal/i18n"
 	"github.com/calionauta/gogogo/internal/ui"
 	"github.com/calionauta/gogogo/internal/recipe"
 )
@@ -36,11 +38,16 @@ type Metric struct {
 // labeled counts (empty renders a static link card). The Title and URL
 // come from the shell's module registry, so a trimmed build loses the
 // card together with its rail destination.
+//
+// Locked marks a card whose destination the viewer's role cannot open: the
+// numbers still show (the grid summarizes the instance), the button does
+// not — a link that 403s is a broken promise.
 type Card struct {
 	Title   string
 	URL     string
 	Metrics []Metric
 	Cta     string
+	Locked  bool
 }
 
 // Page renders the /dashboard module inside the shared shell.
@@ -56,11 +63,10 @@ templ Page(data PageData, buildLabel string, buildCommit string) {
 	}, dashboardHead(), dashboardSound(), nil, dashboardBody(data))
 }
 
-// dashboardHead carries the page's own <head> extras. The dashboard page
-// deliberately does not embed the sound assets: those belong to interactive
-// work surfaces' head wrappers, and importing the sounds package here would
-// break a trimmed tree that drops the unit.
+// dashboardHead carries the page's own <head> extras: the sound assets,
+// so the rail's mute control works here too, plus the odometer island below.
 templ dashboardHead() {
+	@sounds.SoundAssets()
 	<script nonce={ templ.GetNonce(ctx) }>
 		// Odometer count-up (Odo). No Datastar primitive counts from one
 		// value to another with easing and per-digit roll, so this island
@@ -146,16 +152,19 @@ templ dashboardHead() {
 	</script>
 }
 
-// dashboardSound keeps the shell's sound slot empty on purpose; the shell
-// renders the same document whether the slot carries content or not.
+// dashboardSound is the shell's mute control for this page. It is a
+// one-line templ wrapper on purpose: the installer's sounds trim drops the
+// @sounds.SoundSwitch() line, leaving an empty wrapper that still satisfies
+// the shell's slot (the import goes with it).
 templ dashboardSound() {
+	@sounds.SoundSwitch()
 }
 
 templ dashboardBody(data PageData) {
 	<div class="ui-page ui-stack" data-signals={ MarshalSignals(data.signals()) }>
 		<h2 class="ui-title">Welcome back</h2>
-		// The dashboard is a summary surface: one card per recipe with
-		// data, grouped metrics (label + count) plus dashboard.card slot
+		// The dashboard is a summary surface: one card per destination
+		// with data, grouped metrics (label + count) plus dashboard.card slot
 		// fragments a recipe declares. Navigation lives in the sidebar.
 		<section class="grid grid-cols-1 md:grid-cols-2 gap-4" aria-label="Your recipes">
 			if len(data.Cards) > 0 || len(data.DashboardCards) > 0 {
@@ -180,6 +189,9 @@ templ dashboardBody(data PageData) {
 									<a href={ c.URL } class="btn btn-primary btn-sm">{ c.Cta }</a>
 								</div>
 							}
+							if c.Locked {
+								<p class="text-xs text-base-content/50 mt-3">{ i18n.T(ctx, "dashboard.card.locked", nil) }</p>
+							}
 						</div>
 					</div>
 				}
@@ -202,19 +214,18 @@ templ dashboardBody(data PageData) {
 	</div>
 }
 
-// signals derives the odometer seeds from the first metric of each card.
-// Fail-fast: a metric without a Signal is a wiring bug, so the signal names
-// here and in buildCards must cover every metric the handler emits.
+// signals derives the odometer seeds from every metric on the page. The key
+// is the metric's own signal name, so a recipe that declares one gets its
+// counter without this file knowing anything about it.
 func (d PageData) signals() Signals {
-	b := map[string]int{}
+	b := Signals{}
 	for _, c := range d.Cards {
 		for _, m := range c.Metrics {
+			if m.Signal == "" {
+				continue
+			}
 			b[m.Signal] = m.Value
 		}
 	}
-	return Signals{
-		OpenTodos: b["openTodos"], DoneTodos: b["doneTodos"], TotalTodos: b["totalTodos"],
-		SharedTodos: b["sharedTodos"], TotalInbox: b["totalInbox"], ChatTotal: b["chatTotal"],
-		ChatHuman: b["chatHuman"], NotesCount: b["notesCount"], BoardsCount: b["boardsCount"], CreditsBal: b["creditsBal"],
-	}
+	return b
 }

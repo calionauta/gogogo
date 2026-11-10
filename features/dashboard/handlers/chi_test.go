@@ -3,8 +3,10 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -18,6 +20,7 @@ import (
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
+	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/recipe"
 	"github.com/calionauta/gogogo/internal/ui"
 
@@ -125,7 +128,7 @@ func TestDashboardRendersSummaryAndCards(t *testing.T) {
 	// cards (declared metrics live in the registry, not in the handler).
 	reg := &recipe.Registry{}
 	reg.Add(&stubProvider{id: "todo", metrics: []recipe.Metric{
-		{Label: "Open", Query: "SELECT COUNT(*) FROM todos WHERE owner = ?", Signal: "openTodos"},
+		{Label: "Open", Query: "SELECT COUNT(*) FROM ext_todo_todos WHERE owner = ?", Signal: "openTodos"},
 	}})
 	reg.Add(&stubProvider{id: "notifications", metrics: []recipe.Metric{
 		{Label: "Unread", Query: "SELECT COUNT(*) FROM notifications WHERE owner = ?", Signal: "inboxUnread"},
@@ -156,9 +159,9 @@ func TestDashboardRendersSummaryAndCards(t *testing.T) {
 }
 
 // TestBuildCardsListsInstalledRecipes pins the dashboard's "summary only"
-// contract: one card per recipe with data, metrics from the Declaration
-// (generic path) plus hook counts for chat. Sidebar owns navigation,
-// config owns inventory — link-only destinations never appear.
+// contract: one card per rail destination with data, metrics from the
+// Declaration (generic path) plus hook counts for chat. Sidebar owns
+// navigation, config owns inventory — link-only destinations never appear.
 func TestBuildCardsListsInstalledRecipes(t *testing.T) {
 	mods := []ui.Module{
 		{ID: ui.ModuleInbox, Title: "Inbox", URL: "/notifications"},
@@ -180,11 +183,11 @@ func TestBuildCardsListsInstalledRecipes(t *testing.T) {
 				{Label: "Unread", Value: 1, Signal: "inboxUnread"},
 				{Label: "Total", Value: 5, Signal: "totalInbox"},
 			},
-			"whiteboard": {{Label: "Boards", Value: 2, Signal: "boardsCount"}},
+			"whiteboard": {{Label: "Total", Value: 2, Signal: "boardsTotal"}},
 		},
 		chatTotal: 10, chatHuman: 4,
 	}
-	cards := buildCards(mods, c)
+	cards := buildCards(mods, reachAll(mods), c)
 	if len(cards) != 4 {
 		t.Fatalf("buildCards = %d cards, want 4 (inbox, todo, whiteboard, chat)", len(cards))
 	}
@@ -196,11 +199,42 @@ func TestBuildCardsListsInstalledRecipes(t *testing.T) {
 		cards[1].Metrics[0].Label != "Open" || cards[1].Metrics[0].Value != 3 {
 		t.Errorf("todo card = %+v, want 4 metrics starting with Open=3", cards[1])
 	}
-	if cards[2].Title != "Whiteboard" || len(cards[2].Metrics) != 1 || cards[2].Metrics[0].Label != "Boards" {
-		t.Errorf("whiteboard card = %+v, want one metric Boards", cards[2])
+	if cards[2].Title != "Whiteboard" || len(cards[2].Metrics) != 1 || cards[2].Metrics[0].Label != "Total" {
+		t.Errorf("whiteboard card = %+v, want one metric Total", cards[2])
 	}
 	if cards[3].Title != "Chat" || len(cards[3].Metrics) != 2 || cards[3].Metrics[0].Value != 10 {
 		t.Errorf("chat card = %+v, want hook metrics Messages=10 Human=4", cards[3])
+	}
+}
+
+// TestBuildCardsKeepsUnreachableRecipesWithoutALink pins the two halves of
+// the grid's role contract: every destination that reports data gets a card
+// (the grid summarizes the instance), but a destination the role cannot
+// open gets NO button — a link that 403s is a broken promise.
+func TestBuildCardsKeepsUnreachableRecipesWithoutALink(t *testing.T) {
+	mods := []ui.Module{
+		{ID: ui.ModuleInbox, Title: "Inbox", URL: "/notifications"},
+		{ID: "todo", Title: "Todo", URL: "/todo"},
+	}
+	c := counts{
+		declared: map[string][]components.Metric{
+			"todo":          {{Label: "Open", Value: 3, Signal: "openTodos"}},
+			"notifications": {{Label: "Unread", Value: 1, Signal: "inboxUnread"}},
+		},
+	}
+	// The role may open Todo but not the Inbox.
+	cards := buildCards(mods, map[string]bool{"todo": true}, c)
+	if len(cards) != 2 {
+		t.Fatalf("buildCards = %d cards, want 2 (the role does not hide a recipe)", len(cards))
+	}
+	if cards[0].Title != "Inbox" {
+		t.Fatalf("card 0 = %q, want the Inbox (every destination keeps its card)", cards[0].Title)
+	}
+	if cards[0].Cta != "" || !cards[0].Locked {
+		t.Errorf("inbox card = %+v, want no CTA and Locked", cards[0])
+	}
+	if cards[1].Cta == "" || cards[1].Locked {
+		t.Errorf("todo card = %+v, want a CTA and no Locked", cards[1])
 	}
 }
 
@@ -209,12 +243,61 @@ func TestBuildCardsListsInstalledRecipes(t *testing.T) {
 // build with bundled recipes always has cards, so the old message — "no
 // extensions installed" while todo/inbox were on screen — cannot return.
 func TestBuildCardsEmptyPinsTheDegenerateBuild(t *testing.T) {
-	if cards := buildCards(nil, counts{}); len(cards) != 0 {
+	if cards := buildCards(nil, nil, counts{}); len(cards) != 0 {
 		t.Fatalf("buildCards(nil) = %v, want empty", cards)
 	}
 }
 
-// TestDeclaredMetricsExecutesCounts pins the generic path: a provider
+// reachAll is the "every destination is open" set, for the tests that care
+// about the cards themselves and not about the role's reach.
+func reachAll(mods []ui.Module) map[string]bool {
+	out := make(map[string]bool, len(mods))
+	for _, m := range mods {
+		out[m.ID] = true
+	}
+	return out
+}
+
+// TestDeclaredMetricsLogAFailingQuery pins the silence fix. A metric whose
+// query fails is omitted from the grid — and LOGGED: the silent skip is
+// how a dashboard loses a card (a recipe pointing at a table it no longer
+// owns) and nobody notices.
+func TestDeclaredMetricsLogAFailingQuery(t *testing.T) {
+	f := newFixture(t)
+	buf := captureDashboardLogs(t)
+	reg := &recipe.Registry{}
+	reg.Add(&stubProvider{id: "broken", metrics: []recipe.Metric{
+		{Label: "Fake", Query: "SELECT COUNT(*) FROM missing_table WHERE owner = ?"},
+	}})
+	h := NewHandler(f.h.cfg, f.auth, f.q, nil)
+	h.SetRegistry(reg, f.sqlDB)
+	if got := h.declaredMetrics(context.Background(), "owner-1"); len(got) != 0 {
+		t.Fatalf("declaredMetrics = %v, want no metric for a failing query", got)
+	}
+	out := buf.String()
+	for _, want := range []string{
+		`"level":"WARN"`,
+		`"msg":"dashboard: metric query failed"`,
+		`"recipe":"broken"`,
+		`"metric":"Fake"`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("log missing %q:\n%s", want, out)
+		}
+	}
+}
+
+// captureDashboardLogs redirects the default slog logger into a buffer for
+// the duration of one test. Restored on cleanup.
+func captureDashboardLogs(t *testing.T) *bytes.Buffer {
+	t.Helper()
+	var buf bytes.Buffer
+	prev := slog.Default()
+	observability.SetDefault(slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo})))
+	t.Cleanup(func() { observability.SetDefault(prev) })
+	return &buf
+}
+
 // that declares a COUNT query yields its metric with the value the
 // query returns, and a provider with a broken query is omitted (not a
 // fake zero). This is the user-recipe contract — a recipe that today
@@ -223,21 +306,23 @@ func TestDeclaredMetricsExecutesCounts(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
 	owner := "owner-1"
-	// One real row in todos so the COUNT has something to say. The
-	// user must exist first (FK owner → users.id).
+	// One real row in the todo unit's OWN table so the COUNT has something
+	// to say (the core `todos` seed is dropped once the unit's migration
+	// set lands). The user must exist first (FK owner → users.id).
 	if _, err := f.sqlDB.ExecContext(ctx,
 		"INSERT INTO users (id, email, password_hash, created, updated) VALUES (?, ?, ?, ?, ?)",
 		owner, "owner@example.com", "x", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"); err != nil {
 		t.Fatalf("insert user: %v", err)
 	}
-	if _, err := f.sqlDB.ExecContext(ctx,
-		"INSERT INTO todos (id, owner, title, completed, visibility, created, updated) VALUES (?, ?, ?, 0, 'private', ?, ?)",
+	const insertTodo = "INSERT INTO ext_todo_todos (id, owner, title, completed, visibility, created, updated) " +
+		"VALUES (?, ?, ?, 0, 'private', ?, ?)"
+	if _, err := f.sqlDB.ExecContext(ctx, insertTodo,
 		"id1", owner, "hello", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"); err != nil {
 		t.Fatalf("insert todo: %v", err)
 	}
 	reg := &recipe.Registry{}
 	reg.Add(&stubProvider{id: "todo", metrics: []recipe.Metric{
-		{Label: "Open", Query: "SELECT COUNT(*) FROM todos WHERE owner = ? AND completed = 0", Signal: "openTodos"},
+		{Label: "Open", Query: "SELECT COUNT(*) FROM ext_todo_todos WHERE owner = ? AND completed = 0", Signal: "openTodos"},
 	}})
 	reg.Add(&stubProvider{id: "broken", metrics: []recipe.Metric{
 		{Label: "Fake", Query: "SELECT nope FROM missing_table WHERE owner = ?"},

@@ -31,8 +31,14 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 		doc  = "/api/whiteboard/{docID}"
 	)
 	return recipe.Declaration{
+		// Boards are SHARED (see internal/db/queries/collab.sql): the list
+		// page shows every board, whoever drew it. So "Total" counts them
+		// all — the global spelling, no owner binding — and "Mine" counts
+		// the ones this account owns. Counting only your own rows would
+		// make the dashboard disagree with the list beside it.
 		Metrics: []recipe.Metric{
-			{Label: "Boards", Query: "SELECT COUNT(*) FROM boards WHERE owner = ?", Signal: "boardsCount"},
+			{Label: "Total", Query: "SELECT COUNT(*) FROM boards", Signal: "boardsTotal", OwnerBinds: recipe.WithoutOwner()},
+			{Label: "Mine", Query: "SELECT COUNT(*) FROM boards WHERE owner = ?", Signal: "boardsMine"},
 		},
 		Panel: &recipe.PanelSpec{
 			Component: "boards_list",

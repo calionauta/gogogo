@@ -118,19 +118,23 @@ var toolCatalog = []toolDef{
 	{
 		"recipe_list",
 		"Read-only recipe discovery: every built-in capability plus every user-installed recipe, with " +
-			"origin, kind, installed/removed state and the available lifecycle verbs. Changes nothing.",
+			"origin, kind, summary, installed/removed state and the invocable verbs. Dynamic: an install " +
+			"appears here without a help edit. Changes nothing.",
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeList) },
 	},
 	{
 		"recipe_describe",
-		"Describe one recipe by id: kind, origin, summary, registration surface, dependencies and available lifecycle verbs. Changes nothing.",
+		"Describe one recipe by id: kind, origin, summary, registration surface, dependencies, " +
+			"invocable verbs with a description, and per-param help. Read this before recipe_invoke so " +
+			"you choose a verb the recipe actually declares. Changes nothing.",
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeDescribe) },
 	},
 	{
 		"recipe_invoke",
-		"Invoke one declared mutating verb of a recipe against a running server (loopback only): " +
-			"runs the verb through the server's own session and policy stack with the operator token. " +
-			"Mutates state: confirm the id/verb first via recipe_describe.",
+		"Invoke one declared verb (read or mutating) of a recipe against a running server " +
+			"(loopback only): runs it through the server's own session and policy stack with the " +
+			"operator token. This is the developer/operator path; a product's own clients use the " +
+			"server's API. A mutating verb changes server state, so read recipe_describe first.",
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeInvoke) },
 	},
 	{

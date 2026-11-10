@@ -16,7 +16,7 @@ import (
 )
 
 type recipeInvokeArgs struct {
-	ID      string            `json:"id,omitempty" jsonschema:"recipe id (built-in capability id)"`
+	ID      string            `json:"id,omitempty" jsonschema:"recipe id (built-in capability or installed recipe)"`
 	Verb    string            `json:"verb,omitempty" jsonschema:"declared invocable verb (see recipe_describe)"`
 	Server  string            `json:"server,omitempty" jsonschema:"running server base URL (loopback only, e.g. http://127.0.0.1:18099)"`
 	Session string            `json:"session,omitempty" jsonschema:"operator session token (gogogo_auth cookie value)"`

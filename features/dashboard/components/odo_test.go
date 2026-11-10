@@ -71,8 +71,22 @@ func TestOdoSingleDigit(t *testing.T) {
 }
 
 func TestMarshalSignalsCarriesOpenTodos(t *testing.T) {
-	got := MarshalSignals(Signals{OpenTodos: 12})
+	got := MarshalSignals(Signals{"openTodos": 12})
 	if !strings.Contains(got, `"openTodos":12`) {
 		t.Fatalf("MarshalSignals = %s, want openTodos:12", got)
+	}
+}
+
+// TestOdoSkipsAMalformedSignal pins the guard: a signal that is not a
+// JavaScript identifier would land inside a `$name` expression and take the
+// page's script down with it. The counter then renders its SSR value and
+// no trigger at all.
+func TestOdoSkipsAMalformedSignal(t *testing.T) {
+	html := renderOdo(t, 3, "my-signal")
+	if strings.Contains(html, "data-effect") {
+		t.Fatalf("Odo with a malformed signal carries a trigger: %s", html)
+	}
+	if !strings.Contains(html, `aria-label="3"`) {
+		t.Fatalf("Odo with a malformed signal lost its value: %s", html)
 	}
 }

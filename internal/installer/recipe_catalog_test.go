@@ -24,7 +24,7 @@ func newCatalogFixture(t *testing.T, files map[string]string) (entryPath, conten
 	}
 	sort.Strings(paths)
 	var b strings.Builder
-	b.WriteString("id: pomodoro\nversion: v1.2.0\n")
+	b.WriteString("id: pomodoro\nsummary: A pomodoro timer with one page.\nversion: v1.2.0\n")
 	b.WriteString("source:\n  repo: example.com/recipes\n  ref: v1.0.0\n")
 	b.WriteString("module: example.com/recipes\n")
 	b.WriteString("register: features/pomodoro/handlers\n")
@@ -35,6 +35,13 @@ func newCatalogFixture(t *testing.T, files map[string]string) (entryPath, conten
 	b.WriteString("license: MIT\nminCore: v0.56.0\n")
 	b.WriteString("slots: [settings.section]\n")
 	b.WriteString("routes:\n  - {method: GET, pattern: /pomodoro}\n")
+	b.WriteString("actions:\n  - verb: show\n    description: Show the timer page.\n" +
+		"    route: {method: GET, pattern: /pomodoro}\n")
+	b.WriteString("metrics:\n  - {label: Sessions, query: \"SELECT COUNT(*) " +
+		"FROM ext_pomodoro_session WHERE owner = ?\"}\n")
+	b.WriteString("panel:\n  component: pomodoro_list\n" +
+		"  prompt: \"pomodoro_list {scope: all|mine} whenever the user asks\"\n" +
+		"  writable: [scope]\n")
 	b.WriteString("upstreamDeps: []\n")
 	b.WriteString("reviewedAt: \"2026-11-14\"\nreviewedBy: calionauta\nreviewedAgainst: 3f8a1c2\n")
 	entryPath = filepath.Join(t.TempDir(), "entry.yml")
@@ -82,6 +89,18 @@ func TestRecipeInstallFromCatalogEntryVerifiesAndInstalls(t *testing.T) {
 	if len(rec.Declaration.Slots) != 1 || rec.Declaration.Slots[0] != "settings.section" {
 		t.Fatalf("receipt lost the declared slot: %+v", rec.Declaration.Slots)
 	}
+	// The catalog is a review of the whole declaration: a catalog install
+	// that dropped Actions would be installed and uncallable headless.
+	if len(rec.Declaration.Actions) != 1 || rec.Declaration.Actions[0].Verb != "show" {
+		t.Fatalf("receipt lost the reviewed actions: %+v", rec.Declaration.Actions)
+	}
+	if rec.Declaration.Actions[0].Description == "" {
+		t.Fatalf("receipt lost the action description: %+v", rec.Declaration.Actions[0])
+	}
+	if len(rec.Declaration.Metrics) != 1 || rec.Declaration.Panel == nil {
+		t.Fatalf("receipt lost the reviewed metrics/panel: metrics=%+v panel=%+v",
+			rec.Declaration.Metrics, rec.Declaration.Panel)
+	}
 	if gen := readOrEmpty(t, root, recipeRegistrationFile); !strings.Contains(gen, "pomodoro.Register") {
 		t.Fatalf("entry install did not register the recipe:\n%s", gen)
 	}
@@ -109,5 +128,17 @@ func TestRecipeInstallFromCatalogEntryRejectsUnreviewedFiles(t *testing.T) {
 	out, err := runRecipeCLI(t, "install", "--entry", entry, contents, "--dir", root, "--yes")
 	if err == nil || !strings.Contains(err.Error(), "did not review") {
 		t.Fatalf("an unreviewed file must be refused, got %v\n%s", err, out)
+	}
+}
+
+func TestRecipeInstallFromCatalogRejectsUnshippedRegister(t *testing.T) {
+	root := newRecipeCheckout(t)
+	entry, contents := newCatalogFixture(t, map[string]string{
+		"features/pomodoro/service/service.go": "package service\n",
+	})
+
+	out, err := runRecipeCLI(t, "install", "--entry", entry, contents, "--dir", root, "--yes")
+	if err == nil || !strings.Contains(err.Error(), "no bundled unit at that path") {
+		t.Fatalf("a register with no shipped or bundled package must be refused, got %v\n%s", err, out)
 	}
 }

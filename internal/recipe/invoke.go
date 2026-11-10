@@ -22,6 +22,8 @@ import (
 	"net/url"
 	"slices"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 // ResolveAction maps (id, verb) to the declared route, or fails naming
@@ -65,9 +67,11 @@ func ResolveInvokeAction(reg *Registry, id, verb string) (InvokeAction, Route, e
 // routes ({/stream, /events}) and HEAD are refused — a stream would
 // hang an invoke forever. form carries the request body keys; keys
 // outside the action's closed param set are refused loud, naming the
-// allowed set, instead of being silently ignored. Routes with path
-// parameters ({id}) are refused — Invoke is literal-path only, so a
-// parameterized target can never be called with a guessed id.
+// allowed set, instead of being silently ignored. A declared `{id}` is
+// filled from `id` in form and validated as a UUID before the URL is built;
+// the id is removed from the form, so the handler sees it only as a route
+// parameter. A placeholder the action did not declare is refused — the
+// dispatcher never guesses an id.
 func Invoke(
 	ctx context.Context, handler http.Handler, cookieName, token string,
 	action InvokeAction, route Route, form url.Values,
@@ -87,22 +91,18 @@ func Invoke(
 			"recipe: %s %s streams forever and cannot be invoked headless",
 			route.Method, route.Pattern)
 	}
-	if strings.Contains(route.Pattern, "{") {
-		return http.StatusBadRequest, nil, fmt.Errorf(
-			"recipe: %s %s is parameterized and not invocable headless",
-			route.Method, route.Pattern)
-	}
 	if handler == nil {
 		return http.StatusInternalServerError, nil, errors.New("recipe: invoke with a nil handler")
 	}
-	if form == nil {
-		form = url.Values{}
+	target, form, terr := invokeTarget(action, route, form)
+	if terr != nil {
+		return http.StatusBadRequest, nil, terr
 	}
 	if err := checkInvokeParams(action, form); err != nil {
 		return http.StatusBadRequest, nil, err
 	}
 	req := httptest.NewRequestWithContext(
-		ctx, route.Method, route.Pattern, strings.NewReader(form.Encode()))
+		ctx, route.Method, target, strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.AddCookie(&http.Cookie{
 		Name:     cookieName,
@@ -114,6 +114,57 @@ func Invoke(
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	return rec.Code, rec.Body.Bytes(), nil
+}
+
+// invokeTarget fills the declared path placeholders and returns the URL the
+// handler sees plus the form without those keys. v1 accepts only `{id}`, and
+// only as a UUID: the repository generates UUIDv7 ids, and a free-form
+// segment would make a typo look like a different record instead of a bad
+// request. The id is canonicalized by uuid.Parse before it reaches chi.
+func invokeTarget(action InvokeAction, route Route, form url.Values) (string, url.Values, error) {
+	clean := url.Values{}
+	for k, values := range form {
+		clean[k] = append([]string(nil), values...)
+	}
+	placeholders, ok := routePlaceholders(route.Pattern)
+	if !ok {
+		return "", nil, fmt.Errorf(
+			"recipe: %s %s has a malformed path parameter", route.Method, route.Pattern)
+	}
+	if len(placeholders) == 0 {
+		if len(action.PathParams) > 0 {
+			return "", nil, fmt.Errorf(
+				"recipe: action %q declares path params %v, but %s has no placeholder",
+				action.Verb, action.PathParams, route.Pattern)
+		}
+		return route.Pattern, clean, nil
+	}
+	if len(placeholders) != 1 || placeholders[0] != "id" {
+		return "", nil, fmt.Errorf(
+			"recipe: %s %s is parameterized beyond the supported {id}",
+			route.Method, route.Pattern)
+	}
+	if len(action.PathParams) != 1 || action.PathParams[0] != "id" {
+		return "", nil, fmt.Errorf(
+			"recipe: action %q does not declare pathParams: [id] for %s",
+			action.Verb, route.Pattern)
+	}
+	raw := clean.Get("id")
+	if raw == "" {
+		return "", nil, fmt.Errorf("recipe: action %q needs path param %q", action.Verb, "id")
+	}
+	id, err := uuid.Parse(raw)
+	if err != nil {
+		return "", nil, fmt.Errorf(
+			"recipe: action %q path param %q must be a UUID: %w", action.Verb, "id", err)
+	}
+	clean.Del("id")
+	target := strings.ReplaceAll(route.Pattern, "{id}", id.String())
+	if strings.ContainsAny(target, "{}") {
+		return "", nil, fmt.Errorf(
+			"recipe: action %q left an unresolved path parameter in %s", action.Verb, target)
+	}
+	return target, clean, nil
 }
 
 // checkInvokeParams refuses any key the action does not declare.
