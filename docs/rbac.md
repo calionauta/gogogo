@@ -25,7 +25,13 @@ tests fail naming the exact gap when you skip a step.
      to `/login?next=<current page>`, so an expired session during an action
      is a recovery, not a dead click.
    - **signed-in but not allowed** (e.g. a `user` opening `/config`) →
-     **403 with no body**; signing in again cannot fix a role gap.
+     **403**. A browser navigation gets the app's own **access-denied
+     page** — the same shell every module renders, with the role that was
+     refused and the two destinations that always work — so the refusal
+     reads as an answer instead of a dead end. A data request (XHR,
+     Datastar action, SSE) keeps the plain `forbidden` body: a page
+     patched into a live UI is noise. The status is 403 in both cases; the
+     page never names what was behind the door.
    - **enforcer error** → the same audience split, failing closed (an
      anonymous caller is still anonymous, not suddenly allowed).
 3. Disabled (`RBAC_ENABLED=false`) the middleware passes everything

@@ -25,6 +25,8 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
+	"github.com/calionauta/gogogo/features/sounds"
+	"github.com/calionauta/gogogo/internal/i18n"
 	"github.com/calionauta/gogogo/internal/recipe"
 	"github.com/calionauta/gogogo/internal/ui"
 )
@@ -52,11 +54,16 @@ type Metric struct {
 // labeled counts (empty renders a static link card). The Title and URL
 // come from the shell's module registry, so a trimmed build loses the
 // card together with its rail destination.
+//
+// Locked marks a card whose destination the viewer's role cannot open: the
+// numbers still show (the grid summarizes the instance), the button does
+// not — a link that 403s is a broken promise.
 type Card struct {
 	Title   string
 	URL     string
 	Metrics []Metric
 	Cta     string
+	Locked  bool
 }
 
 // Page renders the /dashboard module inside the shared shell.
@@ -97,10 +104,8 @@ func Page(data PageData, buildLabel string, buildCommit string) templ.Component 
 	})
 }
 
-// dashboardHead carries the page's own <head> extras. The dashboard page
-// deliberately does not embed the sound assets: those belong to interactive
-// work surfaces' head wrappers, and importing the sounds package here would
-// break a trimmed tree that drops the unit.
+// dashboardHead carries the page's own <head> extras: the sound assets,
+// so the rail's mute control works here too, plus the odometer island below.
 func dashboardHead() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -122,6 +127,10 @@ func dashboardHead() templ.Component {
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = sounds.SoundAssets().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<script nonce=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -129,7 +138,7 @@ func dashboardHead() templ.Component {
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 64, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 70, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
@@ -143,8 +152,10 @@ func dashboardHead() templ.Component {
 	})
 }
 
-// dashboardSound keeps the shell's sound slot empty on purpose; the shell
-// renders the same document whether the slot carries content or not.
+// dashboardSound is the shell's mute control for this page. It is a
+// one-line templ wrapper on purpose: the installer's sounds trim drops the
+// @sounds.SoundSwitch() line, leaving an empty wrapper that still satisfies
+// the shell's slot (the import goes with it).
 func dashboardSound() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -166,6 +177,10 @@ func dashboardSound() templ.Component {
 			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = sounds.SoundSwitch().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
 		return nil
 	})
 }
@@ -198,7 +213,7 @@ func dashboardBody(data PageData) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(MarshalSignals(data.signals()))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 155, Col: 76}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 164, Col: 76}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 		if templ_7745c5c3_Err != nil {
@@ -217,7 +232,7 @@ func dashboardBody(data PageData) templ.Component {
 				var templ_7745c5c3_Var7 string
 				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(c.Title)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 166, Col: 41}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 175, Col: 41}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 				if templ_7745c5c3_Err != nil {
@@ -240,7 +255,7 @@ func dashboardBody(data PageData) templ.Component {
 						var templ_7745c5c3_Var8 string
 						templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(m.Label)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 172, Col: 86}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 181, Col: 86}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 						if templ_7745c5c3_Err != nil {
@@ -272,7 +287,7 @@ func dashboardBody(data PageData) templ.Component {
 					var templ_7745c5c3_Var9 templ.SafeURL
 					templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinURLErrs(c.URL)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 180, Col: 24}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 189, Col: 24}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 					if templ_7745c5c3_Err != nil {
@@ -285,7 +300,7 @@ func dashboardBody(data PageData) templ.Component {
 					var templ_7745c5c3_Var10 string
 					templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(c.Cta)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 180, Col: 65}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 189, Col: 65}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 					if templ_7745c5c3_Err != nil {
@@ -296,26 +311,45 @@ func dashboardBody(data PageData) templ.Component {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</div></div>")
+				if c.Locked {
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<p class=\"text-xs text-base-content/50 mt-3\">")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					var templ_7745c5c3_Var11 string
+					templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "dashboard.card.locked", nil))
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 193, Col: 96}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</p>")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</div></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 			for _, f := range data.DashboardCards {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"ui-card\" data-slot=\"dashboard.card\"><div class=\"ui-card-body\"><h3 class=\"ui-title\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<div class=\"ui-card\" data-slot=\"dashboard.card\"><div class=\"ui-card-body\"><h3 class=\"ui-title\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var11 string
-				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(f.Title)
+				var templ_7745c5c3_Var12 string
+				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(f.Title)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 189, Col: 37}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 201, Col: 37}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</h3>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</h3>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -323,18 +357,18 @@ func dashboardBody(data PageData) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</div></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</div></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<div class=\"ui-card md:col-span-2\"><div class=\"ui-card-body text-center\"><p class=\"text-base-content/70\">No metrics yet. Add a todo or check your inbox.</p></div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<div class=\"ui-card md:col-span-2\"><div class=\"ui-card-body text-center\"><p class=\"text-base-content/70\">No metrics yet. Add a todo or check your inbox.</p></div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</section></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</section></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -342,21 +376,20 @@ func dashboardBody(data PageData) templ.Component {
 	})
 }
 
-// signals derives the odometer seeds from the first metric of each card.
-// Fail-fast: a metric without a Signal is a wiring bug, so the signal names
-// here and in buildCards must cover every metric the handler emits.
+// signals derives the odometer seeds from every metric on the page. The key
+// is the metric's own signal name, so a recipe that declares one gets its
+// counter without this file knowing anything about it.
 func (d PageData) signals() Signals {
-	b := map[string]int{}
+	b := Signals{}
 	for _, c := range d.Cards {
 		for _, m := range c.Metrics {
+			if m.Signal == "" {
+				continue
+			}
 			b[m.Signal] = m.Value
 		}
 	}
-	return Signals{
-		OpenTodos: b["openTodos"], DoneTodos: b["doneTodos"], TotalTodos: b["totalTodos"],
-		SharedTodos: b["sharedTodos"], TotalInbox: b["totalInbox"], ChatTotal: b["chatTotal"],
-		ChatHuman: b["chatHuman"], NotesCount: b["notesCount"], BoardsCount: b["boardsCount"], CreditsBal: b["creditsBal"],
-	}
+	return b
 }
 
 var _ = templruntime.GeneratedTemplate

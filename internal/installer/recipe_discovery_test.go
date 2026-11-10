@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/calionauta/gogogo/internal/capabilities"
@@ -63,9 +64,62 @@ func TestRecipeDescriptorsAdvertiseBuiltinVerbs(t *testing.T) {
 		if !slices.Contains(e.InvokeParams["create"], "title") {
 			t.Fatalf("todo create params missing: %v", e.InvokeParams)
 		}
+		if e.InvokeDescriptions["create"] == "" {
+			t.Fatalf("todo create description missing: %v", e.InvokeDescriptions)
+		}
+		if e.InvokeParamHelp["create"]["title"] == "" {
+			t.Fatalf("todo create param help missing: %v", e.InvokeParamHelp)
+		}
 		return
 	}
 	t.Fatal("todo descriptor not found")
+}
+
+// TestRecipeDescriptorsExposePathParamsAndOmissions proves the two discovery
+// halves an agent needs to call a CRUD recipe: the `{id}` it must supply and
+// the mutating routes the author deliberately kept out.
+func TestRecipeDescriptorsExposePathParamsAndOmissions(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, ".recipes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	yml := `id: probe
+upstream: {repo: "github.com/x/y", ref: "v1"}
+files: {}
+declaration:
+  routes:
+  - {method: POST, pattern: "/api/probe/{id}/toggle"}
+  - {method: POST, pattern: /api/probe/suggest}
+  actions:
+  - verb: toggle
+    description: Toggle one probe row.
+    route: {method: POST, pattern: "/api/probe/{id}/toggle"}
+    pathParams: [id]
+    paramHelp: {id: The probe UUID.}
+  omitted:
+  - route: {method: POST, pattern: /api/probe/suggest}
+    reason: asynchronous job; the result arrives through the stream
+`
+	if err := os.WriteFile(filepath.Join(dir, ".recipes", "probe.yml"), []byte(yml), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	exts, err := recipeDescriptors(dir)
+	if err != nil {
+		t.Fatalf("descriptors: %v", err)
+	}
+	for _, e := range exts {
+		if e.ID != "probe" {
+			continue
+		}
+		if !slices.Contains(e.InvokePathParams["toggle"], "id") {
+			t.Fatalf("probe toggle path param missing: %v", e.InvokePathParams)
+		}
+		if len(e.Omitted) != 1 || !strings.Contains(e.Omitted[0], "/api/probe/suggest") {
+			t.Fatalf("probe omission missing: %v", e.Omitted)
+		}
+		return
+	}
+	t.Fatal("probe receipt not found in descriptors")
 }
 
 // TestRecipeDescriptorsExposeReceiptSurface proves the receipt half:
@@ -84,7 +138,12 @@ declaration:
   routes: [{method: GET, pattern: /api/probe}, {method: POST, pattern: /api/probe}]
   jobs: ["ext:probe:run"]
   slots: []
-  actions: [{verb: create, route: {method: POST, pattern: /api/probe}, params: [title]}]
+  actions:
+  - verb: create
+    description: Create one probe row.
+    route: {method: POST, pattern: /api/probe}
+    params: [title]
+    paramHelp: {title: The row's title.}
 `
 	if err := os.WriteFile(filepath.Join(dir, ".recipes", "probe.yml"), []byte(yml), 0o600); err != nil {
 		t.Fatal(err)
@@ -111,6 +170,12 @@ declaration:
 		}
 		if !slices.Contains(e.InvokeParams["create"], "title") {
 			t.Errorf("probe create params missing: %v", e.InvokeParams)
+		}
+		if e.InvokeDescriptions["create"] != "Create one probe row." {
+			t.Errorf("probe create description missing: %v", e.InvokeDescriptions)
+		}
+		if e.InvokeParamHelp["create"]["title"] != "The row's title." {
+			t.Errorf("probe create param help missing: %v", e.InvokeParamHelp)
 		}
 		return
 	}

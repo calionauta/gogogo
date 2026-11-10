@@ -1922,11 +1922,14 @@ fields; unknown keys are refused loud naming the allowed set (no
 typed coercion — handlers parse values at the boundary), GET reads
 are invocable, `/stream` + `/events` are refused explicitly (they
 would hang an invoke), and the server gate fails on mirror drift
-between `Capability.ActionParams` and the Declaration. What remains
-open for invocation next: parameterized routes (`{id}` toggle/delete),
-machine identity (API tokens with the same Role subject) for clients
-beyond the operator loopback, and the remote client behind those —
-the bridge refuses the first two loudly today rather than guessing.
+between `Capability.ActionParams` / `ActionPathParams` and the
+Declaration. `{id}` closed on 2026-11-10: one placeholder, a UUID, moved
+from the form into the URL after validation; `toggle` and `delete` are
+callable and `clear_completed` covers the bulk case, while async/demo
+routes are declared under `omitted` with a reason. What remains open for
+invocation is machine identity (API tokens with the same Role subject)
+for clients beyond the operator loopback, and the remote client behind
+it; the bridge refuses non-loopback today rather than guessing.
 
 The next user-visible task starts from the discovery the phase-4 work
 enabled: every built-in capability can now supply a self-mounting
@@ -1945,6 +1948,35 @@ feature:
 - A separate action-invocation phase is deliberately not folded in yet:
   executable actions need an auth/policy bridge for live routes, separate
   from package lifecycle. Do not invent it inside discovery.
+
+### Discovery polish — **DONE (2026-11-10)**
+
+This pass closed the gap between "a verb exists" and "an agent can choose
+it", without adding a per-recipe command:
+
+- `InvokeAction` now carries `description` and `paramHelp`; `recipe describe`
+  prints both, and `recipe list` shows the verbs. `ActionDocProblems` is the
+  review gate (the structural `ActionProblems` stays description-optional so
+  older receipts still boot).
+- `Receipt.Summary` plus catalog `summary`: `recipe list` / `recipe describe`
+  show what a recipe is for, not just its upstream path. Installed recipes
+  fall back to the receipt, catalog entries require the field.
+- Catalog entries carry `actions`, `metrics`, and `panel` into the receipt, so
+  a catalog install no longer loses half its discovery surface. The `todo`
+  and `graph` reference entries were brought up to date; the register/files
+  check now runs at install time, where the target tree can say whether the
+  package is bundled.
+- `recipe check` reports the invisible half as warnings: a mutating route
+  with no action, a verb with no description, an installed recipe with no
+  summary. The wiring gate now requires a capabilities mirror only when a
+  bundled row exists; an installed recipe uses its receipt as the surface.
+- The two surfaces are deliberately one engine with two trust boundaries.
+  `gogogo` / `gogogo-mcp` are the installer/evolution surface (they mutate a
+  checkout); a product's clients call the running server's own routes and
+  `/api/ext/invoke`. A recipe adds no installer tool and no CLI verb: the one
+  dispatcher plus dynamic discovery covers installs and `new feature`.
+  Machine identity (API token) and non-loopback clients remain the open
+  items; `{id}` verbs and the deliberate-omission surface are closed.
 
 ### Build, in this order
 

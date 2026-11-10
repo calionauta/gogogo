@@ -12,5 +12,11 @@
   "todo.empty.title": "No todos here yet.",
   "todo.empty.body": "Add one below to get started.",
   "inbox.unread.one": "{{.Count}} unread",
-  "inbox.unread.other": "{{.Count}} unread"
+  "inbox.unread.other": "{{.Count}} unread",
+  "forbidden.heading": "Access denied",
+  "forbidden.title": "You don't have access to this page",
+  "forbidden.body": "Your role ({{.Role}}) does not include this area. Ask an administrator if you think this is a mistake.",
+  "forbidden.dashboard": "Go to dashboard",
+  "forbidden.account": "Account settings",
+  "dashboard.card.locked": "Not available for your role"
 }

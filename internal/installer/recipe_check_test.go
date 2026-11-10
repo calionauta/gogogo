@@ -68,6 +68,94 @@ register: features/pomodoro/handlers
 	}
 }
 
+// TestRecipeCheckFlagsInvisibleMutationsAndMissingActionDocs is the
+// red-proof for the headless half of the evaluator: a POST route with no
+// action is invisible to an agent, a verb with no description cannot be
+// chosen, and an installed recipe with no summary shows only its repo path.
+// All three are warnings (the recipe still boots), never silent.
+func TestRecipeCheckFlagsInvisibleMutationsAndMissingActionDocs(t *testing.T) {
+	root := newRecipeCheckout(t)
+	code := "package handlers\n\nfunc routes(r router) { " +
+		"r.Get(\"/pomodoro\", nil); r.Post(\"/pomodoro\", nil); " +
+		"r.Post(\"/pomodoro/{id}/toggle\", nil) }\n"
+	src := newRecipeDir(t, "v1", map[string]string{
+		"features/pomodoro/handlers/chi.go":      code,
+		"features/pomodoro/handlers/register.go": "package handlers\n\nfunc Register(reg any, d any) {}\n",
+	}, "features/pomodoro/handlers")
+	manifest := `id: pomodoro
+upstream:
+  repo: example.com/recipes
+  ref: v1
+declaration:
+  routes:
+  - {method: GET, pattern: /pomodoro}
+  - {method: POST, pattern: /pomodoro}
+  - {method: POST, pattern: "/pomodoro/{id}/toggle"}
+  actions:
+  - verb: show
+    route: {method: GET, pattern: /pomodoro}
+register: features/pomodoro/handlers
+`
+	writeFile(t, filepath.Join(src, recipeManifestFile), manifest)
+	if out, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes"); err != nil {
+		t.Fatalf("install: %v\n%s", err, out)
+	}
+
+	report := checkOneRecipe(root, "pomodoro")
+	if !report.Healthy {
+		t.Fatalf("the gaps must be warnings, not blockers: %+v", report.Errors)
+	}
+	joined := strings.Join(report.Warnings, "\n")
+	for _, want := range []string{
+		"mutating routes with no headless action",
+		"POST /pomodoro",
+		"POST /pomodoro/{id}/toggle",
+		"has no description",
+		"no summary",
+	} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("check must report %q, got %v", want, report.Warnings)
+		}
+	}
+}
+
+// TestRecipeCheckHonorsDeclaredOmissions is the false-positive half: a route
+// the author deliberately kept out of the headless surface must stop the
+// "invisible mutation" warning and still be shown with its reason. Without
+// this, every recipe with an async or demo route has a permanent warning and
+// the signal for a genuinely forgotten action is lost.
+func TestRecipeCheckHonorsDeclaredOmissions(t *testing.T) {
+	root := newRecipeCheckout(t)
+	manifest := `id: pomodoro
+upstream:
+  repo: example.com/recipes
+  ref: v1
+declaration:
+  routes:
+  - {method: GET, pattern: /pomodoro}
+  - {method: POST, pattern: /pomodoro/suggest}
+  actions:
+  - verb: show
+    description: Show the pomodoro page.
+    route: {method: GET, pattern: /pomodoro}
+  omitted:
+  - route: {method: POST, pattern: /pomodoro/suggest}
+    reason: asynchronous job; the result arrives through the stream
+register: features/pomodoro/handlers
+`
+	writeFile(t, filepath.Join(root, "features", "pomodoro", "handlers", "chi.go"), recipeHandlerV1)
+	writeFile(t, filepath.Join(root, "features", "pomodoro", "handlers", "register.go"), "package handlers\n")
+	writeFile(t, filepath.Join(root, ".recipes", "pomodoro.yml"), manifest)
+	report := checkOneRecipe(root, "pomodoro")
+	joined := strings.Join(report.Warnings, "\n")
+	if strings.Contains(joined, "mutating routes with no headless action") {
+		t.Fatalf("an explained omission must not be reported as invisible: %v", report.Warnings)
+	}
+	if len(report.Omitted) != 1 || report.Omitted[0].Reason == "" {
+		t.Fatalf("the report must carry the omission and its reason: %+v", report.Omitted)
+	}
+}
+
 // RED/GREEN/PROVE: the score formula is the evaluator's verdict, so it must
 // be pinned in both directions — a healthy recipe scores 100 minus warnings,
 // and an error drops it by the documented cost. The GO GREEN half is

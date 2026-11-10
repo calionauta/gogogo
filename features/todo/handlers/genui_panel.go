@@ -113,7 +113,7 @@ func (p *TodoPanel) Actions() []comp.ActionSpec {
 		// model's field keys to match these exactly, so a card cannot smuggle
 		// in a field the route would read and this declaration never exposed.
 		Fields: map[string]string{
-			"title": "the todo's text",
+			SearchTitleField: "the todo's text",
 		},
 		When: "when you are suggesting concrete tasks to add to the user's own todo list",
 	}}

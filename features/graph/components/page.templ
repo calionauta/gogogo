@@ -2,9 +2,10 @@
 package components
 
 import (
+	"github.com/calionauta/gogogo/features/graph"
+	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/internal/components"
 	"github.com/calionauta/gogogo/internal/ui"
-	"github.com/calionauta/gogogo/features/graph"
 )
 
 // graphStack is the page's technology key, rendered by the shell behind
@@ -29,7 +30,21 @@ templ Page(email string, role string, buildLabel string, buildCommit string) {
 		BuildLabel:  buildLabel,
 		BuildCommit: buildCommit,
 		Stack:       graphStack(),
-	}, nil, nil, nil, body())
+	}, graphHead(), graphSound(), nil, body())
+}
+
+// graphHead carries the page's own <head> extras: the sound assets, so
+// the rail's mute control works here too.
+templ graphHead() {
+	@sounds.SoundAssets()
+}
+
+// graphSound is the shell's mute control for this page. It is a
+// one-line templ wrapper on purpose: the installer's sounds trim drops the
+// @sounds.SoundSwitch() line, leaving an empty wrapper that still satisfies
+// the shell's slot (the import goes with it).
+templ graphSound() {
+	@sounds.SoundSwitch()
 }
 
 templ body() {

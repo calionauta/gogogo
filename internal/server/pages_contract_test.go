@@ -117,6 +117,8 @@ var pagesUnderTest = []pageUnderTest{
 		"Security events",
 		"<th class=\"w-1/3\">Field</th>",
 	}},
+	{name: "dashboard", route: "/dashboard", must: []string{"Welcome back"}},
+	{name: "graph", route: "/graph", must: []string{"System panorama"}},
 }
 
 // bootPages boots the production composition on an ephemeral port and signs
@@ -234,10 +236,10 @@ func TestPagesContract(t *testing.T) {
 			body := fetchPage(t, base, c, p.route)
 			must := p.must
 			// The rail's mute comes from the trimmable sounds unit. A tree
-			// without it has no switch to assert (room never had one: its
-			// capability ships no sound runtime), so the page contract only
-			// holds the line where the unit is present.
-			if soundsWired() && p.name != "room" && p.name != "login" {
+			// without it has no switch to assert, so the page contract only
+			// holds the line where the unit is present. (Login renders no
+			// shell, so it never carries the switch.)
+			if soundsWired() && p.name != "login" {
 				must = append(must, "app-sound-toggle")
 			}
 			for _, want := range must {

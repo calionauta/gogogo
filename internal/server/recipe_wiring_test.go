@@ -64,38 +64,73 @@ func assertDeclarationsMatchMounts(t *testing.T, mux *Router, reg *recipe.Regist
 		// checkout-level discovery can advertise them without linking
 		// feature handlers. The composed provider is the authority; the
 		// row must match it, or discovery lies about what is invocable.
-		wantVerbs := []string{}
-		for _, a := range p.Declaration().Actions {
-			wantVerbs = append(wantVerbs, a.Verb)
-		}
-		slices.Sort(wantVerbs)
-		row, found := capabilities.ByID()[owner]
-		if !found {
-			t.Errorf("recipe %q has no capabilities row to advertise its verbs", owner)
-		} else if len(row.Actions) != 0 || len(wantVerbs) != 0 {
-			got := slices.Clone(row.Actions)
-			slices.Sort(got)
-			if !slices.Equal(got, wantVerbs) {
-				t.Errorf("recipe %q registry actions = %v, want %v (mirror the Declaration)", owner, row.Actions, wantVerbs)
-			}
-		}
-		// Same two-way check on the closed param sets: an agent must read
-		// the allowed fields without opening the handler.
-		wantParams := map[string][]string{}
-		for _, a := range p.Declaration().Actions {
-			if len(a.Params) > 0 {
-				wantParams[a.Verb] = slices.Clone(a.Params)
-			}
-		}
-		if len(row.ActionParams) != 0 || len(wantParams) != 0 {
-			if missing, extra := diffParamKeys(row.ActionParams, wantParams); missing != "" {
-				t.Errorf("recipe %q registry param set for %q is missing %v",
-					owner, missing, row.ActionParams[missing])
-			} else if extra != "" {
-				t.Errorf("recipe %q registry advertises params for %q the Declaration does not declare", owner, extra)
-			}
+		for _, problem := range capabilityMirrorProblems(owner, p.Declaration()) {
+			t.Errorf("recipe %q: %s", owner, problem)
 		}
 	}
+}
+
+// capabilityMirrorProblems checks the compiled-in capabilities row against
+// the composed provider. An installed recipe has no row by construction —
+// its discovery surface is the receipt — so absence is not drift. Only a
+// bundled unit (a row exists) must mirror its Declaration.
+//
+// This is the fix for a gate that used to fail `go test ./internal/server`
+// in every user tree that installed a recipe: the row was demanded even
+// though `capabilities.All` is compiled in and no installer can write it.
+func capabilityMirrorProblems(owner string, decl recipe.Declaration) []string {
+	row, found := capabilities.ByID()[owner]
+	if !found {
+		return nil
+	}
+	var out []string
+	wantVerbs := []string{}
+	for _, a := range decl.Actions {
+		wantVerbs = append(wantVerbs, a.Verb)
+	}
+	slices.Sort(wantVerbs)
+	if len(row.Actions) != 0 || len(wantVerbs) != 0 {
+		got := slices.Clone(row.Actions)
+		slices.Sort(got)
+		if !slices.Equal(got, wantVerbs) {
+			out = append(out, fmt.Sprintf(
+				"registry actions = %v, want %v (mirror the Declaration)", row.Actions, wantVerbs))
+		}
+	}
+	// Same two-way check on the closed param sets: an agent must read
+	// the allowed fields without opening the handler.
+	wantParams := map[string][]string{}
+	wantPathParams := map[string][]string{}
+	for _, a := range decl.Actions {
+		if len(a.Params) > 0 {
+			wantParams[a.Verb] = slices.Clone(a.Params)
+		}
+		if len(a.PathParams) > 0 {
+			wantPathParams[a.Verb] = slices.Clone(a.PathParams)
+		}
+	}
+	out = append(out, mirrorParamProblems("param", row.ActionParams, wantParams)...)
+	out = append(out, mirrorParamProblems("path param", row.ActionPathParams, wantPathParams)...)
+	return out
+}
+
+// mirrorParamProblems compares one registry mirror map (body or path params)
+// against the Declaration. Kept as one helper so the two maps cannot drift in
+// different directions.
+func mirrorParamProblems(kind string, got, want map[string][]string) []string {
+	if len(got) == 0 && len(want) == 0 {
+		return nil
+	}
+	missing, extra := diffParamKeys(got, want)
+	switch {
+	case missing != "":
+		return []string{fmt.Sprintf(
+			"registry %s set for %q is missing (mirror the Declaration)", kind, missing)}
+	case extra != "":
+		return []string{fmt.Sprintf(
+			"registry advertises %ss for %q the Declaration does not declare", kind, extra)}
+	}
+	return nil
 }
 
 // diffParamKeys compares a registry mirror against a declaration's
@@ -172,6 +207,41 @@ func (f fakeProvider) Declaration() recipe.Declaration {
 }
 
 func (f fakeProvider) Routes() chi.Router { return nil }
+
+// TestCapabilityMirrorSkipsInstalledRecipe pins the user-tree case: a recipe
+// installed from a receipt has no compiled-in capabilities row, and that
+// absence must not fail the composed gate.
+func TestCapabilityMirrorSkipsInstalledRecipe(t *testing.T) {
+	if problems := capabilityMirrorProblems("ext_installed_probe", recipe.Declaration{}); len(problems) != 0 {
+		t.Fatalf("an installed recipe has no row by construction; got %v", problems)
+	}
+}
+
+// TestCapabilityMirrorStillChecksBundledUnit closes the vacuous half: the
+// skip must be for absent rows only, not a blanket disable of the mirror.
+func TestCapabilityMirrorStillChecksBundledUnit(t *testing.T) {
+	problems := capabilityMirrorProblems("todo", recipe.Declaration{})
+	if len(problems) == 0 || !strings.Contains(problems[0], "registry actions") {
+		t.Fatalf("a bundled row must still be compared, got %v", problems)
+	}
+}
+
+// TestCapabilityMirrorChecksPathParams closes the discovery-drift half for
+// `{id}`: the registry row must advertise the path param the Declaration
+// requires, or a checkout-level `recipe list` shows a verb without the id it
+// needs.
+func TestCapabilityMirrorChecksPathParams(t *testing.T) {
+	decl := recipe.Declaration{Actions: []recipe.InvokeAction{
+		{Verb: "create", Params: []string{"title", "idem_key", "visibility"}},
+		{Verb: "toggle", Route: recipe.Route{Method: "POST", Pattern: "/api/todos/{id}/toggle"}},
+		{Verb: "delete", Route: recipe.Route{Method: "POST", Pattern: "/api/todos/{id}/delete"}},
+		{Verb: "clear_completed"},
+	}}
+	problems := capabilityMirrorProblems("todo", decl)
+	if !strings.Contains(strings.Join(problems, "\n"), "path param") {
+		t.Fatalf("missing path param mirror must be reported, got %v", problems)
+	}
+}
 
 func TestDeclaredTableGateReportsAMissingTable(t *testing.T) {
 	sqlDB, err := db.OpenAt(t.TempDir() + "/tables.db")

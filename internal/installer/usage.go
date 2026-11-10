@@ -76,7 +76,7 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
 
     go run ./cmd/gogogo recipe outdated --dir ./my-app
 
-  Discover and evaluate recipes headlessly (CLI and MCP read the same registry + receipts):
+  Discover/evaluate recipes headlessly; describe prints each verb's sentence:
 
     go run ./cmd/gogogo recipe list --dir ./my-app --format json
     go run ./cmd/gogogo recipe describe pomodoro --dir ./my-app --format json

@@ -29,7 +29,8 @@ files:
   features/whiteboard/static/whiteboard.js: 576891f40cf7070b95bbcd61e7e4bc2be899f92d5dd632bbc5c57d30892aada3
 declaration:
   metrics:
-  - {label: Boards, query: "SELECT COUNT(*) FROM boards WHERE owner = ?", signal: boardsCount}
+  - {label: Total, query: "SELECT COUNT(*) FROM boards", signal: boardsTotal, ownerBinds: false}
+  - {label: Mine, query: "SELECT COUNT(*) FROM boards WHERE owner = ?", signal: boardsMine}
   panel:
     component: "boards_list"
     prompt: "boards_list {scope: all|mine} whenever the request involves the shared whiteboards"

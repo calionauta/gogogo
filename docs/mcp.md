@@ -4,6 +4,11 @@ Drive the installer with tool calls instead of shell. Same engine as the
 CLI (`internal/installer`), same validation, receipts, and proof — the
 transports never diverge.
 
+This is the **evolution MCP**: it reads and rewrites a checkout. A product's
+users and their agents call the running server's routes (including
+`POST /api/ext/invoke`) under its session and policy; never ship this server
+to them.
+
 ## Install
 
 `install.sh` already puts `gogogo-mcp` next to `gogogo`:
@@ -67,9 +72,9 @@ JSON-config clients take the Claude Code block verbatim.
 | `recipe_update` | Yes (`confirm:true`) | Update one installed recipe from a directory or catalog entry (dry-run previews) |
 | `recipe_uninstall` | Yes (`confirm:true`) | Remove one installed recipe by id; deletes only pristine files and keeps edited files |
 | `recipe_status` | No | Read-only recipe drift report: pristine vs edited files, generated/schema/policy state |
-| `recipe_list` | No | Recipe discovery: built-in capabilities plus user-installed recipes, with origin/lifecycle and invocable verbs |
-| `recipe_describe` | No | Describe one recipe by id (including its invocable verbs) |
-| `recipe_invoke` | Yes | Invoke one declared mutating verb against a running server (loopback only) under the operator session token |
+| `recipe_list` | No | Recipe discovery: built-in capabilities plus user-installed recipes, with origin/lifecycle, summary, invocable verbs, and the mutating routes each recipe deliberately omits |
+| `recipe_describe` | No | Describe one recipe by id: declaration, invocable verbs with a description, `{id}`/body params with per-param help, and omitted routes with reasons |
+| `recipe_invoke` | Server state (mutating verbs only) | Client for one declared verb (read or mutating) against a running server (loopback only) under the operator session token; a declared `{id}` verb takes `id` in `params` as a UUID and validates it before dispatch. A mutating verb changes server state, so read `recipe_describe` first. This is not a product MCP |
 | `build_prerequisites` | No | How to build the desktop shell or the Android target: prerequisites, `make desktop`/`make mobile`, the smoke gates, the Android driver swap (tursogo → ncruces) and the mobile limits. `platform` is `desktop` or `mobile`; empty returns both. Same text as `gogogo --help` |
 | `sync_prerequisites` | No | Desktop↔server sync prerequisites: a reachable NATS leaf listener, `NATS_TOKEN`, `CLOUD_SYNC_URL`, account identity, and a private overlay before public exposure |
 
@@ -78,6 +83,65 @@ Read-only tools need nothing else. Mutating tools fail closed without
 apply. `export_unit` is the exception to the exception: it mutates only the
 scratch directory you name, never the checkout it reads, so it needs no
 confirm gate. Formats default to `json` on this transport.
+
+### Installer surface vs product surface
+
+There is **one evolution CLI and one evolution MCP**, not a second pair for
+the product. Keep the two roles apart even though they share an engine:
+
+| Surface | Binary / route | Who runs it | May mutate |
+|---|---|---|---|
+| Evolution CLI | `gogogo` | the developer | yes — the checkout |
+| Evolution MCP | `gogogo-mcp` (stdio) | the developer's agent | yes — the checkout, via `trim_apply`, `new_feature`, `recipe_install`, `recipe_update`, `recipe_uninstall` |
+| Product HTTP API | `cmd/web` routes + `POST /api/ext/invoke` | the product's users and their agents | yes — the product's own data, under its session/RBAC |
+| Product client transport | `gogogo recipe invoke` / MCP `recipe_invoke` | the developer/operator, for testing | no local tree writes; it calls the running server |
+
+Rules that follow:
+
+- **Never ship the installer MCP to end users.** It reads and rewrites a
+  checkout; it is not a product feature. A product that wants an MCP should
+  build one over its own HTTP API, not expose this one.
+- **`recipe invoke` / `recipe_invoke` are clients, not a product surface.**
+  They exist so a developer can exercise a declared action without a browser.
+  The product's contract is the HTTP route plus the action declaration; any
+  client (web, native, an agent's own MCP) uses that route.
+- **The product surface is fenced by the server itself.** `/api/ext/invoke`
+  checks the session cookie, the `user` policy row, and the wrapped route's
+  own RBAC, exactly like a browser call. A recipe adds no installer tool and
+  no per-recipe CLI verb: it declares actions, and the one dispatcher serves
+  them.
+- **Discovery is dynamic.** `recipe list` / `recipe describe` read the
+  registry plus `.recipes/*.yml` at call time, so an install appears without a
+  help edit. `{id}` is the one supported path param (a UUID); a route with
+  another placeholder is refused until a typed format exists.
+
+### Machine identity: design gate, not implemented
+
+Today the product client transport is **loopback-only and uses the operator's
+session** (a real login or `auth.OpenSession`). There is no API-token table,
+issuance flow, or remote client. That is deliberate: a machine token is not a
+small feature, it is a second way to hold a `Role`.
+
+If a concrete external client appears, the design that fits this codebase is:
+
+- a **labeled, long-lived session** in the existing `sessions` table (same
+  `Role` and allowlist; no second auth pillar), with `label`, `kind=machine`,
+  `last_used`, and an explicit expiry;
+- issuance and revocation in account settings, with `sign-out-everywhere`
+  revoking it; rotation is a first-class action, not a database edit;
+- at the edge, `Authorization: Bearer <token>` is resolved to that session
+  before the normal session/RBAC middleware runs; the handler still sees a
+  session subject, never a client-supplied id;
+- an audit event for issuance, use, rotation and revocation, carrying
+  event/reason/subject/actor and never the secret.
+
+The threat model must answer, before code: stolen-token blast radius (it is
+the full `Role`), replay and expiry, revocation latency, logging/redaction,
+scope reduction, and whether the client is trusted to hold a long-lived
+secret at all. Until that exists, operate remotely through **SSH port-forward
+or Tailscale** against the loopback server. Do **not** expose
+`/api/ext/invoke` or the installer MCP publicly; a public product API needs
+its own TLS/reverse-proxy and identity story, not this port.
 
 Generated code follows [`skills/gogogo-coding-standards`](https://github.com/calionauta/gogogo/tree/master/skills/gogogo-coding-standards)
 (Go rules; `advise_stack` output cites it).

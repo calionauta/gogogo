@@ -1,0 +1,104 @@
+// The access-denied page: the skin for a 403.
+//
+// A signed-in user the RBAC policy refused used to get a bare "forbidden"
+// body — a dead end with no way back and no explanation of what happened.
+// This page renders the same shell every module renders (rail, header,
+// account menu) with one honest sentence and the two destinations that
+// always work, so a refusal reads as an answer instead of a broken page.
+//
+// It lives in internal/ui because the shell IS the skin: internal/rbac
+// cannot import this package (ui imports rbac), so the deny path injects a
+// renderer instead — see internal/server/forbidden.go.
+//
+// The copy is the user's words, so it goes through the i18n catalog like
+// every other string in the tree.
+package ui
+
+import (
+	"context"
+
+	"github.com/calionauta/gogogo/internal/i18n"
+	"github.com/calionauta/gogogo/internal/icon"
+)
+
+// ForbiddenData is what the page needs: who was refused, and the build the
+// shell shows in the rail badge.
+type ForbiddenData struct {
+	Email       string
+	Role        string
+	BuildLabel  string
+	BuildCommit string
+}
+
+// forbiddenCopy is the page's words, resolved once from the request context.
+// The body is a child component and does not inherit the parent's context, so
+// resolving the catalog before the shell keeps the lookup on the request that
+// owns it (and keeps the child's context honest).
+type forbiddenCopy struct {
+	Heading   string
+	Title     string
+	Body      string
+	Dashboard string
+	Account   string
+}
+
+func forbiddenCopyFor(ctx context.Context, d ForbiddenData) forbiddenCopy {
+	return forbiddenCopy{
+		Heading:   i18n.T(ctx, "forbidden.heading", nil),
+		Title:     i18n.T(ctx, "forbidden.title", nil),
+		Body:      i18n.T(ctx, "forbidden.body", map[string]any{"Role": forbiddenRole(d.Role)}),
+		Dashboard: i18n.T(ctx, "forbidden.dashboard", nil),
+		Account:   i18n.T(ctx, "forbidden.account", nil),
+	}
+}
+
+// Forbidden renders the 403 page inside the shared shell.
+//
+// Module stays empty: the page is not a destination of the rail, so no rail
+// entry is marked active. The heading is the page's own title, not a
+// module's.
+templ Forbidden(d ForbiddenData) {
+	@forbiddenPage(d, forbiddenCopyFor(ctx, d))
+}
+
+// forbiddenPage is the shell half: it receives resolved copy, so no child
+// component reaches back for a context it was not given.
+templ forbiddenPage(d ForbiddenData, c forbiddenCopy) {
+	@Shell(Data{
+		Title:       c.Heading + " — gogogo",
+		Heading:     c.Heading,
+		Email:       d.Email,
+		Role:        d.Role,
+		BuildLabel:  d.BuildLabel,
+		BuildCommit: d.BuildCommit,
+	}, nil, nil, nil, forbiddenBody(c))
+}
+
+// forbiddenBody is the page's work area: the sentence, the role that got
+// refused, and the two ways out. It copies the empty-state composition (the
+// glyph is decorative, the copy is the content).
+templ forbiddenBody(c forbiddenCopy) {
+	<div class="ui-page ui-page-narrow ui-stack">
+		<section class="ui-card" aria-label={ c.Heading }>
+			<div class="ui-card-body ui-empty">
+				@icon.Icon("material-symbols:lock", "h-12 w-12 mx-auto mb-3 opacity-30")
+				<p class="ui-empty-title">{ c.Title }</p>
+				<p class="ui-empty-body">{ c.Body }</p>
+				<div class="stat-actions mt-3">
+					<a href="/dashboard" class="btn btn-primary btn-sm">{ c.Dashboard }</a>
+					<a href="/account" class="btn btn-ghost btn-sm">{ c.Account }</a>
+				</div>
+			</div>
+		</section>
+	</div>
+}
+
+// forbiddenRole is the role the copy names. A session always carries one,
+// but an empty role would print "Your role () does not include…" — so it
+// falls back to the default role the RBAC vocabulary uses.
+func forbiddenRole(role string) string {
+	if role == "" {
+		return "user"
+	}
+	return role
+}

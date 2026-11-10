@@ -11,6 +11,7 @@
 - skills/gogogo-coding-standards/SKILL.md — Go + template rules (read when editing .go; on a .templ edit also read the UI skill below for the Datastar/backend gate)
 - skills/gogogo-ui/SKILL.md — template UI rules over the vendored DaisyUI vocabulary (read before any .templ/CSS edit, with docs/ui-themes.md)
 - skills/gogogo-recipe-authoring/SKILL.md — extension authoring contract (read before creating a feature, installing/editing a recipe, filling a slot, or declaring routes/tables/jobs)
+- Two surfaces, never conflated: `cmd/gogogo` + `cmd/gogogo-mcp` are the **evolution** tools (developer only, may rewrite a checkout); a product's users/agents use `cmd/web` routes + `POST /api/ext/invoke` under session/RBAC. `recipe invoke` / `recipe_invoke` are developer clients of that route, not a product MCP. Details: docs/mcp.md#installer-surface-vs-product-surface.
 
 ## By task
 

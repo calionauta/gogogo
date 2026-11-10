@@ -240,6 +240,7 @@ panorama graph (capabilities + recipes)
 
 - **Owned:** `features/graph`, `internal/graph`
 - **Routes:** `/api/graph/dagnats`, `/api/graph/panorama`, `/api/graph/ping`, `/api/graph/presence`, `/graph`
+- **Depends on:** sounds
 - **Why that class:** Delete dirs + MountFeature line.
 
 ## `i18n` — plugin
@@ -350,6 +351,7 @@ signed-in summary page; the dashboard.card slot host
 
 - **Owned:** `features/dashboard`
 - **Routes:** `/dashboard`
+- **Depends on:** sounds
 - **Why that class:** Host page for dashboard.card: one unit mounts itself through the recipe seam. Remove manually (delete the unit, its two policy rows, its Modules entry).
 
 ## `landing` — feature
@@ -400,6 +402,7 @@ room presence demo (one grain per room, crash hook included)
 
 - **Owned:** `features/room`
 - **Routes:** `/room`, `/room/acquire`, `/room/crash`, `/room/heartbeat`, `/room/join`, `/room/leave`, `/room/release`, `/room/roster`, `/room/stream`
+- **Depends on:** sounds
 - **Why that class:** Delete the dir, the routes it mounts through the seam, and the Room entry in internal/ui/modules.go.
 - **Warning:** The Room sidebar entry is removed by hand with the unit.
 

@@ -32,7 +32,8 @@ files:
   features/notes/static/notes.js: fbe9cce1da47a69de1fd7e3eb6687b25dd603809f9b6ddbf34e60cc45b649f51
 declaration:
   metrics:
-  - {label: Notes, query: "SELECT COUNT(*) FROM notes WHERE owner = ?", signal: notesCount}
+  - {label: Total, query: "SELECT COUNT(*) FROM notes", signal: notesTotal, ownerBinds: false}
+  - {label: Mine, query: "SELECT COUNT(*) FROM notes WHERE owner = ?", signal: notesMine}
   panel:
     component: "notes_list"
     prompt: "notes_list {scope: all|mine} whenever the request involves the user's shared notes"

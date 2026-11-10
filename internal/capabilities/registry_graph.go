@@ -8,7 +8,10 @@ var graphUnits = []Capability{
 		ID:      "graph",
 		Kind:    KindPlugin,
 		Summary: "panorama graph (capabilities + recipes)",
-		Dirs:    []string{"features/graph", "internal/graph"},
-		Reason:  "Delete dirs + MountFeature line.",
+		DependsOn: []string{
+			depSounds,
+		},
+		Dirs:   []string{"features/graph", "internal/graph"},
+		Reason: "Delete dirs + MountFeature line.",
 	},
 }

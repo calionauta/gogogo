@@ -2,20 +2,13 @@
 package installer
 
 import (
-	"bytes"
-	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
-	"net"
-	"net/http"
-	"net/url"
-	"os"
-	"slices"
+	"maps"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/calionauta/gogogo/internal/capabilities"
 	"github.com/calionauta/gogogo/internal/recipe"
@@ -31,24 +24,34 @@ const (
 )
 
 type recipeDescriptor struct {
-	ID           string              `json:"id"`
-	Version      string              `json:"version,omitempty"`
-	Kind         string              `json:"kind"`
-	Summary      string              `json:"summary"`
-	Origin       string              `json:"origin"`
-	Installed    bool                `json:"installed"`
-	Removed      bool                `json:"removed,omitempty"`
-	Register     string              `json:"register,omitempty"`
-	DependsOn    []string            `json:"dependsOn,omitempty"`
-	Dependents   []string            `json:"dependents,omitempty"`
-	State        string              `json:"state"`
-	Routes       []string            `json:"routes,omitempty"`
-	Tables       []string            `json:"tables,omitempty"`
-	Jobs         []string            `json:"jobs,omitempty"`
-	Slots        []string            `json:"slots,omitempty"`
-	Invoke       []string            `json:"invoke,omitempty"`
-	InvokeParams map[string][]string `json:"invokeParams,omitempty"`
-	Actions      []string            `json:"actions,omitempty"`
+	ID               string              `json:"id"`
+	Version          string              `json:"version,omitempty"`
+	Kind             string              `json:"kind"`
+	Summary          string              `json:"summary"`
+	Origin           string              `json:"origin"`
+	Installed        bool                `json:"installed"`
+	Removed          bool                `json:"removed,omitempty"`
+	Register         string              `json:"register,omitempty"`
+	DependsOn        []string            `json:"dependsOn,omitempty"`
+	Dependents       []string            `json:"dependents,omitempty"`
+	State            string              `json:"state"`
+	Routes           []string            `json:"routes,omitempty"`
+	Tables           []string            `json:"tables,omitempty"`
+	Jobs             []string            `json:"jobs,omitempty"`
+	Slots            []string            `json:"slots,omitempty"`
+	Invoke           []string            `json:"invoke,omitempty"`
+	InvokeParams     map[string][]string `json:"invokeParams,omitempty"`
+	InvokePathParams map[string][]string `json:"invokePathParams,omitempty"`
+	// Omitted names the mutating routes the author kept out of the headless
+	// surface, with the reason. Discovery shows the decision instead of
+	// implying the recipe forgot them.
+	Omitted []string `json:"omitted,omitempty"`
+	// InvokeDescriptions and InvokeParamHelp are the discovery half that
+	// makes a verb choosable without reading the handler. They ride the
+	// receipt/manifest and are additive so older consumers keep working.
+	InvokeDescriptions map[string]string            `json:"invokeDescriptions,omitempty"`
+	InvokeParamHelp    map[string]map[string]string `json:"invokeParamHelp,omitempty"`
+	Actions            []string                     `json:"actions,omitempty"`
 }
 
 func descriptorState(installed, removed bool, origin string) string {
@@ -75,13 +78,38 @@ func applyReceiptSurface(desc *recipeDescriptor, r recipe.Receipt) {
 	// The installed variant's verbs win when it declares any; an empty
 	// receipt never blanks the registry mirror of the in-tree unit.
 	if len(r.Declaration.Actions) > 0 {
-		desc.Invoke = desc.Invoke[:0]
-		desc.InvokeParams = map[string][]string{}
-		for _, a := range r.Declaration.Actions {
-			desc.Invoke = append(desc.Invoke, a.Verb)
-			if len(a.Params) > 0 {
-				desc.InvokeParams[a.Verb] = append([]string(nil), a.Params...)
-			}
+		applyReceiptActions(desc, r.Declaration.Actions)
+	}
+	desc.Omitted = desc.Omitted[:0]
+	for _, o := range r.Declaration.Omitted {
+		desc.Omitted = append(desc.Omitted, o.Route.Method+" "+o.Route.Pattern+" — "+o.Reason)
+	}
+}
+
+// applyReceiptActions replaces the descriptor's verbs with the receipt's
+// declaration. Kept separate from applyReceiptSurface so the discovered
+// surface stays one flat list of assignments instead of a nested condition.
+func applyReceiptActions(desc *recipeDescriptor, actions []recipe.InvokeAction) {
+	desc.Invoke = desc.Invoke[:0]
+	desc.InvokeParams = map[string][]string{}
+	desc.InvokePathParams = map[string][]string{}
+	desc.InvokeDescriptions = map[string]string{}
+	desc.InvokeParamHelp = map[string]map[string]string{}
+	for _, a := range actions {
+		desc.Invoke = append(desc.Invoke, a.Verb)
+		if len(a.Params) > 0 {
+			desc.InvokeParams[a.Verb] = append([]string(nil), a.Params...)
+		}
+		if len(a.PathParams) > 0 {
+			desc.InvokePathParams[a.Verb] = append([]string(nil), a.PathParams...)
+		}
+		if a.Description != "" {
+			desc.InvokeDescriptions[a.Verb] = a.Description
+		}
+		if len(a.ParamHelp) > 0 {
+			help := make(map[string]string, len(a.ParamHelp))
+			maps.Copy(help, a.ParamHelp)
+			desc.InvokeParamHelp[a.Verb] = help
 		}
 	}
 }
@@ -131,6 +159,10 @@ func recipeDescriptors(dir string) ([]recipeDescriptor, error) {
 		for verb, ps := range cap.ActionParams {
 			desc.InvokeParams[verb] = append([]string(nil), ps...)
 		}
+		desc.InvokePathParams = map[string][]string{}
+		for verb, ps := range cap.ActionPathParams {
+			desc.InvokePathParams[verb] = append([]string(nil), ps...)
+		}
 		desc.State = descriptorState(desc.Installed, desc.Removed, desc.Origin)
 		out = append(out, desc)
 	}
@@ -139,8 +171,14 @@ func recipeDescriptors(dir string) ([]recipeDescriptor, error) {
 			continue
 		}
 		r := receiptMap[id]
+		summary := r.Summary
+		if summary == "" {
+			// Older receipts carry no summary; the repo is the honest
+			// fallback, but `recipe check` asks the author to replace it.
+			summary = r.Upstream.Repo
+		}
 		desc := recipeDescriptor{
-			ID: id, Kind: extRecipeKindName, Summary: r.Upstream.Repo,
+			ID: id, Kind: extRecipeKindName, Summary: summary,
 			Origin: "recipe", Installed: true, Register: r.Register,
 			Removed: r.Removed != "", Actions: []string{extRecipeInstall, extRecipeUpdate, extRecipeStatus, extRecipeUninstall},
 		}
@@ -171,7 +209,11 @@ func runRecipeList(args []string, stdout io.Writer) error {
 		return json.NewEncoder(stdout).Encode(exts)
 	}
 	for _, e := range exts {
-		fmt.Fprintf(stdout, "%s\t%s\t%s\t%s\n", e.ID, e.Kind, e.Origin, e.Summary)
+		line := fmt.Sprintf("%s\t%s\t%s\t%s", e.ID, e.Kind, e.Origin, e.Summary)
+		if len(e.Invoke) > 0 {
+			line += "\tinvoke: " + strings.Join(e.Invoke, ",")
+		}
+		fmt.Fprintln(stdout, line)
 	}
 	return nil
 }
@@ -255,163 +297,40 @@ func printDescribe(stdout io.Writer, e recipeDescriptor) {
 	if len(e.InvokeParams) > 0 {
 		fmt.Fprintf(stdout, "  invokeParams: %v\n", e.InvokeParams)
 	}
+	if len(e.InvokePathParams) > 0 {
+		fmt.Fprintf(stdout, "  invokePathParams: %v\n", e.InvokePathParams)
+	}
+	for _, omitted := range e.Omitted {
+		fmt.Fprintf(stdout, "  omitted: %s\n", omitted)
+	}
+	printInvokeHelp(stdout, e)
 	fmt.Fprintf(stdout, "  lifecycle: %v\n", e.Actions)
 }
 
-type invokeParams []string
-
-func (p *invokeParams) String() string { return strings.Join(*p, ",") }
-
-func (p *invokeParams) Set(v string) error {
-	*p = append(*p, v)
-	return nil
-}
-
-// runRecipeInvoke runs one declared verb against the operator-supplied
-// session on a running server: `recipe invoke <id> <verb> --server
-// <loopback-url> --session <token> --param k=v ...`. The server URL is
-// operator config (flag or env), restricted to loopback for the headless
-// client — a remote URL is a different trust decision and a future phase.
-// The id is validated against the checkout's capabilities + receipts
-// (unknown id fails before any dial); the verb is validated against the
-// receipt's Actions when those are visible, otherwise the server's
-// registry is the source of truth and decides.
-func runRecipeInvoke(ctx context.Context, args []string, stdout io.Writer) error {
-	fs := flag.NewFlagSet("recipe invoke", flag.ContinueOnError)
-	dir := fs.String("dir", ".", "target checkout directory")
-	server := fs.String("server", strEnv("GOGOGO_SERVER"), "running server base URL (loopback only)")
-	session := fs.String("session", strEnv("GOGOGO_SESSION"), "operator session token (or GOGOGO_SESSION)")
-	var params invokeParams
-	fs.Var(&params, "param", "form field k=v (repeatable)")
-	format := fs.String("format", planFormatText, "output format: text|json")
-	fs.SetOutput(io.Discard)
-	// Leading positionals are id + verb; ones after the flags are accepted
-	// too. Matches the documented shape (`invoke <id> <verb> --server ...`),
-	// which the flag parser cannot handle after the first positional.
-	ids := []string{}
-	rest := args
-	for len(rest) > 0 && !strings.HasPrefix(rest[0], "-") {
-		ids = append(ids, rest[0])
-		rest = rest[1:]
+// printInvokeHelp renders the agent-facing half of discovery: what each
+// declared verb does and what its params mean. A bare verb name forces the
+// caller to read the handler, which is exactly what a headless agent cannot do.
+func printInvokeHelp(stdout io.Writer, e recipeDescriptor) {
+	if len(e.InvokeDescriptions) == 0 && len(e.InvokeParamHelp) == 0 {
+		return
 	}
-	if err := fs.Parse(rest); err != nil {
-		return &ExitError{code: 1, msg: "recipe invoke: " + err.Error()}
-	}
-	ids = append(ids, fs.Args()...)
-	if len(ids) != 2 {
-		return &ExitError{code: 1, msg: "recipe invoke needs exactly a recipe id and a verb"}
-	}
-	if *session == "" {
-		return &ExitError{code: 1, msg: "recipe invoke needs a session (--session or GOGOGO_SESSION)"}
-	}
-	if _, err := invokeTarget(*dir, ids[0], ids[1]); err != nil {
-		return err
-	}
-	endpoint, err := invokeURL(*server)
-	if err != nil {
-		return err
-	}
-	payload, err := json.Marshal(map[string]any{
-		"id":     ids[0],
-		"verb":   ids[1],
-		"params": stringMap(params),
-	})
-	if err != nil {
-		return &ExitError{code: 1, msg: "recipe invoke: " + err.Error()}
-	}
-	return invokeCall(ctx, endpoint, *session, payload, *format, stdout)
-}
-
-// invokeTarget resolves the checkout-side descriptor and validates the
-// verb the same way the run measures: receipt-visible actions are
-// checked locally; server-side registries (built-ins) are authoritative
-// and checked by the server.
-func invokeTarget(dir, id, verb string) (*recipeDescriptor, error) {
-	exts, err := recipeDescriptors(dir)
-	if err != nil {
-		return nil, err
-	}
-	for i := range exts {
-		if exts[i].ID != id {
-			continue
+	fmt.Fprintln(stdout, "  invoke help:")
+	for _, verb := range e.Invoke {
+		if desc := e.InvokeDescriptions[verb]; desc != "" {
+			fmt.Fprintf(stdout, "    %s — %s\n", verb, desc)
 		}
-		target := &exts[i]
-		if len(target.Invoke) > 0 && !slices.Contains(target.Invoke, verb) {
-			return nil, &ExitError{code: 1, msg: "recipe " + id + " declares no invocable action " + verb}
+		pathParams := e.InvokePathParams[verb]
+		if len(pathParams) > 0 {
+			fmt.Fprintf(stdout, "      path: %s (uuid)\n", strings.Join(pathParams, ", "))
 		}
-		return target, nil
+		params := e.InvokeParams[verb]
+		if len(params) > 0 {
+			fmt.Fprintf(stdout, "      params: %s\n", strings.Join(params, ", "))
+		}
+		for _, p := range append(append([]string(nil), pathParams...), params...) {
+			if help := e.InvokeParamHelp[verb][p]; help != "" {
+				fmt.Fprintf(stdout, "      %s: %s\n", p, help)
+			}
+		}
 	}
-	return nil, &ExitError{code: 1, msg: "recipe " + id + " not found"}
-}
-
-// invokeCall sends the payload to the validated loopback endpoint and
-// renders the answer. Extracted from runRecipeInvoke for the
-// complexity gate.
-func invokeCall(
-	ctx context.Context, endpoint, session string, payload []byte, format string, stdout io.Writer,
-) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
-	if err != nil {
-		return &ExitError{code: 1, msg: "recipe invoke: " + err.Error()}
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.AddCookie(&http.Cookie{
-		Name:     "gogogo_auth",
-		Value:    session,
-		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteLaxMode,
-	})
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return &ExitError{code: 1, msg: "recipe invoke: " + err.Error()}
-	}
-	defer func() { _ = resp.Body.Close() }()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return &ExitError{code: 1, msg: "recipe invoke: " + err.Error()}
-	}
-	if resp.StatusCode >= http.StatusMultipleChoices {
-		return &ExitError{code: 1, msg: "recipe invoke: server answered " +
-			resp.Status + ": " + strings.TrimSpace(string(body))}
-	}
-	if format == planFormatJSON {
-		return json.NewEncoder(stdout).Encode(map[string]any{"status": resp.StatusCode, "body": string(body)})
-	}
-	_, err = fmt.Fprintln(stdout, string(body))
-	return err
-}
-
-func strEnv(key string) string { return os.Getenv(key) }
-
-// invokeURL validates the operator's server URL for the headless client:
-// http/https only, loopback host only. Anything else is refused before
-// any dial — the SSRF guard for v1.
-func invokeURL(raw string) (string, error) {
-	if raw == "" {
-		return "", &ExitError{code: 1, msg: "recipe invoke needs --server (or GOGOGO_SERVER)"}
-	}
-	u, err := url.Parse(raw)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
-		return "", &ExitError{code: 1, msg: "recipe invoke: --server must be http/https"}
-	}
-	host := u.Hostname()
-	if host != "localhost" && net.ParseIP(host) == nil {
-		return "", &ExitError{code: 1, msg: "recipe invoke: --server must be loopback (v1)"}
-	}
-	if ip := net.ParseIP(host); ip != nil && !ip.IsLoopback() {
-		return "", &ExitError{code: 1, msg: "recipe invoke: --server must be loopback (v1)"}
-	}
-	u.Path = strings.TrimSuffix(u.Path, "/") + "/api/ext/invoke"
-	return u.String(), nil
-}
-
-func stringMap(p invokeParams) map[string]string {
-	out := map[string]string{}
-	for _, kv := range p {
-		k, v, _ := strings.Cut(kv, "=")
-		out[k] = v
-	}
-	return out
 }

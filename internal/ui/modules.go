@@ -101,6 +101,20 @@ func Visible(role string) []Module {
 	return out
 }
 
+// Reachable returns the ids of the destinations the given role may open:
+// the set Visible offers, as a lookup.
+//
+// The dashboard grid uses it to decide which cards may carry a link. A card
+// whose destination the role cannot open shows its numbers and no button —
+// a link that 403s is a broken promise, the same rule the rail follows.
+func Reachable(role string) map[string]bool {
+	out := make(map[string]bool, len(Modules))
+	for _, m := range Visible(role) {
+		out[m.ID] = true
+	}
+	return out
+}
+
 // ModuleGroup is one labelled block of the sidebar. The pinned block has an
 // empty label: it renders before the first heading, without one.
 type ModuleGroup struct {

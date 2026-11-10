@@ -12,5 +12,11 @@
   "todo.empty.title": "Nenhuma tarefa por aqui ainda.",
   "todo.empty.body": "Adicione uma abaixo para começar.",
   "inbox.unread.one": "{{.Count}} não lida",
-  "inbox.unread.other": "{{.Count}} não lidas"
+  "inbox.unread.other": "{{.Count}} não lidas",
+  "forbidden.heading": "Acesso negado",
+  "forbidden.title": "Você não tem acesso a esta página",
+  "forbidden.body": "Seu papel ({{.Role}}) não inclui esta área. Fale com um administrador se achar que isso é um engano.",
+  "forbidden.dashboard": "Ir para o dashboard",
+  "forbidden.account": "Configurações da conta",
+  "dashboard.card.locked": "Indisponível para o seu papel"
 }

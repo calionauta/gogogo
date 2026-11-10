@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 )
 
 type invokeProvider struct {
@@ -219,9 +220,77 @@ func TestActionProblemsRejectStreamingTarget(t *testing.T) {
 	}
 }
 
-// TestInvokeRefusesParameterizedRoute pins the literal-path boundary: a
-// {id} target must fail before the handler runs, never with a guessed id.
-func TestInvokeRefusesParameterizedRoute(t *testing.T) {
+// TestInvokeServesDeclaredPathParam is the positive half of `{id}`: the id
+// is validated, moved from the form into the path, and the handler sees only
+// the route parameter. This is what makes toggle/delete callable headless
+// without a guessed id.
+func TestInvokeServesDeclaredPathParam(t *testing.T) {
+	id := uuid.NewString()
+	route := Route{Method: "POST", Pattern: "/api/probe/{id}/toggle"}
+	action := InvokeAction{Verb: "toggle", Route: route, PathParams: []string{"id"}}
+	var gotPath, gotBodyID string
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotBodyID = r.FormValue("id")
+		w.WriteHeader(http.StatusOK)
+	})
+	code, _, err := Invoke(context.Background(), handler, "gogogo_auth", "tok",
+		action, route, url.Values{"id": {id}})
+	if err != nil {
+		t.Fatalf("invoke: %v", err)
+	}
+	if code != http.StatusOK {
+		t.Fatalf("status %d, want 200", code)
+	}
+	if gotPath != "/api/probe/"+id+"/toggle" {
+		t.Fatalf("path = %q, want the id substituted", gotPath)
+	}
+	if gotBodyID != "" {
+		t.Fatalf("id must not remain a form field, got %q", gotBodyID)
+	}
+}
+
+// TestInvokeRefusesUndeclaredOrMalformedPathParam covers the refusal half:
+// a placeholder the action did not declare, a missing id, and a non-UUID id
+// all fail before the handler runs.
+func TestInvokeRefusesUndeclaredOrMalformedPathParam(t *testing.T) {
+	route := Route{Method: "POST", Pattern: "/api/probe/{id}/toggle"}
+	called := false
+	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusOK)
+	})
+	declared := InvokeAction{Verb: "toggle", Route: route, PathParams: []string{"id"}}
+	for _, tc := range []struct {
+		name   string
+		action InvokeAction
+		form   url.Values
+	}{
+		{
+			name:   "undeclared placeholder",
+			action: InvokeAction{Verb: "toggle", Route: route},
+			form:   url.Values{"id": {uuid.NewString()}},
+		},
+		{name: "missing id", action: declared, form: url.Values{}},
+		{name: "non-uuid id", action: declared, form: url.Values{"id": {"1"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			called = false
+			_, _, err := Invoke(context.Background(), handler, "gogogo_auth", "tok",
+				tc.action, route, tc.form)
+			if err == nil {
+				t.Fatal("malformed path param must be refused")
+			}
+			if called {
+				t.Fatal("refused invoke reached the handler")
+			}
+		})
+	}
+}
+
+// TestInvokeRefusesParameterizedRouteWithoutDeclaration keeps the old
+// literal boundary for a route whose action never opted into `{id}`.
+func TestInvokeRefusesParameterizedRouteWithoutDeclaration(t *testing.T) {
 	called := false
 	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		called = true

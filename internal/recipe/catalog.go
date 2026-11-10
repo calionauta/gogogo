@@ -38,7 +38,11 @@ var catalogHashRE = regexp.MustCompile(`^(sha256:)?[a-f0-9]{64}$`)
 // tens of megabytes), and MinCore names the compatibility claim (without it an
 // upgrade is advisory by accident).
 type CatalogEntry struct {
-	ID      string            `yaml:"id"`
+	ID string `yaml:"id"`
+	// Summary is the user-facing sentence discovery shows. The review
+	// requires it so `recipe list` never answers with a repo path where a
+	// human or agent expects to learn what the recipe allows.
+	Summary string            `yaml:"summary"`
 	Version string            `yaml:"version"`
 	Source  Upstream          `yaml:"source"`
 	Files   map[string]string `yaml:"files"`
@@ -60,6 +64,16 @@ type CatalogEntry struct {
 	Routes    []Route  `yaml:"routes,omitempty"`
 	Tables    []string `yaml:"tables,omitempty"`
 	Jobs      []string `yaml:"jobs,omitempty"`
+	// Actions is the invocable surface the review saw. Without it a
+	// catalog install would write a receipt with routes but no verbs, so
+	// the recipe would be discoverable and uncallable headless.
+	Actions []InvokeAction `yaml:"actions,omitempty"`
+	// Omitted carries the author's deliberate headless omissions, so a
+	// reviewed install cannot turn a documented decision back into a
+	// `recipe check` warning.
+	Omitted []OmittedRoute `yaml:"omitted,omitempty"`
+	Metrics []Metric       `yaml:"metrics,omitempty"`
+	Panel   *PanelSpec     `yaml:"panel,omitempty"`
 	// UpstreamDeps is a pointer so "absent" and "empty" are different claims:
 	// absent is a missing declaration, empty is "this recipe needs nothing".
 	UpstreamDeps    *[]string `yaml:"upstreamDeps"`
@@ -114,6 +128,9 @@ func (e CatalogEntry) identityProblems() []string {
 	if !catalogVersionRE.MatchString(e.Version) {
 		out = append(out, fmt.Sprintf(
 			"version %q must be vMAJOR.MINOR.PATCH (optionally with a pre-release suffix)", e.Version))
+	}
+	if strings.TrimSpace(e.Summary) == "" {
+		out = append(out, "summary is required: discovery shows it instead of the upstream repo")
 	}
 	if e.Source.Repo == "" {
 		out = append(out, "source.repo is empty: the pristine baseline must be locatable")
@@ -173,33 +190,25 @@ func (e CatalogEntry) surfaceProblems() []string {
 	// recipe claiming content this build does not draw would install cleanly and
 	// render nothing.
 	out = append(out, SlotProblems(e.Slots)...)
+	// The declarative halves that ride the receipt must be reviewed too. A
+	// catalog entry that omits them installs a recipe whose discovery surface
+	// is smaller than the one the author reviewed.
+	decl := Declaration{Routes: e.Routes, Actions: e.Actions, Omitted: e.Omitted, Metrics: e.Metrics, Panel: e.Panel}
+	out = append(out, ActionProblems(decl)...)
+	out = append(out, OmissionProblems(decl)...)
+	out = append(out, ActionDocProblems(decl)...)
+	out = append(out, MetricProblems(decl)...)
+	out = append(out, PanelProblems(decl)...)
 	for _, w := range e.WorksWith {
 		if w == "" {
 			out = append(out, "worksWith holds an empty set name")
 		}
 	}
-	if e.Register != "" {
-		if !safeRelPath(e.Register) {
-			out = append(out, fmt.Sprintf(
-				"register %q must be a clean repo-relative package path", e.Register))
-		} else if !catalogHasDir(e.Files, e.Register) {
-			out = append(out, fmt.Sprintf(
-				"register names %q, but files holds nothing under it: the generated "+
-					"registration would import a package the entry does not ship", e.Register))
-		}
+	if e.Register != "" && !safeRelPath(e.Register) {
+		out = append(out, fmt.Sprintf(
+			"register %q must be a clean repo-relative package path", e.Register))
 	}
 	return out
-}
-
-// catalogHasDir reports whether the entry ships code under dir.
-func catalogHasDir(files map[string]string, dir string) bool {
-	prefix := strings.TrimSuffix(dir, "/") + "/"
-	for p := range files {
-		if strings.HasPrefix(p, prefix) {
-			return true
-		}
-	}
-	return false
 }
 
 // reviewProblems covers the claims that make an entry a review rather than a

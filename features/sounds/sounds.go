@@ -37,8 +37,8 @@
 // needs an override from the table above.
 //
 // REMOVE (plugin): delete this package, drop @sounds.SoundAssets() from
-// the page layouts (features/todo/components/layout.templ, landing,
-// config, auth LoginPage, whiteboard) and @sounds.SoundSwitch() from each
-// page's *Sound() wrapper, then delete
+// every page's *Head() wrapper and @sounds.SoundSwitch() from every page's
+// *Sound() wrapper (the installer trim does both automatically — see
+// soundsPageLines in internal/installer/builtin_units.go), then delete
 // web/resources/static/cuelume.js + web/resources/static/cuelume/.
 package sounds

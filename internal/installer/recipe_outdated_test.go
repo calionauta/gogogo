@@ -30,7 +30,7 @@ func newVersionedRecipeDir(t *testing.T, version string) string {
 func writeCatalogEntry(t *testing.T, catalogDir, version string) {
 	t.Helper()
 	hash := recipe.Hash([]byte("catalog bytes"))
-	body := "id: pomodoro\nversion: " + version + "\n" +
+	body := "id: pomodoro\nsummary: A pomodoro timer with one page.\nversion: " + version + "\n" +
 		"source:\n  repo: example.com/recipes\n  ref: " + version + "\n" +
 		"files:\n  features/pomodoro/handlers/chi.go: sha256:" + hash + "\n" +
 		"license: MIT\nminCore: v0.56.0\nupstreamDeps: []\n" +

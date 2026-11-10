@@ -12,6 +12,7 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import (
 	"github.com/calionauta/gogogo/features/graph"
+	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/internal/components"
 	"github.com/calionauta/gogogo/internal/ui"
 )
@@ -58,7 +59,71 @@ func Page(email string, role string, buildLabel string, buildCommit string) temp
 			BuildLabel:  buildLabel,
 			BuildCommit: buildCommit,
 			Stack:       graphStack(),
-		}, nil, nil, nil, body()).Render(ctx, templ_7745c5c3_Buffer)
+		}, graphHead(), graphSound(), nil, body()).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+// graphHead carries the page's own <head> extras: the sound assets, so
+// the rail's mute control works here too.
+func graphHead() templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var2 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var2 == nil {
+			templ_7745c5c3_Var2 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = sounds.SoundAssets().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+// graphSound is the shell's mute control for this page. It is a
+// one-line templ wrapper on purpose: the installer's sounds trim drops the
+// @sounds.SoundSwitch() line, leaving an empty wrapper that still satisfies
+// the shell's slot (the import goes with it).
+func graphSound() templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var3 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var3 == nil {
+			templ_7745c5c3_Var3 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = sounds.SoundSwitch().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -82,21 +147,21 @@ func body() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var2 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var2 == nil {
-			templ_7745c5c3_Var2 = templ.NopComponent
+		templ_7745c5c3_Var4 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var4 == nil {
+			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"ui-page ui-stack\"><section class=\"ui-card\"><div class=\"ui-card-body\"><h2 class=\"ui-title\">System panorama</h2><p class=\"opacity-70\">Capabilities + installed recipes. Click a node for detail.</p><div class=\"flex flex-wrap gap-4 items-center py-3\" aria-label=\"Graph controls\"><div class=\"flex items-center gap-2\" role=\"group\" aria-label=\"View\"><span class=\"text-xs text-base-content/60\">View</span><div class=\"join\"><button type=\"button\" class=\"btn btn-sm btn-primary\" data-graph-source=\"panorama\" aria-pressed=\"true\">Panorama</button> <button type=\"button\" class=\"btn btn-sm\" data-graph-source=\"dagnats\" aria-pressed=\"false\">Workflows</button> <button type=\"button\" class=\"btn btn-sm\" data-graph-source=\"presence\" aria-pressed=\"false\">Presence</button></div></div><div class=\"flex items-center gap-2\" role=\"group\" aria-label=\"Kinds\"><span class=\"text-xs text-base-content/60\">Kinds</span> <label class=\"label cursor-pointer gap-2\"><input type=\"checkbox\" checked class=\"toggle toggle-primary toggle-sm\" data-graph-filter=\"core\"> <span>Core</span></label> <label class=\"label cursor-pointer gap-2\"><input type=\"checkbox\" checked class=\"toggle toggle-secondary toggle-sm\" data-graph-filter=\"plugin\"> <span>Servant</span></label> <label class=\"label cursor-pointer gap-2\"><input type=\"checkbox\" checked class=\"toggle toggle-accent toggle-sm\" data-graph-filter=\"feature\"> <span>Recipe</span></label></div><button id=\"graph-fit\" type=\"button\" class=\"btn btn-sm btn-ghost\">Fit</button></div><canvas id=\"graph-canvas\" style=\"width:100%;height:520px;cursor:grab;border:1px solid var(--color-base-300);border-radius:0.5rem\" aria-label=\"system graph\"></canvas><section id=\"graph-detail-card\" class=\"mt-3 border border-base-300 rounded-box p-3\" aria-live=\"polite\" aria-label=\"Node detail\"><p id=\"graph-detail\" class=\"text-sm text-base-content/70\">No node selected.</p></section></div></section></div><script src=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var3 string
-		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(graph.URL("graph.js"))
+		var templ_7745c5c3_Var5 string
+		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(graph.URL("graph.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/graph/components/page.templ`, Line: 74, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/graph/components/page.templ`, Line: 89, Col: 36}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

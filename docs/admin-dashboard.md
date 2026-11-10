@@ -101,6 +101,36 @@ a link that 403s, and a trimmed build without the engine offers no link at all
 (the console mount stays as the scaffold anchor, so a config-only gate would
 advertise a proxy with no upstream).
 
+## The dashboard grid (`/dashboard`)
+
+The dashboard is the summary page: **one card per rail destination that
+reports data**, plus the cells recipes contribute through the
+`dashboard.card` slot. A bundled recipe joins the grid by declaring its
+metrics — the generic path, so it appears with zero dashboard edits; an
+out-of-tree recipe joins through the `dashboard.card` slot:
+
+```go
+Metrics: []recipe.Metric{
+    {Label: "Total", Query: "SELECT COUNT(*) FROM notes", Signal: "notesTotal", OwnerBinds: recipe.WithoutOwner()},
+    {Label: "Mine",  Query: "SELECT COUNT(*) FROM notes WHERE owner = ?", Signal: "notesMine"},
+}
+```
+
+Three rules the grid keeps:
+
+- **The number matches the page.** A metric counts what the surface shows:
+  notes and boards are shared (every signed-in user sees every doc), so
+  their totals are global and a second metric counts what you wrote; a todo
+  count covers your own rows plus the ones shared with everyone. A metric
+  that names a table the recipe does not own fails at boot, and a metric
+  query that fails at runtime is logged and dropped — never a fake zero.
+- **Every destination keeps its card.** The grid summarizes the instance,
+  not the menu: a role that cannot open a destination still sees that
+  destination's numbers.
+- **The link follows the role.** A card whose destination the role cannot
+  open shows its numbers and no button (with a note saying why) — a link
+  that 403s is a broken promise, the same rule the rail follows.
+
 ## RBAC demo (viewer role)
 
 The Casbin demo needs no new page — it reuses the surfaces with two roles,

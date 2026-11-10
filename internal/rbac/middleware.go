@@ -77,6 +77,17 @@ func isPageNavigation(r *http.Request) bool {
 	return strings.Contains(accept, "text/html") && !strings.Contains(accept, "text/event-stream")
 }
 
+// DenyPage renders the answer for a SIGNED-IN user the policy refused.
+//
+// It exists so a refusal can wear the app's skin instead of a bare
+// "forbidden" body. internal/rbac cannot import internal/ui (the shell
+// imports this package), so the composition root injects the renderer —
+// see internal/server/forbidden.go. nil keeps the plain-text 403.
+//
+// The renderer never learns what was refused beyond the request it already
+// carries: the page says "no access", never what is behind the door.
+type DenyPage func(w http.ResponseWriter, r *http.Request, sess *auth.ValidatedSession)
+
 // denyAnonymous answers an unauthenticated request that the policy refused:
 // a page navigation is bounced to /login with an explanation, anything else
 // gets a 401 saying sign-in is required. Neither response reveals whether the
@@ -101,20 +112,24 @@ func denyAnonymous(w http.ResponseWriter, r *http.Request) {
 // A deny answers differently by audience: an anonymous PAGE navigation is
 // bounced to /login (with the requested path and an explanation), an
 // anonymous data request gets 401 "sign-in required", and a signed-in user
-// the policy refused gets 403 with no body to mine (same for policy errors:
-// fail closed, no oracle). Every deny is a warn log with
+// the policy refused gets 403 — the skinned page when the caller injected
+// one and the request is a navigation, the plain body otherwise (same for
+// policy errors: fail closed, no oracle). Every deny is a warn log with
 // subject/object/action (the audit trail auth's securitylog starts,
 // enforcement completes).
 func Middleware(a *auth.Auth, e *casbin.Enforcer, enabled bool) func(http.Handler) http.Handler {
-	return MiddlewareWithPermissive(a, e, enabled, false)
+	return MiddlewareWithPermissive(a, e, enabled, false, nil)
 }
 
 // MiddlewareWithPermissive adds audit-before-enforce rollout: with
 // permissive true, would-be denies are warn-logged (with permissive=1)
 // and the request proceeds. Flip it off once the logs are clean —
 // see docs/rbac.md. Production posture is permissive=false.
+//
+// deny is the page a refusal renders for a signed-in user's browser
+// navigation; nil keeps the plain-text 403.
 func MiddlewareWithPermissive(
-	a *auth.Auth, e *casbin.Enforcer, enabled, permissive bool,
+	a *auth.Auth, e *casbin.Enforcer, enabled, permissive bool, deny DenyPage,
 ) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -132,7 +147,7 @@ func MiddlewareWithPermissive(
 					denyAnonymous(w, r)
 					return
 				}
-				http.Error(w, "forbidden", http.StatusForbidden)
+				denySignedIn(w, r, sess, deny)
 				return
 			}
 			if !allow {
@@ -148,10 +163,28 @@ func MiddlewareWithPermissive(
 					denyAnonymous(w, r)
 					return
 				}
-				http.Error(w, "forbidden", http.StatusForbidden)
+				denySignedIn(w, r, sess, deny)
 				return
 			}
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// denySignedIn answers a signed-in user the policy refused.
+//
+// A browser navigation gets the skinned 403 page when the caller injected
+// one: the user typed a URL the app has, and the answer should look like
+// the app — the rail, the header, the way back. Everything else (XHR,
+// Datastar action, SSE) keeps the plain body: a page patched into a live
+// UI is noise, and a data client wants the status, not the markup.
+//
+// The status stays 403 in both cases — the page is an answer to a refusal,
+// not a redirect.
+func denySignedIn(w http.ResponseWriter, r *http.Request, sess *auth.ValidatedSession, deny DenyPage) {
+	if deny != nil && isPageNavigation(r) {
+		deny(w, r, sess)
+		return
+	}
+	http.Error(w, "forbidden", http.StatusForbidden)
 }

@@ -13,6 +13,24 @@ import (
 // RecipeID is the recipe id the todo unit declares itself under.
 const RecipeID = "todo"
 
+// Route patterns, one spelling each: a rename that missed one would split the
+// declared surface from the mounted one, which the composition gate refuses.
+const (
+	methodGet  = "GET"
+	methodPost = "POST"
+
+	todosAPI      = "/api/todos"
+	todoPage      = "/todo"
+	todoToggle    = "/api/todos/{id}/toggle"
+	todoDelete    = "/api/todos/{id}/delete"
+	todoClearDone = "/api/todos/completed/delete"
+	todoSuggest   = "/api/todos/suggest"
+	todoSuggestUI = "/api/todos/suggest-simulated"
+	todoRetryDemo = "/api/todos/retry-demo"
+	loginPath     = "/login"
+	signupPath    = "/signup"
+)
+
 // Recipe returns the declaration the composition root mounts through the
 // recipe seam. It lives beside the routes it describes so the two cannot drift
 // without one edit: the gate in internal/server compares this against the
@@ -39,25 +57,37 @@ func (p recipeProvider) ID() string { return RecipeID }
 // them, and a route that ships without a declaration is the failure the gate
 // reports.
 func (p recipeProvider) Declaration() recipe.Declaration {
-	const (
-		get  = "GET"
-		post = "POST"
-		// Repeated patterns, one spelling: goconst is right that a rename
-		// that missed one of these would split the declared surface.
-		todosAPI = "/api/todos"
-		todoPage = "/todo"
-		login    = "/login"
-		signup   = "/signup"
-	)
 	return recipe.Declaration{
+		// The counts are the rows the PAGE shows: the todo list reads the
+		// visible set (your own rows plus the ones shared with everyone),
+		// so a dashboard that counted only your own rows would disagree
+		// with the list beside it. The table is the todo unit's OWN
+		// (`ext_todo_todos`) — the core `todos` seed is dropped at boot
+		// once this unit's migration set lands, so a query naming it
+		// fails and the card disappears.
 		Metrics: []recipe.Metric{
-			{Label: "Open", Query: "SELECT COUNT(*) FROM todos WHERE owner = ? AND completed = 0", Signal: "openTodos"},
-			{Label: "Done", Query: "SELECT COUNT(*) FROM todos WHERE owner = ? AND completed = 1", Signal: "doneTodos"},
-			{Label: "Total", Query: "SELECT COUNT(*) FROM todos WHERE owner = ?", Signal: "totalTodos"},
 			{
-				Label:  "Shared",
-				Query:  "SELECT COUNT(*) FROM todos WHERE owner = ? AND visibility = 'public'",
-				Signal: "sharedTodos",
+				Label:  "Open",
+				Query:  "SELECT COUNT(*) FROM ext_todo_todos WHERE (owner = ? OR visibility = 'public') AND completed = 0",
+				Signal: "openTodos",
+			},
+			{
+				Label:  "Done",
+				Query:  "SELECT COUNT(*) FROM ext_todo_todos WHERE (owner = ? OR visibility = 'public') AND completed = 1",
+				Signal: "doneTodos",
+			},
+			{
+				Label:  "Total",
+				Query:  "SELECT COUNT(*) FROM ext_todo_todos WHERE owner = ? OR visibility = 'public'",
+				Signal: "totalTodos",
+			},
+			{
+				// Shared counts the rows everybody sees, so it does not
+				// bind the owner (the global spelling).
+				Label:      "Shared",
+				Query:      "SELECT COUNT(*) FROM ext_todo_todos WHERE visibility = 'public'",
+				Signal:     "sharedTodos",
+				OwnerBinds: recipe.WithoutOwner(),
 			},
 		},
 		Panel: &recipe.PanelSpec{
@@ -65,34 +95,92 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 			Prompt:    "todo_list {filter: open|done|all} whenever the request involves the user's OWN todos or tasks",
 			Writable:  []string{"filter"},
 		},
-		Tables: []string{"ext_todo_todos"},
-		Actions: []recipe.InvokeAction{
-			{
-				Verb: "create", Route: recipe.Route{Method: post, Pattern: todosAPI},
-				Params: []string{"title", "idem_key", "visibility"},
+		Tables:  []string{"ext_todo_todos"},
+		Actions: todoActions(),
+		Omitted: todoOmitted(),
+		Routes:  todoRoutes(),
+	}
+}
+
+// todoActions is the headless half. `toggle` and `delete` take the repository's
+// `{id}` (a UUID); clear_completed is the one bulk mutation an agent can run
+// without naming a row. The demo/LLM routes are not actions — see todoOmitted.
+func todoActions() []recipe.InvokeAction {
+	return []recipe.InvokeAction{
+		{
+			Verb:        "create",
+			Description: "Create a todo owned by the calling session.",
+			Route:       recipe.Route{Method: methodPost, Pattern: todosAPI},
+			Params:      []string{SearchTitleField, "idem_key", "visibility"},
+			ParamHelp: map[string]string{
+				SearchTitleField: "The todo text.",
+				"idem_key":       "Client-generated key that makes a retry idempotent.",
+				"visibility":     "private or public.",
 			},
 		},
-		Routes: []recipe.Route{
-			{Method: get, Pattern: todosAPI},
-			{Method: get, Pattern: "/api/todos/search"},
-			{Method: get, Pattern: "/api/todos/fragment"},
-			{Method: post, Pattern: todosAPI},
-			{Method: post, Pattern: "/api/todos/{id}/toggle"},
-			{Method: post, Pattern: "/api/todos/completed/delete"},
-			{Method: post, Pattern: "/api/todos/{id}/delete"},
-			{Method: get, Pattern: "/api/todos/{id}/confirm-delete"},
-			{Method: get, Pattern: "/api/todos/stream"},
-			{Method: get, Pattern: "/api/todos/events"},
-			{Method: post, Pattern: "/api/todos/suggest"},
-			{Method: post, Pattern: "/api/todos/suggest-simulated"},
-			{Method: post, Pattern: "/api/todos/retry-demo"},
-			{Method: get, Pattern: login},
-			{Method: post, Pattern: login},
-			{Method: get, Pattern: signup},
-			{Method: post, Pattern: signup},
-			{Method: post, Pattern: "/logout"},
-			{Method: get, Pattern: todoPage},
+		{
+			Verb:        "toggle",
+			Description: "Toggle a todo's completed state; the caller must own it.",
+			Route:       recipe.Route{Method: methodPost, Pattern: todoToggle},
+			PathParams:  []string{"id"},
+			ParamHelp:   map[string]string{"id": "The todo's UUID."},
 		},
+		{
+			Verb:        "delete",
+			Description: "Delete one of the caller's own todos; irreversible.",
+			Route:       recipe.Route{Method: methodPost, Pattern: todoDelete},
+			PathParams:  []string{"id"},
+			ParamHelp:   map[string]string{"id": "The todo's UUID."},
+		},
+		{
+			Verb:        "clear_completed",
+			Description: "Delete every completed todo owned by the calling session.",
+			Route:       recipe.Route{Method: methodPost, Pattern: todoClearDone},
+		},
+	}
+}
+
+// todoOmitted is the deliberate half of the headless surface. Each reason
+// names why the route cannot complete synchronously or has no product outcome,
+// so `recipe check` can tell a decision from a forgotten action.
+func todoOmitted() []recipe.OmittedRoute {
+	return []recipe.OmittedRoute{
+		{
+			Route:  recipe.Route{Method: methodPost, Pattern: todoSuggest},
+			Reason: "asynchronous LLM job; the answer arrives through the todo stream, never synchronously",
+		},
+		{
+			Route:  recipe.Route{Method: methodPost, Pattern: todoSuggestUI},
+			Reason: "UI demo of the suggest stepper; the real LLM path is the suggest job",
+		},
+		{
+			Route:  recipe.Route{Method: methodPost, Pattern: todoRetryDemo},
+			Reason: "UI demo of the queue/retry stepper; it has no product outcome to invoke",
+		},
+	}
+}
+
+func todoRoutes() []recipe.Route {
+	return []recipe.Route{
+		{Method: methodGet, Pattern: todosAPI},
+		{Method: methodGet, Pattern: "/api/todos/search"},
+		{Method: methodGet, Pattern: "/api/todos/fragment"},
+		{Method: methodPost, Pattern: todosAPI},
+		{Method: methodPost, Pattern: todoToggle},
+		{Method: methodPost, Pattern: todoClearDone},
+		{Method: methodPost, Pattern: todoDelete},
+		{Method: methodGet, Pattern: "/api/todos/{id}/confirm-delete"},
+		{Method: methodGet, Pattern: "/api/todos/stream"},
+		{Method: methodGet, Pattern: "/api/todos/events"},
+		{Method: methodPost, Pattern: todoSuggest},
+		{Method: methodPost, Pattern: todoSuggestUI},
+		{Method: methodPost, Pattern: todoRetryDemo},
+		{Method: methodGet, Pattern: loginPath},
+		{Method: methodPost, Pattern: loginPath},
+		{Method: methodGet, Pattern: signupPath},
+		{Method: methodPost, Pattern: signupPath},
+		{Method: methodPost, Pattern: "/logout"},
+		{Method: methodGet, Pattern: todoPage},
 	}
 }
 

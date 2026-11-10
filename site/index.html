@@ -153,13 +153,13 @@
     <article class="chapter" id="layer-contact" data-layer="contact" data-name="Agent interface" data-scope="agent" data-line="The three ways an agent meets the system.">
       <div class="chapter-head"><span class="chapter-num">01</span><span class="chapter-meta">agent</span></div>
       <h2>Agent interface</h2>
-      <p class="chapter-lede">Skills say what to read. MCP says what to call. The CLI says what to run. None of them ship in the binary; all of them decide how the binary gets used.</p>
+      <p class="chapter-lede">Skills say what to read. The evolution MCP says what to change in your checkout. The evolution CLI says what to run. They are for building the product — a product's own users and agents call the running server, never the installer.</p>
 
       <div class="viz agent-desk">
         <div class="agent-bar">
           <span class="dot" aria-hidden="true"></span><span class="dot" aria-hidden="true"></span><span class="dot" aria-hidden="true"></span>
           <span class="console-title">agent → gogogo</span>
-          <span class="console-tag">full surface</span>
+          <span class="console-tag">evolution surface</span>
         </div>
         <div class="agent-tabs">
           <input type="radio" name="agent-tab" id="agent-skills" checked>
@@ -200,9 +200,10 @@
               <ul class="agent-list">
                 <li><code>advise_stack</code><span>Same guidance as advise, over MCP.</span></li>
                 <li><code>capabilities_list</code><span>The full unit registry.</span></li>
+                <li><code>recipe_list</code><span>Built-ins + installed recipes, summary and verbs.</span></li>
+                <li><code>recipe_describe</code><span>Verbs, <code>{id}</code>/body params, omissions.</span></li>
                 <li><code>recipe_status</code><span>Receipt drift: pristine / modified / deleted.</span></li>
-                <li><code>recipe_invoke</code><span>Headless verb on a declared route.</span></li>
-                <li><code>check_tree</code><span>Drift verdict per unit.</span></li>
+                <li><code>recipe_invoke</code><span>Developer client for a verb on a running server.</span></li>
                 <li><code>version_status</code><span>Is the tool or the project behind?</span></li>
                 <li><code>migrate_plan</code><span>Releases between your base and latest.</span></li>
                 <li><code>export_unit</code><span>Port bundle, writes only <code>to</code>.</span></li>
@@ -215,9 +216,10 @@
 
       <div class="chapter-foot">
         <p class="foot-line"><span class="label">Inside</span> <code>skills/gogogo-coding-standards</code> <code>skills/gogogo-recipe-authoring</code> <code>cmd/gogogo</code> <code>cmd/gogogo-mcp</code></p>
+        <p class="foot-line"><span class="label">Product</span> Users and their agents call the running server (<code>POST /api/ext/invoke</code>) under session + RBAC. The installer MCP never ships there.</p>
         <p class="foot-line"><span class="label">Proof</span> <code>gogogo doctor --json</code> · <code>gogogo generate --check</code></p>
         <p class="foot-line remove"><span class="label">Remove it</span> The binary keeps running; the agent loses its map.</p>
-        <p class="foot-line doc"><a href="./docs/cli/">CLI reference</a> · <a href="./docs/mcp/">MCP setup</a> · <a href="./docs/getting-started/">Getting started</a> · <a href="./docs/doctor-generate/">Doctor / generate</a></p>
+        <p class="foot-line doc"><a href="./docs/cli/">CLI reference</a> · <a href="./docs/mcp/">MCP setup</a> · <a href="./docs/mcp/#installer-surface-vs-product-surface">Installer vs product</a> · <a href="./docs/getting-started/">Getting started</a></p>
       </div>
     </article>
 
@@ -797,7 +799,7 @@
   <div class="install-head">
     <p class="kicker">Start here</p>
     <h2>Run. Ship. <em>Summon.</em></h2>
-    <p class="install-lede">One install puts the binary and the MCP server on your PATH. Then wire your agent. Humans type; agents call.</p>
+    <p class="install-lede">One install puts the binary and the evolution MCP on your PATH. Then wire your developer agent. Humans type; developer agents call.</p>
   </div>
 
   <ol class="steps">

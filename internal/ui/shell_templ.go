@@ -83,8 +83,8 @@ func (d Data) HeadingText() string {
 // Shell renders one module page: head, sidebar, header, body.
 //
 // head/sound/actions may be nil — templ skips a nil component, which is how a
-// module without sounds (room) renders the same shell without the sounds
-// dependency (its capability unit deliberately carries none).
+// page that opts out of the sounds plugin (a scaffolded page, or a trimmed
+// tree) renders the same shell without the sounds dependency.
 func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Component, body templ.Component) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context

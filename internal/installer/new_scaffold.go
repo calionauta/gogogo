@@ -62,6 +62,8 @@ func newRecipeSource(name, module string) string {
 func newReceiptSource(name string, files map[string]string) string {
 	var b strings.Builder
 	b.WriteString("id: " + name + "\n")
+	b.WriteString("summary: \"A " + name + " slice scaffolded by gogogo new: one page and one read endpoint; " +
+		"extend it with the writes your product needs.\"\n")
 	b.WriteString("version: v0.1.0\n")
 	b.WriteString("upstream:\n  repo: github.com/calionauta/gogogo\n  ref: master\n  path: features/" + name + "\n")
 	b.WriteString("files:\n")
@@ -77,6 +79,11 @@ func newReceiptSource(name string, files map[string]string) string {
 	b.WriteString("  routes:\n")
 	b.WriteString("    - { method: GET, pattern: /" + name + " }\n")
 	b.WriteString("    - { method: GET, pattern: /api/" + name + "/ping }\n")
+	b.WriteString("  actions:\n")
+	b.WriteString("    - verb: ping\n")
+	b.WriteString("      description: \"Report that the " + name + " feature is reachable " +
+		"(read-only health probe).\"\n")
+	b.WriteString("      route: { method: GET, pattern: /api/" + name + "/ping }\n")
 	b.WriteString("  panel:\n")
 	b.WriteString("    component: \"" + name + "_list\"\n")
 	b.WriteString("    prompt: \"" + name + "_list {scope: all|mine} " +
@@ -142,6 +149,7 @@ func newRegistryEntry(name string) string {
 		"\t\tSummary: \"" + name + " feature (scaffolded by `gogogo new`)\",\n" +
 		"\t\tDirs:    []string{\"features/" + name + "\"},\n" +
 		"\t\tRegister: \"features/" + name + "/handlers\",\n" +
+		"\t\tActions: []string{\"ping\"},\n" +
 		"\t\tReason:  \"Scaffolded: no built-in unit yet — removal is manual until you add the strips.\",\n" +
 		"\t},\n"
 }
@@ -361,6 +369,17 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 		Routes: []recipe.Route{
 			{Method: "GET", Pattern: "/{{name}}"},
 			{Method: "GET", Pattern: "/api/{{name}}/ping"},
+		},
+		// One action per route an agent may run headless. Add one for
+		// every mutating route you write; the recipe check command names
+		// the mutating routes that are still invisible. The ping below
+		// is the shape, not the product: replace it as the slice grows.
+		Actions: []recipe.InvokeAction{
+			{
+				Verb:        "ping",
+				Description: "Report that the {{name}} feature is reachable (read-only health probe).",
+				Route:       recipe.Route{Method: "GET", Pattern: "/api/{{name}}/ping"},
+			},
 		},
 	}
 }

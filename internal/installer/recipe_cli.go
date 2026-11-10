@@ -41,6 +41,10 @@ var recipeIDPattern = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
 // needs except the file hashes, which are measured from the bytes copied.
 type recipeManifest struct {
 	ID string `yaml:"id"`
+	// Summary is what the recipe does, in the author's words. Install copies
+	// it into the receipt, where discovery reads it; empty is allowed for
+	// older manifests but `recipe check` asks for it on installed recipes.
+	Summary string `yaml:"summary,omitempty"`
 	// Version is the author's version claim, vMAJOR.MINOR.PATCH. Optional:
 	// without it the receipt records no version and `recipe outdated`
 	// honestly reports unknown instead of guessing.
