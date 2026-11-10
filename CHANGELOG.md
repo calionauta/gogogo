@@ -15,6 +15,14 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.67.0 (2026-11-10)
+
+## What's Changed
+* feat: close headless surface and skin access denials by @calionauta in https://github.com/calionauta/gogogo/pull/396
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.66.0...v0.67.0
+
 ## 0.66.0 (2026-11-09)
 
 ## What's Changed
