@@ -1,6 +1,6 @@
 module github.com/calionauta/gogogo
 
-go 1.27.3
+go 1.27.4
 
 tool (
 	github.com/a-h/templ/cmd/templ
@@ -171,3 +171,11 @@ require (
 	google.golang.org/grpc v1.84.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 )
+
+// loro-go ships fat-LTO archives, which Go 1.27.4 refuses to pass to the C
+// linker ("disallowed LTO section __LLVM,__bitcode"). This fork (upstream
+// v0.5.0) is the same Go code with the bitcode stripped from the archives it
+// ships, so building still
+// works. Drop the replace once upstream publishes bitcode-free archives — see
+// PATCHED.md in the fork and docs/troubleshooting.md.
+replace github.com/aholstenson/loro-go => github.com/calionauta/loro-go v0.5.1
