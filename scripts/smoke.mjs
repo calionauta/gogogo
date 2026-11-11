@@ -172,13 +172,30 @@ async function pendingMutationCount(page) {
 }
 
 async function waitForServiceWorkerControl(page) {
+  // `navigator.serviceWorker.ready` resolves only when a worker ACTIVATES: if
+  // the registration never succeeds it never resolves, and `page.evaluate` has
+  // NO default timeout — so the suite would wait forever, with a log that
+  // looks complete. Bound it here (a slow worker is a failure to report, not
+  // a reason to hold the CI job).
   await page.evaluate(async () => {
     if (!("serviceWorker" in navigator)) throw new Error("service worker unsupported");
-    await navigator.serviceWorker.ready;
+    await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("service worker not ready in 15s")), 15000),
+      ),
+    ]);
   });
   if (!(await page.evaluate(() => Boolean(navigator.serviceWorker.controller)))) {
     await page.reload({ waitUntil: "load" });
-    await page.evaluate(() => navigator.serviceWorker.ready);
+    await page.evaluate(() =>
+      Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("service worker not ready in 15s")), 15000),
+        ),
+      ]),
+    );
   }
 }
 
@@ -1509,7 +1526,12 @@ async function verifyOfflineUx(page, context) {
   // shared device cannot inherit the previous account's pages or intents.
   console.log("→ Logging out to verify Clear-Site-Data purge…");
   await page.evaluate(async (base) => {
-    await fetch(base + "/logout", { method: "POST" });
+    // Bounded: an in-page fetch that never settles would hang the evaluate
+    // (page.evaluate has no default timeout) and the whole step with it.
+    await fetch(base + "/logout", {
+      method: "POST",
+      signal: AbortSignal.timeout(10000),
+    });
   }, BASE);
   await page.waitForFunction(
     (u) => caches.match(u).then((r) => !r),
@@ -1685,25 +1707,33 @@ try {
   let rosterHasUser = false;
   for (let i = 0; i < 10 && !rosterHasUser; i++) {
     rosterHasUser = await page.evaluate(async (email) => {
-      const r = await fetch("/room/roster");
+      // Bounded fetches: an in-page fetch that never settles hangs the
+      // evaluate (no default timeout on page.evaluate) and the step with it.
+      const r = await fetch("/room/roster", { signal: AbortSignal.timeout(10000) });
       const j = await r.json();
       return (j.members || []).some((m) => m.name === email);
     }, USER_EMAIL);
     if (!rosterHasUser) await page.waitForTimeout(500); // poll interval
   }
   if (!rosterHasUser) fail("room roster does not contain the logged-in user after heartbeat");
-  const genBefore = await page.evaluate(async () => (await (await fetch("/room/roster")).json()).generation);
+  const genBefore = await page.evaluate(async () =>
+    (await (await fetch("/room/roster", { signal: AbortSignal.timeout(10000) })).json()).generation,
+  );
   const presenter = await page.evaluate(async (email) => {
-    await fetch("/room/acquire", { method: "POST" });
-    const j = await (await fetch("/room/roster")).json();
+    await fetch("/room/acquire", { method: "POST", signal: AbortSignal.timeout(10000) });
+    const j = await (await fetch("/room/roster", { signal: AbortSignal.timeout(10000) })).json();
     return j.presenter;
   }, USER_EMAIL);
   if (presenter !== USER_EMAIL) fail(`room presenter = ${presenter}, want ${USER_EMAIL}`);
-  await page.evaluate(() => fetch("/room/crash", { method: "POST" }));
+  await page.evaluate(() =>
+    fetch("/room/crash", { method: "POST", signal: AbortSignal.timeout(10000) }),
+  );
   let genAfter = genBefore;
   for (let i = 0; i < 40 && genAfter <= genBefore; i++) {
     await page.waitForTimeout(500); // poll interval
-    genAfter = await page.evaluate(async () => (await (await fetch("/room/roster")).json()).generation);
+    genAfter = await page.evaluate(async () =>
+      (await (await fetch("/room/roster", { signal: AbortSignal.timeout(10000) })).json()).generation,
+    );
   }
   if (genAfter <= genBefore) fail(`room generation stuck at ${genAfter} after crash (want > ${genBefore})`);
   if (pageErrors.length > 0) {
