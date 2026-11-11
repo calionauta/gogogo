@@ -684,9 +684,16 @@ jobs:
       - name: Install Chromium
         # Both groups need the browser, so the install is its own step rather
         # than riding inside the smoke suite (it could ride there while the
-        # suites shared one runner). The download is cached; --with-deps still
-        # apt-installs the system libraries.
-        run: npx playwright install --with-deps chromium
+        # suites shared one runner). The download is cached.
+        #
+        # One script, not `npx playwright install --with-deps chromium`: the
+        # apt phase of --with-deps died on the runners' DNS (2026-11-11: three
+        # runs of PR #399 failed in "Failed to install browsers" while every
+        # product gate was green), and the system libraries are a convenience
+        # the runner image already carries. The script installs the browser
+        # first, treats apt as best effort, and proves the browser LAUNCHES —
+        # see bin/install-browser.sh for the whole argument.
+        run: bash bin/install-browser.sh
       - name: Browser smoke test
         if: matrix.client_group == 0
         # Datastar is a global client runtime; exercise the rendered app in
@@ -777,7 +784,10 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        # Same script (and the same reason) as the browser job: a broken apt
+        # mirror must not be able to take the site layout gate down, and the
+        # browser must be proven to launch before the layout is measured.
+        run: bash bin/install-browser.sh
       - name: Check landing catalog
         run: node site/build-landing.mjs --check
       - name: Docs site layout

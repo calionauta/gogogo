@@ -205,6 +205,41 @@ instead, and `govulncheck` only runs on `go.mod`/`go.sum` changes.
   longer margin since `Test*` is a generic prefix on a shared box).
   `make smoke-clean` stays the manual full clean.
 
+### How the browser is installed (and why apt is optional)
+
+Every job that drives a browser installs it with `bin/install-browser.sh`, not
+with `npx playwright install --with-deps chromium`. The order in that script is
+the contract:
+
+1. **the browser binary** (Playwright CDN or the restored cache) — the part
+   the gates need, and it never touches apt;
+2. **the system dependencies** (apt) — best effort, time-boxed
+   (`PLAYWRIGHT_INSTALL_TIMEOUT`, default 300s), and a loud warning when it
+   fails;
+3. **the proof** — the browser must *launch*. Every install step above can
+   "succeed" while the binary cannot start (a missing library, a sandbox the
+   runner forbids), and the suites downstream would fail with a message that
+   names neither the cause nor the fix.
+
+The reason is a real incident, not a theory. On 2026-11-11 the GitHub runners
+stopped resolving the Ubuntu mirrors (`archive.ubuntu.com`,
+`security.ubuntu.com`, `azure.archive.ubuntu.com` — "Temporary failure
+resolving") while every other host resolved fine (`packages.microsoft.com`,
+`proxy.golang.org`, the npm registry, github.com). Three CI runs of PR #399
+died in "Failed to install browsers" with nothing but that DNS error, while
+`checks`, the three `race` shards and `prod-image` stayed green: a red build
+for a reason that had nothing to do with the change under test, reproducible
+on every re-run. The dependency install is a convenience — the runner image
+already ships Google Chrome and therefore the shared libraries Playwright's
+Chromium links against — so a broken mirror must not be able to take the
+browser gate, the site gate or the Pages publish down with it.
+
+`bin/install-browser_test.sh` pins that order with stubs for `npx` and
+`node`: a broken apt must NOT fail the step (and must be loud), a broken
+browser download MUST fail it, a browser that cannot launch MUST fail it, and
+`PLAYWRIGHT_SKIP_DEPS=1` must not call apt anyway. It runs in `make
+check-ci-scripts`, so the contract is checked locally and in CI.
+
 ### Why the browser smoke test stays on Playwright
 
 The browser engine was re-evaluated (2026-10) because `scripts/smoke.mjs` costs

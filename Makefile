@@ -245,6 +245,7 @@ check-ci-scripts:
 	@echo "→ check-ci-scripts (changeset classifier + shard split contracts)..."
 	@bash scripts/ci-changes-classifier.test.sh > /dev/null
 	@bash scripts/ci-shard-packages.test.sh > /dev/null
+	@bash bin/install-browser_test.sh > /dev/null
 	@echo "✅ CI script contracts hold"
 
 # check-classes makes the UI rules executable: every app-*/ui-*/is-* class in
