@@ -34,7 +34,7 @@
 # toolchain mid-build, which makes the artifact depend on the network and on
 # Docker Hub's tag drift. The dev Dockerfile is pinned too;
 # TestGoToolchainPinIsConsistent keeps every pin in step.
-FROM golang:1.27.3-alpine AS builder
+FROM golang:1.27.4-alpine AS builder
 RUN apk add --no-cache git ca-certificates nodejs npm gcc musl-dev
 # ARGs for build-time metadata injection. Defaults match local
 # builds; the docker-image Makefile target passes real values via

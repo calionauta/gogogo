@@ -3,7 +3,7 @@
 // nothing failed when one was missed.
 //
 // It was missed. deploy/Dockerfile.prod still said `FROM golang:1.27-alpine`
-// while go.mod declared `go 1.27.3`, so the production image could be built by
+// while go.mod declared `go 1.27.4`, so the production image could be built by
 // a toolchain older than the tree requires. Go then either refuses outright or
 // silently downloads the pinned toolchain mid-build — which makes the shipped
 // artifact depend on the network and on Docker Hub's tag drift, in a pipeline
@@ -12,12 +12,12 @@
 //
 // THE BUMP SURFACE, in one place. Raising the version means editing all of:
 //
-//	go.mod                                  go 1.27.3        (authoritative)
-//	cmd/gogogo-mcp/go.mod                   go 1.27.3
-//	bin/install-go-toolchain.sh             GO_VERSION:-1.27.3
-//	Dockerfile                              golang:1.27.3-alpine
-//	deploy/Dockerfile.prod                  golang:1.27.3-alpine
-//	skills/.../SKILL.md                     "Go 1.27.3 or newer"
+//	go.mod                                  go 1.27.4        (authoritative)
+//	cmd/gogogo-mcp/go.mod                   go 1.27.4
+//	bin/install-go-toolchain.sh             GO_VERSION:-1.27.4
+//	Dockerfile                              golang:1.27.4-alpine
+//	deploy/Dockerfile.prod                  golang:1.27.4-alpine
+//	skills/.../SKILL.md                     "Go 1.27.4 or newer"
 //
 // and, at MINOR granularity (the level those files speak):
 //
@@ -32,7 +32,7 @@
 //   - install.sh asks go.dev for the newest release — that is the right answer
 //     for a machine that has no Go, and pinning it would defeat the point.
 //   - docs/troubleshooting.md and the installer tests name OLDER versions as
-//     examples (a go1.27.2 toolchain refusing a 1.27.3 tree). Those are the
+//     examples (a go1.27.2 toolchain refusing a 1.27.4 tree). Those are the
 //     subject matter, not a pin.
 package internal_test
 
@@ -45,9 +45,9 @@ import (
 )
 
 var (
-	// goDirectiveRE captures `go 1.27.3` on its own line in a go.mod.
+	// goDirectiveRE captures `go 1.27.4` on its own line in a go.mod.
 	goDirectiveRE = regexp.MustCompile(`(?m)^go (\d+\.\d+(?:\.\d+)?)$`)
-	// goVersionEnvRE captures the default in `GO_VERSION:-1.27.3`.
+	// goVersionEnvRE captures the default in `GO_VERSION:-1.27.4`.
 	goVersionEnvRE = regexp.MustCompile(`GO_VERSION:-([0-9][0-9.]*)`)
 	// golangImageRE captures every `golang:<version>-alpine` mention, in a
 	// FROM line or a comment: a stale comment is still a file that lies.
@@ -63,7 +63,7 @@ func TestGoToolchainPinIsConsistent(t *testing.T) {
 	full := singleCapture(t, root, "go.mod", goDirectiveRE)
 	if strings.Count(full, ".") != 2 {
 		t.Fatalf("go.mod declares `go %s`: the bump surface assumes a FULL patch "+
-			"version (1.27.3), because that is what CI installs and what the "+
+			"version (1.27.4), because that is what CI installs and what the "+
 			"container images tag", full)
 	}
 	parts := strings.Split(full, ".")

@@ -142,7 +142,7 @@ is just `go build ./cmd/web` and includes everything.
 ## Scaffolding refuses: "this tree needs go X, but GOTOOLCHAIN pins go Y"
 
 The `go` directive in `go.mod` is enforced at **patch** level: a go1.27.2
-toolchain will not build a tree that declares `go 1.27.3`. The Go default
+toolchain will not build a tree that declares `go 1.27.4`. The Go default
 (`GOTOOLCHAIN=auto`) downloads whatever the tree asks for, so this only bites
 when the setting is pinned:
 
