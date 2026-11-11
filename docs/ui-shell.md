@@ -9,12 +9,16 @@ class to use so a new screen looks like the other eight.
 ```
 internal/ui.Shell(d Data, head, sound, actions, body)
 ├── <html>   data-signals (page seed), data-theme bindings, data-theme-dark
-├── <aside id="app-rail">   brand · build badge · theme toggle · sound mute · pinned Inbox (badge count at row end) · []Module groups · account row
+├── <div class="app-shell drawer lg:drawer-open">   ← daisyUI drawer, one rail state
+│      input.drawer-toggle  ← carries $railOpen to CSS; never clicked directly
+├── <div class="drawer-side"> → <aside id="app-rail">   brand · build badge · theme toggle · sound mute · pinned Inbox (indicator count on the label, dot on the icon when collapsed) · []Module groups · account row
 │      account row → panel: identity · Account · Config (admin) · DagNats console (operators) · Tema list · sign out
-├── <header class="app-module-header">
-│      drawer trigger (≤1024px) · title · context slot · [ State ] [ Stack ] · search input · actions
-├── <main class="app-body">  ← the page
-└── <aside id="state-panel"> ← when the page passes one; visibility is $panelVisible, section is $panelMode (signals, no reload)
+├── <div class="drawer-content app-content">
+│      <header class="app-module-header">
+│         drawer trigger (≤1023px) · rail collapse (≥1024px) · title · context slot · [ State ] [ Stack ] · search input · actions
+│      <main class="app-body">  ← the page
+│      <aside id="state-panel"> ← when the page passes one; visibility is $panelVisible, section is $panelMode (signals, no reload)
+└── <nav class="app-dock">   ← phone-only bottom bar
 ```
 
 `Data` carries: `Title`, `Module` (id used for the active nav item), `Heading`,
@@ -22,17 +26,38 @@ internal/ui.Shell(d Data, head, sound, actions, body)
 `Signals` (the page's own seed JSON), `Stack` (`[]TechItem`), `Demo`,
 `Panel`, `OfflineSync`, `StreamPage`, `FullBleed`.
 
+**One state, two faces.** `$railOpen` means "the navigation is shown": from
+1024px up it is the rail **expanded** vs **collapsed to icons**; below that it
+is the offcanvas drawer **open** vs **closed**. The shell mirrors it onto
+daisyUI's `drawer-toggle` checkbox (`data-attr:checked`) because the drawer
+component — and the `is-drawer-open:` / `is-drawer-close:` variants — read
+`:checked`, not a signal. The checkbox is a carrier only: every trigger is a
+real `<button>` (a `<label for>` would toggle the box behind the signal's
+back), so the attribute and the state cannot drift. The collapsed rail is
+4.5rem of icons (`is-drawer-close:w-18`), labels hidden
+(`is-drawer-close:hidden`), the destination name carried by `title` and by a
+screen-reader copy that appears only in the collapsed width (a `display:none`
+label is not read out, so the row would be announced by its count alone);
+group
+headings become hairlines, the brand becomes a column, and the account popover
+steps out to the right (`chrome.css`, keyed off the same `:checked`). The
+desktop choice persists in `localStorage.railCompact` and is seeded before
+Datastar initialises, so the first frame is already the right width.
+
 **The rail is ordered, not alphabetised.** The inbox is pinned above the first
 heading: it is the always-on surface, and it carries the unread count as a
-DaisyUI badge at the end of its row, after the label (an icon-corner badge
-would paint over the first letter of "Inbox" at wide counts). The count is seeded once per page
+DaisyUI `indicator-item` on the row label, so the bubble hangs off the row's
+far corner clear of the icon. When the rail collapses the label is gone, so the
+same fact moves onto the icon as a bare `status` dot (no number — a 4.5rem
+column has no room for one) and the count keeps an `sr-only` label for screen
+readers. The count is seeded once per page
 navigation by `inboxBadgeMiddleware` (`internal/server/inbox_badge.go`), kept
 live on pages without a feature stream by the leader session stream
 (`session.js`), and refreshed on visibility/focus/online on pages that already hold a stream —
 a second SSE connection would exhaust the browser's per-host budget at five
 same-user tabs. Every tab that hears a new count broadcasts it over the
-BroadcastChannel; the badge binds the value to `$inboxUnread` and always
-exists, hidden at zero. Config, Dashboard and Graph are `MenuOnly`:
+BroadcastChannel; both markers bind the value to `$inboxUnread` and always
+exist, hidden at zero. Config, Dashboard and Graph are `MenuOnly`:
 platform surfaces, reached from the account menu right under Account,
 never daily rail destinations (the rail lists recipes only).
 
@@ -165,18 +190,23 @@ control per screen (the primary action); machine data in `.ui-meta`, prose in
 body text — never the reverse. The module header's context slot is for *state*
 (`turso · outbox on · 0 online · SSE`), never for a sentence.
 
-## Mobile
+## Mobile and the compact rail
 
-Below 1024px the rail is an offcanvas drawer: opened from the header trigger,
-closed by the backdrop, Escape, or tapping a destination. Datastar owns
-`$railOpen`; there is no script for it. The demo panel becomes a sheet.
+Below 1024px the rail is the drawer's offcanvas: opened from the header
+trigger, closed by the overlay, Escape, or tapping a destination (one delegated
+handler on the rail's nav, so a click on desktop never collapses the column).
+daisyUI's drawer owns the slide, the overlay and the visibility handoff;
+`$railOpen` still owns the state, and the header trigger — not this component —
+is what a phone user taps.
 
-The stacked shell is a **column flex**, not a block: `.app-main` has to fill the
-viewport, or the work area has no definite height. That height is what a
-`FullBleed` page spends — the whiteboard's canvas chain (`app-body` → `flex-1` →
-`#canvas-wrap`) resolves to zero without it, so the board renders but cannot be
-drawn on. `scripts/whiteboard-client.test.mjs` pins the canvas height at 900px
-for exactly that reason.
+From 1024px up the same markup is a persistent column, and the header's second
+trigger collapses it to icons. Nothing about the work area changes with the
+width: the drawer content is a flex column that fills the viewport (`.app-main`
++ `.app-content` minimum height), which is the height a `FullBleed` page
+spends — the whiteboard's canvas chain (`app-body` → `flex-1` → `#canvas-wrap`)
+resolves to zero without it, so the board renders but cannot be drawn on.
+`scripts/whiteboard-client.test.mjs` pins the canvas height for exactly that
+reason, and `smoke.mjs` pins both rail states at their breakpoints.
 
 ## Adding a module
 

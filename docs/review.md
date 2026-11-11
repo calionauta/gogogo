@@ -39,7 +39,10 @@ A run has two halves and the card shows both, because one without the
 other is a decision nobody can audit:
 
 - **The exchange** — the writer's proposal, and (when the critic asked
-  for changes) the critic's own request, rendered verbatim.
+  for changes) the critic's own request, rendered verbatim as a daisyUI
+  chat transcript: the writer on the right (it is the user's text), the
+  critic and the judge on the left, each bubble headed with the role that
+  produced it. The verdict line sits above the transcript.
 - **The decision** — verdict badge, confidence, round count, and a
   rationale that names *both* what the critic concluded and what the
   judge decided.

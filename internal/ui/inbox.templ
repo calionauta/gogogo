@@ -1,12 +1,13 @@
 // The rail's inbox entry: the one nav item with a live count.
 //
-// The badge sits at the END of the rail row (after the label), not on the icon:
-// in a labelled row the icon corner is close enough to the first letter of
-// "Inbox" that a wide count ("99+") would paint over it. It always renders
-// (hidden at zero) because the notifications feature patches this exact node by
-// id: a fragment that only exists when non-zero would be un-patchable back to
-// zero. The count is seeded by inboxBadgeMiddleware and replaced live by the
-// inbox stream and by every mark-read action.
+// Expanded, the count is a daisyUI `indicator-item` on the row's label: the
+// bubble hangs off the far corner of the row, clear of the icon. Collapsed,
+// the label is gone, so the marker moves onto the icon itself as a bare dot
+// (RailInboxDot) — the number has nowhere to sit in a 4.5rem column. Both
+// nodes always render (hidden at zero) because the notifications feature
+// patches them by id/signal: a node that only exists when non-zero would be
+// un-patchable back to zero. The count is seeded by inboxBadgeMiddleware and
+// replaced live by the inbox stream and by every mark-read action.
 package ui
 
 import (
@@ -15,23 +16,47 @@ import (
 	"github.com/calionauta/gogogo/internal/icon"
 )
 
-// RailInboxBadge is the unread count bubble. tabular-nums keeps a count
-// change from shifting the label; the label caps at 99+ so three digits cannot
-// stretch the rail row.
+// RailInboxBadge is the expanded rail's unread count, a daisyUI indicator item
+// on the row label: it hangs off the label's end corner, vertically centred on
+// the row (indicator-middle), because the rail's right edge has no room for a
+// badge that sticks out. tabular-nums keeps a count change from shifting the
+// label; the label caps at 99+ so three digits cannot stretch the rail row.
 //
 // The text/visibility are bound to $inboxUnread: the server seeds it from the
 // page middleware, and session.js updates it from the leader stream's frames
 // (BroadcastChannel fans the same value out to every tab). The server-rendered
 // text is the pre-init fallback; the JS expression mirrors UnreadBadgeLabel so
-// the first paint and every later update agree on the 99+ cap.
+// the first paint and every later update agree on the 99+ cap. The id stays on
+// this node: session.js reads its text to seed the BroadcastChannel.
 templ RailInboxBadge(unread int) {
 	<span
 		id="rail-inbox-badge"
-		class={ templ.Classes("badge badge-primary badge-xs tabular-nums", map[string]bool{"hidden": unread <= 0}) }
+		class={ templ.Classes("indicator-item indicator-middle badge badge-primary badge-xs tabular-nums is-drawer-close:hidden", map[string]bool{"hidden": unread <= 0}) }
 		data-class="{'hidden': $inboxUnread <= 0}"
 		data-text="$inboxUnread > 99 ? '99+' : ($inboxUnread > 0 ? $inboxUnread : '')"
 		data-on:gogogo:unread__document="$inboxUnread = evt.detail.unread"
 	>{ UnreadBadgeLabel(unread) }</span>
+}
+
+// RailInboxDot is the collapsed rail's marker: the same unread fact as a bare
+// dot on the icon corner, because the label the count hangs off is hidden.
+// The dot is position default (top-end) on purpose. Screen readers keep the
+// number through an sr-only child; the dot itself is decoration.
+templ RailInboxDot(unread int) {
+	<span
+		id="rail-inbox-dot"
+		class={ templ.Classes("indicator-item status status-primary is-drawer-open:hidden", map[string]bool{"hidden": unread <= 0}) }
+		data-class="{'hidden': $inboxUnread <= 0}">
+		<span class="sr-only" data-text="$inboxUnread > 0 ? $inboxUnread + ' unread' : ''">{ unreadDotLabel(unread) }</span>
+	</span>
+}
+
+// unreadDotLabel is the dot's screen-reader text. Zero renders nothing.
+func unreadDotLabel(unread int) string {
+	if unread <= 0 {
+		return ""
+	}
+	return strconv.Itoa(unread) + " unread"
 }
 
 // railInboxRefresh is the badge's refresh affordance for pages that already
@@ -60,20 +85,40 @@ templ railInboxRefresh() {
 	></button>
 }
 
-// railItem is one destination in the rail: same markup for every module, with
-// the inbox count badge at the end of the row, after the label.
+// railItem is one destination in the rail: same markup for every module. The
+// inbox is the only entry with a live count, so it is the only one wrapped in
+// indicator containers: the count hangs off the row label when expanded, and
+// the collapsed rail moves the marker onto the icon.
+//
+// The label is hidden when the rail is collapsed to icons, and a hidden label
+// is not read out: the row would be announced by whatever else it contains
+// (the inbox count) or by nothing at all. So the collapsed width keeps a
+// screen-reader copy of the name, and `title` stays the tooltip (the drawer
+// dismissal is delegated to the rail's nav).
 templ railItem(m Module, active bool, unread int) {
 	<a
 		href={ templ.SafeURL(m.URL) }
 		class={ templ.Classes("app-rail-item", map[string]bool{"is-active": active}) }
 		aria-current={ activeCurrent(active) }
+		title={ m.Title }
 		data-cuelume-hover="tick"
-		data-cuelume-press="toggle"
-		data-on:click="$railOpen = false">
-		@icon.Icon(m.Icon, "app-rail-icon")
-		<span class="app-rail-label">{ m.Title }</span>
+		data-cuelume-press="toggle">
+		<span class="sr-only is-drawer-open:hidden">{ m.Title }</span>
 		if m.ID == ModuleInbox {
-			@RailInboxBadge(unread)
+			// Two indicator containers: the dot rides the icon (collapsed rail
+			// has no label to hang the number off), the count rides the row's
+			// end (the label grows, the count's anchor is the last cell).
+			<span class="indicator shrink-0">
+				@icon.Icon(m.Icon, "app-rail-icon")
+				@RailInboxDot(unread)
+			</span>
+			<span class="app-rail-label is-drawer-close:hidden">{ m.Title }</span>
+			<span class="indicator shrink-0 is-drawer-close:hidden">
+				@RailInboxBadge(unread)
+			</span>
+		} else {
+			@icon.Icon(m.Icon, "app-rail-icon")
+			<span class="app-rail-label is-drawer-close:hidden">{ m.Title }</span>
 		}
 	</a>
 }

@@ -354,10 +354,11 @@ func dagNatsWord() templ.Component {
 // Inbox is the patch target: the stream and every read action re-render this
 // region, so a live push and a click cannot drift.
 //
-// The unread count is the same badge the rail carries ($inboxUnread), sitting
-// on the Notifications title — not a separate "N new" word. The All/Unread
-// tabs are the row filter: rows hide client-side (see rowShow), the inbox
-// never paginates, so a tab click needs no server round-trip.
+// The unread count is the same counter the rail carries ($inboxUnread), as a
+// daisyUI indicator item on the Notifications title — not a separate "N new"
+// word. The All/Unread tabs are the row filter: rows hide client-side (see
+// rowShow), the inbox never paginates, so a tab click needs no server
+// round-trip.
 func Inbox(data PageData) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -379,11 +380,11 @@ func Inbox(data PageData) templ.Component {
 			templ_7745c5c3_Var9 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<section class=\"ui-card\" id=\"inbox\"><div class=\"ui-card-body ui-stack\"><div class=\"flex items-center gap-2\"><h2 class=\"ui-title flex items-center gap-2\">Notifications ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<section class=\"ui-card\" id=\"inbox\"><div class=\"ui-card-body ui-stack\"><div class=\"flex items-center gap-2\"><h2 class=\"ui-title\"><span class=\"indicator pr-5 indicator-middle\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var10 = []any{templ.Classes("badge badge-primary badge-sm tabular-nums", map[string]bool{"hidden": data.Unread <= 0})}
+		var templ_7745c5c3_Var10 = []any{templ.Classes("indicator-item badge badge-primary badge-sm tabular-nums", map[string]bool{"hidden": data.Unread <= 0})}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var10...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -408,13 +409,13 @@ func Inbox(data PageData) templ.Component {
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(ui.UnreadBadgeLabel(data.Unread))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notifications/components/page.templ`, Line: 197, Col: 40}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notifications/components/page.templ`, Line: 203, Col: 41}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</span></h2></div><div class=\"tabs tabs-box tabs-sm\" role=\"tablist\" aria-label=\"Notifications filter\"><button type=\"button\" role=\"tab\" class=\"tab\" data-on:click=\"$notificationFilter = 'all'\" data-class=\"{'tab-active': ($notificationFilter || 'all') === 'all'}\">All</button> <button type=\"button\" role=\"tab\" class=\"tab\" data-on:click=\"$notificationFilter = 'unread'\" data-class=\"{'tab-active': $notificationFilter === 'unread'}\">Unread</button></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</span> Notifications</span></h2></div><div class=\"tabs tabs-box tabs-sm\" role=\"tablist\" aria-label=\"Notifications filter\"><button type=\"button\" role=\"tab\" class=\"tab\" data-on:click=\"$notificationFilter = 'all'\" data-class=\"{'tab-active': ($notificationFilter || 'all') === 'all'}\">All</button> <button type=\"button\" role=\"tab\" class=\"tab\" data-on:click=\"$notificationFilter = 'unread'\" data-class=\"{'tab-active': $notificationFilter === 'unread'}\">Unread</button></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -432,7 +433,7 @@ func Inbox(data PageData) templ.Component {
 				var templ_7745c5c3_Var13 string
 				templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue(readAllAction())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notifications/components/page.templ`, Line: 227, Col: 38}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notifications/components/page.templ`, Line: 235, Col: 38}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 				if templ_7745c5c3_Err != nil {
@@ -494,7 +495,7 @@ func itemRow(item Item) templ.Component {
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.ResolveAttributeValue(rowShow(item.Unread))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notifications/components/page.templ`, Line: 246, Col: 73}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notifications/components/page.templ`, Line: 254, Col: 73}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
 		if templ_7745c5c3_Err != nil {
@@ -523,7 +524,7 @@ func itemRow(item Item) templ.Component {
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(item.Subject)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notifications/components/page.templ`, Line: 257, Col: 18}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notifications/components/page.templ`, Line: 265, Col: 18}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 		if templ_7745c5c3_Err != nil {
@@ -536,7 +537,7 @@ func itemRow(item Item) templ.Component {
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(item.Body)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notifications/components/page.templ`, Line: 259, Col: 44}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notifications/components/page.templ`, Line: 267, Col: 44}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
@@ -549,7 +550,7 @@ func itemRow(item Item) templ.Component {
 		var templ_7745c5c3_Var18 string
 		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(item.When)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notifications/components/page.templ`, Line: 260, Col: 33}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notifications/components/page.templ`, Line: 268, Col: 33}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 		if templ_7745c5c3_Err != nil {
@@ -567,7 +568,7 @@ func itemRow(item Item) templ.Component {
 			var templ_7745c5c3_Var19 string
 			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.ResolveAttributeValue(readAction(item.ID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notifications/components/page.templ`, Line: 266, Col: 39}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notifications/components/page.templ`, Line: 274, Col: 39}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var19)
 			if templ_7745c5c3_Err != nil {
@@ -585,7 +586,7 @@ func itemRow(item Item) templ.Component {
 			var templ_7745c5c3_Var20 string
 			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.ResolveAttributeValue(unreadAction(item.ID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notifications/components/page.templ`, Line: 272, Col: 41}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notifications/components/page.templ`, Line: 280, Col: 41}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 			if templ_7745c5c3_Err != nil {

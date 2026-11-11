@@ -495,8 +495,14 @@ element carrying it.
 
 The mobile drawer has the same treatment inside the smoke suite: at 390×844 the
 rail must start off-canvas, open from the module header, and close on Escape.
-Remove `data-class="{'is-open': $railOpen}"` from the shell and `smoke.mjs` goes
-red on that assertion.
+Remove `data-attr:checked="$railOpen"` from the shell's drawer toggle and
+`smoke.mjs` goes red on that assertion — the rail stops following the state.
+The desktop collapse is checked the same way, and so is the unread marker that
+moves with it: expanded the count is an `indicator-item` on the rail label,
+collapsed it is a dot on the icon and the number is gone. Delete
+`RailInboxDot` and the suite goes red on "collapsing moves the unread marker
+onto the icon" — a collapsed rail that silently loses the unread fact looks
+exactly like one that is working.
 
 Release PRs get it from the workflow itself: the `release-guard` job fails when
 the proposed version leaves 0.x (a `1.0.0` title, or a manifest somebody bumped

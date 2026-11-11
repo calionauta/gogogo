@@ -117,9 +117,10 @@ templ reviewBody(signals Signals) {
 	</div>
 }
 
-// ReviewResult renders one verdict: decision badge, rationale, the
-// editor pair's exchange (draft + critique when the critic asked for
-// changes), and the human approval gate when the judge escalated.
+// ReviewResult renders one verdict: the decision line, then the exchange as a
+// daisyUI chat transcript — the writer's proposal on the user's side, the
+// critic and the judge on the other. A decision nobody can audit is a verdict;
+// a conversation is the evidence for it.
 //
 // The root carries `id="review-result"` because this component IS its own
 // patch target: handleRun patches with WithSelector("#review-result") in the
@@ -140,19 +141,35 @@ templ ReviewResult(decision string, rationale string, proposal string, critique 
 				<span class="badge badge-sm">confidence { fmt.Sprintf("%.2f", confidence) }</span>
 				<span class="badge badge-sm">{ fmt.Sprintf("%d rounds", rounds) }</span>
 			</h2>
-			<p class="text-sm">{ rationale }</p>
 			if needsHuman {
 				<div class="alert mt-2" role="status">
 					<span>A human should decide — approve the proposal below or revise and re-run.</span>
 				</div>
 			}
+			<div class="chat chat-start mt-3">
+				<div class="chat-header">Judge</div>
+				<div class="chat-bubble">
+					<p class="text-sm">{ rationale }</p>
+				</div>
+			</div>
 			if criticVerdict == criticRevised {
-				<h3 class="font-semibold mt-3 mb-1">Critique</h3>
-				<pre class="whitespace-pre-wrap text-sm bg-base-100 rounded p-3">{ critique }</pre>
+				<div class="chat chat-start">
+					<div class="chat-header">Critic</div>
+					<div class="chat-bubble">
+						<p class="text-sm whitespace-pre-wrap">{ critique }</p>
+					</div>
+				</div>
 			}
 			if proposal != "" {
-				<h3 class="font-semibold mt-3 mb-1">Proposal</h3>
-				<pre class="whitespace-pre-wrap text-sm bg-base-100 rounded p-3">{ proposal }</pre>
+				<div class="chat chat-end">
+					<div class="chat-header">Writer</div>
+					<div class="chat-bubble chat-bubble-primary">
+						// The proposal stays a <pre>: it is the artifact, and the
+						// reviewed content may be a diff — the critique and the
+						// rationale are prose and read as prose.
+						<pre class="whitespace-pre-wrap text-sm">{ proposal }</pre>
+					</div>
+				</div>
 			}
 		</div>
 	</div>

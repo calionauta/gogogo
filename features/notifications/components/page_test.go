@@ -80,10 +80,10 @@ func TestInboxStatePanelShowsDeliveryEvidence(t *testing.T) {
 }
 
 // TestInboxHeaderBadgeAndFilterTabs pins the inbox header and list surfaces:
-// the unread count is a primary badge on the Notifications title (the same
-// counter language as the rail, not an "N new" word), the All/Unread tabs are
-// a client-side filter bound to $notificationFilter, row actions are sentence
-// case with a soft fill, and read rows offer Mark unread.
+// the unread count is a daisyUI indicator item on the Notifications title (the
+// same counter language as the rail, not an "N new" word), the All/Unread tabs
+// are a client-side filter bound to $notificationFilter, row actions are
+// sentence case with a soft fill, and read rows offer Mark unread.
 func TestInboxHeaderBadgeAndFilterTabs(t *testing.T) {
 	t.Parallel()
 	data := samplePageData()
@@ -95,7 +95,8 @@ func TestInboxHeaderBadgeAndFilterTabs(t *testing.T) {
 	html := renderPage(context.Background(), t, false, data)
 	for _, want := range []string{
 		`id="rail-inbox-badge"`,
-		"badge badge-primary badge-sm tabular-nums",
+		`id="rail-inbox-dot"`,
+		"indicator-item badge badge-primary badge-sm tabular-nums",
 		`data-text="$inboxUnread`,
 		`data-signals='{"notificationFilter":"all"}'`,
 		`role="tablist" aria-label="Notifications filter"`,
@@ -115,19 +116,47 @@ func TestInboxHeaderBadgeAndFilterTabs(t *testing.T) {
 			t.Errorf("inbox missing %q", want)
 		}
 	}
-	// The old surfaces are gone: no "N new" header word, no lowercase
-	// "mark read", and the rail badge is no longer an indicator on the icon.
-	// (The shell's panel-close button legitimately keeps btn-ghost; the row
-	// buttons carry btn-soft, asserted above.)
+	// The old surfaces are gone: no "N new" header word and no lowercase
+	// "mark read". (The shell's panel-close button legitimately keeps
+	// btn-ghost; the row buttons carry btn-soft, asserted above.)
 	for _, banned := range []string{
 		"none new",
 		">mark read<",
-		`indicator-item badge badge-primary badge-xs`,
 	} {
 		if strings.Contains(html, banned) {
 			t.Errorf("inbox still renders old surface %q", banned)
 		}
 	}
+
+	// The rail's count is an indicator item, not a plain badge: the collapsed
+	// rail hides the label it hangs off, and the count moves to the icon as a
+	// dot. Both nodes ship on every page, so the inbox page pins them too.
+	railCount := startTag(html, `id="rail-inbox-badge"`)
+	for _, want := range []string{"indicator-item", "badge badge-primary badge-xs", "is-drawer-close:hidden"} {
+		if !strings.Contains(railCount, want) {
+			t.Errorf("the rail count is missing %q: %s", want, railCount)
+		}
+	}
+	railDot := startTag(html, `id="rail-inbox-dot"`)
+	for _, want := range []string{"indicator-item status status-primary", "is-drawer-open:hidden"} {
+		if !strings.Contains(railDot, want) {
+			t.Errorf("the collapsed rail marker is missing %q: %s", want, railDot)
+		}
+	}
+}
+
+// startTag returns the start tag carrying id, so an assertion can pin one
+// node's attributes without matching a neighbour's classes.
+func startTag(html, id string) string {
+	i := strings.Index(html, id)
+	if i < 0 {
+		return ""
+	}
+	end := strings.Index(html[i:], ">")
+	if end < 0 {
+		return ""
+	}
+	return html[i : i+end]
 }
 
 // TestInboxDagNatsLinkIsOperatorOnly pins the contextual link: an operator can

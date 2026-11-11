@@ -278,25 +278,34 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   color: var(--color-base-content, var(--foreground, #0f172a));
 }
 
-/* ---------- App shell: sidebar, module header, work area ----------
-   internal/ui.Shell renders these regions. Everything is expressed with the
-   semantic tokens above (DaisyUI's --color-base-* / --color-primary), so a
-   theme (or any future skin) restyles the shell without touching this file.
-   Below 1024px the rail becomes a horizontal strip: navigation stays reachable
-   until the mobile collapse is designed (docs/ui-themes.md). */
+/* ---------- App shell: rail, module header, work area ----------
+   internal/ui.Shell renders these regions inside daisyUI's drawer
+   (`app-shell drawer lg:drawer-open`): the rail is the drawer side and the
+   work area the drawer content. The drawer owns the responsive behaviour — a
+   persistent column from 1024px up, an offcanvas drawer below — and its
+   checked state is the ONE rail state: checked = open/expanded, clear =
+   icon-only (desktop) or off-canvas (mobile). Datastar's $railOpen is the
+   value and the toggle input mirrors it, so the markup's is-drawer-open/
+   is-drawer-close utilities and this file's compact block cannot disagree.
+   Everything is expressed with the semantic tokens above (DaisyUI's
+   --color-base-* / --color-primary), so a theme restyles the shell without
+   touching this file. */
 
 .app-shell {
-  display: flex;
   min-height: 100vh;
-  align-items: stretch;
+  min-height: 100dvh;
+}
+/* The work area (the drawer content column). Flex ROW so the demo panel docks
+   beside the page, exactly as it did in the hand-rolled flex shell. */
+.app-content {
+  display: flex;
+  min-width: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 .app-rail {
-  flex: 0 0 15rem;
-  width: 15rem;
   display: flex;
   flex-direction: column;
-  position: sticky;
-  top: 0;
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
@@ -304,6 +313,14 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   border-right: 1px solid var(--color-base-300);
   color: var(--color-base-content);
 }
+.app-rail-brand-link {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+/* Wordmark and monogram are the same link in two widths; the compact block
+   below flips them with the drawer state. */
+.app-rail-brand-mark { display: none; }
 .app-rail-brand {
   flex: 0 0 auto;
   display: flex;
@@ -726,21 +743,25 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   padding: 1rem 1.5rem 4rem;
 }
 
-/* ---------- Mobile (≤1024px): the rail becomes a drawer ----------
-   A horizontal strip of eight destinations is not navigation: it scrolls the
-   labels off screen and has no "where am I". The rail becomes an offcanvas
-   drawer opened from the module header, closed by the backdrop, Escape, or
-   tapping a destination. Datastar owns the state ($railOpen); no new script. */
+/* ---------- Below 1024px: the rail is the drawer's offcanvas ----------
+   daisyUI owns the slide, the overlay, the scroll lock and the visibility
+   handoff; this block only sizes the panel, lifts it above the module header
+   and reveals the header trigger. Datastar owns the state ($railOpen), carried
+   to CSS by the drawer toggle. */
 .app-rail-toggle { display: none; }
+/* Desktop-only collapse: below the drawer breakpoint the rail is either
+   offcanvas or full width, never icon-only. */
+.app-rail-collapse { display: none; }
 
-@media (max-width: 1024px) {
-  /* Column flex, never block. `display: block` left .app-main sized to its
-     content (header + body), so the work area had no definite height and a
-     full-bleed page — the whiteboard canvas — collapsed to 0px: the board
-     rendered, but nothing could be drawn on it. Stacking with flex keeps the
-     single .app-main column filling the viewport, which is the height the
-     canvas chain (app-body → flex-1 → #canvas-wrap) needs. */
-  .app-shell { display: flex; flex-direction: column; }
+@media (max-width: 1023px) {
+  .app-rail-side { z-index: 60; }
+  .app-rail {
+    padding-top: env(safe-area-inset-top, 0px);
+    border-right: 1px solid var(--color-base-300);
+  }
+  .drawer-toggle:checked ~ .app-rail-side .app-rail {
+    box-shadow: 0 10px 40px color-mix(in oklab, var(--color-base-content) 25%, transparent);
+  }
   .app-rail-toggle {
     display: inline-flex;
     align-items: center;
@@ -757,42 +778,86 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
     cursor: pointer;
   }
   .app-rail-toggle:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
-  .app-rail {
-    position: fixed;
-    inset: 0 auto 0 0;
-    z-index: 60;
-    width: 17rem;
-    height: 100vh;
-    height: 100dvh;
-    padding-top: env(safe-area-inset-top, 0px);
-    transform: translateX(-100%);
-    /* Offcanvas links stay in the Tab order under a bare transform, so a
-       keyboard user tabs into an invisible drawer. visibility:hidden removes
-       them from Tab and AT; the delayed flip keeps the rail painted for the
-       whole slide-out, while .is-open below shows it immediately so the
-       focus trap's first-link focus never lands on a hidden element. */
-    visibility: hidden;
-    transition: transform 180ms ease-out, visibility 0s linear 180ms;
-    border-right: 1px solid var(--color-base-300);
-    box-shadow: none;
-  }
-  .app-rail.is-open {
-    transform: none;
-    visibility: visible;
-    transition: transform 180ms ease-out;
-    box-shadow: 0 10px 40px color-mix(in oklab, var(--color-base-content) 25%, transparent);
-  }
-  .app-rail-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 50;
-    background: color-mix(in oklab, var(--color-base-content) 45%, transparent);
-  }
   .app-module-actions .app-nav-btn span { display: none; }
 }
 
+/* ---------- The compact rail (desktop collapse) ----------
+   The pattern's width utilities live in the markup (is-drawer-close:w-18 /
+   is-drawer-open:w-60); what is left here is composition — a column brand, a
+   divider instead of group headings, centred rows, and the account popover
+   stepping outside a 4.5rem column. Every rule reads the same :checked the
+   utilities read, so there is one state and one source. */
+@media (min-width: 1024px) {
+  .app-rail-collapse {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 2.25rem;
+    height: 2.25rem;
+    margin-right: 0.5rem;
+    border: 1px solid transparent;
+    border-radius: 0.375rem;
+    background: transparent;
+    color: color-mix(in oklab, var(--color-base-content) 72%, transparent);
+    font-size: 1.25rem;
+    cursor: pointer;
+  }
+  .app-rail-collapse:hover {
+    background: color-mix(in oklab, var(--color-base-content) 8%, transparent);
+    color: var(--color-base-content);
+  }
+  .app-rail-collapse:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+  /* The chevron points at the edge the rail will move to: left when expanded,
+     right when collapsed. */
+  .app-rail-collapse-icon { transition: rotate 0.2s ease; }
+  .app-rail-collapse.is-flipped .app-rail-collapse-icon { rotate: 180deg; }
+
+  /* The popover leaves the rail instead of being squeezed into it. */
+  .app-shell:has(> .drawer-toggle:not(:checked)) .app-rail { overflow: visible; }
+  .app-shell:has(> .drawer-toggle:not(:checked)) .app-rail-brand {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 0.25rem;
+  }
+  .app-shell:has(> .drawer-toggle:not(:checked)) .app-rail-brand-spacer,
+  .app-shell:has(> .drawer-toggle:not(:checked)) .app-nav-badge,
+  .app-shell:has(> .drawer-toggle:not(:checked)) .app-rail-brand-word { display: none; }
+  .app-shell:has(> .drawer-toggle:not(:checked)) .app-rail-brand-mark { display: inline-flex; }
+  /* A group keeps its boundary as a hairline: the heading text stays in the
+     DOM (screen readers still announce it) but is clipped off the line. */
+  .app-shell:has(> .drawer-toggle:not(:checked)) .app-rail-group {
+    height: 1px;
+    margin: 0.5rem 0.75rem;
+    padding: 0;
+    overflow: hidden;
+    text-indent: -9999px;
+    background: var(--color-base-300);
+    color: transparent;
+  }
+  .app-shell:has(> .drawer-toggle:not(:checked)) .app-rail-item {
+    justify-content: center;
+    gap: 0.25rem;
+    padding-inline: 0;
+  }
+  .app-shell:has(> .drawer-toggle:not(:checked)) .app-rail-foot > .app-dropdown > .app-dropdown-trigger {
+    justify-content: center;
+    padding-inline: 0;
+  }
+  .app-shell:has(> .drawer-toggle:not(:checked)) .app-rail-foot .app-account-identity,
+  .app-shell:has(> .drawer-toggle:not(:checked)) .app-account-caret { display: none; }
+  .app-shell:has(> .drawer-toggle:not(:checked)) .app-rail-foot .app-dropdown-up .app-dropdown-menu {
+    left: calc(100% + 0.5rem);
+    right: auto;
+    bottom: 0;
+    width: 15rem;
+    min-width: 15rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .app-rail { transition: none; }
+  .drawer-side > * { transition: none; }
 }
 
 /* ---------- Segmented control (internal/ui.Segmented) ----------
