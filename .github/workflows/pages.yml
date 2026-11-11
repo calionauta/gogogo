@@ -58,7 +58,11 @@ jobs:
       - name: Install JS deps
         run: npm ci --no-audit --no-fund
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        # Same script CI runs, for the same reason: the browser is installed
+        # first, the apt phase is best effort (the runners' DNS for
+        # *.ubuntu.com failed on 2026-11-11 and took this job with it), and the
+        # browser is proven to launch before a single page is measured.
+        run: bash bin/install-browser.sh
       - name: Docs site layout
         run: node scripts/site-layout.test.mjs
 
