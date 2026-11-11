@@ -15,6 +15,17 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.68.0 (2026-11-11)
+
+## What's Changed
+* build: pin Go 1.27.4 with a bitcode-free loro-go by @calionauta in https://github.com/calionauta/gogogo/pull/399
+* fix(ci): install the browser without letting a broken apt mirror fail the build by @calionauta in https://github.com/calionauta/gogogo/pull/401
+* feat(ui): collapsible icon-only rail with indicator unread markers by @calionauta in https://github.com/calionauta/gogogo/pull/402
+* fix(ci): a suite that hangs is a failure, not an infinite step by @calionauta in https://github.com/calionauta/gogogo/pull/403
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.67.0...v0.68.0
+
 ## 0.67.0 (2026-11-10)
 
 ## What's Changed
