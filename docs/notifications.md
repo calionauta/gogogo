@@ -24,14 +24,17 @@ seam that would host one live in [notify](research/notify-2026-10.md).
 Every route checks the session itself. RBAC can be off, so a policy row is
 never the only guard, and every query is scoped by the session owner.
 
-## The rail badge
+## The rail count
 
-The sidebar's Inbox entry carries the unread count as a DaisyUI badge at the
-end of its row, after the label, above the first group heading. The badge is
-**not** on the icon: in a labelled row the icon corner sits close enough to
-the first letter of "Inbox" that a wide count ("99+") would paint over it.
-The inbox page uses the same counter badge on its Notifications title, so the
-two surfaces cannot disagree. Three writers keep the rail count honest:
+The sidebar's Inbox entry carries the unread count as a daisyUI `indicator-item`
+on the row label (top-end corner), above the first group heading. It is **not**
+on the icon while the row is labelled: the icon corner sits close enough to the
+first letter of "Inbox" that a wide count ("99+") would paint over it. When the
+rail collapses the label is hidden with it, so the marker moves onto the icon as
+a bare `status` dot — position defaults (`indicator-top`, `indicator-end`), no
+number, with an `sr-only` "N unread" for screen readers. The inbox page repeats
+the number as the same `indicator-item` on its Notifications title, so the
+surfaces cannot disagree. Three writers keep the rail count honest:
 
 - `inboxBadgeMiddleware` (`internal/server/inbox_badge.go`) resolves the count
   once per page navigation and seeds the shell signal, so every page renders

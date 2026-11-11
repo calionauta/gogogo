@@ -118,7 +118,7 @@ var featureBuiltinUnits = []builtinUnit{
 		replaces: []fileReplace{
 			{
 				path:        shellTempl,
-				matchSubstr: `class="app-rail-brand"`,
+				matchSubstr: `class="app-rail-brand-link"`,
 				old:         `href="/"`,
 				newStr:      `href="/todo"`,
 			},

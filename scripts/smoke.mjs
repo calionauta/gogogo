@@ -281,7 +281,8 @@ async function verifyAccountMenu(page) {
   );
 
   // The inbox is the rail's first item, pinned above the Collab heading, with
-  // a badge node at the row end the live inbox patches.
+  // an indicator count on its label (expanded) and a dot on its icon
+  // (collapsed) the live inbox patches.
   const firstRailHref = await page
     .locator("#app-rail .app-rail-nav .app-rail-item")
     .first()
@@ -293,6 +294,15 @@ async function verifyAccountMenu(page) {
   check(
     (await page.locator("#app-rail #rail-inbox-badge").count()) === 1,
     "the inbox rail item has no badge node",
+  );
+  const countClass = (await page.locator("#app-rail #rail-inbox-badge").getAttribute("class")) || "";
+  check(
+    countClass.split(/\s+/).includes("indicator-item"),
+    `the inbox count is not a daisyUI indicator item (class="${countClass}")`,
+  );
+  check(
+    (await page.locator("#app-rail #rail-inbox-dot").count()) === 1,
+    "the inbox rail item has no collapsed unread dot",
   );
 
   await page.keyboard.press("Escape");
@@ -391,6 +401,18 @@ async function verifyStructuralUi(page) {
   );
   await page.waitForTimeout(150);
   check(await railBadge.isHidden(), "rail inbox badge stayed visible at zero");
+
+  // The inbox screen repeats the same counter as an indicator on its
+  // Notifications title — the rail is not the only place the number lives, and
+  // the two must share one signal.
+  await page.goto(BASE + "/notifications", { waitUntil: "load", timeout: 20000 });
+  const inboxBadge = page.locator("#inbox .ui-title .indicator-item");
+  check((await inboxBadge.count()) === 1, "the inbox title has no indicator count");
+  await page.evaluate(() =>
+    document.dispatchEvent(new CustomEvent("gogogo:unread", { detail: { unread: 5 } })),
+  );
+  await page.waitForTimeout(150);
+  check((await inboxBadge.innerText()) === "5", "the inbox title count did not react to gogogo:unread");
 
   if (bad === 0) console.log("  \u2713 structural UI clean: names, overflow, panel geometry");
 }
@@ -1711,19 +1733,86 @@ try {
     }
     await trigger.click();
     await page.waitForFunction(
-      () => document.querySelector("#app-rail").classList.contains("is-open"),
+      () => {
+        const cb = document.getElementById("app-rail-toggle");
+        const rail = document.getElementById("app-rail");
+        return cb && cb.checked && Math.round(rail.getBoundingClientRect().x) === 0;
+      },
       null,
       { timeout: 5000 },
     );
     console.log("  ✓ mobile: rail starts off-canvas and opens from the header");
     await page.keyboard.press("Escape");
     await page.waitForFunction(
-      () => !document.querySelector("#app-rail").classList.contains("is-open"),
+      () => {
+        const cb = document.getElementById("app-rail-toggle");
+        const rail = document.getElementById("app-rail");
+        return cb && !cb.checked && Math.round(rail.getBoundingClientRect().x) < 0;
+      },
       null,
       { timeout: 5000 },
     );
     console.log("  ✓ mobile: Escape closes the drawer");
     await page.setViewportSize({ width: 1280, height: 900 });
+  }
+
+  // Desktop: the rail collapses to icons. The state is the daisyUI drawer's
+  // own checkbox (is-drawer-close:w-18 / is-drawer-open:w-60), toggled from
+  // the module header and remembered across a reload — a collapse that only
+  // hides labels, or one that forgets the choice on the next page, passes a
+  // screenshot and fails its user.
+  {
+    const railWidth = () =>
+      page.evaluate(() => Math.round(document.getElementById("app-rail").getBoundingClientRect().width));
+    const labelsHidden = () =>
+      page.evaluate(() =>
+        [...document.querySelectorAll("#app-rail .app-rail-label")].every(
+          (n) => getComputedStyle(n).display === "none",
+        ),
+      );
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.evaluate(() => localStorage.removeItem("railCompact"));
+    await page.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
+    const collapse = page.locator(".app-rail-collapse");
+    if (!(await collapse.isVisible())) fail("desktop: no rail collapse control in the module header");
+    if ((await railWidth()) < 200) fail("desktop: the rail starts collapsed on a fresh visit");
+    await collapse.click();
+    await page.waitForFunction(() => document.getElementById("app-rail").getBoundingClientRect().width < 100, null, { timeout: 5000 });
+    if (!(await labelsHidden())) fail("desktop: the collapsed rail still shows its labels");
+    console.log("  ✓ desktop: the rail collapses to an icon-only column");
+
+    // The unread marker moves with the width: the count is anchored to the
+    // row label (gone in the compact column), so the collapsed rail shows a
+    // bare dot on the icon instead — same fact, no number.
+    await page.evaluate(() =>
+      document.dispatchEvent(new CustomEvent("gogogo:unread", { detail: { unread: 3 } })),
+    );
+    await page.waitForTimeout(150);
+    if (await page.locator("#rail-inbox-badge").isVisible()) {
+      fail("desktop: the collapsed rail still shows the numeric unread badge");
+    }
+    if (!(await page.locator("#rail-inbox-dot").isVisible())) {
+      fail("desktop: the collapsed rail has no unread dot on the inbox icon");
+    }
+    console.log("  ✓ desktop: collapsing moves the unread marker onto the icon");
+
+    await page.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
+    if ((await railWidth()) >= 100) fail("desktop: the collapsed rail came back expanded after a reload");
+    console.log("  ✓ desktop: the collapsed choice survives a reload");
+    await page.locator(".app-rail-collapse").click();
+    await page.waitForFunction(() => document.getElementById("app-rail").getBoundingClientRect().width > 200, null, { timeout: 5000 });
+    await page.evaluate(() =>
+      document.dispatchEvent(new CustomEvent("gogogo:unread", { detail: { unread: 3 } })),
+    );
+    await page.waitForTimeout(150);
+    if (!(await page.locator("#rail-inbox-badge").isVisible())) {
+      fail("desktop: the expanded rail lost its numeric unread badge");
+    }
+    if (await page.locator("#rail-inbox-dot").isVisible()) {
+      fail("desktop: the expanded rail still shows the collapsed unread dot");
+    }
+    await page.evaluate(() => localStorage.removeItem("railCompact"));
+    console.log("  ✓ desktop: the same control expands it again");
   }
 
   // Demo mode: the state panel is signal-driven and never reloads. The panel

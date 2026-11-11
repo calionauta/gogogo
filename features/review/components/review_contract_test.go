@@ -83,3 +83,24 @@ func TestReviewResultShowsTheCritiqueWhenRevised(t *testing.T) {
 		t.Errorf("an approved verdict has no critique to show:\n%s", approved)
 	}
 }
+
+// TestReviewResultIsAChatTranscript pins the presentation vocabulary: the
+// writer/critic/judge exchange reads as a conversation (daisyUI chat), the
+// writer's proposal on the user's side and the reviewers on the other. The
+// card used to be three stacked <pre> blocks, which made a dialogue look like
+// a log; the same text with a speaker and a side is the point of the exchange.
+func TestReviewResultIsAChatTranscript(t *testing.T) {
+	html := renderResult(t)
+	for _, want := range []string{
+		"chat chat-start",
+		"chat chat-end",
+		"chat-header",
+		"chat-bubble chat-bubble-primary",
+		">Judge<",
+		">Writer<",
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("verdict card missing %q:\n%s", want, html)
+		}
+	}
+}

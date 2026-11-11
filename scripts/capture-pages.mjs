@@ -120,7 +120,9 @@ try {
   await page.waitForSelector(".app-rail-toggle", { state: "visible" });
   await page.screenshot({ path: `${OUT}/todo-mobile.png`, fullPage: false });
   await page.click(".app-rail-toggle", { timeout: 5000 }).catch(() => {});
-  await page.waitForSelector("#app-rail.is-open", { state: "visible", timeout: 5000 }).catch(() => {});
+  await page
+    .waitForFunction(() => document.getElementById("app-rail-toggle")?.checked, null, { timeout: 5000 })
+    .catch(() => {});
   await page.screenshot({ path: `${OUT}/todo-mobile-drawer.png`, fullPage: false });
 
   await browser.close();

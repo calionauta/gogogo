@@ -410,6 +410,200 @@
     }
   }
   @layer daisyui.l1.l2.l3 {
+    :where(.drawer-side) {
+      overflow-x: hidden;
+      overflow-y: hidden;
+    }
+    .drawer-side {
+      pointer-events: none;
+      visibility: hidden;
+      position: fixed;
+      inset-inline-start: calc(0.25rem * 0);
+      top: 0px;
+      z-index: 10;
+      grid-column-start: 1;
+      grid-row-start: 1;
+      display: grid;
+      width: 100%;
+      grid-template-columns: repeat(1, minmax(0, 1fr));
+      grid-template-rows: repeat(1, minmax(0, 1fr));
+      align-items: flex-start;
+      justify-items: start;
+      overscroll-behavior: contain;
+      background-color: transparent;
+      opacity: 0%;
+      transition: opacity 0.2s ease-out 0.1s allow-discrete, visibility 0.3s ease-out 0.1s allow-discrete;
+      height: 100vh;
+      height: 100dvh;
+    }
+    .drawer-side > .drawer-overlay {
+      position: sticky;
+      top: 0px;
+      cursor: pointer;
+      place-self: stretch;
+      background-color: oklch(0% 0 0 / 40%);
+    }
+    .drawer-side > * {
+      grid-column-start: 1;
+      grid-row-start: 1;
+    }
+    .drawer-side > :not(.drawer-overlay) {
+      will-change: transform;
+      transition: translate 0.3s ease-out, width 0.2s ease-out;
+      translate: -100%;
+    }
+    [dir="rtl"] :is(.drawer-side > :not(.drawer-overlay)) {
+      translate: 100%;
+    }
+    :where(.drawer-toggle:checked ~ .drawer-side) {
+      scrollbar-color: currentColor oklch(0 0 0 / calc(var(--page-has-backdrop, 0) * 0.4));
+    }
+    @supports (color: color-mix(in lab, red, red)) {
+      :where(.drawer-toggle:checked ~ .drawer-side) {
+        scrollbar-color: color-mix(in oklch, currentColor 35%, #0000) oklch(0 0 0 / calc(var(--page-has-backdrop, 0) * 0.4));
+      }
+    }
+    :where(.drawer-toggle:checked ~ .drawer-side)  > :not(.drawer-overlay) {
+      transform: none;
+      will-change: auto;
+    }
+  }
+  @layer daisyui.l1.l2 {
+    :where(.drawer-toggle:checked ~ .drawer-side) {
+      pointer-events: auto;
+      visibility: visible;
+      overflow-y: auto;
+      opacity: 100%;
+    }
+    :where(.drawer-toggle:checked ~ .drawer-side)  > :not(.drawer-overlay) {
+      translate: 0%;
+    }
+  }
+  @layer daisyui.l1.l2.l3 {
+    .drawer-open > .drawer-toggle:checked ~ .drawer-side {
+      scrollbar-color: revert-layer;
+    }
+  }
+  @layer daisyui.l1.l2 {
+    .drawer-end > .drawer-toggle ~ .drawer-side {
+      grid-column-start: 2;
+      justify-items: end;
+    }
+    .drawer-end > .drawer-toggle ~ .drawer-side > :not(.drawer-overlay) {
+      translate: 100%;
+    }
+    [dir="rtl"] :is(.drawer-end > .drawer-toggle ~ .drawer-side > :not(.drawer-overlay)) {
+      translate: -100%;
+    }
+    .drawer-end > .drawer-toggle:checked ~ .drawer-side > :not(.drawer-overlay) {
+      translate: 0%;
+    }
+    .drawer-open > .drawer-side {
+      overflow-y: auto;
+    }
+  }
+  @layer daisyui.l1 {
+    .drawer-open > .drawer-toggle ~ .drawer-side > :not(.drawer-overlay) {
+      translate: 0%;
+    }
+    [dir="rtl"] :is(.drawer-open > .drawer-toggle ~ .drawer-side > :not(.drawer-overlay)) {
+      translate: 0%;
+    }
+  }
+  @layer daisyui.l1.l2.l3 {
+    .drawer-toggle {
+      position: fixed;
+      height: 0px;
+      width: 0px;
+      appearance: none;
+      opacity: 0%;
+    }
+    :where(.drawer-toggle:checked ~ .drawer-side) {
+      scrollbar-color: currentColor oklch(0 0 0 / calc(var(--page-has-backdrop, 0) * 0.4));
+    }
+    @supports (color: color-mix(in lab, red, red)) {
+      :where(.drawer-toggle:checked ~ .drawer-side) {
+        scrollbar-color: color-mix(in oklch, currentColor 35%, #0000) oklch(0 0 0 / calc(var(--page-has-backdrop, 0) * 0.4));
+      }
+    }
+    :where(.drawer-toggle:checked ~ .drawer-side)  > :not(.drawer-overlay) {
+      transform: none;
+      will-change: auto;
+    }
+  }
+  @layer daisyui.l1.l2 {
+    :where(.drawer-toggle:checked ~ .drawer-side) {
+      pointer-events: auto;
+      visibility: visible;
+      overflow-y: auto;
+      opacity: 100%;
+    }
+    :where(.drawer-toggle:checked ~ .drawer-side)  > :not(.drawer-overlay) {
+      translate: 0%;
+    }
+  }
+  @layer daisyui.l1.l2.l3 {
+    :where(:root:has(.drawer-toggle:checked)) {
+      --page-scroll-lock:  ;
+    }
+    .drawer-open > .drawer-toggle:checked ~ .drawer-side {
+      scrollbar-color: revert-layer;
+    }
+    :root:has(.drawer-open > .drawer-toggle:checked) {
+      --page-scroll-lock: revert-layer;
+    }
+  }
+  @layer daisyui.l1.l2 {
+    .drawer-toggle:focus-visible ~ .drawer-content label.drawer-button {
+      outline: 2px solid;
+      outline-offset: 2px;
+    }
+    .drawer-end > .drawer-toggle ~ .drawer-content {
+      grid-column-start: 1;
+    }
+    .drawer-end > .drawer-toggle ~ .drawer-side {
+      grid-column-start: 2;
+      justify-items: end;
+    }
+    .drawer-end > .drawer-toggle ~ .drawer-side > :not(.drawer-overlay) {
+      translate: 100%;
+    }
+    [dir="rtl"] :is(.drawer-end > .drawer-toggle ~ .drawer-side > :not(.drawer-overlay)) {
+      translate: -100%;
+    }
+    .drawer-end > .drawer-toggle:checked ~ .drawer-side > :not(.drawer-overlay) {
+      translate: 0%;
+    }
+    .drawer-open > .drawer-toggle {
+      display: none;
+    }
+    .drawer-open > .drawer-toggle  ~ .drawer-side {
+      pointer-events: auto;
+      visibility: visible;
+      position: sticky;
+      display: block;
+      width: auto;
+      overscroll-behavior: auto;
+      opacity: 100%;
+       > .drawer-overlay {
+        cursor: default;
+        background-color: transparent;
+      }
+    }
+    .drawer-open > .drawer-toggle:checked ~ .drawer-side {
+      pointer-events: auto;
+      visibility: visible;
+    }
+  }
+  @layer daisyui.l1 {
+    .drawer-open > .drawer-toggle ~ .drawer-side > :not(.drawer-overlay) {
+      translate: 0%;
+    }
+    [dir="rtl"] :is(.drawer-open > .drawer-toggle ~ .drawer-side > :not(.drawer-overlay)) {
+      translate: 0%;
+    }
+  }
+  @layer daisyui.l1.l2.l3 {
     .tab:is(.tabs > .tab) {
       position: relative;
       display: inline-flex;
@@ -5172,6 +5366,21 @@
       cursor: not-allowed;
       opacity: 30%;
     }
+    .indicator {
+      position: relative;
+      display: inline-flex;
+      width: max-content;
+    }
+    .indicator :where(.indicator-item) {
+      z-index: 1;
+      position: absolute;
+      white-space: nowrap;
+      top: var(--indicator-t, 0);
+      bottom: var(--indicator-b, auto);
+      left: var(--indicator-s, auto);
+      right: var(--indicator-e, 0);
+      translate: var(--indicator-x, 50%) var(--indicator-y, -50%);
+    }
     .table {
       font-size: 0.875rem;
       position: relative;
@@ -5243,6 +5452,16 @@
       .table :where(thead tr :is(td, th), tbody tr:not(:last-child) :is(td, th)) {
         border-bottom: var(--border) solid color-mix(in oklch, var(--color-base-content) 5%, #0000);
       }
+    }
+    .indicator :where(.indicator-item) {
+      z-index: 1;
+      position: absolute;
+      white-space: nowrap;
+      top: var(--indicator-t, 0);
+      bottom: var(--indicator-b, auto);
+      left: var(--indicator-s, auto);
+      right: var(--indicator-e, 0);
+      translate: var(--indicator-x, 50%) var(--indicator-y, -50%);
     }
     .steps .step {
       display: grid;
@@ -5492,6 +5711,17 @@
       --step-bg: var(--color-error);
       --step-fg: var(--color-error-content);
     }
+  }
+  @layer daisyui.l1.l2.l3 {
+    .drawer-side > .drawer-overlay {
+      position: sticky;
+      top: 0px;
+      cursor: pointer;
+      place-self: stretch;
+      background-color: oklch(0% 0 0 / 40%);
+    }
+  }
+  @layer daisyui.l1.l2 {
     .swap {
       position: relative;
       display: inline-grid;
@@ -6792,6 +7022,22 @@
       grid-column-start: 1;
       grid-row-start: 1;
     }
+    .chat-header {
+      grid-row-start: 1;
+      display: flex;
+      gap: 0.25rem;
+      font-size: 0.6875rem;
+    }
+  }
+  @layer daisyui.l1.l2 {
+    .chat-start .chat-header {
+      grid-column-start: 2;
+    }
+    .chat-end .chat-header {
+      grid-column-start: 1;
+    }
+  }
+  @layer daisyui.l1.l2.l3 {
     .modal-box {
       grid-column-start: 1;
       grid-row-start: 1;
@@ -6886,6 +7132,22 @@
       --modal-tr: var(--radius-box);
       --modal-bl: 0;
       --modal-br: var(--radius-box);
+    }
+  }
+  @layer daisyui.l1.l2.l3 {
+    .drawer-content {
+      grid-column-start: 2;
+      grid-row-start: 1;
+      min-width: 0px;
+    }
+  }
+  @layer daisyui.l1.l2 {
+    .drawer-toggle:focus-visible ~ .drawer-content label.drawer-button {
+      outline: 2px solid;
+      outline-offset: 2px;
+    }
+    .drawer-end > .drawer-toggle ~ .drawer-content {
+      grid-column-start: 1;
     }
   }
   @layer daisyui.l1.l2.l3 {
@@ -8290,6 +8552,9 @@
   .pt-4 {
     padding-top: calc(var(--spacing) * 4);
   }
+  .pr-5 {
+    padding-right: calc(var(--spacing) * 5);
+  }
   .pb-6 {
     padding-bottom: calc(var(--spacing) * 6);
   }
@@ -8680,6 +8945,11 @@
       --btn-p: 0.5rem;
       --size: calc(var(--size-field, 0.25rem) * 6);
     }
+    .indicator-middle {
+      --indicator-t: 50%;
+      --indicator-b: auto;
+      --indicator-y: -50%;
+    }
     .badge-accent {
       --badge-color: var(--color-accent);
       --badge-fg: var(--color-accent-content);
@@ -8854,6 +9124,47 @@
     }
   }
   @media (width >= 64rem) {
+    @layer daisyui.l1.l2.l3 {
+      .lg\:drawer-open > .drawer-toggle:checked ~ .drawer-side {
+        scrollbar-color: revert-layer;
+      }
+      :root:has(.lg\:drawer-open > .drawer-toggle:checked) {
+        --page-scroll-lock: revert-layer;
+      }
+    }
+    @layer daisyui.l1.l2 {
+      .lg\:drawer-open > .drawer-side {
+        overflow-y: auto;
+      }
+      .lg\:drawer-open > .drawer-toggle {
+        display: none;
+      }
+      .lg\:drawer-open > .drawer-toggle  ~ .drawer-side {
+        pointer-events: auto;
+        visibility: visible;
+        position: sticky;
+        display: block;
+        width: auto;
+        overscroll-behavior: auto;
+        opacity: 100%;
+         > .drawer-overlay {
+          cursor: default;
+          background-color: transparent;
+        }
+      }
+      .lg\:drawer-open > .drawer-toggle:checked ~ .drawer-side {
+        pointer-events: auto;
+        visibility: visible;
+      }
+    }
+    @layer daisyui.l1 {
+      .lg\:drawer-open > .drawer-toggle ~ .drawer-side > :not(.drawer-overlay) {
+        translate: 0%;
+      }
+      [dir="rtl"] :is(.lg\:drawer-open > .drawer-toggle ~ .drawer-side > :not(.drawer-overlay)) {
+        translate: 0%;
+      }
+    }
     .lg\:col-span-3 {
       grid-column: span 3 / span 3;
     }
@@ -8863,6 +9174,21 @@
     .lg\:grid-cols-3 {
       grid-template-columns: repeat(3, minmax(0, 1fr));
     }
+  }
+  .is-drawer-close\:hidden:where(.drawer-toggle:not(:checked) ~ .drawer-side, .drawer-toggle:not(:checked) ~ .drawer-side *) {
+    display: none;
+  }
+  .is-drawer-close\:w-18:where(.drawer-toggle:not(:checked) ~ .drawer-side, .drawer-toggle:not(:checked) ~ .drawer-side *) {
+    width: calc(var(--spacing) * 18);
+  }
+  .is-drawer-close\:overflow-visible:where(.drawer-toggle:not(:checked) ~ .drawer-side, .drawer-toggle:not(:checked) ~ .drawer-side *) {
+    overflow: visible;
+  }
+  .is-drawer-open\:hidden:where(.drawer-toggle:checked ~ .drawer-side, .drawer-toggle:checked ~ .drawer-side *) {
+    display: none;
+  }
+  .is-drawer-open\:w-60:where(.drawer-toggle:checked ~ .drawer-side, .drawer-toggle:checked ~ .drawer-side *) {
+    width: calc(var(--spacing) * 60);
   }
   .animate-in {
     animation-duration: 150ms;

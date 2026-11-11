@@ -50,6 +50,11 @@ own dropdown uses.
 go **inside** the panel — see §2 — because that is the account surface, and
 because a rail footer with five small controls has no visual anchor.
 
+When the rail is collapsed (desktop, `is-drawer-close`), the row keeps only the
+identity disc and the panel steps out to the **right** of the 4.5rem column
+(`chrome.css`, the compact block) — a 15rem menu inside a 4.5rem rail is a
+column of one-word lines.
+
 ## 2. Preference row (inside the account panel)
 
 A preference is one row: the option list for a choice, and — for a boolean —
@@ -124,6 +129,19 @@ seven), and do not put the list back in the sidebar: seven static rows cost
 Counts, verdicts and statuses are DaisyUI `badge` with a semantic colour
 (`badge-primary`, `badge-success`, `badge-error`). A role or a mode reads as a
 badge too — `badge badge-sm`.
+
+An unread count belongs to the thing it counts: use `indicator` +
+`indicator-item` so the bubble hangs off that element's corner (the rail's
+inbox label, the inbox title). When the surface loses the room — the rail
+collapsed to icons — swap the number for a bare `status` dot on the icon and
+keep the number in an `sr-only` child; never let a wide count paint over a
+label it sits beside.
+
+A back-and-forth between two speakers (the chat answer thread, the
+writer / critic / judge exchange on `/review`) is a DaisyUI `chat` transcript,
+not a stack of quoted blocks: `chat-start` for the other side, `chat-end` for
+the user's own text, `chat-header` naming the speaker. A block that only
+looks like a message because it is quoted is a log.
 
 A **grouped status card** (the `/config` runtime view) lists several states
 under captions, one aligned row per item: label on the left, DaisyUI `status`

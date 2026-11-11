@@ -40,12 +40,13 @@ var vanillaAllow = map[string][]vanillaAllowed{
 	// allowlist row. Static .js files are not scanned by this guard, which
 	// only inspects .templ islands.
 	// Drawer focus trap (internal/ui/shell.templ): Datastar owns $railOpen
-	// state and every dismissal path (Escape, backdrop, destination tap), but
-	// no Datastar primitive cycles Tab inside an open drawer or moves focus
-	// across its boundary — the keydown listener plus the open/return globals
-	// (called from data-effect / data-on:*) are the island. The ≤1024px
-	// matchMedia mirrors chrome.css: on desktop the rail is a persistent
-	// sidebar and the trap stays out of the way.
+	// state and every dismissal path (Escape, overlay, destination tap, the
+	// collapse button), and the drawer's checkbox mirrors it, but no Datastar
+	// primitive cycles Tab inside an open drawer or moves focus across its
+	// boundary — the keydown listener plus the open/return globals (called
+	// from data-effect / data-on:*) are the island. The ≤1023px matchMedia
+	// mirrors chrome.css and daisyUI's lg:drawer-open: on desktop the rail is
+	// a persistent column and the trap stays out of the way.
 	"internal/ui/shell.templ": {
 		{`__gogogoRail.addEventListener("keydown", function (e) {`, "Tab-focus trap"},
 		{`window.addEventListener("online", window.__gogogoSyncBadge);`, "badge sync on online"},
