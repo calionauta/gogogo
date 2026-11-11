@@ -42,6 +42,7 @@ individual notes.
 | [Recipe metrics and panel spec](recipe-metrics-panel-2026-11.md) | 2026-11-09 | declarative dashboard metrics (one COUNT per entry) and chat panel spec (name/prompt/writable): what was adopted vs. rejected, the SlicePanel base, the recipe-check evaluator, and the in-repo catalog decision |
 | [MyGo shell](mygo-2026-11.md) | 2026-11-08 | MyGo peer shell over the flat stack: webview cookie + SSE proof with `ENVIRONMENT=dev`, loopback vs native `ui.View`/`Bind`, driver matrix, and the `cmd/mygo` build recipe |
 | [Internationalization](i18n-2026-11.md) | 2026-11-08 | UI localization: own the seam on the text package, rent CLDR depth only on a trigger — the libraries evaluated, mitigations for their gaps, and the phased plan that deletes cleanly |
+| [Headless CMS in Go](headless-cms-go-2026-11.md) | 2026-11-11 | the Go CMS ecosystem probed against the two-month window: ocms-go and ridu as the finalists, why neither is adopted as a dependency (GPL-3.0; Bun + Svelte admin, one maintainer), the four GitHub-as-CMS models and what "issues as pages" actually means, and why the content surface belongs in a recipe |
 
 ## Testing and host capacity
 
