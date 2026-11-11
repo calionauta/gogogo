@@ -74,11 +74,11 @@ map (`site/docsite.config.mjs`) groups all of them.
 
 ## Toolchain / stdlib-only
 
-This skill requires **Go 1.27.3 or newer**. `go.mod` declares the minimum
-(`go 1.27.3`, no `toolchain` pin), so later releases satisfy it with no skill
+This skill requires **Go 1.27.4 or newer**. `go.mod` declares the minimum
+(`go 1.27.4`, no `toolchain` pin), so later releases satisfy it with no skill
 update — and the version tags below (`wg.Go` 1.25, `B.Loop` 1.26, `new(expr)`
 1.26) are minimums too, valid on every newer toolchain. Everything below
-assumes at least 1.27.3. Do not write fallback code for older toolchains; if
+assumes at least 1.27.4. Do not write fallback code for older toolchains; if
 a task pins an older `go`, bump the pin instead of downgrading the code
 (`make go-bump` moves the whole pin surface in one command, patch only).
 

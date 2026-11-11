@@ -139,10 +139,28 @@ build tags any more. If you are passing `-tags jetstream dagnats`, you are
 building a stale configuration that no longer reflects what ships. `make build`
 is just `go build ./cmd/web` and includes everything.
 
+## `go build` fails with "disallowed LTO section __LLVM,__bitcode"
+
+The `loro-go` archives are Rust fat-LTO objects, and Go 1.27.4 refuses to hand
+LTO IR to the C linker (the cgo hardening in that release). `go.mod` therefore
+replaces the module with a fork whose archives carry the same machine code
+without the bitcode:
+
+```
+replace github.com/aholstenson/loro-go => github.com/calionauta/loro-go v0.5.1
+```
+
+Seeing this error means something bypassed that replace — a `-modfile`, a
+workspace that replaces the module itself, or a `go get` that dropped the line.
+The `loro-go upstream watch` workflow opens an issue when upstream ships
+bitcode-free archives; that issue is the cue to delete the replace and pin
+upstream again (`go get github.com/aholstenson/loro-go@latest`). The fork's
+`PATCHED.md` records what was changed and how to reproduce it.
+
 ## Scaffolding refuses: "this tree needs go X, but GOTOOLCHAIN pins go Y"
 
 The `go` directive in `go.mod` is enforced at **patch** level: a go1.27.2
-toolchain will not build a tree that declares `go 1.27.3`. The Go default
+toolchain will not build a tree that declares `go 1.27.4`. The Go default
 (`GOTOOLCHAIN=auto`) downloads whatever the tree asks for, so this only bites
 when the setting is pinned:
 
