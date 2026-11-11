@@ -49,12 +49,24 @@ export function launchBrowser(opts = {}) {
 // Runs `fn` with a browser and guarantees closure, including on throw.
 // The optional `finallyFn` runs after the browser is closed (server cleanup,
 // temp-dir removal) and is also exception-safe.
+//
+// CLOSE IS BOUNDED. `browser.close()` waits for Chromium to exit, and a
+// wedged renderer never does: without the cap the whole suite hangs in its
+// own cleanup — the one place a hang is hardest to see, because every
+// assertion already passed and the log looks complete. On 2026-11-11 a
+// whiteboard suite in CI sat for 33+ minutes at exactly this point (the
+// attempt budget in scripts/run-browser-suite.sh now kills the group). The
+// cap trades a possible leak (reaped by ~/bin/reap-playwright-orphans.sh) for
+// a suite that ends and reports.
 export async function withBrowser(fn, opts = {}, finallyFn) {
   const browser = await launchBrowser(opts);
   try {
     return await fn(browser);
   } finally {
-    await browser.close().catch(() => {});
+    await Promise.race([
+      browser.close().catch(() => {}),
+      new Promise((resolve) => setTimeout(resolve, 10000)),
+    ]);
     if (finallyFn) await finallyFn();
   }
 }

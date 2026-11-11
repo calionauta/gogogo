@@ -240,6 +240,31 @@ browser download MUST fail it, a browser that cannot launch MUST fail it, and
 `PLAYWRIGHT_SKIP_DEPS=1` must not call apt anyway. It runs in `make
 check-ci-scripts`, so the contract is checked locally and in CI.
 
+### A suite that hangs is a failure, not a slow test
+
+Every browser suite runs under a wall-clock budget: `scripts/run-browser-suite.sh`
+passes `SMOKE_SUITE_TIMEOUT` (default 600s) to `scripts/lib/suite-supervisor.mjs`,
+which runs the suite in its own process group and kills the whole group —
+node, Chromium and the server the suite spawned — when the budget is gone. The
+supervisor exits 124, the wrapper prints **TIMED OUT** instead of FAILED, and
+the CI job carries `timeout-minutes: 30` as the outer fence.
+
+Why it exists: on 2026-11-11 the whiteboard suite hung in CI. Its step ran
+**44 minutes** (the job was killed with the step still in progress) while
+every other run of the same suite took **20 seconds**. A suite can hang
+instead of failing, because Playwright's default timeouts do not cover the
+places where a hang actually happens:
+
+| Unbounded wait | Where | Now |
+|---|---|---|
+| an in-page `fetch` the server never answers | `page.evaluate` has **no** default timeout | `AbortSignal.timeout(10s)` on every in-page fetch |
+| `navigator.serviceWorker.ready` (resolves only on activation) | the smoke suite's SW wait | raced against a 15s deadline |
+| `browser.close()` on a wedged renderer | every suite's cleanup | raced against a 10s deadline |
+| the suite as a whole | the wrapper | the supervisor's budget |
+
+The last one is the load-bearing one: without it a single hang is an infinite
+step, and the runner is held for hours with a log that looks complete.
+
 ### Why the browser smoke test stays on Playwright
 
 The browser engine was re-evaluated (2026-10) because `scripts/smoke.mjs` costs

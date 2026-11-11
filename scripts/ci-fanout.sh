@@ -38,17 +38,22 @@ trap 'kill $pid_race $pid_smoke $pid_wb $pid_notes $pid_sse $pid_scroll 2>/dev/n
 # are deleted on green anyway, and on red the extra detail aids diagnosis.
 bash scripts/test-web.sh -race -count=1 -v >"$logdir/race.log" 2>&1 &
 pid_race=$!
-SMOKE_BIN="$bin" node scripts/smoke.mjs >"$logdir/smoke.log" 2>&1 &
+# The browser suites run under the SAME wall-clock budget the CI steps use
+# (scripts/lib/suite-supervisor.mjs): a suite that hangs instead of failing
+# would otherwise hold this fan-out — and the box it runs on — forever. The
+# supervisor kills the whole process group when the budget is gone.
+suite_timeout="${SMOKE_SUITE_TIMEOUT:-600}"
+SMOKE_BIN="$bin" node scripts/lib/suite-supervisor.mjs "$suite_timeout" scripts/smoke.mjs >"$logdir/smoke.log" 2>&1 &
 pid_smoke=$!
-SMOKE_BIN="$bin" node scripts/whiteboard-client.test.mjs >"$logdir/whiteboard.log" 2>&1 &
+SMOKE_BIN="$bin" node scripts/lib/suite-supervisor.mjs "$suite_timeout" scripts/whiteboard-client.test.mjs >"$logdir/whiteboard.log" 2>&1 &
 pid_wb=$!
-SMOKE_BIN="$bin" node scripts/notes-caret.test.mjs >"$logdir/notes.log" 2>&1 &
+SMOKE_BIN="$bin" node scripts/lib/suite-supervisor.mjs "$suite_timeout" scripts/notes-caret.test.mjs >"$logdir/notes.log" 2>&1 &
 pid_notes=$!
-SSE_PROBE_PORT=8133 SMOKE_BIN="$bin" node scripts/sse-reopen.test.mjs >"$logdir/sse.log" 2>&1 &
+SSE_PROBE_PORT=8133 SMOKE_BIN="$bin" node scripts/lib/suite-supervisor.mjs "$suite_timeout" scripts/sse-reopen.test.mjs >"$logdir/sse.log" 2>&1 &
 pid_sse=$!
 # Own port (18093): chat-scroll boots a second server, so sharing a port with
 # any suite above would make one of them fail for the wrong reason.
-SMOKE_BIN="$bin" node scripts/chat-scroll.test.mjs >"$logdir/chatscroll.log" 2>&1 &
+SMOKE_BIN="$bin" node scripts/lib/suite-supervisor.mjs "$suite_timeout" scripts/chat-scroll.test.mjs >"$logdir/chatscroll.log" 2>&1 &
 pid_scroll=$!
 
 # retry_browser reruns one failed browser suite serially: the parallel

@@ -44,6 +44,17 @@
 # SMOKE_TRACE: if the caller already set one, it is honoured rather than
 # replaced, so the fan-out can attach its own trace path to a retry run.
 #
+# SMOKE_SUITE_TIMEOUT: the wall-clock budget for ONE attempt, in seconds
+# (default 600). A suite can hang instead of failing — an in-page promise that
+# never settles, a browser.close() on a wedged Chromium — and Playwright's
+# default timeouts do not cover those (`page.evaluate` has none at all). On
+# 2026-11-11 the whiteboard suite hung exactly like that in CI and the step
+# ran 33+ minutes, while every other run of the same suite took 20 seconds.
+# The attempt now runs under scripts/lib/suite-supervisor.mjs, which kills the
+# whole process group when the budget is gone and exits 124 — the suite's
+# failure is then reported as a TIMEOUT, with the log, instead of a step that
+# never ends.
+#
 # Exit: 0 = passed (first try or retry), 1 = failed (twice, or once under
 # --attempts=1). A flake exits 0 but is never silent.
 set -uo pipefail
@@ -56,6 +67,8 @@ fi
 
 script="${1:?usage: run-browser-suite.sh [--attempts=1] <script> [KEY=VAL ...]}"
 shift || true
+
+suite_timeout="${SMOKE_SUITE_TIMEOUT:-600}"
 
 # Extra env (SSE_PROBE_PORT and friends) is applied to BOTH attempts, so the
 # retry exercises the same configuration as the first run.
@@ -88,12 +101,25 @@ fi
 
 run_suite() { # run_suite <logfile> [trace-path]
   local log="$1" trace_path="${2:-${SMOKE_TRACE:-}}"
+  # The supervisor enforces the wall-clock budget and kills the whole process
+  # group (node + Chromium + the server the suite spawned) when it expires.
+  # Without it a hung suite holds the CI job for as long as the runner lives.
+  local -a cmd=(node "scripts/lib/suite-supervisor.mjs" "$suite_timeout" "scripts/$script")
+  # ${arr[@]+"${arr[@]}"} and not "${arr[@]}": bash 3.2 (macOS) treats an
+  # EMPTY array as unbound under `set -u`, and the wrapper is called with no
+  # extra env often enough that the failure must not depend on the shell.
   if [ -n "$trace_path" ]; then
-    env "${extra_env[@]}" SMOKE_TRACE="$trace_path" node "scripts/$script" >"$log" 2>&1
+    env ${extra_env[@]+"${extra_env[@]}"} SMOKE_TRACE="$trace_path" "${cmd[@]}" >"$log" 2>&1
   else
-    env "${extra_env[@]}" node "scripts/$script" >"$log" 2>&1
+    env ${extra_env[@]+"${extra_env[@]}"} "${cmd[@]}" >"$log" 2>&1
   fi
 }
+
+# timed_out says whether the last attempt hit the wall-clock budget (the
+# supervisor's exit code 124) instead of failing on its own. It is reported
+# differently: a hang is not a broken assertion, and the log line that says so
+# is what tells the next reader where to look.
+timed_out() { grep -q "suite-supervisor: .*deadline expired" "$1" 2>/dev/null; }
 
 if run_suite "$first_log"; then
   echo "  ✅ $name passed (log: $first_log)"
@@ -101,7 +127,11 @@ if run_suite "$first_log"; then
 fi
 
 if [ "$attempts" -eq 1 ]; then
-  echo "  ❌ $name FAILED (log: $first_log)"
+  if timed_out "$first_log"; then
+    echo "  ❌ $name TIMED OUT after ${suite_timeout}s (log: $first_log)"
+  else
+    echo "  ❌ $name FAILED (log: $first_log)"
+  fi
   tail -n 25 "$first_log" 2>/dev/null || true
   exit 1
 fi
@@ -134,7 +164,11 @@ if run_suite "$retry_log" "$trace"; then
   exit 0
 fi
 
-echo "  ❌ $name FAILED twice (first: $first_log, retry: $retry_log)"
+if timed_out "$first_log" || timed_out "$retry_log"; then
+  echo "  ❌ $name TIMED OUT (budget: ${suite_timeout}s per attempt)"
+else
+  echo "  ❌ $name FAILED twice (first: $first_log, retry: $retry_log)"
+fi
 echo "--- $name first-attempt tail ---"
 tail -n 25 "$first_log" 2>/dev/null || true
 echo "--- $name retry tail ---"

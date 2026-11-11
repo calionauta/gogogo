@@ -304,7 +304,13 @@ async function main() {
 
   // The server is the authority; it must hold both regardless of the client.
   const snapCount = await page.evaluate(async (doc) => {
-    const r = await fetch(`/api/whiteboard/${doc}/snapshot`, { credentials: "same-origin" });
+    // Bounded: `page.evaluate` has NO default timeout, so an in-page fetch
+    // the server never answers would hang the suite — with a log that looks
+    // complete. A hang must be a reported failure, not a step that never ends.
+    const r = await fetch(`/api/whiteboard/${doc}/snapshot`, {
+      credentials: "same-origin",
+      signal: AbortSignal.timeout(10000),
+    });
     if (!r.ok) return null;
     const j = await r.json();
     return Array.isArray(j) ? j.length : -1;
@@ -638,11 +644,14 @@ async function main() {
   } else {
     ok(`live draft held on peer canvas (ink ${heldInk})`);
     await endB.evaluate(async ({ doc, clientID }) => {
+      // Bounded (see the snapshot fetch above): an unanswered presence POST
+      // would hang the evaluate and the whole step.
       await fetch(`/api/whiteboard/${doc}/presence?clientID=${clientID}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
         body: JSON.stringify({ type: "draft-end", doc, user: "anyone", cts: 1 }),
+        signal: AbortSignal.timeout(10000),
       });
     }, { doc: doc7, clientID: "wb-end-b" });
     await sleep(600); // KEPT: absence check — proving the draft survived needs a window
@@ -1487,7 +1496,12 @@ async function main() {
     ok("no uncaught page errors");
   }
 
-  await browser.close();
+  // Bounded close: `browser.close()` waits for Chromium to exit, and a wedged
+  // renderer never does. Without the cap the suite hangs in its own cleanup —
+  // the one place a hang is hardest to read, because every assertion already
+  // passed and the log looks complete. (2026-11-11: a CI run of this suite sat
+  // for 44+ minutes with every assertion green.)
+  await Promise.race([browser.close().catch(() => {}), sleep(10000)]);
 }
 
 main()
@@ -1496,7 +1510,10 @@ main()
     // Unconditional: the happy path closes the browser itself, so reaching
     // here with a live handle means the run threw — and a throw used to leak
     // the whole Chromium tree onto this shared host.
-    await browser?.close().catch(() => {});
+    //
+    // Bounded for the same reason as the happy path above: a close that
+    // never returns is a hang nobody can see (the log looks complete).
+    await Promise.race([browser?.close().catch(() => {}), sleep(10000)]);
     server.kill("SIGKILL");
     rmSync(tmp, { recursive: true, force: true });
     console.log(

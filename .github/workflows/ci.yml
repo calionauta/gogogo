@@ -585,6 +585,12 @@ jobs:
         client_group: [0, 1]
     name: browser group ${{ matrix.client_group }}
     runs-on: ubuntu-latest
+    # Backstop for a hung suite. Every attempt already runs under a
+    # wall-clock budget (scripts/run-browser-suite.sh, SMOKE_SUITE_TIMEOUT),
+    # so this is the outer fence: without it a step that never ends holds the
+    # runner for hours. On 2026-11-11 the whiteboard suite hung in CI and its
+    # step ran 44+ minutes with every assertion already green.
+    timeout-minutes: 30
     env:
       GOTOOLCHAIN: local
       # Client suites create their own users. A production-like environment
