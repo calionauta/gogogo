@@ -314,36 +314,42 @@ The CI image build passes the same three values as build args (`deploy.yml`,
 the `image` job's `build-args`), so the badge on the running box matches the tag
 that produced it — and the deploy refuses to finish unless it does.
 
-> **How a release ships (and why the tag push is not what ships it).** The release flow is push → CI green → tag → release. The
-> deploy triggered by the *push* runs before the tag exists, so
-> `git describe --tags --abbrev=0` resolves to the **previous** tag — the box
-> would run the new code while reporting the old version. (Observed for real: the
-> v0.36.1 push deployed a binary labelled `0.36.0`, and again at v0.48.0:
-> header `0.47.0-5095026` serving the tagged tree.) `deploy.yml` keeps a
-> `tags: ["v*"]` arm for that re-deploy, but tags created by release-please
-> use `GITHUB_TOKEN`, which starts no workflow runs — so the arm never
-> fires for a release.
+> **Production runs RELEASES, not master.** The badge and the running code are
+> the same thing by construction: a push to master does **not** deploy, and
+> the release does.
 >
-> So **the release dispatches the deploy** (`release-please.yml` runs
-> `gh workflow run deploy.yml` when a release was cut) — the same
-> `workflow_dispatch` bridge `release.yml` uses for the installer binaries,
-> and the same one that had to be added there when v0.43.0–v0.50.0 published
-> zero assets. Dispatching at the release rather than at the tag push also
-> means the tag already exists when the deploy builds, so the badge carries
-> the released version the first time.
+> The model before this one shipped master HEAD and labelled it with the
+> nearest tag, so the box could report `0.69.0` while running a commit that
+> was never released — the badge lied by a release (observed: the app serving
+> the v0.69.0 release plus one later commit, still labelled `0.69.0`).
+> Production is now the release: the version shown and the code running are
+> the same, and a fix in master reaches production when it is released.
 >
-> Before that bridge existed, a release deployed **nothing**: the release
-> commit touches only `CHANGELOG.md` and the version manifest, neither of
-> which is in the deploy allow-list, and the tag was invisible to Actions.
-> Production then served the new code labelled with the previous version
-> (v0.69.0's code, 0.68.0's badge) until the next code push.
+> **How a release ships.** `release-please.yml` runs
+> `gh workflow run deploy.yml -f tag="$TAG"` when a release was cut — the
+> same `workflow_dispatch` bridge `release.yml` uses for the installer
+> binaries, and the same one that had to be added there when v0.43.0–v0.50.0
+> published zero assets. The tag cannot be the trigger: release-please pushes
+> it with `GITHUB_TOKEN`, and a workflow started by `GITHUB_TOKEN` never
+> runs. And the release *commit* cannot be the trigger either — it touches
+> only `CHANGELOG.md` and the version manifest.
 >
-> The `schedule` reconciler (cron `*/30 * * * *`) stays as the safety net —
-> it heals a missed trigger in both dimensions: running build SHA vs master
-> HEAD (code drift), and badge version vs latest tag (label drift). GitHub
-> runs schedules on its own cadence (observed 4–10 hours apart), so it is a
-> net, not a promise. `bin/check-deploy-release.sh` holds the four facts that
-> make the release deterministic, so the guarantee cannot rot.
+> **What the deploy builds.** The tag it was handed, not the event's SHA: the
+> checkout follows the release, the version baked into the binary is that
+> release's version, and the commit asserted on `/health` is the tag's commit.
+>
+> **The net.** The `schedule` reconciler (cron `*/30 * * * *`) reconciles
+> production against the **latest tag** — code drift and label drift both. It
+> is the net for a dispatch that failed, not the mechanism that ships a
+> release: GitHub runs schedules on its own cadence (observed 4–10 hours
+> apart).
+>
+> **Rollback** is the same command with an older tag:
+> `gh workflow run deploy.yml -f tag=v0.68.0`. The image digest is still the
+> artifact's identity, so the previous bytes are one pull away.
+>
+> `bin/check-deploy-release.sh` holds the six facts that make this true, so
+> the guarantee cannot rot.
 >
 > **The one place that gap is bridged instead of reconciled.**
 > `release.yml` (the GoReleaser installer binaries, not the deploy) does not

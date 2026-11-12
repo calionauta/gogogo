@@ -1,28 +1,29 @@
 # deploy.yml — production deploy to the user's own server
 # (calionauta/fullstack.example.com via Tailscale).
 #
-# Trigger: a push to master that changes something the app is BUILT from.
+# Trigger: a RELEASE. Production runs the code that was released, and the
+# badge names it — so a push to master does not deploy, and the release does
+# (release-please dispatches this workflow with the tag it just cut).
 #
-# This used to be every push, which meant a README edit rebuilt the image,
-# restarted the container and briefly took production down. The filter is an
-# allow-list (paths, not paths-ignore) on purpose: a new top-level directory
-# cannot silently start deploying, because a path that matters has to be added
-# here explicitly. Docs, site/ and *.md are therefore excluded by construction.
+# The old trigger was a push to master with an allow-list of paths: every
+# push rebuilt the image and restarted the container, and the badge was the
+# NEAREST tag — so the box could report "0.69.0" while running a commit that
+# was never released. Now the unit of deployment is the release.
 #
 # What the workflow does when it does run:
-#   0. Reconciles first: compares the live `X-Gogogo-Build` header against
-#      master HEAD (and the badge label against the latest tag) and skips the
-#      deploy when production already runs the code. No lint/tests here —
-#      ci.yml runs those in a separate workflow, in parallel, as validator
-#      rather than gate: a master push ships without waiting for CI, so the
-#      pre-merge PR check is the gate that actually runs before code lands.
+#   0. Reconciles first: compares the live `X-Gogogo-Build` header against the
+#      RELEASE it was asked to ship (the dispatched tag, else the latest tag)
+#      and skips the deploy when production already runs it. No lint/tests
+#      here — ci.yml runs those in a separate workflow, in parallel, as
+#      validator rather than gate; the release is cut from a green master, so
+#      the pre-merge PR check is the gate that runs before code lands.
 #   1. Builds the production image ONCE and pushes it to the registry: a
 #      human-readable tag plus a digest. The digest is the artifact's identity.
 #   2. Brings up Tailscale in the GH runner (OIDC, scoped to this run)
 #   3. Logs the server into the registry for that one pull, SCPs the compose
 #      file, and renders the secrets file (mode 600) from GH Secrets, which
 #      stay the single source of truth
-#   4. SSHes in, moves the source clone to master, and runs
+#   4. SSHes in, moves the source clone to the release, and runs
 #      scripts/deploy-prod.sh, which PULLS the digest and restarts the
 #      container — nothing is compiled on the server
 #   5. Asserts that /health's X-Gogogo-Build names the commit that was built
@@ -63,73 +64,40 @@
 name: Deploy to production
 
 on:
-  push:
-    branches: [master]
-    paths:
-      # Source. "**.go"/"**.templ" are safe (no site/ or docs/ Go code), but a
-      # bare "**.css" would also match site/styles.css — the landing page's own
-      # stylesheet, which is not embedded in the binary — and trigger a
-      # production restart for a landing edit. CSS is enumerated per directory
-      # instead.
-      #
-      # rules/rules.go is excluded for the same reason, and it is the one Go
-      # file that qualifies: it carries `//go:build ruleguard`, so it is compiled
-      # only by golangci-lint and never into the binary. A comment-only edit
-      # there restarted production before this exclusion (verified: a commit
-      # touching nothing else ran the full deploy). Enumerated below rather than
-      # relying on "**.go" with the false positive left in.
-      - "**.go"
-      - "!rules/**"
-      - "**.templ"
-      - "go.mod"
-      - "go.sum"
-      - "package.json"
-      - "package-lock.json"
-      - "src/css/**"
-      - "web/**/*.css"
-      - "web/**"
-      - "config/**"
-      - "features/**"
-      - "internal/**"
-      - "cmd/**"
-      # Deploy plumbing
-      - "deploy/**"
-      - "scripts/deploy-prod.sh"
-      - "Makefile"
-      - ".github/workflows/deploy.yml"
-
-    # Tag pushes ALSO deploy, and this is what makes the version badge correct.
-    #
-    # The release flow is: push to master → CI must pass → tag → release. The
-    # master-push deploy therefore runs BEFORE the tag exists, so its
-    # `git describe --tags --abbrev=0` resolves to the PREVIOUS tag and the box
-    # reports the old version while running the new code. Verified against a real
-    # deploy log: the run for v0.36.1 printed
-    #   "→ Building calionauta/gogogo v0.36.0 (commit e4a2206)"
-    # for a commit that was tagged v0.36.1 minutes later.
-    #
-    # Re-deploying on the tag fixes the label, and the extra restart is the price
-    # of not tagging before CI has passed — which would be worse, since a red CI
-    # would already be on the tag. Note that GitHub does not evaluate path
-    # filters for tag pushes, so a tag always deploys regardless of the paths
-    # allow-list above.
-    #
-    # EXCEPT for release-please's own tags: those are pushed with
-    # GITHUB_TOKEN, and a workflow started by GITHUB_TOKEN never runs — so this
-    # arm does NOT fire for a release-please release. That is why the release
-    # itself dispatches the deploy (release-please.yml, the same bridge
-    # release.yml uses for the installer binaries): the RELEASE is what must
-    # ship, and it is dispatched at the moment the tag exists.
-    tags: ["v*"]
+  # PRODUCTION RUNS RELEASES. A push to master does NOT deploy: the site
+  # must serve the code that was RELEASED, and the badge must say so.
+  #
+  # The old model shipped master HEAD and labelled it with the nearest tag,
+  # so the box could report "0.69.0" while running a commit that was never
+  # released — the badge lied by one release (the app ran the release plus
+  # whatever landed after it). Production is now the release: the version
+  # shown and the code running are the same thing, by construction.
+  #
+  # So the triggers are the release itself and nothing else:
+  #   * a v* tag push (a release cut by a human), and
+  #   * the explicit dispatch below, which release-please makes when it cuts
+  #     a release (a tag pushed with GITHUB_TOKEN starts no workflow run).
+  #
+  # The schedule is the net, not the trigger: it reconciles production with
+  # the LATEST TAG, so a release whose dispatch failed still lands (and a
+  # rollback — dispatching an older tag — is the same command).
+  #
+  # Note that GitHub does not evaluate path filters for tag pushes, so a tag
+  # always deploys.
+  tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release to ship (empty = the latest tag)"
+        required: false
+        type: string
 
-  # Reconciliation: tag pushes made by release-please (GITHUB_TOKEN) do
-  # not start workflow runs, so the tag-deploy arm below never fires and
-  # the site badge would lag the release until the next code push. The
-  # schedule closes that gap in two dimensions: the running build SHA vs
-  # master HEAD (code drift), and the running badge version vs the latest
-  # tag (label drift — same code, old label, e.g. header 0.47.0 serving
-  # the v0.48.0 tree). Either mismatch deploys.
+  # Reconciliation: production vs the LATEST TAG (the release), in two
+  # dimensions: the running build SHA vs the tag's commit (code drift), and
+  # the badge version vs the tag (label drift). Either mismatch deploys the
+  # tag. GitHub runs schedules on its own cadence (observed 4-10 hours apart,
+  # not the 30 minutes the cron asks for), so this is the net that catches a
+  # missed dispatch — not the mechanism that ships a release.
   schedule:
     - cron: "*/30 * * * *"
 
@@ -154,7 +122,7 @@ permissions:
 
 jobs:
   # ─────────────────────────────────────────────
-  # 0. Reconcile: is production behind master HEAD?
+  # 0. Reconcile: is production behind the RELEASE?
   # ─────────────────────────────────────────────
   reconcile:
     runs-on: ubuntu-latest
@@ -164,59 +132,66 @@ jobs:
       contents: read
     outputs:
       behind: ${{ steps.check.outputs.behind }}
+      # The release to ship: the tag (vX.Y.Z) and the commit it points at.
+      # Production runs a RELEASE, so these two are what the build checks out
+      # and what /health is asserted against.
+      ref: ${{ steps.check.outputs.ref }}
+      sha: ${{ steps.check.outputs.sha }}
+      version: ${{ steps.check.outputs.version }}
     steps:
       - id: check
         run: |
-          # Push, tag and manual events always deploy (existing behavior);
-          # only the schedule consults the running build.
-          if [ "${{ github.event_name }}" != "schedule" ]; then
-            echo "behind=true" >> "$GITHUB_OUTPUT"
+          # What is the release to ship? The dispatched tag when there is one
+          # (that is how a ROLLBACK ships an older release), else the latest
+          # tag. Production follows the release, not master HEAD.
+          REQUESTED="${{ inputs.tag }}"
+          if [ -z "$REQUESTED" ] && [ "${{ github.event_name }}" = "push" ]; then
+            # A tag push names the release it ships.
+            REQUESTED="${{ github.ref_name }}"
+          fi
+          if [ -n "$REQUESTED" ]; then
+            TAG="$REQUESTED"
+          else
+            TAG=$(git ls-remote --tags "https://github.com/${{ github.repository }}.git" 'v*.*.*' 2>/dev/null | grep -v '\^{}' | awk -F/ '{print $NF}' | sort -V | tail -1 || true)
+          fi
+          if [ -z "$TAG" ]; then
+            # No release exists yet: there is nothing to ship. Production stays
+            # on whatever it runs (a fresh repo has no release to deploy).
+            echo "behind=false" >> "$GITHUB_OUTPUT"
+            echo "no release tag found; nothing to ship"
             exit 0
           fi
-          HEAD_SHA=$(git ls-remote "https://github.com/${{ github.repository }}.git" refs/heads/master | cut -c1-7)
+          VERSION="${TAG#v}"
+          # The commit the tag points at. This is the code production will run
+          # and the code /health must report.
+          SHA=$(git ls-remote "https://github.com/${{ github.repository }}.git" "refs/tags/$TAG" 2>/dev/null | grep -v '\^{}' | cut -c1-7 || true)
+          if [ -z "$SHA" ]; then
+            echo "behind=false" >> "$GITHUB_OUTPUT"
+            echo "could not resolve $TAG; skipping rather than shipping an unknown commit"
+            exit 0
+          fi
+          echo "ref=$TAG" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           # Badge format X-Gogogo-Build: <version>-<short-sha>, pinned by
           # assertHealthCarriesBuildTag. Unparseable (site down, format
           # drift) fails open toward freshness: a needless redeploy is
           # cheap, a stale site is the bug.
           BUILD_TAG=$(curl -fsSL -D - -o /dev/null https://gogogo.calionauta.com/health 2>/dev/null | tr -d '\r' | grep -i '^x-gogogo-build:' | awk '{print $2}' || true)
           BADGE=$(printf '%s' "$BUILD_TAG" | rev | cut -d- -f1 | rev)
-          # Badge version (everything before the trailing short SHA).
           BADGE_VER=$(printf '%s' "$BUILD_TAG" | rev | cut -d- -f2- | rev)
-          # Latest release tag. Empty on ls-remote failure — the label
-          # check below skips then rather than forcing a restart over an
-          # infra hiccup.
-          LATEST_TAG=$(git ls-remote --tags "https://github.com/${{ github.repository }}.git" 'v*.*.*' 2>/dev/null | grep -v '\^{}' | awk -F/ '{print $NF}' | sort -V | tail -1 || true)
-          LATEST_VER="${LATEST_TAG#v}"
-          # Last master SHA with green CI. Empty when the API fails or no run
-          # exists yet — callers treat that as "unknown" (old HEAD-vs-badge
-          # comparison), never as a reason to skip.
-          GREEN_SHA=$(gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?branch=master&status=success&per_page=1" --jq '.workflow_runs[0] | select(.conclusion == "success") | .head_sha // empty' 2>/dev/null | cut -c1-7 || true)
-          if [ -z "$HEAD_SHA" ]; then
-            echo "behind=true" >> "$GITHUB_OUTPUT"
-            echo "ls-remote failed; deploying to be safe"
-            exit 0
-          fi
-          if [ "$BADGE" = "$HEAD_SHA" ]; then
-            # Same code — but the label may still lag: the push-deploy runs
-            # before the release tag exists, and the tag-deploy arm never
-            # fires for release-please tags. Redeploy on version mismatch so
-            # the badge reports what is actually running.
-            if [ -n "$LATEST_VER" ] && [ -n "$BADGE_VER" ] && [ "$BADGE_VER" != "$LATEST_VER" ]; then
+          if [ "$BADGE" = "$SHA" ]; then
+            if [ -n "$BADGE_VER" ] && [ "$BADGE_VER" != "$VERSION" ]; then
               echo "behind=true" >> "$GITHUB_OUTPUT"
-              echo "production runs $BADGE_VER, latest tag is $LATEST_VER; redeploying for the label"
+              echo "production runs $BADGE_VER, the release is $VERSION; redeploying for the label"
               exit 0
             fi
             echo "behind=false" >> "$GITHUB_OUTPUT"
-            echo "production runs $BADGE = master HEAD; nothing to do"
-            exit 0
-          fi
-          if [ -n "$GREEN_SHA" ] && [ "$HEAD_SHA" != "$GREEN_SHA" ]; then
-            echo "behind=false" >> "$GITHUB_OUTPUT"
-            echo "master HEAD $HEAD_SHA has no green CI yet (last green: $GREEN_SHA); skipping deploy until CI passes (recover with workflow_dispatch if the outage is infra, not code)"
+            echo "production runs $BADGE = $TAG; nothing to do"
             exit 0
           fi
           echo "behind=true" >> "$GITHUB_OUTPUT"
-          echo "production runs ${BADGE:-unknown}, validated master is $HEAD_SHA; deploying"
+          echo "production runs ${BADGE:-unknown}; shipping $TAG ($SHA)"
   # ─────────────────────────────────────────────
   # 1. Build the artifact once (the image)
   # ─────────────────────────────────────────────
@@ -242,6 +217,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          # The RELEASE, not the event's SHA: a workflow_dispatch runs from a
+          # branch, and production must build the tag it was asked for.
+          ref: ${{ needs.reconcile.outputs.ref }}
           fetch-depth: 0
           fetch-tags: true
 
@@ -250,38 +228,19 @@ jobs:
         # The commit is shortened here, not by the Dockerfile, because the
         # build stamp is what /health reports and what the deploy asserts on.
         #
-        # The version is the TAG THAT POINTS AT THE COMMIT BEING BUILT, not
-        # merely the nearest tag. The two differ exactly when it matters: a
-        # release commit is tagged by release-please moments after the push
-        # that merged it, and the deploy starts from that SAME push — so
-        # `git describe` alone can resolve the PREVIOUS tag and ship a
-        # release labelled as the version before it. The tag is therefore
-        # waited for (bounded), because this is the moment the released
-        # version goes out; a stale label is the bug the badge exists to
-        # avoid. A commit that is not a release commit never waits: it has no
-        # tag coming and the nearest tag is the right label.
+        # The version is the RELEASE (the reconcile resolved it), and the
+        # commit is the one actually checked out — the tag's commit. The badge
+        # therefore names the release that runs, with no "nearest tag"
+        # approximation: the code and the version are the same thing.
         run: |
           repo="$(printf '%s' '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
-          sha='${{ github.sha }}'
-          release_commit=false
-          if ! git diff --name-only "${sha}~1" "$sha" -- .github/.release-please-manifest.json 2>/dev/null | grep -q .; then
-            :
-          else
-            release_commit=true
-          fi
-          version=""
-          for attempt in 1 2 3 4 5 6 7 8; do
-            version="$(git tag --points-at "$sha" 2>/dev/null | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | head -1 | sed 's/^v//')"
-            [ -n "$version" ] && break
-            [ "$release_commit" = "true" ] || break
-            echo "→ waiting for the release tag of ${sha} (attempt ${attempt})…"
-            sleep 15
-            git fetch --tags --force --quiet || true
-          done
-          version="${version:-$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')}"
+          version="${{ needs.reconcile.outputs.version }}"
+          # Exactly seven characters: the badge format and the /health assert
+          # both use seven, and `rev-parse --short` may return more.
+          short_sha="$(git rev-parse HEAD | cut -c1-7)"
           echo "image_repo=ghcr.io/${repo}" >> "$GITHUB_OUTPUT"
           echo "version=${version:-dev}" >> "$GITHUB_OUTPUT"
-          echo "short_sha=$(printf '%s' '${{ github.sha }}' | cut -c1-7)" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${short_sha}" >> "$GITHUB_OUTPUT"
           echo "build_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
       - name: Set up QEMU
@@ -310,7 +269,7 @@ jobs:
           # Tags are labels for humans. Nothing deploys by tag.
           tags: |
             ${{ steps.meta.outputs.image_repo }}:sha-${{ steps.meta.outputs.short_sha }}
-            ${{ steps.meta.outputs.image_repo }}:${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'master' }}
+            ${{ steps.meta.outputs.image_repo }}:${{ steps.meta.outputs.version }}
           build-args: |
             VERSION=${{ steps.meta.outputs.version }}
             COMMIT=${{ steps.meta.outputs.short_sha }}
@@ -336,17 +295,13 @@ jobs:
       # The commit the artifact was built from. deploy-prod.sh refuses to
       # report success unless /health agrees, so a pull that silently did not
       # take effect fails the deploy instead of leaving the old container up.
-      EXPECTED_COMMIT: ${{ github.sha }}
+      EXPECTED_COMMIT: ${{ needs.reconcile.outputs.sha }}
     runs-on: ubuntu-latest
-    # Only on master push, a v* tag push, or manual dispatch (not on PRs).
-    # The tag arm is required, not cosmetic: a tag push sets github.ref to
-    # refs/tags/vX.Y.Z, so without it the job would be skipped and the deploy
-    # triggered by the tag would build nothing.
-    # behind-gate: this used to ride on the `build` job (a skipped dependency
-    # skips the dependent job). With the build job gone the condition has to be
-    # explicit, or every 30-minute schedule run would redeploy whether or not
-    # production is already current.
-    if: needs.reconcile.outputs.behind == 'true' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch')
+    # Only when the reconcile says production is behind the release. The
+    # behind-gate is explicit because a skipped dependency skips the
+    # dependent job: without it, every schedule run would redeploy whether or
+    # not production already runs the release.
+    if: needs.reconcile.outputs.behind == 'true'
     # id-token: the Tailscale OIDC federated identity — the runner mints a JWT
     # for the Tailscale IdP to verify. packages: read lets the server's one-time
     # registry login resolve the digest.
@@ -527,9 +482,10 @@ jobs:
             if [ ! -d \"/home/deploy/services/\${APP_NAME}/repo\" ]; then
               git clone \"https://github.com/${{ github.repository }}.git\" \"/home/deploy/services/\${APP_NAME}/repo\"
             else
-              git -C \"/home/deploy/services/\${APP_NAME}/repo\" fetch origin
-              git -C \"/home/deploy/services/\${APP_NAME}/repo\" reset --hard origin/master
+              git -C \"/home/deploy/services/\${APP_NAME}/repo\" fetch origin --tags
             fi
+            # The RELEASE, not master: production runs what was released.
+            git -C \"/home/deploy/services/\${APP_NAME}/repo\" reset --hard \"${{ needs.reconcile.outputs.ref }}\"""
 
             cp \"/home/deploy/services/\${APP_NAME}/repo/.env\" \"\${APP_DIR}/env/.env\" 2>/dev/null || true
             cp \"/home/deploy/services/\${APP_NAME}/repo/scripts/deploy-prod.sh\" \"\${APP_DIR}/scripts/deploy-prod.sh\"
