@@ -30,6 +30,18 @@ import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+// This suite drives ONE feature. On a trimmed tree that feature is absent,
+// and the suite would fail on a route that no longer exists — a false red.
+// The skip is derived from the tree and printed with its reason; it can
+// never hide a regression, because a tree cannot mount a feature whose
+// package is not in it (the build would not compile).
+import { repoRoot, skipIfFeatureAbsent } from "./lib/features.mjs";
+
+if (skipIfFeatureAbsent(repoRoot, "notes")) {
+  process.exit(0);
+}
+
+
 // SMOKE_BIN overrides; otherwise the OS temp dir (per-OS correct via
 // tmpdir() — never a hardcoded /tmp, which is wrong on Windows and
 // ignores $TMPDIR elsewhere). Matches the Makefile SMOKE_BIN default.

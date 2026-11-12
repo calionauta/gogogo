@@ -18,6 +18,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
+import { deriveFeatures, repoRoot } from "./lib/features.mjs";
+
 const PORT = Number(process.env.SMOKE_PORT || 8099);
 const BASE = `http://127.0.0.1:${PORT}`;
 const SU_EMAIL = "smoke-superuser@local.dev";
@@ -33,11 +35,28 @@ const ROUTES = ["/todo", "/chat", "/whiteboard", "/room", "/login", "/review"];
 
 // Trim-aware gating: a trimmed checkout must neither fail on routes that
 // no longer exist nor silently pass over them. SMOKE_FEATURES lists the
-// features present (default: the full template surface); trim output
+// features present (default: DERIVED from the tree below); trim output
 // (installer Warns) tells you the value to use. Unknown names fail fast:
 // a typo must never read as "trimmed".
-const ALL_FEATURES = ["todo", "chat", "whiteboard", "room", "login", "review"];
-const FEATURES = (process.env.SMOKE_FEATURES || ALL_FEATURES.join(",")).split(",");
+// The universe of features is the ROUTES list itself — one source, not two
+// lists that can disagree (the drift this file exists to end).
+const ALL_FEATURES = ROUTES.map((r) => r.slice(1));
+
+// The features this tree actually has, DERIVED (scripts/lib/features.mjs) —
+// not a second hand-kept list. A trimmed or uninstalled feature loses its
+// directory, so its route drops out by construction instead of by someone
+// remembering to edit an array (the drift the `Warns` on whiteboard, review and
+// genui used to record).
+const DERIVED_FEATURES = deriveFeatures(repoRoot, ALL_FEATURES);
+if (DERIVED_FEATURES.length === 0 && !process.env.SMOKE_FEATURES) {
+  console.error(
+    "❌ no feature directory found under ./features or ./_recipes — " +
+      "run from the repo root, or set SMOKE_FEATURES explicitly",
+  );
+  process.exit(1);
+}
+
+const FEATURES = (process.env.SMOKE_FEATURES || DERIVED_FEATURES.join(",")).split(",");
 for (const f of FEATURES) {
   if (!ALL_FEATURES.includes(f)) {
     console.error(`❌ unknown SMOKE_FEATURES entry ${JSON.stringify(f)} (want ${ALL_FEATURES.join(",")})`);
@@ -46,6 +65,7 @@ for (const f of FEATURES) {
 }
 const hasFeature = (f) => FEATURES.includes(f);
 const GATED_ROUTES = ROUTES.filter((r) => hasFeature(r.slice(1)));
+console.log(`→ smoke features: ${FEATURES.join(",")} (derived from the tree)`);
 
 const fail = (msg) => {
   console.error("❌ " + msg);

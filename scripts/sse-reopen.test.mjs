@@ -15,6 +15,17 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
+// This suite drives ONE feature. On a trimmed tree that feature is absent,
+// and the suite would fail on a route that no longer exists — a false red.
+// The skip is derived from the tree and printed with its reason; it can
+// never hide a regression, because a tree cannot mount a feature whose
+// package is not in it (the build would not compile).
+import { repoRoot, skipIfFeatureAbsent } from "./lib/features.mjs";
+
+if (skipIfFeatureAbsent(repoRoot, "todo")) {
+  process.exit(0);
+}
+
 const providedBin = process.env.SMOKE_BIN;
 const bin = providedBin ? resolve(providedBin) : join(tmpdir(), "sse-reopen-web");
 const PORT = Number(process.env.SSE_PROBE_PORT || 8133);

@@ -46,6 +46,8 @@ the same engine the MCP server calls. Full contract:
 go run ./cmd/gogogo recipe install ./_recipes/pomodoro --dir ./my-app --yes
 go run ./cmd/gogogo recipe status --dir ./my-app   # pristine / modified / deleted
 go run ./cmd/gogogo recipe list --dir ./my-app [--format json]
+go run ./cmd/gogogo recipe check todo --dir ./my-app   # evaluator; blocks a route owner with no tests
+go run ./cmd/gogogo recipe test todo --dir ./my-app    # the tests THAT recipe ships (scope from its receipt)
 go run ./cmd/gogogo recipe invoke todo create --dir ./my-app --param title=hi
 ```
 

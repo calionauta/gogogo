@@ -340,6 +340,51 @@ working, and the installer prints the command that re-blesses them
 (`PAGES_DIGEST=update go test ./internal/server -run TestPagesDigest`); read the
 diff before you run it.
 
+## Tests travel with the recipe — and they are not optional
+
+Tests are **files like any other**: `_test.go` files live inside the copied tree, are
+hashed in the receipt, and run with `go test ./...` after install. That answers the
+grouping question without a new mechanism — an uninstalled recipe has no files, so it
+has no tests to skip; nothing needs a runtime filter.
+
+Three rules make that useful rather than decorative:
+
+1. **A recipe that mounts routes must ship at least one test.** `recipe check` reports
+   zero test files as an **error** for a route-owning or code-registering recipe (a
+   warning for a data-only one: tables and metrics, no routes). `make check-recipes`
+   runs the checker in `ci-local-fast`, so this blocks the gate, not a review comment.
+2. **A test that cannot fail is not a test.** `go run ./cmd/check-test-value` blocks a
+   vacuous `Test` (no assertion at all) tree-wide, in pre-commit and in CI — so an
+   installed recipe gets the same guard as core code for free. A test that only asserts
+   `err == nil` is reported as a warning.
+3. **Assert the wire symptom, not the plumbing.** Status code, body, the row on the page,
+   the other account's view. "It called the function" is the failure mode both gates
+   cannot see, and the one reviewers read as coverage.
+
+The shape to copy is `_recipes/pomodoro/features/pomodoro/handlers/recipe_test.go`:
+declaration vs mounted routes in both directions, the write asserted at the wire, owner
+scoping asserted from a second account, and the session check pinned from an anonymous
+request. Run them without guessing paths:
+
+```bash
+make test-recipe R=pomodoro                 # package scope derived from the receipt
+go run ./cmd/gogogo recipe test pomodoro --race=false --run OwnerScoped
+```
+
+**Why no `tests:` field in the declaration.** The declaration is the append-only half the
+engine *applies* (tables, routes, jobs, slots, actions, metrics, panel); tests are applied
+by nobody. The receipt already enumerates every installed file with its SHA-256, so a
+second list could only disagree with the first — and both disagreements are silent: a
+declared test that was deleted, or a real test nobody remembered to declare. "How to run
+this suite" (build tags, a required NATS/browser) stays in the test itself, where the
+`Skip` reason is, not in a manifest.
+
+Red-proofing is still yours to claim, because no machine can verify that a test was red
+before the code existed. The RED/GREEN/PROVE ritual (`AGENTS.md`) is the author's
+obligation; the gates verify the part that is checkable — the test exists, it can fail,
+and it names the behavior. The catalog review is where "is this test worth anything" gets
+judged by a human, which is why a receipt is pinned to a reviewed version.
+
 ## Checklist before calling it done
 
 - [ ] The declaration names every route, table, job and slot the code actually provides
@@ -352,6 +397,8 @@ diff before you run it.
       naming both owners — read the message, it tells you both)
 - [ ] Slot content renders inside the owner's frame, with the declared shape
 - [ ] `features/todo` was consulted before inventing a structure
+- [ ] At least one `_test.go` ships with the recipe, it asserts a wire symptom, and you
+      hand-mutated the code once to watch it fail (`make test-recipe R=<id>` is green)
 - [ ] An outcome, if declared, is a success/total pair over a declared table, and every counter signal appears in the code
 - [ ] `version: vX.Y.Z` declared in `.recipe.yml` (`recipe outdated` compares it against the reviewed catalog entry — without it the freshness check honestly reports unknown)
 - [ ] Your deliberate edits are committed, and the recipe README says why you diverged

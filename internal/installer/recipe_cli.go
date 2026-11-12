@@ -67,8 +67,9 @@ type recipeManifest struct {
 func runRecipe(ctx context.Context, args []string, stdout io.Writer) error {
 	if len(args) == 0 {
 		return &ExitError{code: 1, msg: "recipe needs a subcommand: " +
-			"`recipe install <dir>`, `recipe check [id]`, `recipe status [id]`, `recipe outdated [id]`, " +
-			"`recipe uninstall <id>`, `recipe list`, `recipe describe <id>` or `recipe invoke <id> <verb>`"}
+			"`recipe install <dir>`, `recipe check [id]`, `recipe test [id]`, `recipe status [id]`, " +
+			"`recipe outdated [id]`, `recipe uninstall <id>`, `recipe list`, `recipe describe <id>` " +
+			"or `recipe invoke <id> <verb>`"}
 	}
 	switch args[0] {
 	case "install":
@@ -77,6 +78,8 @@ func runRecipe(ctx context.Context, args []string, stdout io.Writer) error {
 		return runRecipeInstall(args[1:], stdout, true)
 	case "check":
 		return runRecipeCheck(args[1:], stdout)
+	case "test":
+		return runRecipeTest(ctx, args[1:], stdout, os.Stderr)
 	case "status":
 		return runRecipeStatus(args[1:], stdout)
 	case "outdated":
@@ -91,7 +94,7 @@ func runRecipe(ctx context.Context, args []string, stdout io.Writer) error {
 		return runRecipeInvoke(ctx, args[1:], stdout)
 	}
 	return &ExitError{code: 1, msg: fmt.Sprintf(
-		"unknown recipe subcommand %q (want install|check|status|outdated|uninstall|list|describe|invoke)", args[0])}
+		"unknown recipe subcommand %q (want install|check|test|status|outdated|uninstall|list|describe|invoke)", args[0])}
 }
 
 // loadRecipeSource reads and validates a recipe directory: the manifest first

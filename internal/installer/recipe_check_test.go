@@ -14,6 +14,7 @@ func TestRecipeCheckHealthyConfiguration(t *testing.T) {
 		"features/pomodoro/handlers/chi.go":         recipeHandlerV1,
 		"features/pomodoro/handlers/register.go":    "package handlers\n\nfunc Register(reg any, d any) {}\n",
 		"features/pomodoro/handlers/genui_panel.go": "package handlers\n\nconst x = \"pomodoro_list\"\n",
+		"features/pomodoro/handlers/chi_test.go":    recipeHandlerTest,
 	}, "features/pomodoro/handlers")
 	// The fixture manifest carries one metric and a panel spec.
 	manifest := `id: pomodoro
@@ -81,6 +82,7 @@ func TestRecipeCheckFlagsInvisibleMutationsAndMissingActionDocs(t *testing.T) {
 	src := newRecipeDir(t, "v1", map[string]string{
 		"features/pomodoro/handlers/chi.go":      code,
 		"features/pomodoro/handlers/register.go": "package handlers\n\nfunc Register(reg any, d any) {}\n",
+		"features/pomodoro/handlers/chi_test.go": recipeHandlerTest,
 	}, "features/pomodoro/handlers")
 	manifest := `id: pomodoro
 upstream:
@@ -145,6 +147,7 @@ register: features/pomodoro/handlers
 `
 	writeFile(t, filepath.Join(root, "features", "pomodoro", "handlers", "chi.go"), recipeHandlerV1)
 	writeFile(t, filepath.Join(root, "features", "pomodoro", "handlers", "register.go"), "package handlers\n")
+	writeFile(t, filepath.Join(root, "features", "pomodoro", "handlers", "chi_test.go"), recipeHandlerTest)
 	writeFile(t, filepath.Join(root, ".recipes", "pomodoro.yml"), manifest)
 	report := checkOneRecipe(root, "pomodoro")
 	joined := strings.Join(report.Warnings, "\n")
@@ -243,6 +246,8 @@ declaration:
 				"package handlers\n\nfunc Register(reg any, d any) {}\n")
 			writeFile(t, filepath.Join(root, "features", "pomodoro", "handlers", "genui_panel.go"),
 				"package handlers\n\nconst x = \"pomodoro_list\"\n")
+			writeFile(t, filepath.Join(root, "features", "pomodoro", "handlers", "chi_test.go"),
+				recipeHandlerTest)
 			writeFile(t, filepath.Join(root, ".recipes", "pomodoro.yml"), manifest)
 			report := checkOneRecipe(root, "pomodoro")
 			joined := strings.Join(report.Errors, "\n") + "\n" +
@@ -265,6 +270,68 @@ declaration:
 			}
 		})
 	}
+}
+
+// TestRecipeCheckBlocksARouteOwnerWithoutTests is the community-recipe rule:
+// a slice that mounts routes and ships no test is blocked, because nobody —
+// reviewer or author — can tell what it does, and the declaration's promises go
+// unverified. A data-only recipe (tables and metrics, no routes, no Register)
+// only warns: it ships no behavior of its own to pin.
+//
+// The rule is deliberately about the FILES the receipt carries, not about the
+// quality of their contents: "is this test worth anything" is not decidable from
+// a tree walk, so the machine checks that a test exists and that it can fail
+// (`check-test-value` blocks a vacuous one tree-wide), and the catalog review
+// judges the rest.
+func TestRecipeCheckBlocksARouteOwnerWithoutTests(t *testing.T) {
+	t.Run("routes and no tests blocks", func(t *testing.T) {
+		root := newRecipeCheckout(t)
+		manifest := `id: pomodoro
+upstream:
+  repo: example.com/recipes
+  ref: v1
+declaration:
+  routes:
+  - {method: GET, pattern: /pomodoro}
+register: features/pomodoro/handlers
+`
+		writeFile(t, filepath.Join(root, "features", "pomodoro", "handlers", "chi.go"), recipeHandlerV1)
+		writeFile(t, filepath.Join(root, "features", "pomodoro", "handlers", "register.go"), "package handlers\n")
+		writeFile(t, filepath.Join(root, ".recipes", "pomodoro.yml"), manifest)
+
+		report := checkOneRecipe(root, "pomodoro")
+		if report.Healthy {
+			t.Fatalf("a route-owning recipe with no tests must be blocked, got %+v", report.Warnings)
+		}
+		if !strings.Contains(strings.Join(report.Errors, "\n"), "no Go test files") {
+			t.Fatalf("the error must name the missing tests, got %v", report.Errors)
+		}
+	})
+
+	t.Run("data-only warns", func(t *testing.T) {
+		root := newRecipeCheckout(t)
+		manifest := `id: pomodoro
+upstream:
+  repo: example.com/recipes
+  ref: v1
+files:
+  features/pomodoro/migrations/0001_init.sql: 00
+declaration:
+  tables:
+  - ext_pomodoro_sessions
+`
+		writeFile(t, filepath.Join(root, "features", "pomodoro", "migrations", "0001_init.sql"),
+			"CREATE TABLE ext_pomodoro_sessions (id TEXT PRIMARY KEY);\n")
+		writeFile(t, filepath.Join(root, ".recipes", "pomodoro.yml"), manifest)
+
+		report := checkOneRecipe(root, "pomodoro")
+		if !report.Healthy {
+			t.Fatalf("a data-only recipe must stay healthy, got errors=%v", report.Errors)
+		}
+		if !strings.Contains(strings.Join(report.Warnings, "\n"), "no Go test files") {
+			t.Fatalf("the warning must still name the missing tests, got %v", report.Warnings)
+		}
+	})
 }
 
 // TestRecipeCheckBlocksAnUnrecordedCounterSignal pins the outcome rule that

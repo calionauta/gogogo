@@ -34,9 +34,24 @@ type RecipeCheckReport struct {
 	Metrics       []checkMetricSummary  `json:"metrics,omitempty"`
 	Outcomes      []checkOutcomeSummary `json:"outcomes,omitempty"`
 	Panel         *recipe.PanelSpec     `json:"panel,omitempty"`
+	// Tests is the DERIVED inventory, never a declaration: the receipt already
+	// enumerates every installed file with its hash, so the checker reads the
+	// test files from there. A second list maintained by the author would be a
+	// second source of truth that can only disagree with the first.
+	Tests recipeCheckTests `json:"tests"`
 	// Omitted is information, not a warning: the author explained why the
 	// route is not headless, and the report shows that decision.
 	Omitted []recipe.OmittedRoute `json:"omitted,omitempty"`
+}
+
+// recipeCheckTests is what the receipt carries as tests, plus the packages those
+// tests live in. Empty Files on a recipe that owns routes or registers code is
+// the one verdict this checker treats as an error rather than a warning: an
+// installed slice whose behavior nobody pins is not reviewable, and it is the
+// community-recipe failure mode the catalog review cannot fix from the outside.
+type recipeCheckTests struct {
+	Files    []string `json:"files,omitempty"`
+	Packages []string `json:"packages,omitempty"`
 }
 
 // checkMetricSummary is the checker-facing shape of one dashboard metric.
@@ -170,9 +185,12 @@ func checkOneRecipe(root, id string) RecipeCheckReport {
 		report = reportWithWarnings(report, fmt.Sprintf(
 			"file %s is %d lines (repo limit 500); split by concern", complexity.LargestFile, complexity.LargestFileLines))
 	}
-	if !recipeHasTests(root, receipt) {
-		report = reportWithWarnings(report, "no Go test files are installed with this recipe")
-		report.Suggestions = appendUnique(report.Suggestions, "add a red-proofed contract test before publishing")
+	report.Tests = recipeCheckTests{
+		Files:    recipeTestFiles(root, receipt),
+		Packages: recipeTestScope(root, receipt),
+	}
+	if len(report.Tests.Files) == 0 {
+		report = reportWithoutTests(receipt, report)
 	}
 	if !recipeDocumented(root, receipt.ID) {
 		report = reportWithWarnings(report, "recipe id is not named in docs")
@@ -212,6 +230,29 @@ func reportWithWarnings(report RecipeCheckReport, msgs ...string) RecipeCheckRep
 	return report
 }
 
+// reportWithoutTests grades a missing suite by what the recipe claims. A slice
+// that mounts routes (or registers code) with zero tests is blocked: nobody,
+// including its author six months later, can tell what it does, and the
+// declaration's promises go unverified. A data-only recipe — tables, metrics,
+// no routes — gets the warning instead: it ships no behavior of its own, so the
+// missing test is a thin file, not an unreviewable one.
+func reportWithoutTests(receipt recipe.Receipt, report RecipeCheckReport) RecipeCheckReport {
+	const msg = "no Go test files are installed with this recipe"
+	ownsCode := receipt.Register != "" ||
+		len(receipt.Declaration.Routes) > 0 ||
+		len(receipt.Declaration.Actions) > 0
+	if ownsCode {
+		report = reportWithErrors(report, msg+" — it mounts routes, so nothing pins its behavior")
+	} else {
+		report = reportWithWarnings(report, msg)
+	}
+	report.Suggestions = appendUnique(report.Suggestions,
+		"add a red-proofed contract test: mount the provider, assert the wire symptom "+
+			"(status, body, the row on the page), then mutate the code and watch it fail — "+
+			"_recipes/pomodoro ships the shape")
+	return report
+}
+
 func appendUnique(in []string, msgs ...string) []string {
 	out := append([]string(nil), in...)
 	for _, msg := range msgs {
@@ -241,6 +282,7 @@ func printRecipeCheck(stdout io.Writer, report RecipeCheckReport) {
 	}
 	fmt.Fprintf(stdout, "recipe %s: %s (score %d)\n", report.ID, verdict, report.Score)
 	printCheckComplexity(stdout, report)
+	printCheckTests(stdout, report)
 	for _, e := range report.Errors {
 		fmt.Fprintf(stdout, "  error: %s\n", e)
 	}
@@ -256,6 +298,17 @@ func printRecipeCheck(stdout io.Writer, report RecipeCheckReport) {
 	for _, o := range report.Outcomes {
 		fmt.Fprintf(stdout, "  outcome: %s — %s\n", o.ID, o.Job)
 	}
+}
+
+// printCheckTests reports the derived inventory. It prints only when the recipe
+// ships tests: an empty list is already an error (or a warning, for data-only
+// recipes) and repeating it here would say the same thing twice.
+func printCheckTests(stdout io.Writer, report RecipeCheckReport) {
+	if len(report.Tests.Files) == 0 {
+		return
+	}
+	fmt.Fprintf(stdout, "  tests: %d file(s) in %d package(s)\n",
+		len(report.Tests.Files), len(report.Tests.Packages))
 }
 
 func printCheckComplexity(stdout io.Writer, report RecipeCheckReport) {
@@ -426,37 +479,6 @@ func goSourceUnder(dir string) string {
 		return nil
 	})
 	return b.String()
-}
-
-func recipeHasTests(root string, receipt recipe.Receipt) bool {
-	for p := range receipt.Files {
-		if strings.HasSuffix(p, "_test.go") {
-			return true
-		}
-	}
-	if receipt.Register != "" {
-		entries := readDirEntries(filepath.Join(root, filepath.FromSlash(receipt.Register)))
-		for _, name := range entries {
-			if strings.HasSuffix(name, "_test.go") {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func readDirEntries(dir string) []string {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil
-	}
-	names := make([]string, 0, len(entries))
-	for _, e := range entries {
-		if !e.IsDir() {
-			names = append(names, e.Name())
-		}
-	}
-	return names
 }
 
 func recipeDocumented(root, id string) bool {
