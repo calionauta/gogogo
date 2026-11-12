@@ -12,8 +12,8 @@ of the file you are about to touch.
 
 ## Registry at a glance
 
-- **Units:** 48 — 16 core · 21 plugin · 11 feature
-- **Manual removal:** 32 (core units are never removed)
+- **Units:** 49 — 16 core · 21 plugin · 12 feature
+- **Manual removal:** 33 (core units are never removed)
 - **Source of truth:** `internal/capabilities/registry.go`; this doc is
   regenerated from it, so the counts above cannot drift.
 
@@ -333,6 +333,16 @@ conversation demo (persisted history + catalog answers on genui)
 - **Routes:** `/api/chat/ask`, `/api/chat/clear`, `/api/chat/stream`, `/chat`
 - **Depends on:** genui
 - **Why that class:** Bundled into the genui unit: chat imports genui components (no-compile without it) — one unit is the honest shape, same as whiteboard+collab+notes.
+
+## `coffee` — feature
+
+voice-first coffee order demo (closed menu, on-device voice, one declared outcome)
+
+- **Owned:** `features/coffee`
+- **Routes:** `/api/coffee/confirm`, `/api/coffee/preview`, `/coffee`
+- **Store calls:** `dbgen.CreateCoffeeOrder`, `dbgen.ListCoffeeOrders`
+- **Depends on:** genui
+- **Note:** Bundled like the other demos: the code lives in features/coffee and the receipt in .recipes/coffee.yml, so it mounts through the same seam and can be uninstalled like any recipe. The outcome (success over eligible orders) is the worked example of a declared measurement — docs/scope-taxonomy.md.
 
 ## `config-view` — feature
 

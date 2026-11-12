@@ -366,6 +366,23 @@ var baseUnits = []Capability{
 		Reason: "Reference implementation — remove manually later per docs/scope-taxonomy.md.",
 	},
 	{
+		ID:        "coffee",
+		Kind:      KindFeature,
+		Summary:   "voice-first coffee order demo (closed menu, on-device voice, one declared outcome)",
+		DependsOn: []string{"genui"},
+		Dirs:      []string{"features/coffee"},
+		Register:  "features/coffee/handlers",
+		Actions:   []string{"confirm"},
+		ActionParams: map[string][]string{
+			"confirm": {"text", "previewed"},
+		},
+		Note: "Bundled like the other demos: the code lives in features/coffee " +
+			"and the receipt in .recipes/coffee.yml, so it mounts through the " +
+			"same seam and can be uninstalled like any recipe. The outcome " +
+			"(success over eligible orders) is the worked example of a " +
+			"declared measurement — docs/scope-taxonomy.md.",
+	},
+	{
 		ID:        "chat",
 		Kind:      KindFeature,
 		Summary:   "conversation demo (persisted history + catalog answers on genui)",

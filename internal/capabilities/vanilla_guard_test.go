@@ -52,6 +52,16 @@ var vanillaAllow = map[string][]vanillaAllowed{
 		{`window.addEventListener("online", window.__gogogoSyncBadge);`, "badge sync on online"},
 		{`window.addEventListener("focus", window.__gogogoSyncBadge);`, "badge sync on focus"},
 	},
+	// Coffee order page (features/coffee/components/page.templ): the mic
+	// button drives the browser's own SpeechRecognition, and the only way to
+	// start and stop it is an imperative call on the API object. Ruled out:
+	// a Datastar signal for "listening" — the recognition session itself is
+	// owned by the browser, so the button has to hand the toggle to it. The
+	// rest of the island (the watchdog timer, the spoken replies) is the
+	// browser API's own lifecycle, not app state.
+	"features/coffee/components/page.templ": {
+		{`mic.addEventListener("click", function () {`, "SpeechRecognition toggle (browser API)"},
+	},
 	// Nav link row: ONE <details> serves the inline row and the collapsed
 	// menu, so its `open` state must follow the stylesheet's breakpoint.
 	// Ruled out: data-attr:open driven by a $navOpen signal — the breakpoint
