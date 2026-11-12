@@ -485,10 +485,10 @@ jobs:
               git clone \"https://github.com/${{ github.repository }}.git\" \"/home/deploy/services/\${APP_NAME}/repo\"
             else
               # --force: the clone is a DEPLOY artifact, not a workspace, so its
-              # tags must mirror the remote's. Without it the fetch dies on the
-              # first tag whose local copy differs ("would clobber existing
-              # tag") and the deploy never reaches the release — the exact
-              # failure a rollback would hit.
+              # tags must mirror the remote. Without it the fetch dies on the
+              # first tag whose local copy differs (it would clobber the
+              # existing tag) and the deploy never reaches the release - the
+              # exact failure a rollback would hit.
               git -C \"/home/deploy/services/\${APP_NAME}/repo\" fetch origin --tags --force
             fi
             # The RELEASE, not master: production runs what was released.
