@@ -18,7 +18,7 @@ Go 1.27 | Templ v0.3.1020 | Datastar v1.0.4 + datastar-go v1.2.2 | Turso (tursog
 Read the SKILL.md by name before the first matching edit (symlinks in `.agents/skills/`); `cmd/check-skill-frontmatter` fails on unregistered links. Load via `/skill:gogogo-coding-standards`, `/skill:gogogo-ui`, `/skill:gogogo-recipe-authoring`.
 - `gogogo-coding-standards` — Go/template gates (concurrency, Datastar, perf, exception-to-go). On `.templ` it fires with `gogogo-ui`. Universal rules: vendored `stelow-workflow-coding-standards` (pinned `UPSTREAM_SHA`, never edit; `scripts/refresh-stelow.sh`).
 - `gogogo-ui` — DaisyUI vocabulary, semantic colors, `app.min.css`. Read with `docs/ui-themes.md` before any `.templ`/CSS edit. Vocabulary: vendored `daisyui` (pinned; `scripts/refresh-daisyui.sh`).
-- `gogogo-recipe-authoring` — recipe contract (owns/must-not-touch, slots, receipts, upgrade path). Read before creating/editing a recipe.
+- `gogogo-recipe-authoring` — recipe contract (owns/must-not-touch, slots, receipts, declared metrics/outcomes, upgrade path). Read before creating/editing a recipe.
 - `cali-code-navigation` — ripwire orient-first; `cali-ops-deploy-github-tailscale` — server/secrets.
 - **Tools (enforced by `make check-agent-tools`):** `ripwire` (orient), `cymbal` (`cymbal index .`), `xerj` (docs/prose, data outside repo), `sem` (diff/history). Rule: symbol/call-graph → ripwire/cymbal; history/diff → `sem`; meaning over code+prose → xerj.
 - **Docs:** behavior changes update `docs/` + MANIFEST in the SAME commit (`sem diff` proves it; `make site-check` verifies — staleness hook advisory). Counts live only in generated `docs/unit-contracts.md`; `make check-docs` rejects hand counts, dead paths, invented subcommands. Research/evaluations → `docs/research/` (`Reviewed:` + hub row + MANIFEST + `make docs-index`).
@@ -38,6 +38,8 @@ Read the SKILL.md by name before the first matching edit (symlinks in `.agents/s
 | `make test` | Race tests (prefer scoped locally) |
 | `make check-generated` / `check-ci-scripts` | Templ-drift gate / CI-script contracts |
 | `make ci-local-fast` | Cheap gate, scoped to changed pkgs |
+| `make verify-local` / `make verify-local-share` | Boot the real binary on a fresh data dir: URL + account + the routes the diff touched — the operator's 60 s click, after `ci-local-fast` |
+| `make test-recipe R=<id>` | Run the tests ONE recipe owns (package scope derived from its receipt) |
 | `make lint-safe` | Host-aware lint (over whole-repo lint on shared host) |
 | `make ci-local` | Single gate (= CI). If green, push. |
 | `make signoff` | `ci-local` + stamp before push |
@@ -71,7 +73,7 @@ Normative: `docs/exception-to-go.md`. Go ~95-99%, zero Zig in tree. Bans: "Zig i
 
 ## Hooks
 
-lefthook pre-commit (fmt, `govulncheck`, `datastar-lint`, `css-check`, `api-routes`, `registry-conformance`, skill-frontmatter, advisory drifts); pre-push `govulncheck`+`deadcode` (host-gated, may skip). Details `docs/local-ci.md`: T1 format → T2 lint → T3 tests → T3.5 `ci-local-fast` → T4 `ci-local` → T5 `signoff`.
+lefthook pre-commit (fmt, `govulncheck`, `datastar-lint`, `css-check`, `api-routes`, `registry-conformance`, skill-frontmatter, advisory drifts); pre-push `govulncheck`+`deadcode` (host-gated, may skip). Details `docs/local-ci.md`: T1 format → T2 lint → T3 tests → T3.5 `ci-local-fast` → T3.6 `verify-local` (the operator's click) → T4 `ci-local` → T5 `signoff`.
 
 ## Gotchas
 

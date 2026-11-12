@@ -10,7 +10,7 @@ has two layers and why each layer alone produces a plausible-looking bug.
 
 | Layer | API | Subject | Carries |
 |---|---|---|---|
-| Frames | `hub.BroadcastToDoc` / `BroadcastExceptToDoc` | `app.docbridge.<doc>` | join, leave, cursor, caret, draft, count |
+| Frames | `hub.BroadcastToDoc` / `BroadcastExceptToDoc` | `app.docbridge.<doc>` | join, leave, cursor, caret, caret-gone, typing, stopped, draft, count |
 | Roster | `collab.FederatedPresence` | `app.roster.<doc>` | each instance's full local roster |
 
 Whiteboard and notes share ONE `collab.PresenceSeam`

@@ -187,6 +187,9 @@
                 <li><code>generate --check</code><span>Deterministic codegen gate (templ+sqlc+css+docs).</span></li>
                 <li><code>recipe install</code><span>Copy a recipe in: code + declaration + receipt.</span></li>
                 <li><code>recipe list</code><span>What is installed, built-in, or removed.</span></li>
+                <li><code>recipe check</code><span>Evaluator: score, errors, warnings — blocks an unrecorded claim.</span></li>
+                <li><code>recipe describe</code><span>One recipe: verbs, params, metrics, outcomes.</span></li>
+                <li><code>recipe test</code><span>Run the tests THAT recipe ships (scope from its receipt).</span></li>
                 <li><code>advise</code><span>Which lib or language fits the use case.</span></li>
                 <li><code>--dry-run</code><span>Preview the plan as JSON, zero changes.</span></li>
                 <li><code>--yes</code><span>Scaffold, prove it builds.</span></li>
@@ -231,8 +234,9 @@
         <li>Copied with a receipt: pages, handlers, tables, jobs, policy rows.</li>
         <li>Your edits survive: pristine hashes + <code>git merge</code>, never overwrite.</li>
         <li>Receipt keeps it honest: <code>recipe status</code>, <code>update</code>, <code>uninstall</code>.</li>
+        <li>Measured, not asserted: declared metrics and one outcome (success over total) count the rows the recipe already owns.</li>
       </ul>
-      <p class="chapter-lede">Reference: <code>features/todo</code>. Try: <code>gogogo recipe install ./_recipes/pomodoro --yes</code></p>
+      <p class="chapter-lede">Reference: <code>features/todo</code>. Try: <code>gogogo recipe install ./_recipes/pomodoro --yes</code> · instrumentation example: <code>_recipes/coffee</code></p>
 
       <div class="viz tiles">
         <!--FEATURES:START-->
