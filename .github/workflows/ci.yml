@@ -391,6 +391,20 @@ jobs:
           # (same set as scripts/web-packages.sh; router/ left with
           # the PB removal and must not come back here).
           args: ./cmd/web/ ./config/ ./features/... ./internal/... ./web/...
+      - name: Check formatting
+        # gofumpt and goimports are declared as FORMATTERS in .golangci.yml,
+        # and `golangci-lint fmt` is the pinned way to run them: the version
+        # is the one the lint step above already installed, so there is
+        # nothing new to install and nothing to keep in sync.
+        #
+        # This step exists because the pre-commit hook was the ONLY place
+        # that checked formatting: the hook uses ambient binaries and CI
+        # never ran it — so a formatting drift reached master on a green
+        # build (it did: the MCP catalog, a nested module, was misaligned and
+        # every CI job stayed green). One command, and the nested module is
+        # covered too — `golangci-lint fmt` walks the directory tree, not the
+        # module graph.
+        run: golangci-lint fmt --diff .
       - name: Install C toolchain (CGO for loro-go)
         # internal/collab uses loro-go, a CGO binding to the Loro C library.
         # The runner image carries third-party APT sources (packages.microsoft.com)
