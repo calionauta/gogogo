@@ -25,7 +25,7 @@ curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh
 | `gogogo --yes` | Yes | Scaffold: clone when missing, rename, prove the build |
 | `gogogo export <unit> --dir <pristine> --to <scratch>` | No | Port bundle for a tree that is NOT a gogogo checkout: copies the unit's owned files into `<scratch>` and writes `PORTING.md` (routes it registers, imports to rewrite, what you write by hand, the proof). Nothing in `--dir` changes, nothing outside `--to` |
 | `gogogo recipe list [--dir <proj>] [--format json]` | No | Discover recipes: built-in capabilities plus user-installed recipes, with origin, kind, summary, installed/removed state, dependencies, declared surface, invocable verbs, and the available lifecycle verbs |
-| `gogogo recipe describe <id> [--dir <proj>] [--format json]` | No | Describe one recipe by id: kind, origin, summary, registration surface, dependencies, declared surface, invocable verbs with a description, path/body params and per-param help, why mutating routes are omitted, and available lifecycle verbs |
+| `gogogo recipe describe <id> [--dir <proj>] [--format json]` | No | Describe one recipe by id: kind, origin, summary, registration surface, dependencies, declared surface, invocable verbs with a description, path/body params and per-param help, why mutating routes are omitted, the metrics and outcomes it already declares (job, beneficiary, window, counter signals), and available lifecycle verbs |
 | `gogogo recipe invoke <id> <verb> [--dir <proj>] [--server <loopback-url>] [--session <token>] [--param k=v] [--format json]` | Yes (mutating verbs) | Invoke one declared verb (read or mutating) against a running server (loopback only): the verb runs through the server's own session and policy stack under the operator session token (`GOGOGO_SESSION`). Unknown id/verb fails before any dial; a declared `{id}` verb takes `--param id=<uuid>` and validates it before building the URL; the token comes from a real login or `auth.OpenSession` |
 | `gogogo doctor [--json] [--only id]` | No | Read-only preflight for agents/CI: go version, toolchain pin, ripwire/sem/cymbal/xerj/lefthook/sqlc/docker (zig warn opt-in), desktop/sdk (xcode/GTK warn-only), mobile.sdk (skip unless `ANDROID_HOME`), `secrets.age`, `host.capacity`, `registry.fresh`, `generate.drift` (skip → `generate --check`). Exit 0 ok / 4 fail. |
 | `gogogo generate [--check] [--json] [--only templ,sqlc,css,docs]` | Yes (`--check` is dry) | Deterministic codegen idempotente: templ + sqlc + css + docs regen. `--check` is the CI gate (exit 1 on `git diff`). No LLM in the path. |
@@ -54,14 +54,21 @@ the summary and invocable verbs.
 - `recipe describe <id>` prints the declaration plus each verb's description,
 its `{id}`/body params and `paramHelp`, which is what lets an LLM choose a verb
 without reading the handler. It also prints the mutating routes the author
-omitted and the reason.
+omitted and the reason, and the metrics/outcomes the recipe already declares —
+the first place an agent should look before proposing a second definition of
+"how often this worked" (procedure: `skills/gogogo-recipe-authoring/references/
+outcomes.md`).
 - `{id}` is the one supported path param, and it must be a UUID (the repo's id
 shape). `recipe invoke <id> toggle --param id=<uuid>` fills it; the id is
 removed from the body before the handler runs. A route with another placeholder
 is refused until a typed format exists.
 - `recipe check` warns when a mutating route has no action **and no declared
-omission**, when a verb has no description, and when an installed recipe has no
-summary. `omitted:` entries require a declared route and a non-empty reason.
+  omission**, when a verb has no description, and when an installed recipe has no
+  summary. `omitted:` entries require a declared route and a non-empty reason.
+  It **blocks** when a declared outcome names a counter signal the recipe's own
+  code never mentions: the state the ratio is limited by does not exist, so the
+  success count could never move for the reason the outcome claims. Boot never
+  applies that rule — a legacy receipt must keep running.
 
 With Go installed and no `curl | sh`: `go run github.com/calionauta/gogogo/cmd/gogogo@latest`
 with the same flags (always tracks the latest commit; releases pin a version).

@@ -169,8 +169,13 @@ func TestHandlersNotesTypingCaret(t *testing.T) {
 		{"/api/notes/d1/typing", `{"typing":true}`, http.StatusOK},
 		{"/api/notes/d1/typing", `nope`, http.StatusBadRequest},
 		{"/api/notes/d1/caret", `{"line":3,"pos":7}`, http.StatusOK},
+		{"/api/notes/d1/caret", `{"line":3,"pos":7,"start":2}`, http.StatusOK},
 		{"/api/notes/d1/caret", `{"line":0,"pos":7}`, http.StatusBadRequest},
 		{"/api/notes/d1/caret", `{"line":3,"pos":-1}`, http.StatusBadRequest},
+		{"/api/notes/d1/caret", `{"line":3,"pos":7,"start":-1}`, http.StatusBadRequest},
+		// A tab that stopped owning a caret retracts it; there is no
+		// position to validate on that path.
+		{"/api/notes/d1/caret", `{"gone":true}`, http.StatusOK},
 	} {
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequestWithContext(context.Background(),

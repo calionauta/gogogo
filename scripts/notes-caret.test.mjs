@@ -372,9 +372,16 @@ async function main() {
   // (line 2). The observer must render one dot per TAB.
   let sameUserDots = [];
   try {
+    // Wait for the ASSERTION, not just the dot count: the second tab's first
+    // report can land a beat before its op-attached caret, so counting dots
+    // alone snapshots line 1/line 1 and reads a settled state as a failure.
     await B2.waitForFunction(
-      () => [...document.querySelectorAll("#caret-layer > span")]
-        .filter((d) => d.style.width === "3px").length === 2,
+      () => {
+        const titles = [...document.querySelectorAll("#caret-layer > span")]
+          .filter((d) => d.style.width === "3px").map((d) => d.title);
+        return titles.length === 2 &&
+          titles.some((t) => /line 1/.test(t)) && titles.some((t) => /line 2/.test(t));
+      },
       null,
       { timeout: 12000 },
     );
@@ -883,6 +890,384 @@ async function main() {
   }
   await AR.unroute("**/api/notes/*/op?*");
   await BR.unroute("**/api/notes/*/op?*");
+
+  // ---------------------------------------------------------------------------
+  // THE PEER'S CARET BELONGS TO THE PEER.
+  //
+  // WHY THIS EXISTS: two reports, one mechanism. (1) "when I type, the other
+  // user's cursor moves in my box" — the client rewrote every stored peer
+  // caret through its own unconfirmed ops (shiftPeerOffsets), so a dot slid
+  // along with the typist's text even when its owner sat still, or had blurred
+  // and owned no caret at all. (2) "...and in their own box too" — adopting a
+  // peer's text parked the local caret at its old NUMBER (Math.min(saved,
+  // len)), so an insertion above it left the caret on a different character
+  // with every peer keystroke, and it reported that wrong place back.
+  //
+  // The fix makes the owner authoritative: a dot changes only on its owner's
+  // report, and the owner anchors its own caret across adopted text
+  // (assignAnchored/mapOwnOffset) and reports the anchored offset.
+  //
+  // RED-PROOFED against the old client: B's selection stays 6 (want 8), and
+  // A's dot keeps the title "line 2" while painting on line 3 (B's real line
+  // is 2). The blurred half fails too: the dot's left/top move with A's
+  // keystrokes although B published nothing.
+  // ---------------------------------------------------------------------------
+  const docOwner = "notes-caret-owner-" + process.pid;
+  // Connection budget: close the race phase's streams before opening two more
+  // (six per host is the ceiling, see docs/realtime-recipe.md).
+  for (const pg of await ctxA.pages()) await pg.close();
+  for (const pg of await ctxB.pages()) await pg.close();
+  const AT = await ctxA.newPage(); // the typist
+  const BT = await ctxB.newPage(); // the peer whose caret must stay put
+  AT.on("pageerror", (e) => pageErrors.push("AT: " + String(e)));
+  BT.on("pageerror", (e) => pageErrors.push("BT: " + String(e)));
+
+  const dotState = (pg) => pg.evaluate(() => {
+    const ta = document.getElementById("note-text");
+    const cs = getComputedStyle(ta);
+    const lineH = parseFloat(cs.lineHeight) || 0;
+    const padTop = parseFloat(cs.paddingTop) || 0;
+    const tr = ta.getBoundingClientRect();
+    const dot = [...document.querySelectorAll("#caret-layer > span")]
+      .find((d) => d.style.width === "3px");
+    if (!dot) return null;
+    const r = dot.getBoundingClientRect();
+    return {
+      title: dot.title,
+      left: Math.round(r.left - tr.left),
+      top: Math.round(r.top - tr.top),
+      paintedLine: Math.round((r.top - tr.top - padTop) / lineH) + 1,
+    };
+  });
+
+  await gotoNote(AT, `${BASE}/notes/${docOwner}`);
+  await gotoNote(BT, `${BASE}/notes/${docOwner}`);
+  await AT.locator("#note-text").click();
+  await typeText(AT, "aaaa", 20);
+  await AT.keyboard.press("Enter");
+  await typeText(AT, "bbbb", 20);
+  await AT.keyboard.press("Enter");
+  await typeText(AT, "cccc", 20);
+  await BT.waitForFunction(
+    () => document.getElementById("note-text").value === "aaaa\nbbbb\ncccc",
+    null,
+    { timeout: 10000 },
+  );
+
+  // Both focused. B parks inside line 2 (offset 6); A at the very start.
+  await BT.evaluate(() => {
+    const ta = document.getElementById("note-text");
+    ta.focus();
+    ta.setSelectionRange(6, 6);
+  });
+  try {
+    await AT.waitForFunction(
+      () => [...document.querySelectorAll("#caret-layer > span")]
+        .some((d) => d.style.width === "3px" && /line 2/.test(d.title)),
+      null,
+      { timeout: 12000 },
+    );
+    ok("the peer's caret reached the typist before the drift check");
+  } catch {
+    bad("the peer's caret never reached the typist (cannot test the drift)");
+  }
+  await AT.evaluate(() => {
+    const ta = document.getElementById("note-text");
+    ta.focus();
+    ta.setSelectionRange(0, 0);
+  });
+
+  // A inserts a character AND a line above B's caret. B's caret must keep its
+  // character (offset 6 -> 8, now line 3); its old NUMBER (6) points at a
+  // different character on line 2, which is what the old clamp left behind.
+  await AT.keyboard.type("X");
+  await AT.keyboard.press("Enter");
+  let anchored = null;
+  try {
+    await BT.waitForFunction(
+      () => document.getElementById("note-text").value === "X\naaaa\nbbbb\ncccc" &&
+        document.getElementById("note-text").selectionStart === 8,
+      null,
+      { timeout: 12000 },
+    );
+    anchored = await BT.evaluate(() => {
+      const ta = document.getElementById("note-text");
+      return { start: ta.selectionStart, line: ta.value.slice(0, ta.selectionStart).split("\n").length };
+    });
+    ok("an adopted insertion above the caret keeps the caret on its character (6 -> 8)");
+  } catch {
+    anchored = await BT.evaluate(() => {
+      const ta = document.getElementById("note-text");
+      return { start: ta.selectionStart, line: ta.value.slice(0, ta.selectionStart).split("\n").length, text: ta.value };
+    });
+    bad(`the peer's own caret was not anchored: selection=${anchored.start} (want 8) text=${JSON.stringify(anchored.text)}`);
+  }
+
+  // And the typist's dot must agree with where the peer REALLY is now — title
+  // line, painted line and the peer's own line all the same.
+  try {
+    await AT.waitForFunction(
+      () => [...document.querySelectorAll("#caret-layer > span")]
+        .some((d) => d.style.width === "3px" && /line 3/.test(d.title)),
+      null,
+      { timeout: 4000 },
+    );
+  } catch { /* the assertion below reports what it found */ }
+  const dotAfterAnchor = await dotState(AT);
+  const reportedLine = dotAfterAnchor ? Number((/line (\d+)/.exec(dotAfterAnchor.title) || [])[1]) : null;
+  if (
+    dotAfterAnchor && anchored &&
+    reportedLine === anchored.line &&
+    dotAfterAnchor.paintedLine === anchored.line
+  ) {
+    ok(`the typist's dot matches the peer's own caret (line ${anchored.line})`);
+  } else {
+    bad(
+      `the typist's dot disagrees with the peer's caret: dot=${JSON.stringify(dotAfterAnchor)} ` +
+        `peerLine=${anchored ? anchored.line : "?"}`,
+    );
+  }
+
+  // A BLURRED peer owns no caret, so its dot must go away at once and must not
+  // come back because the typist keeps typing. (The old client had no
+  // retraction at all — it kept dragging the unowned dot through every op.)
+  await BT.evaluate(() => document.getElementById("note-text").blur());
+  try {
+    await AT.waitForFunction(
+      () => [...document.querySelectorAll("#caret-layer > span")]
+        .filter((d) => d.style.width === "3px").length === 0,
+      null,
+      { timeout: 3000 },
+    );
+    ok("blur retires the peer's dot before the typist touches the text");
+  } catch {
+    bad(`the blurred peer's dot lingered: ${JSON.stringify(await dotState(AT))}`);
+  }
+  await AT.evaluate(() => {
+    const ta = document.getElementById("note-text");
+    ta.focus();
+    ta.setSelectionRange(0, 0);
+  });
+  await AT.keyboard.press("Enter");
+  // Sync on the effect, not a nap: B adopting the text is what a resurrected
+  // dot would have moved on (a stray report needs B's text to be there).
+  await BT.waitForFunction(
+    () => document.getElementById("note-text").value === "\nX\naaaa\nbbbb\ncccc",
+    null,
+    { timeout: 12000 },
+  );
+  const dotAfterBlurTyping = await dotState(AT);
+  if (!dotAfterBlurTyping) {
+    ok("typing never resurrects a blurred peer's dot");
+  } else {
+    bad(`a blurred peer's dot came back while the typist typed: ${JSON.stringify(dotAfterBlurTyping)}`);
+  }
+
+  // ---------------------------------------------------------------------------
+  // PRESENCE THAT ENDS WHEN IT SHOULD: peer selections, and a dot retired the
+  // moment its owner stops owning a caret.
+  //
+  // WHY THIS EXISTS: a caret report carries only an offset, so a peer holding
+  // a range looked like a bare caret — the one collaboration affordance a
+  // plain textarea is expected to show. And a blurred tab kept its dot until
+  // the receiver's 8s expiry, because nothing ever told peers the owner had
+  // left the caret (the old client had the mirror image of this bug: it kept
+  // DRAGGING that unowned dot). The fixes are a selection anchor on the same
+  // report and an explicit `caret-gone` frame on blur/visibility-hidden.
+  //
+  // RED-PROOFED: without the anchor there is no [data-peer-sel] box at all;
+  // without caret-gone the dot outlives the blur (the wait below times out).
+  // ---------------------------------------------------------------------------
+  const docSel = "notes-selection-" + process.pid;
+  for (const pg of await ctxA.pages()) await pg.close();
+  for (const pg of await ctxB.pages()) await pg.close();
+  const AS = await ctxA.newPage(); // the observer
+  const BS = await ctxB.newPage(); // the one selecting
+  AS.on("pageerror", (e) => pageErrors.push("AS: " + String(e)));
+  BS.on("pageerror", (e) => pageErrors.push("BS: " + String(e)));
+
+  // One highlight box per Range client rect, in textarea pixels.
+  const selBoxes = (pg) => pg.evaluate(() => {
+    const ta = document.getElementById("note-text");
+    const cs = getComputedStyle(ta);
+    const lineH = parseFloat(cs.lineHeight) || 0;
+    const padTop = parseFloat(cs.paddingTop) || 0;
+    const tr = ta.getBoundingClientRect();
+    return [...document.querySelectorAll("#caret-layer > span[data-peer-sel]")].map((el) => {
+      const r = el.getBoundingClientRect();
+      return {
+        label: el.dataset.peerSel,
+        w: Math.round(r.width),
+        paintedLine: Math.round((r.top - tr.top - padTop) / lineH) + 1,
+        top: Math.round(r.top - tr.top),
+      };
+    });
+  });
+
+  await gotoNote(AS, `${BASE}/notes/${docSel}`);
+  await gotoNote(BS, `${BASE}/notes/${docSel}`);
+  await AS.locator("#note-text").click();
+  await typeText(AS, "aaaa", 20);
+  await AS.keyboard.press("Enter");
+  await typeText(AS, "bbbb", 20);
+  await AS.keyboard.press("Enter");
+  await typeText(AS, "cccc", 20);
+  await BS.waitForFunction(
+    () => document.getElementById("note-text").value === "aaaa\nbbbb\ncccc",
+    null,
+    { timeout: 10000 },
+  );
+
+  // B selects the second half of line 2 (forward: focus at 9, anchor at 6).
+  // 9 is the END of "bbbb"; 10 would be the start of line 3 (after the
+  // newline) and would legitimately paint the selected line break as a sliver.
+  await BS.evaluate(() => {
+    const ta = document.getElementById("note-text");
+    ta.focus();
+    ta.setSelectionRange(6, 9);
+  });
+  try {
+    await AS.waitForFunction(
+      () => document.querySelectorAll("#caret-layer > span[data-peer-sel]").length > 0,
+      null,
+      { timeout: 12000 },
+    );
+    ok("a peer's selection reaches the other editor as a highlight");
+  } catch {
+    bad("a peer's selection never painted a highlight (the caret arrived alone)");
+  }
+  const boxes = await selBoxes(AS);
+  const peerDot = await dotState(AS);
+  const peerLine = await BS.evaluate(() => {
+    const ta = document.getElementById("note-text");
+    return ta.value.slice(0, ta.selectionEnd).split("\n").length;
+  });
+  if (boxes.length && boxes.every((b) => b.w > 0) && boxes.every((b) => b.paintedLine === peerLine)) {
+    ok(`the highlight paints on the selected line (${peerLine}) and is visible`);
+  } else {
+    bad(`the highlight is misplaced or empty: boxes=${JSON.stringify(boxes)} peerLine=${peerLine}`);
+  }
+  const dotLine = peerDot ? Number((/line (\d+)/.exec(peerDot.title) || [])[1]) : null;
+  if (dotLine === peerLine) {
+    ok("the caret dot sits at the focus end of the selection");
+  } else {
+    bad(`the caret dot is not at the selection's focus end: dot=${JSON.stringify(peerDot)} peerLine=${peerLine}`);
+  }
+
+  // Collapsing the selection retires the highlight, not the caret.
+  await BS.evaluate(() => {
+    const ta = document.getElementById("note-text");
+    ta.focus();
+    ta.setSelectionRange(9, 9);
+  });
+  try {
+    await AS.waitForFunction(
+      () => document.querySelectorAll("#caret-layer > span[data-peer-sel]").length === 0,
+      null,
+      { timeout: 5000 },
+    );
+    ok("collapsing the selection retires the highlight");
+  } catch {
+    bad(`the highlight outlived the collapsed selection: ${JSON.stringify(await selBoxes(AS))}`);
+  }
+  const collapsedDot = await dotState(AS);
+  if (collapsedDot) ok("the caret dot survives the collapse");
+  else bad("the caret dot disappeared when only the selection collapsed");
+
+  // Blur retires the dot immediately (no 8s ghost) — and refocusing proves the
+  // retraction did not kill the tab's ability to report a caret again.
+  await BS.evaluate(() => document.getElementById("note-text").blur());
+  try {
+    await AS.waitForFunction(
+      () => [...document.querySelectorAll("#caret-layer > span")]
+        .filter((d) => d.style.width === "3px").length === 0,
+      null,
+      { timeout: 3000 },
+    );
+    ok("a blurred peer's dot is retired on the spot");
+  } catch {
+    bad(`a blurred peer's dot lingered: ${JSON.stringify(await dotState(AS))}`);
+  }
+  await BS.evaluate(() => {
+    const ta = document.getElementById("note-text");
+    ta.focus();
+    ta.setSelectionRange(6, 6);
+  });
+  try {
+    await AS.waitForFunction(
+      () => [...document.querySelectorAll("#caret-layer > span")]
+        .filter((d) => d.style.width === "3px").length > 0,
+      null,
+      { timeout: 5000 },
+    );
+    ok("refocusing re-announces the caret after a retraction");
+  } catch {
+    bad("the caret never came back after the peer refocused (the retraction was permanent)");
+  }
+
+  // A range is not permanent presence: after SELECTION_TTL of no range
+  // activity it fades, while the dot (kept alive by the 5s heartbeat) stays.
+  // B is focused and idle here, so only the heartbeat repeats — and a repeat
+  // of the same position must not resurrect an abandoned highlight.
+  //
+  // RED-PROOFED: with SELECTION_TTL effectively infinite the box never goes
+  // away and the wait below times out.
+  await BS.evaluate(() => {
+    const ta = document.getElementById("note-text");
+    ta.focus();
+    ta.setSelectionRange(6, 9);
+  });
+  try {
+    await AS.waitForFunction(
+      () => document.querySelectorAll("#caret-layer > span[data-peer-sel]").length > 0,
+      null,
+      { timeout: 5000 },
+    );
+  } catch {
+    bad("the re-selection never painted a highlight (cannot test the fade)");
+  }
+  try {
+    await AS.waitForFunction(
+      () => document.querySelectorAll("#caret-layer > span[data-peer-sel]").length === 0,
+      null,
+      // KEPT: absence check across the range timeout. The mechanism is time —
+      // nothing on the wire retires an abandoned range, so the window IS the
+      // assertion; generous timeout, the box must be gone well before it.
+      { timeout: 12000 },
+    );
+    ok("an idle selection fades while its owner is still present");
+  } catch {
+    bad(`an idle selection stayed painted past the range timeout: ${JSON.stringify(await selBoxes(AS))}`);
+  }
+  const dotAfterFade = await dotState(AS);
+  if (dotAfterFade) ok("the caret dot outlives the faded selection");
+  else bad("the caret dot vanished with the faded selection (presence lost)");
+
+  // Direction: a BACKWARD selection's caret is its FOCUS end (the lower
+  // offset), not the range's right edge. Reporting selectionStart/End blindly
+  // would draw the dot one line below where the writer's caret actually is.
+  await BS.evaluate(() => {
+    const ta = document.getElementById("note-text");
+    ta.focus();
+    ta.setSelectionRange(1, 8, "backward");
+  });
+  try {
+    await AS.waitForFunction(
+      () => [...document.querySelectorAll("#caret-layer > span")]
+        .some((d) => d.style.width === "3px" && /line 1/.test(d.title)),
+      null,
+      { timeout: 8000 },
+    );
+    ok("a backward selection puts the dot at its focus end (line 1)");
+  } catch {
+    bad(`a backward selection put the dot at the wrong end: ${JSON.stringify(await dotState(AS))}`);
+  }
+  const backwardBoxes = await selBoxes(AS);
+  if (backwardBoxes.length >= 2) {
+    ok("a selection spanning two lines paints one box per line");
+  } else {
+    bad(`a two-line selection painted ${backwardBoxes.length} box(es): ${JSON.stringify(backwardBoxes)}`);
+  }
 
   if (pageErrors.length) {
     bad(`uncaught page errors: ${pageErrors.slice(0, 3).join(" | ")}`);

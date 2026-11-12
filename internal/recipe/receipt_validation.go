@@ -69,6 +69,7 @@ func checkDeclaration(root string, r Receipt) []string {
 	problems = append(problems, actionProblems(r.Declaration)...)
 	problems = append(problems, OmissionProblems(r.Declaration)...)
 	problems = append(problems, MetricProblems(r.Declaration)...)
+	problems = append(problems, OutcomeProblems(r.Declaration)...)
 	if ps := PanelProblems(r.Declaration); len(ps) > 0 {
 		problems = append(problems, ps...)
 	}
@@ -79,21 +80,30 @@ func checkDeclaration(root string, r Receipt) []string {
 // single placeholder. Exported so registration, the catalog and the
 // dashboard executor share one definition of a valid metric.
 func MetricProblems(d Declaration) []string {
-	var out []string
+	out := make([]string, 0, len(d.Metrics))
 	for _, m := range d.Metrics {
-		if strings.TrimSpace(m.Label) == "" {
-			out = append(out, "metric with an empty label")
-		}
-		if err := validCount(m.Query, m.BindsOwner()); err != nil {
-			out = append(out, fmt.Sprintf("metric %q: %v", m.Label, err))
-		}
-		// The signal drives the dashboard's counter: it lands inside a
-		// `$name` expression in the page's script, so a name that is not an
-		// identifier is a syntax error there. It fails here instead.
-		if m.Signal != "" && !IsJSIdent(m.Signal) {
-			out = append(out, fmt.Sprintf(
-				"metric %q: signal %q is not a JavaScript identifier", m.Label, m.Signal))
-		}
+		out = append(out, metricProblems(m)...)
+	}
+	return out
+}
+
+// metricProblems is the single metric's rules, shared by a dashboard count and
+// by each half of an outcome. One function, because a second spelling of "a
+// valid count" is how the two surfaces drift apart.
+func metricProblems(m Metric) []string {
+	var out []string
+	if strings.TrimSpace(m.Label) == "" {
+		out = append(out, "metric with an empty label")
+	}
+	if err := validCount(m.Query, m.BindsOwner()); err != nil {
+		out = append(out, fmt.Sprintf("metric %q: %v", m.Label, err))
+	}
+	// The signal drives the dashboard's counter: it lands inside a
+	// `$name` expression in the page's script, so a name that is not an
+	// identifier is a syntax error there. It fails here instead.
+	if m.Signal != "" && !IsJSIdent(m.Signal) {
+		out = append(out, fmt.Sprintf(
+			"metric %q: signal %q is not a JavaScript identifier", m.Label, m.Signal))
 	}
 	return out
 }

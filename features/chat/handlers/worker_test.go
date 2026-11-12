@@ -42,11 +42,12 @@ func (s *memStore) Append(_ context.Context, owner string, m store.Message) erro
 		}
 		s.seen[owner+"\x00"+m.IdemKey] = true
 	}
+	// Stored as handed over (owner fixed, timestamp assigned) so a field the
+	// worker stamps — CatalogVersion — is observable to the tests instead of
+	// being silently dropped by a field-by-field copy.
+	m.Owner = owner
 	m.Created = time.Now()
-	s.msgs = append(s.msgs, store.Message{
-		Owner: owner, Role: m.Role, Text: m.Text, Components: m.Components,
-		IdemKey: m.IdemKey, Created: m.Created,
-	})
+	s.msgs = append(s.msgs, m)
 	return nil
 }
 

@@ -101,3 +101,8 @@ for zero benefit at this scale. New recipes arrive as PRs.
 Shipped 2026-11-09 (`#390`-`#393`). `LabelsFor` deleted; chat/credits keep
 hook counts (MemStore/ledger have no COUNT query) and leave the generic path
 the moment they gain a table.
+
+**Revisit trigger reached 2026-11-12** (an outcome rather than a volume):
+[Recipe outcomes](recipe-outcomes-2026-11.md) keeps the COUNT wall and declares
+the job as a success/total pair, with no event stream. The `validCount` and
+exactly-one-writable rules are unchanged.

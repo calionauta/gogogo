@@ -207,7 +207,7 @@ func TestNotesCaretCrossesInstances(t *testing.T) {
 	defer closeB()
 	settleStream(t, logB, "tab-b")
 
-	code := postPresence(t, clientA, a.server, docID, "tab-a", "caret", `{"line":3,"pos":7}`)
+	code := postPresence(t, clientA, a.server, docID, "tab-a", "caret", `{"line":3,"pos":7,"start":2}`)
 	if code != http.StatusOK {
 		t.Fatalf("caret status = %d, want 200", code)
 	}
@@ -218,9 +218,27 @@ func TestNotesCaretCrossesInstances(t *testing.T) {
 	if x, _ := msg["x"].(float64); x != 3 {
 		t.Fatalf("caret line crossed as %v, want 3", msg["x"])
 	}
+	// The selection anchor is part of the same frame: the bridge ships raw
+	// bytes, but a field the handler forgets to copy would still arrive as
+	// nil and paint no highlight on the far instance.
+	if anchor, _ := msg["selStart"].(float64); anchor != 2 {
+		t.Fatalf("selection anchor crossed as %v, want 2", msg["selStart"])
+	}
+	// The retraction must cross too, or a peer on another instance keeps a
+	// ghost dot until its expiry after the owner blurred.
+	goneCode := postPresence(t, clientA, a.server, docID, "tab-a", "caret", `{"gone":true}`)
+	if goneCode != http.StatusOK {
+		t.Fatalf("caret gone status = %d, want 200", goneCode)
+	}
+	gone := waitNoteEvent(t, logB, func(msg map[string]any) bool {
+		return msg["type"] == "caret-gone" && msg["from"] == "tab-a"
+	})
+	if gone["doc"] != docID {
+		t.Fatalf("caret gone crossed for doc %v, want %q", gone["doc"], docID)
+	}
 	// No echo back to the sender.
 	if echoed, ok := logA.find(func(msg map[string]any) bool {
-		return msg["type"] == "caret" && msg["from"] == "tab-a"
+		return (msg["type"] == "caret" || msg["type"] == "caret-gone") && msg["from"] == "tab-a"
 	}); ok {
 		t.Fatalf("sender's own caret was echoed back: %v", echoed)
 	}

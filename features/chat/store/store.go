@@ -23,6 +23,12 @@ type Message struct {
 	Components []components.Directive
 	IdemKey    string
 	Created    time.Time
+	// CatalogVersion is the vocabulary fingerprint (components.CatalogVersion)
+	// at the moment the answer was stored. A later catalog that renamed or
+	// retired a component no longer matches it, and re-rendering history drops
+	// what the answer can no longer mean instead of failing the whole message.
+	// Empty on rows written before the stamp existed; those re-render unchanged.
+	CatalogVersion string
 }
 
 // MessageStore is the persistence seam: production currently wires the

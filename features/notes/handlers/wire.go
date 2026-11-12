@@ -40,15 +40,22 @@ type NoteTextEvent struct {
 }
 
 // CaretReport is one caret position attached to an op batch or event.
+//
+// Start is the selection anchor: when present and different from Pos, the
+// reporter holds a range and peers paint it as a highlight beside the caret.
+// A POINTER because 0 is a real offset (selecting the first character) and an
+// absent field must mean "collapsed caret", not "selection from 0" — the
+// latter would paint a highlight on every old client's caret.
 type CaretReport struct {
-	Line int `json:"line"`
-	Pos  int `json:"pos"`
+	Line  int  `json:"line"`
+	Pos   int  `json:"pos"`
+	Start *int `json:"start,omitempty"`
 }
 
 // validCaret reports whether a client-supplied caret is sane enough to
 // relay. Invalid values are dropped, never rejected: caret is decoration.
 func validCaret(c *CaretReport) bool {
-	return c != nil && c.Line >= 1 && c.Pos >= 0
+	return c != nil && c.Line >= 1 && c.Pos >= 0 && (c.Start == nil || *c.Start >= 0)
 }
 
 // opRequest is one POST body: an ordered batch of character ops applied
@@ -66,11 +73,15 @@ type typingRequest struct {
 	Typing bool `json:"typing"`
 }
 
-// caretRequest is one caret report: 1-based line plus UTF-16 offset.
-// Broadcast only, never persisted.
+// caretRequest is one caret report: 1-based line plus UTF-16 offset, the
+// optional selection anchor, or `gone` when the tab stops owning a caret
+// (blur/hidden) so peers retire the dot immediately instead of waiting out
+// their expiry. Broadcast only, never persisted.
 type caretRequest struct {
-	Line int `json:"line"`
-	Pos  int `json:"pos"`
+	Line  int  `json:"line"`
+	Pos   int  `json:"pos"`
+	Start *int `json:"start,omitempty"`
+	Gone  bool `json:"gone,omitempty"`
 }
 
 // caretOrNil passes a client caret through only when sane; anything else

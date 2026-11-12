@@ -1,0 +1,72 @@
+# Coffee — the voice-first demo recipe.
+#
+# It is a worked example of the two things this repository's recipe model is
+# asked about most: a closed vocabulary parsed without a model, and an outcome
+# declared as the pair of counts that answers it. Install it from the repo root:
+#
+#   go run ./cmd/gogogo recipe install _recipes/coffee --yes
+#
+# `id` is the receipt name, the prefix every table must carry (`ext_coffee_`) and
+# the id the generated registration and the policy block both key on.
+id: coffee
+
+version: v0.1.0
+
+summary: A voice-first order demo over a closed menu, with one owner-scoped order table and a declared outcome.
+
+module: github.com/calionauta/gogogo
+
+register: features/coffee/handlers
+
+upstream:
+  repo: github.com/calionauta/gogogo
+  ref: master
+  path: _recipes/coffee
+
+# declaration is the append-only half: what the code claims, checked against the
+# code at install and at every `recipe status`.
+declaration:
+  tables:
+    - ext_coffee_orders
+  routes:
+    - { method: GET, pattern: /coffee }
+    - { method: POST, pattern: /api/coffee/preview }
+    - { method: POST, pattern: /api/coffee/confirm }
+  actions:
+    - verb: confirm
+      description: Confirm one order for the calling owner, parsed from the posted text.
+      route: { method: POST, pattern: /api/coffee/confirm }
+      params: [text, previewed]
+      paramHelp:
+        text: The spoken or typed order, in the recipe's own menu vocabulary.
+        previewed: The preview serialization the caller was shown; empty when nothing was previewed.
+  omitted:
+    # Preview writes nothing and answers with a patch, so it is a UI step rather
+    # than an affordance: a headless caller would get a signal frame and no
+    # result. Declared rather than forgotten.
+    - route: { method: POST, pattern: /api/coffee/preview }
+      reason: Demo-only parse that writes nothing and answers with a UI patch; it never completes headless.
+  slots:
+    - nav.sidebar
+  metrics:
+    - label: Orders confirmed
+      query: "SELECT COUNT(*) FROM ext_coffee_orders WHERE owner = ?"
+  # An outcome is the job, as two counts over the rows this recipe already owns.
+  # No event stream, no collection pipeline: `corrected` is a fact of the order.
+  outcomes:
+    - id: order_without_repair
+      job: Receive the coffee you asked for without fixing a misread order
+      beneficiary: user
+      success:
+        label: Orders without repair
+        query: "SELECT COUNT(*) FROM ext_coffee_orders WHERE owner = ? AND corrected = 0"
+      total:
+        label: Orders confirmed
+        query: "SELECT COUNT(*) FROM ext_coffee_orders WHERE owner = ?"
+      counterSignals: [corrected]
+      window: session
+  panel:
+    component: coffee_orders
+    prompt: "coffee_orders {scope: recent|all} whenever the user asks about their coffee orders"
+    writable: [scope]
+    values: [recent, all]

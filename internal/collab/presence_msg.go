@@ -7,9 +7,12 @@ import (
 )
 
 // PresenceMsg is one ephemeral presence event shared by both the
-// jetstream and web-only transports. Type is "cursor" | "join" | "leave"
-// | "count". Cursor carries normalized coordinates (0..1) so any viewport
-// can place a remote cursor regardless of the peer's canvas size.
+// jetstream and web-only transports. Type is the frame's own vocabulary:
+// "cursor" | "join" | "leave" | "count" (whiteboard presence), "typing" |
+// "stopped" | "caret" | "caret-gone" (notes presence), and "draft"
+// (in-progress whiteboard shape). Cursor carries normalized coordinates
+// (0..1) so any viewport can place a remote cursor regardless of the peer's
+// canvas size; notes carets reuse X/Y as line/offset.
 //
 // Declared here (build-tag-free) so presence_web.go and presence.go
 // (jetstream) share a single definition.
@@ -33,7 +36,13 @@ type PresenceMsg struct {
 	From string  `json:"from,omitempty"`
 	X    float64 `json:"x"`
 	Y    float64 `json:"y"`
-	TS   int64   `json:"ts"`
+	// SelStart is the NOTES caret's selection anchor (UTF-16 offset) when the
+	// reporter holds a range: peers highlight min(SelStart,Y)..max(SelStart,Y)
+	// and keep the dot at Y. Pointer because offset 0 is a real anchor ("the
+	// first character is selected") while an absent field must mean collapsed.
+	// Unused by the whiteboard, whose X/Y are normalized canvas coordinates.
+	SelStart *float64 `json:"selStart,omitempty"`
+	TS       int64    `json:"ts"`
 	// CTS is the SENDER-captured timestamp (Unix millis at frame build).
 	// The server re-stamps TS on receipt, which destroys capture order
 	// so receivers adjudicate staleness with CTS, compared only within one
@@ -69,7 +78,9 @@ type presenceAlias struct {
 	From string      `json:"from,omitempty"`
 	X    json.Number `json:"x"`
 	Y    json.Number `json:"y"`
-	TS   int64       `json:"ts"`
+	// SelStart decodes tolerantly like X/Y (see the UnmarshalJSON note).
+	SelStart json.Number `json:"selStart,omitempty"`
+	TS       int64       `json:"ts"`
 	// CTS mirrors X/Y tolerance below: a fork that stringifies numbers
 	// (exactly how the cursor 400 bug happened) must not 400 on cts.
 	// Decoded tolerantly via the alias; always marshalled as a number.
@@ -112,6 +123,13 @@ func (m *PresenceMsg) UnmarshalJSON(b []byte) error {
 			return fmt.Errorf("presence y: %w", err)
 		}
 		m.Y = f
+	}
+	if a.SelStart != "" {
+		f, err := a.SelStart.Float64()
+		if err != nil {
+			return fmt.Errorf("presence selStart: %w", err)
+		}
+		m.SelStart = &f
 	}
 	return nil
 }

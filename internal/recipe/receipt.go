@@ -90,6 +90,11 @@ type Declaration struct {
 	// entry, `?` bound to the viewing owner). Labels are the user's
 	// words; the dashboard groups them per recipe.
 	Metrics []Metric `yaml:"metrics,omitempty"`
+	// Outcomes are the jobs this recipe claims to do, each declared as the
+	// pair of counts that answers it (success over eligible). Optional and
+	// additive: a receipt without them is valid and scores the same, which
+	// is what keeps an older install on this build.
+	Outcomes []Outcome `yaml:"outcomes,omitempty"`
 	// Panel is the chat answer slice this recipe offers (optional — a
 	// recipe with no list-shaped data declares none). The component
 	// name, prompt and writable props live here so the dashboard,

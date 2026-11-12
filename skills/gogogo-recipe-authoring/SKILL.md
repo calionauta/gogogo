@@ -118,6 +118,47 @@ Keep the declaration in step with the code. A declared route the code does not r
 a drift **failure**, not a warning: it ships a nav entry that leads nowhere. A declared job
 the code does not register burns CPU forever.
 
+### Outcomes: the job, as two counts
+
+A metric says how much happened. An outcome says whether the job got done, for
+whom, and how often it went wrong — declared as a **pair of counts** over a table
+the recipe already owns:
+
+```yaml
+outcomes:
+  - id: order_without_repair
+    job: Receive the coffee you asked for without fixing a misread order
+    beneficiary: user            # user | operator — never both
+    success: { label: Orders without repair, query: "SELECT COUNT(*) FROM ext_coffee_orders WHERE owner = ? AND corrected = 0" }
+    total:   { label: Orders confirmed,     query: "SELECT COUNT(*) FROM ext_coffee_orders WHERE owner = ?" }
+    counterSignals: [corrected]  # states your code actually records
+    window: session              # session | day | none
+```
+
+Four rules, and the reference has the rest (field-by-field gates, denominator
+pitfalls, the questions to ask the operator, the tests, non-goals):
+
+- **Do not invent one.** Propose the job, the beneficiary, the pair and one
+  counter signal; wait for the operator before declaring.
+- **Both halves are `COUNT(*)`** over `declaration.tables` — a query on a table
+  you do not own is refused, and there is no event stream to fall back on.
+- **A counter signal is a column you write** (`corrected`), so the ratio cannot
+  drift from the rows. One signal; two means two outcomes.
+- **Zero denominator is "no data"**, rendered `—`; never manufacture a `1`.
+
+Read `references/outcomes.md` (relative to this skill) before declaring or
+changing one.
+
+### The chat panel is yours; the shared catalog is not
+
+A recipe's chat surface is its own `PanelProvider` over `comp.SlicePanel`, and
+its `View` must return the component the feature's page renders — never a copy.
+Do **not** add a feature-shaped component to `features/genui/components`: that
+catalog is advertised to every model in every install, and the flat-deps gate
+forbids the cross-feature import it would need. Reuse the generic leaves
+(`data_table`, `text_note`, `plan_cards`, `section`) and declare your own name as
+a panel.
+
 ## After you edit the code — this is the part people get wrong
 
 Editing is expected. Losing the ability to update is the cost, and it is manageable:
@@ -358,6 +399,7 @@ judged by a human, which is why a receipt is pinned to a reviewed version.
 - [ ] `features/todo` was consulted before inventing a structure
 - [ ] At least one `_test.go` ships with the recipe, it asserts a wire symptom, and you
       hand-mutated the code once to watch it fail (`make test-recipe R=<id>` is green)
+- [ ] An outcome, if declared, is a success/total pair over a declared table, and every counter signal appears in the code
 - [ ] `version: vX.Y.Z` declared in `.recipe.yml` (`recipe outdated` compares it against the reviewed catalog entry — without it the freshness check honestly reports unknown)
 - [ ] Your deliberate edits are committed, and the recipe README says why you diverged
 - [ ] The build is green, including the gates the project already enforces

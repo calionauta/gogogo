@@ -177,7 +177,8 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 func messageViews(ctx context.Context, msgs []store.Message) []store.MessageView {
 	out := make([]store.MessageView, 0, len(msgs))
 	for _, m := range msgs {
-		dirs, rerr := comp.Rehydrate(ctx, m.Components, m.Owner)
+		dirs := catalogCompatible(ctx, m)
+		dirs, rerr := comp.Rehydrate(ctx, dirs, m.Owner)
 		if rerr != nil {
 			obsArgs := append(observability.WithComponent("chat", "feature"), "error", rerr)
 			observability.Warn(ctx, "chat: history re-fill failed, keeping stored panel rows", obsArgs...)
