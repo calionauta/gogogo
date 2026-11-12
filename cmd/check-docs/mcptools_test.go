@@ -71,11 +71,11 @@ var toolCatalog = []toolDef{
 	},
 }
 `
-	writeFixture(t, root, "cmd/gogogo-mcp/catalog.go", catalog)
+	writeFixtureMCP(t, root, "cmd/gogogo-mcp/catalog.go", catalog)
 	for _, doc := range mcpToolsDocs {
 		body := mcpToolsStart + "\n| Tool | Changes anything? | Params | What it does |\n|---|---|---|---|\n" +
 			"| `one_tool` | No | `dir` | The first sentence. |\n" + mcpToolsEnd + "\n"
-		writeFixture(t, root, doc.file, body)
+		writeFixtureMCP(t, root, doc.file, body)
 	}
 	problems := checkMCPTools(root)
 	if len(problems) == 0 {
@@ -88,8 +88,8 @@ var toolCatalog = []toolDef{
 	}
 }
 
-// writeFixture writes one file under a root, creating the directories.
-func writeFixture(t *testing.T, root, rel, body string) {
+// writeFixtureMCP writes one file under a root, creating the directories.
+func writeFixtureMCP(t *testing.T, root, rel, body string) {
 	t.Helper()
 	full := filepath.Join(root, filepath.FromSlash(rel))
 	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {

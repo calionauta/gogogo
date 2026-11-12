@@ -21,7 +21,7 @@ Read the SKILL.md by name before the first matching edit (symlinks in `.agents/s
 - `gogogo-recipe-authoring` — recipe contract (owns/must-not-touch, slots, receipts, declared metrics/outcomes, upgrade path). Read before creating/editing a recipe.
 - `cali-code-navigation` — ripwire orient-first; `cali-ops-deploy-github-tailscale` — server/secrets.
 - **Tools (enforced by `make check-agent-tools`):** `ripwire` (orient), `cymbal` (`cymbal index .`), `xerj` (docs/prose, data outside repo), `sem` (diff/history). Rule: symbol/call-graph → ripwire/cymbal; history/diff → `sem`; meaning over code+prose → xerj.
-- **Docs:** behavior changes update `docs/` + MANIFEST in the SAME commit (`sem diff` proves it; `make site-check` verifies — staleness hook advisory). Counts live only in generated `docs/unit-contracts.md`; `make check-docs` rejects hand counts, dead paths, invented subcommands. Research/evaluations → `docs/research/` (`Reviewed:` + hub row + MANIFEST + `make docs-index`).
+- **Docs:** behavior changes update the page that describes them in the SAME commit — `docs/` for prose, `llms.txt` for the agent index, `skills/` for the authoring contract, `site/index.html` for the landing. Counts live only in generated `docs/unit-contracts.md`; `make check-docs` rejects hand counts, dead paths, invented subcommands, undocumented CLI verbs and a stale generated MCP table. The pre-commit staleness hook names the page to review; the PR body names the page you touched. Research/evaluations → `docs/research/` (`Reviewed:` + hub row + MANIFEST + `make docs-index`).
 
 ## Surfaces
 

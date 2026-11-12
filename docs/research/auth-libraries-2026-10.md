@@ -32,10 +32,13 @@ Three costs, in the order they bite.
 
 ## Decision
 
-Own the commodity part. `internal/auth` is roughly 300 lines: argon2id hashes
-(`golang.org/x/crypto`, already a dependency), random 32-byte session tokens of
-which only the SHA-256 reaches the `sessions` table, and one `gogogo_auth`
-cookie. No auth dependency, no third schema, nothing to rotate.
+Own the commodity part. `internal/auth` holds the whole session surface:
+argon2id hashes (`golang.org/x/crypto`, already a dependency), random 32-byte
+session tokens of which only the SHA-256 reaches the `sessions` table, and one
+`gogogo_auth` cookie. No auth dependency, no third schema, nothing to rotate.
+(The package has since grown to own magic link, TOTP and OAuth as well — see
+the related decision — but the answer did not change: the commodity part stays
+owned here.)
 
 ## Revisit trigger
 

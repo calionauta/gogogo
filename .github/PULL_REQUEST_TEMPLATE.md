@@ -6,6 +6,11 @@ Closes #NNN (maintainer nod received: yes / no)
 
 <!-- Write this yourself — translation or copy-editing help is fine. -->
 
+## Docs
+
+<!-- The page this change updates, or "none — why". One line; the gates prove the mechanical half, this names the prose. -->
+- Page(s): <the page this change updates, or "none — why">
+
 ## AI disclosure
 
 <!-- Required, one line: which tool, what it did, what you verified. -->
