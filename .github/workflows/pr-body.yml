@@ -38,7 +38,7 @@ jobs:
           BODY: ${{ github.event.pull_request.body }}
         run: |
           fail=0
-          for marker in 'Closes #NNN' 'Write this yourself' 'Required, one line'; do
+          for marker in 'Closes #NNN' 'Write this yourself' 'Required, one line' '<the page this change updates'; do
             if printf '%s' "$BODY" | grep -qF "$marker"; then
               echo "❌ PR body still contains template placeholder: $marker"
               fail=1
