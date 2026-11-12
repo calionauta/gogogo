@@ -64,7 +64,7 @@ type recipeManifest struct {
 // verb) because the noun is what the user names: lifecycle verbs
 // (install/update/status/uninstall/outdated) and discovery verbs
 // (list/describe/invoke) are the same noun with different verbs.
-func runRecipe(ctx context.Context, args []string, stdout io.Writer) error {
+func runRecipe(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
 		return &ExitError{code: 1, msg: "recipe needs a subcommand: " +
 			"`recipe install <dir>`, `recipe check [id]`, `recipe test [id]`, `recipe status [id]`, " +
@@ -79,7 +79,7 @@ func runRecipe(ctx context.Context, args []string, stdout io.Writer) error {
 	case "check":
 		return runRecipeCheck(args[1:], stdout)
 	case "test":
-		return runRecipeTest(ctx, args[1:], stdout, os.Stderr)
+		return runRecipeTest(ctx, args[1:], stdout, stderr)
 	case "status":
 		return runRecipeStatus(args[1:], stdout)
 	case "outdated":

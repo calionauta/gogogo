@@ -132,6 +132,24 @@ var toolCatalog = []toolDef{
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeDescribe) },
 	},
 	{
+		"recipe_check",
+		"Read-only recipe evaluator: the report `gogogo recipe check` prints — healthy flag, score, errors, " +
+			"warnings, suggestions, complexity, the declared metrics/panel cross-check, the derived test " +
+			"inventory and the headless-surface warnings. A blocked recipe comes back as a failed call " +
+			"carrying the report: the verdict is the point, and the transcript says why. Omit `id` to check " +
+			"every installed recipe. Changes nothing.",
+		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeCheck) },
+	},
+	{
+		"recipe_test",
+		"Run the tests ONE recipe owns, with the package scope derived from its receipt (Files + Register), " +
+			"through the module's own `go test`: the same run as `gogogo recipe test`. `noRace` is the fast " +
+			"TDD loop, `run` selects one test by name, `list` prints the derived packages instead of running " +
+			"them. A recipe that ships no test file fails the run. Runs the toolchain in the target checkout, " +
+			"so it needs Go on PATH; the CLI equivalent is `gogogo recipe test`.",
+		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeTest) },
+	},
+	{
 		"recipe_invoke",
 		"Invoke one declared verb (read or mutating) of a recipe against a running server " +
 			"(loopback only): runs it through the server's own session and policy stack with the " +
