@@ -2,164 +2,211 @@ package main
 
 import "github.com/modelcontextprotocol/go-sdk/mcp"
 
+// toolCatalog is the served surface AND the description of it. The runtime
+// description is what an agent reads at call time; `params` and `effect` are
+// what the documentation tables carry.
+//
+// The three facts live together on purpose. A tool whose params mention
+// `confirm` mutates the tree, and a tool whose effect says it mutates takes
+// that confirmation: the catalog test pins the pairing, so the safety column
+// in the docs cannot drift away from the guard in the code. The tables in
+// docs/mcp.md and cmd/gogogo-mcp/README.md are generated from this file, so a
+// description that changes here cannot leave the prose behind.
 var toolCatalog = []toolDef{
 	{
-		"capabilities_list",
-		"Raw registry JSON: every template capability with id, kind, summary, and off-switch. Registry " +
+		name: "capabilities_list",
+		desc: "Raw registry JSON: every template capability with id, kind, summary, and off-switch. Registry " +
 			"only — takes no path, so it answers from any directory. Use it to look up an id or off-switch; " +
 			"use advise_stack to decide WHICH ones apply.",
-		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleCapabilitiesList) },
+		params: "—",
+		effect: "No",
+		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleCapabilitiesList) },
 	},
 	{
-		"build_prerequisites",
-		"Read-only: how to build the desktop shell or the Android target on this " +
+		name: "build_prerequisites",
+		desc: "Read-only: how to build the desktop shell or the Android target on this " +
 			"host. Pass `platform` desktop|mobile (empty returns both). Covers " +
 			"prerequisites, the build/smoke commands, the Android driver swap " +
 			"(tursogo -> ncruces) and the mobile limits. Same text as `gogogo --help`.",
-		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleBuildPrerequisites) },
+		params: "`platform?`",
+		effect: "No",
+		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleBuildPrerequisites) },
 	},
 	{
-		"sync_prerequisites",
-		"Read-only: what a desktop build needs to sync with a server (a reachable " +
+		name: "sync_prerequisites",
+		desc: "Read-only: what a desktop build needs to sync with a server (a reachable " +
 			"NATS leaf listener, NATS_TOKEN, CLOUD_SYNC_URL, account identity, a " +
 			"private overlay first). Same guidance as `gogogo --help`; the normative " +
 			"recipe is docs/desktop-mobile.md#cloud-sync. Takes no arguments and " +
 			"changes nothing.",
-		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleSyncPrerequisites) },
+		params: "—",
+		effect: "No",
+		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleSyncPrerequisites) },
 	},
 	{
-		"version_status",
-		"Read-only version check: compares this tool AND the project's recorded " +
+		name: "version_status",
+		desc: "Read-only version check: compares this tool AND the project's recorded " +
 			"template revision (the scaffolded-from: line in its AGENTS.md) against " +
 			"the latest release. Pass `dir` to get the project half — without it, only " +
 			"the tool is compared, which reports a months-old tree as current. An " +
 			"update existing is a VERDICT, not a failure. Never runs on its own: nothing " +
 			"here phones home unless you call it. To see what actually changed, use " +
 			"CLI `gogogo migrate`.",
-		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleVersionStatus) },
+		params: "`dir?`, `format?`",
+		effect: "No",
+		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleVersionStatus) },
 	},
 	{
-		"trim_plan",
-		"Preview scaffolding a checkout (validates name and owner, shows the " +
+		name: "trim_plan",
+		desc: "Preview scaffolding a checkout (validates name and owner, shows the " +
 			"plan envelope). The scaffold ships the whole template — no keep/drop " +
 			"list exists — and changes nothing. Requires a gogogo checkout at `dir` unless it " +
 			"does not exist yet (then it previews the clone) — on an unrelated project " +
 			"it cannot preview anything, so call advise_stack for guidance instead.",
-		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleTrimPlan) },
+		params: "`name`, `owner?`, `dir?`, `format?`",
+		effect: "No",
+		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleTrimPlan) },
 	},
 	{
-		"trim_apply",
-		"Scaffold a checkout (rename, prove with build). Requires " +
+		name: "trim_apply",
+		desc: "Scaffold a checkout (rename, prove with build). Requires " +
 			"confirm:true. Mutates the target tree; only for a gogogo checkout or a " +
 			"path to scaffold into.",
-		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleTrimApply) },
+		params: "`name`, `owner?`, `dir?`, `format?`, `confirm: true`",
+		effect: "Yes (`confirm:true`)",
+		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleTrimApply) },
 	},
-
 	{
-		"migrate_plan",
-		"Read-only migration list: every release between the project's recorded " +
+		name: "migrate_plan",
+		desc: "Read-only migration list: every release between the project's recorded " +
 			"base revision (the scaffolded-from: line in its AGENTS.md) and the latest, " +
 			"plus the gates that prove a migrated tree conforms. This is the AI-readable " +
 			"diff between 'the template you copied' and 'the template now' — apply it " +
 			"deliberately; nothing here edits the tree. CLI equivalent: `gogogo migrate`.",
-		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleMigratePlan) },
+		params: "`from?`, `to?`, `dir?`, `changelog?`, `files?`, `format?`",
+		effect: "No",
+		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleMigratePlan) },
 	},
 	{
-		"export_unit",
-		"Read-only PORT BUNDLE for a tree that is not a gogogo checkout " +
+		name: "export_unit",
+		desc: "Read-only PORT BUNDLE for a tree that is not a gogogo checkout " +
 			"(a tree this build does not scaffold): copies the unit's owned files " +
 			"into the scratch `to` directory and writes PORTING.md with the measured " +
 			"wiring — routes it registers, imports to rewrite, what YOU must write " +
 			"by hand — plus the proof commands. Changes nothing in `dir` and nothing " +
 			"outside `to`; apply it deliberately, it is a copy and not an installer.",
-		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleExportUnit) },
+		params: "`unit`, `dir`, `to`, `module?`, `format?`",
+		effect: "Only writes `to`",
+		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleExportUnit) },
 	},
 	{
-		"new_feature",
-		"Scaffold one new feature inside a gogogo checkout: handler + page, " +
+		name: "new_feature",
+		desc: "Scaffold one new feature inside a gogogo checkout: handler + page, " +
 			"composition-root wiring, capability unit, RBAC rows, then templ generate, " +
 			"generated docs, registry conformance, check-flatdeps and a build proof. Requires " +
 			"confirm:true (or dryRun:true to preview). Needs `dir` (a scaffolded " +
 			"checkout) and `name` (kebab-case, unused).",
-		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleNewFeature) },
+		params: "`name`, `dir`, `confirm: true`, `dryRun?`",
+		effect: "Yes (`confirm:true`)",
+		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleNewFeature) },
 	},
 	{
-		"recipe_install",
-		"Install a recipe package (tree plus .recipe.yml) into a gogogo checkout: copy, " +
+		name: "recipe_install",
+		desc: "Install a recipe package (tree plus .recipe.yml) into a gogogo checkout: copy, " +
 			"receipt, generated registration, schema/policy/codegen and proof. Mutates the target directory. " +
 			"Requires confirm:true plus src (recipe directory or id) and dir; use dryRun:true to preview. " +
 			"For a catalog entry, also provide entry and the pristine contents directory.",
-		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeInstall) },
+		params: "`src`, `dir`, `confirm: true`, `dryRun?`, `entry?`, `format?`",
+		effect: "Yes (`confirm:true`)",
+		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeInstall) },
 	},
 	{
-		"recipe_update",
-		"Update an already-installed recipe from a recipe directory or catalog entry. Same guards as recipe_install: " +
+		name: "recipe_update",
+		desc: "Update an already-installed recipe from a recipe directory or catalog entry. Same guards as recipe_install: " +
 			"requires confirm:true (or dryRun:true to preview), plus src and dir.",
-		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeUpdate) },
+		params: "`src`, `dir`, `confirm: true`, `dryRun?`, `entry?`, `format?`",
+		effect: "Yes (`confirm:true`)",
+		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeUpdate) },
 	},
 	{
-		"recipe_uninstall",
-		"Uninstall one installed recipe by id: removes only pristine files, keeps edited or derived state, " +
+		name: "recipe_uninstall",
+		desc: "Uninstall one installed recipe by id: removes only pristine files, keeps edited or derived state, " +
 			"updates registration/policy/schema surfaces and marks the receipt removed. Requires confirm:true; " +
 			"without it returns the removal plan.",
-		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeUninstall) },
+		params: "`id`, `dir`, `confirm: true`, `format?`",
+		effect: "Yes (`confirm:true`)",
+		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeUninstall) },
 	},
 	{
-		"recipe_status",
-		"Read-only recipe drift report: pristine vs edited copy, generated/schema/policy state, or one recipe by id. " +
+		name: "recipe_status",
+		desc: "Read-only recipe drift report: pristine vs edited copy, generated/schema/policy state, or one recipe by id. " +
 			"Changes nothing and needs no confirmation.",
-		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeStatus) },
+		params: "`dir`, `id?`, `catalog?`, `format?`",
+		effect: "No",
+		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeStatus) },
 	},
 	{
-		"recipe_outdated",
-		"Read-only recipe version check: compares each installed recipe's recorded version against the latest catalog version (catalog/<id>/<version>.yaml, default <dir>/catalog). A recipe behind the latest is a verdict, not an error; receipts without a version or recipes without a catalog entry report unknown.",
-		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeOutdated) },
+		name:   "recipe_outdated",
+		desc:   "Read-only recipe version check: compares each installed recipe's recorded version against the latest catalog version (catalog/<id>/<version>.yaml, default <dir>/catalog). A recipe behind the latest is a verdict, not an error; receipts without a version or recipes without a catalog entry report unknown.",
+		params: "`dir`, `id?`, `catalog?`, `format?`",
+		effect: "No",
+		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeOutdated) },
 	},
 	{
-		"recipe_list",
-		"Read-only recipe discovery: every built-in capability plus every user-installed recipe, with " +
+		name: "recipe_list",
+		desc: "Read-only recipe discovery: every built-in capability plus every user-installed recipe, with " +
 			"origin, kind, summary, installed/removed state and the invocable verbs. Dynamic: an install " +
 			"appears here without a help edit. Changes nothing.",
-		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeList) },
+		params: "`dir?`, `format?`",
+		effect: "No",
+		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeList) },
 	},
 	{
-		"recipe_describe",
-		"Describe one recipe by id: kind, origin, summary, registration surface, dependencies, " +
+		name: "recipe_describe",
+		desc: "Describe one recipe by id: kind, origin, summary, registration surface, dependencies, " +
 			"invocable verbs with a description, per-param help, and the metrics/outcomes it already " +
 			"declares (job, beneficiary, counter signals). Read this before recipe_invoke so you choose " +
 			"a verb the recipe actually declares, and before proposing instrumentation so you extend an " +
 			"existing count instead of inventing a second one. Changes nothing.",
-		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeDescribe) },
+		params: "`id`, `dir?`, `format?`",
+		effect: "No",
+		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeDescribe) },
 	},
 	{
-		"recipe_check",
-		"Read-only recipe evaluator: the report `gogogo recipe check` prints — healthy flag, score, errors, " +
+		name: "recipe_check",
+		desc: "Read-only recipe evaluator: the report `gogogo recipe check` prints — healthy flag, score, errors, " +
 			"warnings, suggestions, complexity, the declared metrics/panel cross-check, the derived test " +
 			"inventory and the headless-surface warnings. A blocked recipe comes back as a failed call " +
 			"carrying the report: the verdict is the point, and the transcript says why. Omit `id` to check " +
 			"every installed recipe. Changes nothing.",
-		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeCheck) },
+		params: "`id?`, `dir`, `format?`",
+		effect: "No",
+		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeCheck) },
 	},
 	{
-		"recipe_test",
-		"Run the tests ONE recipe owns, with the package scope derived from its receipt (Files + Register), " +
+		name: "recipe_test",
+		desc: "Run the tests ONE recipe owns, with the package scope derived from its receipt (Files + Register), " +
 			"through the module's own `go test`: the same run as `gogogo recipe test`. `noRace` is the fast " +
 			"TDD loop, `run` selects one test by name, `list` prints the derived packages instead of running " +
 			"them. A recipe that ships no test file fails the run. Runs the toolchain in the target checkout, " +
 			"so it needs Go on PATH; the CLI equivalent is `gogogo recipe test`.",
-		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeTest) },
+		params: "`id?`, `dir`, `noRace?`, `run?`, `list?`",
+		effect: "No (runs the recipe's own tests)",
+		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeTest) },
 	},
 	{
-		"recipe_invoke",
-		"Invoke one declared verb (read or mutating) of a recipe against a running server " +
+		name: "recipe_invoke",
+		desc: "Invoke one declared verb (read or mutating) of a recipe against a running server " +
 			"(loopback only): runs it through the server's own session and policy stack with the " +
 			"operator token. This is the developer/operator path; a product's own clients use the " +
 			"server's API. A mutating verb changes server state, so read recipe_describe first.",
-		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeInvoke) },
+		params: "`id`, `verb`, `server`, `session`, `params?`, `dir?`, `format?`",
+		effect: "Server state (mutating verbs only)",
+		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeInvoke) },
 	},
 	{
-		"advise_stack",
-		"Opinions, not changes: which units to keep for a use-case, how each " +
+		name: "advise_stack",
+		desc: "Opinions, not changes: which units to keep for a use-case, how each " +
 			"switches off, and the exact command ROUTE for the goal. " +
 			"Empty need returns the full map; no preset matched means decide from the " +
 			"capabilities table or retry with broader terms. Business-language fit per " +
@@ -177,6 +224,8 @@ var toolCatalog = []toolDef{
 			"The Go coding standards it enforces are the gogogo-coding-standards skill — " +
 			"https://github.com/calionauta/gogogo (install: " +
 			"npx skills add calionauta/gogogo); it is not shipped in this binary.",
-		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleAdvise) },
+		params: "`need?`, `intent?`, `dir?`, `format?`",
+		effect: "No",
+		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleAdvise) },
 	},
 }

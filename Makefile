@@ -807,7 +807,9 @@ check-docs:
 	@node --check site/docsite.config.mjs
 	@go run ./cmd/check-docs
 
-# Rewrites the README page index from the site MANIFEST instead of checking
-# it. Run it after adding or renaming a page.
+# Rewrites what is generated instead of checking it: the README page index
+# from the site MANIFEST, and the MCP tool tables from the catalog the server
+# serves. Run it after adding or renaming a page, and after changing a tool
+# description in cmd/gogogo-mcp/catalog.go.
 docs-index:
 	@go run ./cmd/check-docs -write

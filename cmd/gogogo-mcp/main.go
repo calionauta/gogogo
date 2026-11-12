@@ -55,7 +55,14 @@ func main() {
 type toolDef struct {
 	name string
 	desc string
-	add  func(s *mcp.Server, t *mcp.Tool)
+	// params is the one-line parameter summary the documentation tables
+	// carry (generated from this catalog).
+	params string
+	// effect is the safety verdict the documentation tables carry: does the
+	// tool change anything? The pairing with `confirm` is pinned by the
+	// catalog test, so the safety column cannot drift away from the guard.
+	effect string
+	add    func(s *mcp.Server, t *mcp.Tool)
 }
 
 // buildServer registers every tool. Shared by main and tests so the
