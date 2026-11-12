@@ -52,6 +52,33 @@ type recipeDescriptor struct {
 	InvokeDescriptions map[string]string            `json:"invokeDescriptions,omitempty"`
 	InvokeParamHelp    map[string]map[string]string `json:"invokeParamHelp,omitempty"`
 	Actions            []string                     `json:"actions,omitempty"`
+	// Metrics and Outcomes are the instrumentation half of the declaration.
+	// Discovery shows them because an agent asked to measure a recipe must
+	// find what is already counted before declaring a second definition — and
+	// because a job sentence is the operator's decision, not the agent's.
+	Metrics  []metricDescriptor  `json:"metrics,omitempty"`
+	Outcomes []outcomeDescriptor `json:"outcomes,omitempty"`
+}
+
+// metricDescriptor is one declared count: the label a reader sees and the SQL
+// that produces it, so a caller can tell two metrics apart without opening the
+// receipt.
+type metricDescriptor struct {
+	Label string `json:"label"`
+	Query string `json:"query"`
+}
+
+// outcomeDescriptor is one declared job. The two queries are deliberately not
+// published here: what a caller needs is which pair answers the job and which
+// states limit it, and the SQL already reaches discovery through the metrics.
+type outcomeDescriptor struct {
+	ID             string   `json:"id"`
+	Job            string   `json:"job"`
+	Beneficiary    string   `json:"beneficiary"`
+	Window         string   `json:"window,omitempty"`
+	CounterSignals []string `json:"counterSignals,omitempty"`
+	SuccessLabel   string   `json:"successLabel"`
+	TotalLabel     string   `json:"totalLabel"`
 }
 
 func descriptorState(installed, removed bool, origin string) string {
@@ -83,6 +110,30 @@ func applyReceiptSurface(desc *recipeDescriptor, r recipe.Receipt) {
 	desc.Omitted = desc.Omitted[:0]
 	for _, o := range r.Declaration.Omitted {
 		desc.Omitted = append(desc.Omitted, o.Route.Method+" "+o.Route.Pattern+" — "+o.Reason)
+	}
+	applyReceiptInstrumentation(desc, r.Declaration)
+}
+
+// applyReceiptInstrumentation copies the declared metrics and outcomes onto the
+// descriptor. Kept beside applyReceiptSurface so the discovery surface stays one
+// flat list of assignments, and it COPIES: a descriptor must not alias the
+// receipt the caller still holds.
+func applyReceiptInstrumentation(desc *recipeDescriptor, d recipe.Declaration) {
+	desc.Metrics = desc.Metrics[:0]
+	for _, m := range d.Metrics {
+		desc.Metrics = append(desc.Metrics, metricDescriptor{Label: m.Label, Query: m.Query})
+	}
+	desc.Outcomes = desc.Outcomes[:0]
+	for _, o := range d.Outcomes {
+		desc.Outcomes = append(desc.Outcomes, outcomeDescriptor{
+			ID:             o.ID,
+			Job:            o.Job,
+			Beneficiary:    o.Beneficiary,
+			Window:         o.Window,
+			CounterSignals: append([]string(nil), o.CounterSignals...),
+			SuccessLabel:   o.Success.Label,
+			TotalLabel:     o.Total.Label,
+		})
 	}
 }
 
@@ -261,6 +312,28 @@ func runRecipeDescribe(args []string, stdout io.Writer) error {
 	return &ExitError{code: 1, msg: "recipe " + id + " not found"}
 }
 
+// printInstrumentation renders the declared counts and jobs: what the recipe
+// already measures, which an agent must read before proposing a second metric.
+//
+// An outcome prints as "success label / total label — job (beneficiary, window;
+// counter: …)" so the pair is legible without a table.
+func printInstrumentation(stdout io.Writer, e recipeDescriptor) {
+	for _, m := range e.Metrics {
+		fmt.Fprintf(stdout, "  metric: %s — %s\n", m.Label, m.Query)
+	}
+	for _, o := range e.Outcomes {
+		line := fmt.Sprintf("  outcome: %s — %s / %s — %s (%s",
+			o.ID, o.SuccessLabel, o.TotalLabel, o.Job, o.Beneficiary)
+		if o.Window != "" {
+			line += ", " + o.Window
+		}
+		if len(o.CounterSignals) > 0 {
+			line += "; counter: " + strings.Join(o.CounterSignals, ", ")
+		}
+		fmt.Fprintf(stdout, "%s)\n", line)
+	}
+}
+
 // printDescribe renders one descriptor as text. Extracted so
 // runRecipeDescribe stays under the complexity gate and the nestif gate.
 func printDescribe(stdout io.Writer, e recipeDescriptor) {
@@ -297,6 +370,7 @@ func printDescribe(stdout io.Writer, e recipeDescriptor) {
 	if len(e.InvokeParams) > 0 {
 		fmt.Fprintf(stdout, "  invokeParams: %v\n", e.InvokeParams)
 	}
+	printInstrumentation(stdout, e)
 	if len(e.InvokePathParams) > 0 {
 		fmt.Fprintf(stdout, "  invokePathParams: %v\n", e.InvokePathParams)
 	}

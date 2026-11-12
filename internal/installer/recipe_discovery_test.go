@@ -138,6 +138,21 @@ declaration:
   routes: [{method: GET, pattern: /api/probe}, {method: POST, pattern: /api/probe}]
   jobs: ["ext:probe:run"]
   slots: []
+  metrics:
+  - label: Probe rows
+    query: "SELECT COUNT(*) FROM ext_probe_cards WHERE owner = ?"
+  outcomes:
+  - id: probe_without_repair
+    job: Read one probe row without fixing a misread field
+    beneficiary: user
+    success:
+      label: Rows without repair
+      query: "SELECT COUNT(*) FROM ext_probe_cards WHERE owner = ? AND corrected = 0"
+    total:
+      label: Probe rows
+      query: "SELECT COUNT(*) FROM ext_probe_cards WHERE owner = ?"
+    counterSignals: [corrected]
+    window: session
   actions:
   - verb: create
     description: Create one probe row.
@@ -170,6 +185,16 @@ declaration:
 		}
 		if !slices.Contains(e.InvokeParams["create"], "title") {
 			t.Errorf("probe create params missing: %v", e.InvokeParams)
+		}
+		if len(e.Metrics) != 1 || e.Metrics[0].Label != "Probe rows" {
+			t.Errorf("probe metrics missing: %v", e.Metrics)
+		}
+		if len(e.Outcomes) != 1 {
+			t.Fatalf("probe outcomes missing: %v", e.Outcomes)
+		}
+		if o := e.Outcomes[0]; o.ID != "probe_without_repair" || o.TotalLabel != "Probe rows" ||
+			o.SuccessLabel != "Rows without repair" || !slices.Contains(o.CounterSignals, "corrected") {
+			t.Errorf("probe outcome drifted: %+v", o)
 		}
 		if e.InvokeDescriptions["create"] != "Create one probe row." {
 			t.Errorf("probe create description missing: %v", e.InvokeDescriptions)

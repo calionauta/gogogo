@@ -266,3 +266,61 @@ declaration:
 		})
 	}
 }
+
+// TestRecipeCheckBlocksAnUnrecordedCounterSignal pins the outcome rule that
+// needs the recipe's code: a declared counter signal the write path never
+// records leaves the success count unable to move for the reason the outcome
+// claims, so `recipe check` blocks it. Boot never applies the rule, which is
+// why this gate is here. RED/GREEN/PROVE: the same fixture passes once the code
+// mentions the token.
+func TestRecipeCheckBlocksAnUnrecordedCounterSignal(t *testing.T) {
+	const manifest = `id: pomodoro
+upstream:
+  repo: example.com/recipes
+  ref: v1
+files:
+  features/pomodoro/migrations/0001_init.sql: 00
+declaration:
+  tables:
+  - ext_pomodoro_sessions
+  outcomes:
+  - id: session_without_extension
+    job: Finish a focus session without extending it
+    beneficiary: user
+    success: {label: Sessions kept, query: "SELECT COUNT(*) FROM ext_pomodoro_sessions` +
+		` WHERE owner = ? AND extended = 0"}
+    total: {label: Sessions, query: "SELECT COUNT(*) FROM ext_pomodoro_sessions WHERE owner = ?"}
+    counterSignals: [extended]
+    window: session
+`
+	declared := `CREATE TABLE ext_pomodoro_sessions (id TEXT PRIMARY KEY);` + "\n"
+	recorded := `CREATE TABLE ext_pomodoro_sessions (
+    id TEXT PRIMARY KEY,
+    extended INTEGER NOT NULL DEFAULT 0
+);` + "\n"
+	for _, tc := range []struct {
+		name       string
+		migration  string
+		wantErrors bool
+	}{
+		{"unrecorded signal blocks", declared, true},
+		{"recorded signal passes", recorded, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := newRecipeCheckout(t)
+			writeFile(t, filepath.Join(root, ".recipes", "pomodoro.yml"), manifest)
+			writeFile(t, filepath.Join(root, "features", "pomodoro", "migrations", "0001_init.sql"), tc.migration)
+
+			report := checkOneRecipe(root, "pomodoro")
+			joined := strings.Join(report.Errors, "\n")
+			blocked := strings.Contains(joined, `declares counter signal "extended"`)
+			if blocked != tc.wantErrors {
+				t.Fatalf("counter-signal verdict = %v, want %v: errors=%v warnings=%v",
+					blocked, tc.wantErrors, report.Errors, report.Warnings)
+			}
+			if report.Healthy == tc.wantErrors {
+				t.Fatalf("healthy = %v, want %v: errors=%v", report.Healthy, !tc.wantErrors, report.Errors)
+			}
+		})
+	}
+}

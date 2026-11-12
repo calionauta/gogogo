@@ -129,6 +129,8 @@ export default {
     desc: "Core plus installable extensions evaluated for 2026: why buildmode=plugin is out, why anchor-patching cannot carry N authors, what compile-time registration costs, and the ordered spikes that can kill the idea." },
   { group: "Research", slug: "recipe-metrics-panel", file: "research/recipe-metrics-panel-2026-11.md",
     desc: "Declarative dashboard metrics (one COUNT per entry) and chat panel spec: what was adopted vs. rejected, the SlicePanel base, the recipe-check evaluator, and the in-repo catalog decision." },
+  { group: "Research", slug: "recipe-outcomes", file: "research/recipe-outcomes-2026-11.md",
+    desc: "An outcome as two declared counts (success over eligible) instead of an event stream: the validation rules, the check-time counter-signal error, the dashboard ratio, why not a Taguchi S/N, and the propose/confirm authorship rule." },
   { group: "Research", slug: "mygo", file: "research/mygo-2026-11.md",
     desc: "MyGo peer shell over the flat stack: webview cookie + SSE proof, loopback vs native view, driver matrix, and the cmd/mygo build recipe." },
   { group: "Research", slug: "i18n", file: "research/i18n-2026-11.md",

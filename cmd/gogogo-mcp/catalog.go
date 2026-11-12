@@ -125,8 +125,10 @@ var toolCatalog = []toolDef{
 	{
 		"recipe_describe",
 		"Describe one recipe by id: kind, origin, summary, registration surface, dependencies, " +
-			"invocable verbs with a description, and per-param help. Read this before recipe_invoke so " +
-			"you choose a verb the recipe actually declares. Changes nothing.",
+			"invocable verbs with a description, per-param help, and the metrics/outcomes it already " +
+			"declares (job, beneficiary, counter signals). Read this before recipe_invoke so you choose " +
+			"a verb the recipe actually declares, and before proposing instrumentation so you extend an " +
+			"existing count instead of inventing a second one. Changes nothing.",
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeDescribe) },
 	},
 	{

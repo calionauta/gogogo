@@ -243,9 +243,12 @@ hosts are recipes too (they mount via `Register`). `dashboard` hosts
 card per installed recipe (its rail destination), then renders
 `SlotRegistry.Fragments(SlotDashboardCard)` for out-of-tree contributions;
 `graph` renders the capability/recipe map itself. Pomodoro (`_recipes/pomodoro`, 281 lines,
-one table/page/write/sidebar) stays the minimal installable example;
-`features/todo` stays the in-tree reference slice. New cost: none — deleting
-a bundled unit is `recipe uninstall <id>` (see `docs/features.md`).
+one table/page/write/sidebar) stays the minimal installable example; Coffee
+(`_recipes/coffee`) is the worked instrumentation example — a closed-menu parser
+with on-device voice and one declared outcome (a success/total pair over its own
+table, `recipe describe coffee`); `features/todo` stays the in-tree reference
+slice. New cost: none — deleting a bundled unit is `recipe uninstall <id>` (see
+`docs/features.md`).
 
 ## Trim vs recipe: what shadcn does and what we do
 
