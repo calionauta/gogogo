@@ -131,6 +131,44 @@ Three rules the grid keeps:
   open shows its numbers and no button (with a note saying why) — a link
   that 403s is a broken promise, the same rule the rail follows.
 
+### Outcome cards: the ratio, not a score
+
+A metric says how much happened. An **outcome** says whether the job got
+done: one declared job, as a success count over the eligible count, plus
+the counter signals that limit how the ratio may be read.
+
+```go
+Outcomes: []recipe.Outcome{{
+    ID:          "order_without_repair",
+    Job:         "Receive the coffee you asked for without fixing a misread order",
+    Beneficiary: "user",
+    Success:     recipe.Metric{Label: "Orders without repair", Query: "SELECT COUNT(*) FROM ext_coffee_orders WHERE owner = ? AND corrected = 0"},
+    Total:       recipe.Metric{Label: "Orders confirmed",     Query: "SELECT COUNT(*) FROM ext_coffee_orders WHERE owner = ?"},
+    CounterSignals: []string{"corrected"},
+    Window:         "session",
+}},
+```
+
+The grid renders the **ratio** — success over total — with the counter
+signals beside it. It never rolls the pair into one quality number: a
+rise in corrections must not be averaged away by a rise in volume, which
+is the whole reason the counter signal sits next to the count instead of
+inside it.
+
+Both halves are ordinary metrics, so they run through the same
+owner-scoped counter as a metric card (`features/dashboard/handlers/chi.go`):
+a half that fails at runtime is logged and the outcome is **omitted** —
+never a fake zero, which would read as "nothing succeeded".
+
+`recipe check` blocks an outcome whose counter signal appears nowhere in
+the recipe's own code: the state the ratio is limited by would not exist,
+so the success count could never move for the reason the outcome claims.
+Boot never applies that rule, so an older receipt keeps running. The
+declaration contract is in
+`skills/gogogo-recipe-authoring/references/outcomes.md`; the reasoning
+(why a pair of counts and not an event stream) is in
+`docs/research/recipe-outcomes-2026-11.md`.
+
 ## RBAC demo (viewer role)
 
 The Casbin demo needs no new page — it reuses the surfaces with two roles,

@@ -90,7 +90,7 @@ The [Todo feature](todo-example.md) is the full reference implementation.
 | Surface | URL | Notes |
 |---|---|---|
 | Landing page | `/` | Public. Same page for guests and signed-in users |
-| Dashboard | `/dashboard` | Auth-gated. One card per destination that reports data; the counts match what each page shows |
+| Dashboard | `/dashboard` | Auth-gated. One card per destination that reports data; the counts match what each page shows; a recipe that declares an outcome also shows its success/total ratio, with the counter signal beside it |
 | Todo demo | `/todo` | Auth-gated. Seeded demo account |
 | Account security | `/account` | Auth-gated. Email verification, password change, TOTP enrollment/recovery, session list/revoke |
 | Chat demo | `/chat` | Auth-gated. The one AI demo: conversation + catalog + diagrams + persisted history; keyless demo answers, live model with `GOAI_API_KEY` |
