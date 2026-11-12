@@ -137,6 +137,8 @@ export default {
     desc: "MyGo peer shell over the flat stack: webview cookie + SSE proof, loopback vs native view, driver matrix, and the cmd/mygo build recipe." },
   { group: "Research", slug: "i18n", file: "research/i18n-2026-11.md",
     desc: "UI internationalization: own the seam on the text package, rent CLDR depth only on a trigger. The libraries evaluated, mitigations for their gaps, and the phased, deletable plan." },
+  { group: "Research", slug: "headless-cms-go", file: "research/headless-cms-go-2026-11.md",
+    desc: "The Go headless CMS ecosystem probed against the two-month window: why ocms-go and ridu are not adopted, the four GitHub-as-CMS models and what 'issues as pages' actually means, and why the content surface belongs in a recipe." },
   { group: "Ship", slug: "deploy", file: "deploy.md",
     desc: "Server layout, first-time setup, deploy workflow, build pipeline and version badge." },
   { group: "Ship", slug: "desktop-mobile", file: "desktop-mobile.md",
