@@ -17,10 +17,17 @@ import (
 )
 
 // RailInboxBadge is the expanded rail's unread count, a daisyUI indicator item
-// on the row label: it hangs off the label's end corner, vertically centred on
-// the row (indicator-middle), because the rail's right edge has no room for a
-// badge that sticks out. tabular-nums keeps a count change from shifting the
-// label; the label caps at 99+ so three digits cannot stretch the rail row.
+// on the row's trailing cell: vertically centred on the row (indicator-middle)
+// and pinned INSIDE the row's right margin.
+//
+// The placement is the point: a daisyUI indicator item is translated 50% of
+// its own width, so anchoring it on the last cell pushes half the bubble past
+// the row's border and over the active item's background. .app-rail-count
+// (chrome.css) cancels that translate, so the bubble's right edge lands on the
+// row's content edge: the count never leaves the row it belongs to.
+//
+// tabular-nums keeps a count change from shifting the label; the label caps
+// at 99+ so three digits cannot stretch the rail row.
 //
 // The text/visibility are bound to $inboxUnread: the server seeds it from the
 // page middleware, and session.js updates it from the leader stream's frames
@@ -31,7 +38,7 @@ import (
 templ RailInboxBadge(unread int) {
 	<span
 		id="rail-inbox-badge"
-		class={ templ.Classes("indicator-item indicator-middle badge badge-primary badge-xs tabular-nums is-drawer-close:hidden", map[string]bool{"hidden": unread <= 0}) }
+		class={ templ.Classes("indicator-item indicator-middle app-rail-count badge badge-primary badge-xs tabular-nums is-drawer-close:hidden", map[string]bool{"hidden": unread <= 0}) }
 		data-class="{'hidden': $inboxUnread <= 0}"
 		data-text="$inboxUnread > 99 ? '99+' : ($inboxUnread > 0 ? $inboxUnread : '')"
 		data-on:gogogo:unread__document="$inboxUnread = evt.detail.unread"

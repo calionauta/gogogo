@@ -35,10 +35,17 @@ import (
 )
 
 // RailInboxBadge is the expanded rail's unread count, a daisyUI indicator item
-// on the row label: it hangs off the label's end corner, vertically centred on
-// the row (indicator-middle), because the rail's right edge has no room for a
-// badge that sticks out. tabular-nums keeps a count change from shifting the
-// label; the label caps at 99+ so three digits cannot stretch the rail row.
+// on the row's trailing cell: vertically centred on the row (indicator-middle)
+// and pinned INSIDE the row's right margin.
+//
+// The placement is the point: a daisyUI indicator item is translated 50% of
+// its own width, so anchoring it on the last cell pushes half the bubble past
+// the row's border and over the active item's background. .app-rail-count
+// (chrome.css) cancels that translate, so the bubble's right edge lands on the
+// row's content edge: the count never leaves the row it belongs to.
+//
+// tabular-nums keeps a count change from shifting the label; the label caps
+// at 99+ so three digits cannot stretch the rail row.
 //
 // The text/visibility are bound to $inboxUnread: the server seeds it from the
 // page middleware, and session.js updates it from the leader stream's frames
@@ -67,7 +74,7 @@ func RailInboxBadge(unread int) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var2 = []any{templ.Classes("indicator-item indicator-middle badge badge-primary badge-xs tabular-nums is-drawer-close:hidden", map[string]bool{"hidden": unread <= 0})}
+		var templ_7745c5c3_Var2 = []any{templ.Classes("indicator-item indicator-middle app-rail-count badge badge-primary badge-xs tabular-nums is-drawer-close:hidden", map[string]bool{"hidden": unread <= 0})}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var2...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -92,7 +99,7 @@ func RailInboxBadge(unread int) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(UnreadBadgeLabel(unread))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/inbox.templ`, Line: 38, Col: 28}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/inbox.templ`, Line: 45, Col: 28}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
@@ -156,7 +163,7 @@ func RailInboxDot(unread int) templ.Component {
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(unreadDotLabel(unread))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/inbox.templ`, Line: 50, Col: 109}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/inbox.templ`, Line: 57, Col: 109}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -262,7 +269,7 @@ func railItem(m Module, active bool, unread int) templ.Component {
 		var templ_7745c5c3_Var12 templ.SafeURL
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(m.URL))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/inbox.templ`, Line: 100, Col: 29}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/inbox.templ`, Line: 107, Col: 29}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {
@@ -288,7 +295,7 @@ func railItem(m Module, active bool, unread int) templ.Component {
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue(activeCurrent(active))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/inbox.templ`, Line: 102, Col: 38}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/inbox.templ`, Line: 109, Col: 38}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 		if templ_7745c5c3_Err != nil {
@@ -301,7 +308,7 @@ func railItem(m Module, active bool, unread int) templ.Component {
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.ResolveAttributeValue(m.Title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/inbox.templ`, Line: 103, Col: 17}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/inbox.templ`, Line: 110, Col: 17}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
 		if templ_7745c5c3_Err != nil {
@@ -314,7 +321,7 @@ func railItem(m Module, active bool, unread int) templ.Component {
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(m.Title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/inbox.templ`, Line: 106, Col: 55}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/inbox.templ`, Line: 113, Col: 55}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 		if templ_7745c5c3_Err != nil {
@@ -344,7 +351,7 @@ func railItem(m Module, active bool, unread int) templ.Component {
 			var templ_7745c5c3_Var17 string
 			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(m.Title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/inbox.templ`, Line: 115, Col: 64}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/inbox.templ`, Line: 122, Col: 64}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 			if templ_7745c5c3_Err != nil {
@@ -374,7 +381,7 @@ func railItem(m Module, active bool, unread int) templ.Component {
 			var templ_7745c5c3_Var18 string
 			templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(m.Title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/inbox.templ`, Line: 121, Col: 64}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/inbox.templ`, Line: 128, Col: 64}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 			if templ_7745c5c3_Err != nil {

@@ -135,14 +135,19 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 							// width (open) — never icon-only — so this control is hidden there.
 							<button
 								type="button"
-								class="app-rail-collapse"
+								class="app-rail-collapse btn btn-square btn-ghost drawer-button"
 								aria-label="Collapse or expand navigation"
 								aria-controls="app-rail"
 								title="Collapse or expand the sidebar"
-								data-class="{'is-flipped': !$railOpen}"
+								data-class="{'is-collapsed': !$railOpen}"
 								data-attr:aria-expanded={ "$railOpen ? 'true' : 'false'" }
 								data-on:click="$railOpen = !$railOpen; localStorage.setItem('railCompact', $railOpen ? '0' : '1')">
-								@icon.Icon("material-symbols:chevron-left", "app-rail-collapse-icon")
+								// The drawer's own toggle glyph: a panel split by a divider,
+								// with a chevron that points at the edge the rail will move
+								// to. Both glyphs are in the markup and CSS shows the one
+								// matching the state, so the panel never mirrors.
+								@icon.Icon("daisyui:panel-close", "app-rail-collapse-icon-collapse")
+								@icon.Icon("daisyui:panel-open", "app-rail-collapse-icon-expand")
 							</button>
 							<div class="app-module-titles">
 								if d.CrumbLabel != "" && d.CrumbURL != "" {

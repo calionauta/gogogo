@@ -384,6 +384,13 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
 }
 .app-rail-icon { font-size: 1.125rem; flex: 0 0 auto; }
 .app-rail-label { flex: 1 1 auto; }
+/* The unread count rides the row's end. A daisyUI indicator item is centred on
+   its anchor's corner, so with a zero-width anchor half the bubble hangs past
+   the row's right edge and over the rail's gutter. The count is pinned inside
+   the row instead: it keeps the indicator vocabulary (the corner bubble the
+   pattern documents) but sits flush against the row's inner edge, so the
+   highlighted row and the bubble never disagree about where the row ends. */
+.app-rail-count { --indicator-x: 0; }
 .app-rail-foot {
   flex: 0 0 auto;
   position: relative;
@@ -788,30 +795,26 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
    stepping outside a 4.5rem column. Every rule reads the same :checked the
    utilities read, so there is one state and one source. */
 @media (min-width: 1024px) {
+  /* The drawer's own toggle button: btn btn-square btn-ghost give it the
+     square ghost chrome, so only the rail-specific bits stay here. */
   .app-rail-collapse {
     display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex: 0 0 auto;
-    width: 2.25rem;
-    height: 2.25rem;
+    --size: 2.25rem;
+    --btn-p: 0;
     margin-right: 0.5rem;
-    border: 1px solid transparent;
-    border-radius: 0.375rem;
-    background: transparent;
     color: color-mix(in oklab, var(--color-base-content) 72%, transparent);
     font-size: 1.25rem;
-    cursor: pointer;
   }
   .app-rail-collapse:hover {
-    background: color-mix(in oklab, var(--color-base-content) 8%, transparent);
     color: var(--color-base-content);
   }
   .app-rail-collapse:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
-  /* The chevron points at the edge the rail will move to: left when expanded,
-     right when collapsed. */
-  .app-rail-collapse-icon { transition: rotate 0.2s ease; }
-  .app-rail-collapse.is-flipped .app-rail-collapse-icon { rotate: 180deg; }
+  /* The panel's chevron points at the edge the rail will move to: left when
+     expanded, right when collapsed. Both glyphs are rendered and one is shown
+     per state, so the panel itself never mirrors. */
+  .app-rail-collapse-icon-expand { display: none; }
+  .app-rail-collapse.is-collapsed .app-rail-collapse-icon-collapse { display: none; }
+  .app-rail-collapse.is-collapsed .app-rail-collapse-icon-expand { display: block; }
 
   /* The popover leaves the rail instead of being squeezed into it. */
   .app-shell:has(> .drawer-toggle:not(:checked)) .app-rail { overflow: visible; }
