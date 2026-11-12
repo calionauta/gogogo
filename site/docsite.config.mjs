@@ -24,6 +24,8 @@ export default {
     desc: "What gogogo learned from other projects, credited rather than vendored." },
   { group: "Get started", slug: "getting-started", file: "getting-started.md",
     desc: "Clone, run, first five minutes, and the commands you need." },
+  { group: "Get started", slug: "glossary", file: "glossary.md",
+    desc: "The ubiquitous language: one meaning per term (recipe, receipt, declaration, capability, kind, slot, metric, outcome, panel, drift) and the words that were retired." },
   { group: "Agents", slug: "cli", file: "cli.md",
     desc: "The evolution CLI: scaffold, doctor/generate, recipe, export, new feature, migrate. Developer surface; product clients use the server API." },
   { group: "Agents", slug: "mcp", file: "mcp.md",

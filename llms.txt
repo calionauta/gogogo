@@ -7,6 +7,7 @@
 ## Start here (every task)
 
 - AGENTS.md — commands, don'ts, architecture seams (20-30 lines, normative)
+- docs/glossary.md — the ubiquitous language: ONE meaning per term (recipe, receipt, declaration, capability, kind, unit, slot, metric, outcome, panel, drift, catalog) and the words that were retired. A term not listed there has no agreed meaning yet; a new term is defined there in the same commit.
 - ARCHITECTURE.md — module layout and seams
 - skills/gogogo-coding-standards/SKILL.md — Go + template rules (read when editing .go; on a .templ edit also read the UI skill below for the Datastar/backend gate)
 - skills/gogogo-ui/SKILL.md — template UI rules over the vendored DaisyUI vocabulary (read before any .templ/CSS edit, with docs/ui-themes.md)
