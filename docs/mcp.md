@@ -73,7 +73,9 @@ JSON-config clients take the Claude Code block verbatim.
 | `recipe_uninstall` | Yes (`confirm:true`) | Remove one installed recipe by id; deletes only pristine files and keeps edited files |
 | `recipe_status` | No | Read-only recipe drift report: pristine vs edited files, generated/schema/policy state |
 | `recipe_list` | No | Recipe discovery: built-in capabilities plus user-installed recipes, with origin/lifecycle, summary, invocable verbs, and the mutating routes each recipe deliberately omits |
-| `recipe_describe` | No | Describe one recipe by id: declaration, invocable verbs with a description, `{id}`/body params with per-param help, and omitted routes with reasons |
+| `recipe_describe` | No | Describe one recipe by id: kind, origin, summary, registration surface, dependencies, the declared surface, invocable verbs with a description, `{id}`/body params with per-param help, the metrics and outcomes it already declares (job, beneficiary, counter signals), and the routes it deliberately omits, with the reason |
+| `recipe_check` | No | Read-only recipe evaluator — the report `gogogo recipe check` prints: healthy flag, score, errors, warnings, suggestions, complexity, the declared metrics/panel cross-check, the derived test inventory and the headless-surface warnings. A blocked recipe comes back as a failed call carrying the report: the verdict is the point, and the transcript says which rule blocked it |
+| `recipe_test` | No (runs the recipe's own tests) | Run the tests ONE recipe owns, with the package scope derived from its receipt (`Files` + `Register`), through the module's own `go test`. `noRace` is the fast TDD loop, `run` selects one test, `list` prints the derived packages instead of running them. Needs Go on PATH |
 | `recipe_invoke` | Server state (mutating verbs only) | Client for one declared verb (read or mutating) against a running server (loopback only) under the operator session token; a declared `{id}` verb takes `id` in `params` as a UUID and validates it before dispatch. A mutating verb changes server state, so read `recipe_describe` first. This is not a product MCP |
 | `build_prerequisites` | No | How to build the desktop shell or the Android target: prerequisites, `make desktop`/`make mobile`, the smoke gates, the Android driver swap (tursogo → ncruces) and the mobile limits. `platform` is `desktop` or `mobile`; empty returns both. Same text as `gogogo --help` |
 | `sync_prerequisites` | No | Desktop↔server sync prerequisites: a reachable NATS leaf listener, `NATS_TOKEN`, `CLOUD_SYNC_URL`, account identity, and a private overlay before public exposure |
@@ -83,6 +85,11 @@ Read-only tools need nothing else. Mutating tools fail closed without
 apply. `export_unit` is the exception to the exception: it mutates only the
 scratch directory you name, never the checkout it reads, so it needs no
 confirm gate. Formats default to `json` on this transport.
+
+Every recipe verb the CLI answers is on this transport too: `recipe_check` is
+the evaluator and `recipe_test` runs the recipe's own tests, so an agent that
+only speaks MCP never has to shell out to judge a declaration or to run what
+it wrote.
 
 ### Installer surface vs product surface
 

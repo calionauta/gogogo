@@ -88,11 +88,20 @@ func unitOneLiner(u builtinUnit) string {
 }
 
 func Run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) error {
+	return RunTo(ctx, args, stdin, stdout, os.Stderr)
+}
+
+// RunTo is Run with an explicit stderr. The MCP server captures the
+// transcript into a buffer, and a caller that captures stdout but not stderr
+// loses the half that matters on failure: `go test` prints a compile error to
+// stderr, so a recipe whose test does not build would answer with an empty
+// failure. One writer per stream, decided by the caller.
+func RunTo(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	if len(args) > 0 && (args[0] == "--version" || args[0] == "-version") {
 		fmt.Fprintln(stdout, "gogogo "+Version)
 		return nil
 	}
-	if handled, err := runSubcommand(ctx, args, stdin, stdout); handled {
+	if handled, err := runSubcommand(ctx, args, stdin, stdout, stderr); handled {
 		return err
 	}
 	opt, err := loadOptions(args, stdin, stdout)
@@ -128,7 +137,7 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) 
 
 // runSubcommand dispatches the mutating/guiding subcommands, keeping Run's
 // own complexity under the gocyclo gate. It reports whether argv named one.
-func runSubcommand(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) (bool, error) {
+func runSubcommand(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (bool, error) {
 	if len(args) == 0 {
 		return false, nil
 	}
@@ -142,7 +151,7 @@ func runSubcommand(ctx context.Context, args []string, stdin io.Reader, stdout i
 	case "export":
 		return true, runExport(args[1:], stdout)
 	case "recipe":
-		return true, runRecipe(ctx, args[1:], stdout)
+		return true, runRecipe(ctx, args[1:], stdout, stderr)
 	case "doctor":
 		return true, runDoctor(args[1:], stdout)
 	case "generate":

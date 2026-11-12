@@ -82,8 +82,8 @@ func newRecipeDir(t *testing.T, ref string, files map[string]string, register ..
 // runRecipeCLI runs one recipe subcommand and returns its output and error.
 func runRecipeCLI(t *testing.T, args ...string) (string, error) {
 	t.Helper()
-	var buf bytes.Buffer
-	err := runRecipe(context.Background(), args, &buf)
+	var buf, errBuf bytes.Buffer
+	err := runRecipe(context.Background(), args, &buf, &errBuf)
 	return buf.String(), err
 }
 

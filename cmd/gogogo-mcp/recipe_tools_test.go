@@ -210,6 +210,78 @@ func TestRecipeListDescribesBuiltIns(t *testing.T) {
 	}
 }
 
+// newRecipeCheckoutFixture writes the smallest checkout the installer accepts
+// as a template, with ONE installed recipe that owns a package and ships a
+// test — the shape `recipe check` and `recipe test` both read.
+func newRecipeCheckoutFixture(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	for _, f := range []struct{ path, body string }{
+		{"cmd/web/main.go", "package main\n"},
+		{"internal/installer/run.go", "package installer\n"},
+		{"go.mod", "module example.com/demo\n\ngo 1.27\n"},
+		{"features/pomodoro/handlers/chi.go", "package handlers\n"},
+		{"features/pomodoro/handlers/chi_test.go", "package handlers\n"},
+	} {
+		full := filepath.Join(dir, filepath.FromSlash(f.path))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(f.body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.MkdirAll(filepath.Join(dir, ".recipes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	receipt := "id: pomodoro\nversion: v1.0.0\nupstream: {repo: example.com/recipes, ref: v1.0.0}\n" +
+		"files: {features/pomodoro/handlers/chi.go: sha256:" + strings.Repeat("a", 64) + "}\n" +
+		"register: features/pomodoro/handlers\n" +
+		"declaration:\n  routes:\n    - {method: GET, pattern: /pomodoro}\n"
+	if err := os.WriteFile(filepath.Join(dir, ".recipes", "pomodoro.yml"), []byte(receipt), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+// TestRecipeCheckAnswersTheEvaluator pins the evaluator over MCP: the report
+// reaches the caller even when the verdict is "blocked", because a blocked
+// recipe is the answer, not a broken call. The report must name the recipe.
+func TestRecipeCheckAnswersTheEvaluator(t *testing.T) {
+	dir := newRecipeCheckoutFixture(t)
+	res, _, err := handleRecipeCheck(context.Background(), nil, recipeCheckArgs{
+		ID: "pomodoro", Dir: dir, Format: "json",
+	})
+	text := toolText(t, res)
+	if err != nil {
+		// A blocked recipe arrives as a failed call carrying the report.
+		text = err.Error()
+	}
+	if !strings.Contains(text, "pomodoro") {
+		t.Errorf("recipe check must report the recipe it judged: %s", text)
+	}
+}
+
+// TestRecipeTestDerivesTheScope pins the test runner over MCP: the scope is
+// derived from the receipt, so the caller names no package, and `list` prints
+// it without running the toolchain.
+func TestRecipeTestDerivesTheScope(t *testing.T) {
+	dir := newRecipeCheckoutFixture(t)
+	res, _, err := handleRecipeTest(context.Background(), nil, recipeTestArgs{
+		ID: "pomodoro", Dir: dir, List: true,
+	})
+	if err != nil {
+		t.Fatalf("recipe test --list: %v", err)
+	}
+	text := toolText(t, res)
+	if !strings.Contains(text, "./features/pomodoro/handlers") {
+		t.Errorf("derived scope missing from the plan: %s", text)
+	}
+	if !strings.Contains(text, "1 test file(s)") {
+		t.Errorf("the plan must count the recipe's own test files: %s", text)
+	}
+}
+
 func TestRecipeInvokeForwardsToLoopback(t *testing.T) {
 	var gotPath string
 	var gotCookie string

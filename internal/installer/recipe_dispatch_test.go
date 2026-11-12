@@ -23,7 +23,8 @@ func TestRecipeSubcommandsDispatch(t *testing.T) {
 	if _, derr := runRecipeCLI(t, "describe", "todo", "--dir", root); derr != nil {
 		t.Fatalf("recipe describe: %v", derr)
 	}
-	handled, herr := runSubcommand(context.Background(), []string{"extension"}, devNull(t), &bytes.Buffer{})
+	handled, herr := runSubcommand(context.Background(), []string{"extension"},
+		devNull(t), &bytes.Buffer{}, &bytes.Buffer{})
 	if handled || herr != nil {
 		t.Fatal("gogogo extension must not dispatch anymore (one concept: recipe)")
 	}
