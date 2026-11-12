@@ -17,7 +17,7 @@ SMOKE_BIN ?= $(OS_TMPDIR)/gogogo-ci-local-web
 # build does not use the wails3 CLI at all — it is a plain `go build` — so no
 # copy of the version belongs here to drift from the module graph.
 
-.PHONY: all build desktop desktop-smoke desktop-sync-smoke mobile run-desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean templ fmt css css-install datastar-lint test lint check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui gui-build gui-test run-gui lint-gui mygo mygo-build mygo-test run-mygo mygo-smoke check-generated install-sh-guard check-classes check-ci-scripts daisyui-lint vocabulary check-docs docs-index check-mcp site site-check
+.PHONY: all build desktop desktop-smoke desktop-sync-smoke mobile run-desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean templ fmt css css-install datastar-lint test test-recipe verify-local verify-local-share lint check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui gui-build gui-test run-gui lint-gui mygo mygo-build mygo-test run-mygo mygo-smoke check-generated install-sh-guard check-classes check-ci-scripts daisyui-lint vocabulary check-docs docs-index check-mcp site site-check
 
 all: build
 
@@ -138,6 +138,34 @@ test:
 test-fast:
 	@bash scripts/test-web.sh -count=1
 
+# test-recipe runs the tests ONE installed recipe owns, with the package scope
+# derived from its receipt (`.recipes/<id>.yml`), so nobody guesses paths and no
+# one pays for the whole suite to check one slice:
+#
+#   make test-recipe R=todo
+#   make test-recipe R=pomodoro DIR=/path/to/other/checkout
+#
+# Why derived and not declared in the recipe: the receipt already hashes every
+# installed file (tests included), and a second list would be a second truth.
+# A recipe with no test files fails the run — that is `recipe check`'s error,
+# surfaced at the moment you asked for the tests.
+test-recipe:
+	@test -n "$(R)" || { echo "usage: make test-recipe R=<recipe-id> [DIR=<checkout>]"; exit 2; }
+	@go run ./cmd/gogogo recipe test $(R) --dir $(or $(DIR),.)
+
+# verify-local boots the REAL binary on a fresh data dir and prints a URL plus
+# the routes the diff touched, so the operator can click for a minute. Use it at
+# the moment a rejection is cheapest: after ci-local-fast is green, before
+# ci-local/signoff/push. The rule for WHEN to ask lives in docs/local-ci.md
+# ("When the operator must click").
+verify-local:
+	@bash scripts/verify-local.sh
+
+# verify-local-share is the same run plus a Tailscale URL, for a second machine
+# or a phone (tailnet-only, never public).
+verify-local-share:
+	@bash scripts/verify-local.sh --share
+
 # css-install installs the npm dev dependencies (Tailwind CLI + DaisyUI
 # v5). Idempotent. Run once after cloning; CI calls this in the
 # Docker build stage so contributors don't need to.
@@ -246,6 +274,7 @@ check-ci-scripts:
 	@bash scripts/ci-changes-classifier.test.sh > /dev/null
 	@bash scripts/ci-shard-packages.test.sh > /dev/null
 	@bash bin/install-browser_test.sh > /dev/null
+	@node --test scripts/lib/features.test.mjs > /dev/null
 	@echo "✅ CI script contracts hold"
 
 # check-classes makes the UI rules executable: every app-*/ui-*/is-* class in

@@ -20,6 +20,13 @@ const recipeHandlerV1 = "package handlers\n\nfunc routes(r router) { r.Get(\"/po
 const recipeHandlerV2 = "package handlers\n\nfunc routes(r router) {" +
 	" r.Get(\"/pomodoro\", nil); r.Get(\"/pomodoro/today\", nil) }\n"
 
+// recipeHandlerTest is the fixture's test file. The checker counts test FILES
+// in the tree; it does not compile them (the fixture is a tree, not a module),
+// so this file is deliberately bare. Its job is to keep a route-declaring
+// fixture on the healthy path while the "no tests" rule is red-proven by the
+// test that removes it.
+const recipeHandlerTest = "package handlers\n"
+
 // newRecipeCheckout builds the smallest tree looksLikeTemplate accepts.
 // stubRecipeCodegen replaces both generators for one test and returns the calls
 // it recorded. An install must never depend on a tool the machine happens to

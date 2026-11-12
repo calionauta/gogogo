@@ -120,6 +120,26 @@ Use it while iterating; the full `ci-local` (and `make signoff`) remain the
 authoritative pre-push gate — `ci-local-fast` does not replace CI coverage, it
 just stops a CSS tweak from paying for the todo suite.
 
+### A recipe's tests have a name: `make test-recipe R=<id>`
+
+The changed-package scope answers "what did this diff touch". `test-recipe`
+answers a different question: "what does this slice claim, and does it still
+hold". The package list is **derived** from the receipt (`.recipes/<id>.yml`
+`Files` + `Register`), because the receipt already hashes every installed file —
+tests included — and a declared list would be a second source of truth:
+
+```bash
+make test-recipe R=todo          # go test -race on the packages todo owns
+go run ./cmd/gogogo recipe test todo --race=false --run TestToggle   # TDD loop
+```
+
+A recipe with no `_test.go` fails the run. `recipe check` blocks it as well, and
+that pair is deliberate: the checker states the rule, the runner enforces it at
+the moment you asked for the tests. Tests travel with the recipe (they are
+ordinary `_test.go` files in the copied tree, run by `go test ./...` like any
+other package), so an uninstalled recipe has no tests to skip — the grouping is
+structural, not a filter someone has to maintain.
+
 `ci-local-fast` carries its own guards: a `--fast` capacity pre-flight
 (lighter floors — 3 GB RAM, 2 cores, 1.5 load/core, 1 GB disk) refuses a
 wedged box before scoped race starts, and past 8 changed packages
@@ -132,27 +152,71 @@ makes repo-copying suites (notably `TestTrimmedTreeStillBuilds`, one full
 `go vet ./...` per unit) skip — with measured reason — when off-CI and
 constrained, instead of wedging a shared box no Makefile gate can see.
 
+### When the operator must click (and how to ask)
+
+Every gate proves what a machine can assert. None of them can tell you the flow
+feels wrong, the label is ambiguous, or the feature is not what was asked. That
+judgment is the operator's alone — so it belongs where a rejection is cheapest,
+not wherever it happens to be noticed.
+
+| Moment | A rejection costs | Verdict |
+|---|---|---|
+| Before the commit | Nothing has validated the diff yet (T2+ has not run) — you hand a human a broken build | ❌ never |
+| Before `ci-local-fast` | Same; the 2–30s filter has not run | ❌ |
+| **After `ci-local-fast`, before `ci-local`/`signoff`/push** | one edit + 10s. Branch is local, `make dev` is hot | ✅ **primary** |
+| When the PR is open / CI is green | already paid; a fix is a new push and another PR-CI round trip | ⚠️ only if the state changed |
+| **Before merge** | the PR goes back to draft; nothing shipped | ✅ **secondary** |
+| After merge | it is in production: `deploy.yml` runs in parallel with CI on a `master` push | ❌ too late |
+
+The rule that decides whether to ask at all:
+
+- **Ask** when acceptance is not expressible as an assertion, when the action is
+  irreversible for data/auth, when it needs two clients or a real browser, or
+  when the visual IS the requirement.
+- **Do not ask** when the diff is machine-decidable and a red test already pins
+  it. Asking there trains the operator to click without looking, and trains the
+  agent to push verification onto a human.
+
+Two rules make the ask worth its cost:
+
+1. **One click session per mergeable state**, not per TDD iteration.
+2. **A 60-second script, never "test it"**: `make verify-local` prints the URL,
+   the seeded account and the routes your diff touched (derived from the
+   receipts, not guessed). Say what to do and what you expect; a vague ask costs
+   ten minutes of human attention and answers "hmm, seems odd".
+
+```bash
+make verify-local            # build → boot on :8098 → URL + account + routes changed → wait
+make verify-local-share      # same, plus a tailnet URL for a second machine
+```
+
+It builds the real binary into a temp dir, boots it on a **fresh** database, seeds
+one account, prints the checklist, and removes everything when you press Enter
+(agents: no TTY, so it stops after `--ttl`, default 30 min). Your data is never
+touched — never point it at a live instance.
+
+PASS → `make ci-local` (T4) / `make signoff` / push. FAIL → fix now: an edit and
+ten seconds, instead of six minutes of gate plus a CI round trip.
+
 ### Homolog light: staging without a server
 
 There is no staging environment by design — a second stack would duplicate
 ports, data dirs, secrets, tunnel routes and memory on the shared box while
 answering a question the local loop already answers in seconds. When you need
-to "see it working" (including a clickable URL for a human), run this:
+to "see it working", the loop is:
 
 ```bash
+make verify-local                 # the operator's 60s click (above)
 make dev                          # live-reload on :8080 (own DATA_DIR, never prod's)
 make ci-local-fast                # gate the change: cheap checks + scoped race tests
 node scripts/smoke.mjs            # boot the real binary, exercise offline replay
-command -v tailscale >/dev/null && tailscale serve --bg 8080 || echo "no Tailscale here: share http://localhost:8080 instead"
-tailscale serve status            # the URL to share (skip if no Tailscale)
-tailscale serve reset             # take it down when done (+ `make smoke-clean`)
 ```
 
-Tailscale ([tailscale.com/download](https://tailscale.com/download)) puts
-your machines on a private WireGuard mesh. It is **optional locally** (only
-for the shareable URL above) and **required for server deploys**, where CI
-reaches the box over the tailnet instead of a public SSH port
-(`docs/deploy.md`).
+`make verify-local-share` handles the Tailscale URL and `tailscale serve reset`
+teardown itself. Tailscale ([tailscale.com/download](https://tailscale.com/download))
+puts your machines on a private WireGuard mesh; it is **optional locally** (only
+for the shareable URL) and **required for server deploys**, where CI reaches the
+box over the tailnet instead of a public SSH port (`docs/deploy.md`).
 
 Use `SIMULATE_LLM=true` for the keyless LLM path, and prefer the PR flow for
 anything beyond a look-and-click: PR CI is the gate that runs before merge,
@@ -240,31 +304,6 @@ browser download MUST fail it, a browser that cannot launch MUST fail it, and
 `PLAYWRIGHT_SKIP_DEPS=1` must not call apt anyway. It runs in `make
 check-ci-scripts`, so the contract is checked locally and in CI.
 
-### A suite that hangs is a failure, not a slow test
-
-Every browser suite runs under a wall-clock budget: `scripts/run-browser-suite.sh`
-passes `SMOKE_SUITE_TIMEOUT` (default 600s) to `scripts/lib/suite-supervisor.mjs`,
-which runs the suite in its own process group and kills the whole group —
-node, Chromium and the server the suite spawned — when the budget is gone. The
-supervisor exits 124, the wrapper prints **TIMED OUT** instead of FAILED, and
-the CI job carries `timeout-minutes: 30` as the outer fence.
-
-Why it exists: on 2026-11-11 the whiteboard suite hung in CI. Its step ran
-**44 minutes** (the job was killed with the step still in progress) while
-every other run of the same suite took **20 seconds**. A suite can hang
-instead of failing, because Playwright's default timeouts do not cover the
-places where a hang actually happens:
-
-| Unbounded wait | Where | Now |
-|---|---|---|
-| an in-page `fetch` the server never answers | `page.evaluate` has **no** default timeout | `AbortSignal.timeout(10s)` on every in-page fetch |
-| `navigator.serviceWorker.ready` (resolves only on activation) | the smoke suite's SW wait | raced against a 15s deadline |
-| `browser.close()` on a wedged renderer | every suite's cleanup | raced against a 10s deadline |
-| the suite as a whole | the wrapper | the supervisor's budget |
-
-The last one is the load-bearing one: without it a single hang is an infinite
-step, and the runner is held for hours with a log that looks complete.
-
 ### Why the browser smoke test stays on Playwright
 
 The browser engine was re-evaluated (2026-10) because `scripts/smoke.mjs` costs
@@ -318,6 +357,31 @@ evaluation is wrong:
 | `/todo`: only the create submit is born disabled | `data-attr:disabled` setting the attribute for `""`/undefined — the dead "Run durable workflow" and "Delete" buttons |
 | Suggest under a 2s-delayed ack: no spinner, suggestions still on screen, ack body carries no `datastar-patch-signals` | the ack landing after the worker's terminal patch (stuck "Asking AI...", results erased) |
 | server-seeded signals survive the theme bootstrap | the bootstrap replacing `data-signals` (a wiped seed is a dead control) |
+
+### A suite that hangs is a failure, not a slow test
+
+Every browser suite runs under a wall-clock budget: `scripts/run-browser-suite.sh`
+passes `SMOKE_SUITE_TIMEOUT` (default 600s) to `scripts/lib/suite-supervisor.mjs`,
+which runs the suite in its own process group and kills the whole group —
+node, Chromium and the server the suite spawned — when the budget is gone. The
+supervisor exits 124, the wrapper prints **TIMED OUT** instead of FAILED, and
+the CI job carries `timeout-minutes: 30` as the outer fence.
+
+Why it exists: on 2026-11-11 the whiteboard suite hung in CI. Its step ran
+**44 minutes** (the job was killed with the step still in progress) while
+every other run of the same suite took **20 seconds**. A suite can hang
+instead of failing, because Playwright's default timeouts do not cover the
+places where a hang actually happens:
+
+| Unbounded wait | Where | Now |
+|---|---|---|
+| an in-page `fetch` the server never answers | `page.evaluate` has **no** default timeout | `AbortSignal.timeout(10s)` on every in-page fetch |
+| `navigator.serviceWorker.ready` (resolves only on activation) | the smoke suite's SW wait | raced against a 15s deadline |
+| `browser.close()` on a wedged renderer | every suite's cleanup | raced against a 10s deadline |
+| the suite as a whole | the wrapper | the supervisor's budget |
+
+The last one is the load-bearing one: without it a single hang is an infinite
+step, and the runner is held for hours with a log that looks complete.
 
 ### Two test-harness footguns that masqueraded as slowness
 
