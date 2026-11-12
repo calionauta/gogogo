@@ -465,12 +465,35 @@ so running tests on a known-linted codebase saves re-runs.
 The remote CI becomes a parallel validator and the auto-deploy driver, not the
 primary gatekeeper. If green locally, push without holding your breath.
 
+## Keeping the docs true: what a gate can and cannot catch
+
+A doc drifts because nobody notices it drifted. The repo answers that with
+three layers, each with a different reach — and the boundary between them is
+deliberate:
+
+| Layer | What it catches | Where |
+|---|---|---|
+| **Mechanical (blocking)** | A count, a size, a path, a command or a tool table the code no longer supports | `make check-docs`: hand-written counts and sizes, dead paths, invented subcommands, undocumented CLI verbs, the generated MCP tool tables |
+| **Instructed (review)** | A page that should have been updated and no gate can name | the PR body names the page; the pre-commit staleness hook points at the likely one |
+| **Judgment (human)** | Whether the page is true, clear and still says what the code says | review |
+
+The mechanical layer is the only one that blocks, because it is the only one
+that cannot be argued with: it compares the prose against the source. It
+cannot judge meaning — a page can be mechanically clean and still lie, and
+that is what the other two layers are for. Do not make the mechanical layer
+bigger than it can be: a gate that reads prose has to guess, and a gate that
+guesses wrong trains people to bypass it.
+
+The one class worth killing rather than catching is **copied prose**: the MCP
+tool table used to live in three places (the runtime description, the docs
+page and the module README), and it drifted. Those tables are now GENERATED
+from the catalog the server serves, so the copy cannot exist.
+
 ## What the local gate and the remote CI each actually run
 
 The claim above ("CI runs the same checks as `make ci-local`") is a contract,
 not a coincidence — and it silently broke twice. The two jobs are kept in sync
 by hand, so when a step is added to one, add it to the other:
-
 | Check | `make ci-local` | GitHub CI |
 |---|---|---|
 | templ generate | ✓ | ✓ |
@@ -478,7 +501,7 @@ by hand, so when a step is added to one, add it to the other:
 | CSS bundle matches sources | ✓ `css-check` | ✓ (after `npm ci`) |
 | SCOPE annotations | ✓ | ✓ |
 | Flat-stack deps (no banned framework, no cross-feature imports, owned sql.Open) | ✓ `check-flatdeps` | ✓ |
-| Prose claims (no hand-written counts, live paths, real subcommands, the generated MCP tool tables match the catalog, every `docs/` page published or declared repo-facing) | ✓ `check-docs` | ✓ |
+| Prose claims (no hand-written counts or sizes, live paths, real subcommands, every CLI verb documented, the generated MCP tool tables match the catalog, every `docs/` page published or declared repo-facing) | ✓ `check-docs` | ✓ |
 | DagNats doc pin vs go.mod | ✓ `check-dagnats-pin` | ✓ |
 | SKILL.md frontmatter | ✓ | ✓ |
 | install.sh bootstrap contract | ✓ | ✓ |

@@ -104,6 +104,10 @@ func parseMCPTool(elem ast.Expr) (mcpTool, error) {
 		return mcpTool{}, fmt.Errorf("%s: a tool entry is not a composite literal", mcpToolsFile)
 	}
 	var tool mcpTool
+	fields := map[string]*string{
+		"name": &tool.name, "desc": &tool.desc,
+		"params": &tool.params, "effect": &tool.effect,
+	}
 	for _, kv := range lit.Elts {
 		pair, ok := kv.(*ast.KeyValueExpr)
 		if !ok {
@@ -113,23 +117,15 @@ func parseMCPTool(elem ast.Expr) (mcpTool, error) {
 		if !ok {
 			continue
 		}
-		switch key.Name {
-		case "name", "desc", "params", "effect":
-			value, ok := literalString(pair.Value)
-			if !ok {
-				return mcpTool{}, fmt.Errorf("%s: tool field %q is not a literal string", mcpToolsFile, key.Name)
-			}
-			switch key.Name {
-			case "name":
-				tool.name = value
-			case "desc":
-				tool.desc = value
-			case "params":
-				tool.params = value
-			case "effect":
-				tool.effect = value
-			}
+		target, ok := fields[key.Name]
+		if !ok {
+			continue
 		}
+		value, ok := literalString(pair.Value)
+		if !ok {
+			return mcpTool{}, fmt.Errorf("%s: tool field %q is not a literal string", mcpToolsFile, key.Name)
+		}
+		*target = value
 	}
 	return tool, nil
 }
@@ -268,7 +264,14 @@ func writeMCPTools(root string) error {
 		if updated == string(raw) {
 			continue
 		}
-		if werr := os.WriteFile(path, []byte(updated), 0o644); werr != nil {
+		// The file's own mode, so rewriting the block does not change what
+		// git sees. The path comes from the package's own list of doc files
+		// joined to the module root — not from a request.
+		info, ierr := os.Stat(path)
+		if ierr != nil {
+			return ierr
+		}
+		if werr := os.WriteFile(path, []byte(updated), info.Mode().Perm()); werr != nil { //nolint:gosec // G703
 			return werr
 		}
 	}

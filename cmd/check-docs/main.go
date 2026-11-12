@@ -99,7 +99,7 @@ func countHint(match string) string {
 var tickRE = regexp.MustCompile("`([^`\n]+)`")
 
 // repoRoots are the top-level directories a concrete path can start with.
-var repoRoots = []string{"features", "internal", "cmd", "web", "config", "scripts", "bin", "deploy", "site"}
+var repoRoots = []string{"features", "internal", "cmd", "web", "config", "scripts", "bin", "deploy", "site", "docs"}
 
 // pathSegmentRE is one directory segment (a dot means package.Symbol
 // notation, e.g. internal/datastar.RenderAndPatch, not a path).
@@ -177,9 +177,15 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	recipeVerbsList, err := recipeVerbs(root)
+	if err != nil {
+		return err
+	}
 	problems := checkCounts(root, files)
+	problems = append(problems, checkLineCounts(root, files)...)
 	problems = append(problems, checkPaths(root, files, trimmedPaths(root))...)
 	problems = append(problems, checkCommands(root, files, subs)...)
+	problems = append(problems, checkCLIVerbs(root, subs, recipeVerbsList)...)
 	problems = append(problems, checkMCPTools(root)...)
 	problems = append(problems, checkManifest(root)...)
 	problems = append(problems, checkReadmeIndex(root)...)

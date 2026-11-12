@@ -38,7 +38,7 @@ jobs:
           BODY: ${{ github.event.pull_request.body }}
         run: |
           fail=0
-          for marker in 'Closes #NNN' 'Write this yourself' 'Required, one line'; do
+          for marker in 'Closes #NNN' 'Write this yourself' 'Required, one line' '<the page this change updates'; do
             if printf '%s' "$BODY" | grep -qF "$marker"; then
               echo "❌ PR body still contains template placeholder: $marker"
               fail=1
@@ -47,7 +47,7 @@ jobs:
           if [ "$fail" -ne 0 ]; then
             echo ""
             echo "Fill every .github/PULL_REQUEST_TEMPLATE.md section (linked issue,"
-            echo "motivation, one-line AI disclosure, verification) and push again."
+            echo "motivation, docs, one-line AI disclosure, verification) and push again."
             exit 1
           fi
           echo "✓ PR body has no template leftovers"
