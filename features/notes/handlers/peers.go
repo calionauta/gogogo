@@ -216,6 +216,19 @@ func (h *Handler) handleCaret(w http.ResponseWriter, r *http.Request) {
 		writeText(w, http.StatusBadRequest, "decode caret: "+uErr.Error())
 		return
 	}
+	if req.Gone {
+		// The tab stopped owning a caret (blur, hidden, page left): peers must
+		// retire the dot now instead of keeping a phantom until their expiry.
+		// There is deliberately no position to validate on this path.
+		h.relay(r.Context(), from, docID, collab.PresenceMsg{
+			Doc:  docID,
+			User: h.displayName(sess, from),
+			Type: "caret-gone",
+			TS:   time.Now().UnixMilli(),
+		})
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+		return
+	}
 	if req.Line < 1 {
 		writeText(w, http.StatusBadRequest, "line must be >= 1")
 		return
@@ -224,14 +237,25 @@ func (h *Handler) handleCaret(w http.ResponseWriter, r *http.Request) {
 		writeText(w, http.StatusBadRequest, "pos must be >= 0")
 		return
 	}
-	h.relay(r.Context(), from, docID, collab.PresenceMsg{
+	if req.Start != nil && *req.Start < 0 {
+		writeText(w, http.StatusBadRequest, "start must be >= 0")
+		return
+	}
+	msg := collab.PresenceMsg{
 		Doc:  docID,
 		User: h.displayName(sess, from),
 		Type: "caret",
 		X:    float64(req.Line),
 		Y:    float64(req.Pos),
 		TS:   time.Now().UnixMilli(),
-	})
+	}
+	if req.Start != nil {
+		// The anchor travels beside the caret, not inside it: peers highlight
+		// min(start,pos)..max(start,pos) and keep the dot where the caret is.
+		anchor := float64(*req.Start)
+		msg.SelStart = &anchor
+	}
+	h.relay(r.Context(), from, docID, msg)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 

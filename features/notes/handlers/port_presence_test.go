@@ -154,6 +154,58 @@ func TestNotesCaretRelay(t *testing.T) {
 	})
 }
 
+// TestNotesCaretSelectionRelay pins the highlight half of a caret report: the
+// selection anchor travels beside the caret (selStart), while the dot keeps
+// the caret's own offset. A receiver highlights min(selStart, y)..max(...), so
+// the anchor must survive the relay unchanged — it is not decoration the
+// server may drop.
+func TestNotesCaretSelectionRelay(t *testing.T) {
+	server, _, cookie := notesPortFixture(t)
+	client := notesAuthedClient(t, server, cookie)
+	docID := "note-caret-selection"
+
+	logB, closeB := openNoteStream(t, client, server, docID, "cliB")
+	settleStream(t, logB, "cliB")
+	defer closeB()
+
+	if code := postPresence(t, client, server, docID, "cliA", "caret",
+		`{"line":5,"pos":17,"start":9}`); code != http.StatusOK {
+		t.Fatalf("caret with selection status = %d", code)
+	}
+	msg := waitNoteEvent(t, logB, func(msg map[string]any) bool {
+		return msg["type"] == "caret"
+	})
+	if pos, _ := msg["y"].(float64); pos != 17 {
+		t.Fatalf("caret pos = %v, want 17", msg["y"])
+	}
+	if anchor, _ := msg["selStart"].(float64); anchor != 9 {
+		t.Fatalf("selection anchor = %v, want 9 (the highlight would land on the wrong text)", msg["selStart"])
+	}
+}
+
+// TestNotesCaretGoneRelay pins the retraction path: a tab that blurred (or
+// hid) announces it owns no caret, and peers retire the dot at once instead of
+// keeping a ghost until their 8s expiry.
+func TestNotesCaretGoneRelay(t *testing.T) {
+	server, _, cookie := notesPortFixture(t)
+	client := notesAuthedClient(t, server, cookie)
+	docID := "note-caret-gone"
+
+	logB, closeB := openNoteStream(t, client, server, docID, "cliB")
+	settleStream(t, logB, "cliB")
+	defer closeB()
+
+	if code := postPresence(t, client, server, docID, "cliA", "caret", `{"gone":true}`); code != http.StatusOK {
+		t.Fatalf("caret gone status = %d", code)
+	}
+	msg := waitNoteEvent(t, logB, func(msg map[string]any) bool {
+		return msg["type"] == "caret-gone"
+	})
+	if msg["from"] != "cliA" {
+		t.Fatalf("caret-gone from = %v, want the sending tab", msg["from"])
+	}
+}
+
 // TestNotesTypingBroadcast pins the typing-indicator contract: a typing
 // state POST reaches peers as an ephemeral event.
 func TestNotesTypingBroadcast(t *testing.T) {

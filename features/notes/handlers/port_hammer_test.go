@@ -103,10 +103,38 @@ func TestNotesCaretRecipePinsMirrorProps(t *testing.T) {
 		"boxSizing", "whiteSpace", "wordWrap", "overflowWrap", "tabSize",
 		"getComputedStyle", "offsetLeft", "offsetTop",
 		"scrollLeft", "scrollTop", "selectionStart",
-		"shiftPeerOffsets",
 	} {
 		if !strings.Contains(src, prop) {
 			t.Errorf("notes.js missing mirror recipe %q", prop)
+		}
+	}
+}
+
+// TestNotesCaretIsOwnerAuthoritative pins the ownership rule inside
+// static/notes.js: a stored peer caret is written ONLY by that peer's own
+// report, never rewritten through our unconfirmed local ops, and our own
+// caret is anchored across an adopted peer text instead of being clamped to
+// its stale offset. The old client shifted every stored caret through its
+// own ops, so a dot slid across the text while its owner sat still (or had
+// blurred and owned no caret) — the reported "when I type, the other user's
+// cursor moves" — while the peer's own caret kept its number as the text
+// moved under it. Live behavior: scripts/notes-caret.test.mjs, phase "THE
+// PEER'S CARET BELONGS TO THE PEER".
+func TestNotesCaretIsOwnerAuthoritative(t *testing.T) {
+	raw, err := os.ReadFile("../static/notes.js")
+	if err != nil {
+		t.Fatalf("read notes.js: %v", err)
+	}
+	src := string(raw)
+	for _, want := range []string{"assignAnchored(", "mapOwnOffset("} {
+		if !strings.Contains(src, want) {
+			t.Errorf("notes.js missing caret anchoring wiring %q", want)
+		}
+	}
+	// Absence pins: the two mechanisms this rule replaced.
+	for _, gone := range []string{"shiftPeerOffsets", "Math.min(s, text.length)"} {
+		if strings.Contains(src, gone) {
+			t.Errorf("notes.js still moves carets the old way: %q", gone)
 		}
 	}
 }
