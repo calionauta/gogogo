@@ -192,6 +192,15 @@ the failure fed back; prose never does. Every answer logs one outcome line
 — the repair rate per component is the number that says whether the prompt
 or the catalog is the thing to fix.
 
+**A stored answer survives a renamed component.** Each stored answer carries
+the fingerprint of the catalog vocabulary it was validated against. When the
+running catalog has moved on, the answer is reconciled before it renders: a
+component this build no longer knows drops out and the rest of the message
+survives. Without that, one retired component name blanked the WHOLE answer,
+because the renderer failed on a name it could not resolve. An answer written
+before the stamp existed, and one whose stamp still matches, render exactly as
+stored — the filter never runs on a guess.
+
 ## Removing a feature
 
 A feature is a capability row with `Kind: feature` and the dirs/files it owns.

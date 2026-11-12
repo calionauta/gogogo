@@ -10,7 +10,7 @@
 - ARCHITECTURE.md — module layout and seams
 - skills/gogogo-coding-standards/SKILL.md — Go + template rules (read when editing .go; on a .templ edit also read the UI skill below for the Datastar/backend gate)
 - skills/gogogo-ui/SKILL.md — template UI rules over the vendored DaisyUI vocabulary (read before any .templ/CSS edit, with docs/ui-themes.md)
-- skills/gogogo-recipe-authoring/SKILL.md — extension authoring contract (read before creating a feature, installing/editing a recipe, filling a slot, or declaring routes/tables/jobs)
+- skills/gogogo-recipe-authoring/SKILL.md — extension authoring contract (read before creating a feature, installing/editing a recipe, filling a slot, or declaring routes/tables/jobs/metrics/outcomes)
 - Measuring a recipe (an outcome is the job as a success/total pair of counts, no event stream, propose-then-confirm): skills/gogogo-recipe-authoring/references/outcomes.md. Find what a recipe already counts with `recipe describe <id>` (or MCP `recipe_describe`) — metrics and outcomes are in its JSON — and validate a declaration with `recipe check <id>`. Rationale, not procedure: docs/research/recipe-outcomes-2026-11.md
 - Two surfaces, never conflated: `cmd/gogogo` + `cmd/gogogo-mcp` are the **evolution** tools (developer only, may rewrite a checkout); a product's users/agents use `cmd/web` routes + `POST /api/ext/invoke` under session/RBAC. `recipe invoke` / `recipe_invoke` are developer clients of that route, not a product MCP. Details: docs/mcp.md#installer-surface-vs-product-surface.
 
@@ -26,6 +26,7 @@
 - Architecture details: docs/architecture.md, docs/architecture-decision.md
 - Config and env vars: docs/configuration.md
 - Local CI and gates: docs/local-ci.md
+- A recipe's own tests (`gogogo recipe test <id>`, `make test-recipe R=<id>`) and the operator's 60-second click between the cheap gate and the full one (`make verify-local`, `make verify-local-share`): docs/local-ci.md
 - Keeping a scaffolded project current (base marker, --check-update, migrate, `migrate --files` for which files apply to you, `advise --intent update`; installed recipes: `recipe outdated` against the reviewed catalog): docs/upgrading.md
 - Taking one unit into an app that already exists (read-only export bundle + porting checklist): docs/porting-into-an-existing-app.md
 - Realtime, queue, offline: docs/async-layers.md; the transport decision tree (no poll, one stream per page, leader tab + BroadcastChannel): docs/realtime-recipe.md#global-state-and-the-connection-budget
