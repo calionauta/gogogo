@@ -1,24 +1,29 @@
 // Vendored SVG path catalog for the Icon component.
 //
-// The bodies are Material Symbols glyphs vendored from Iconify
-// (api.iconify.design/material-symbols/{name}.svg) at the time of the
-// iconify removal. One owner on purpose: before this, ten
-// <iconify-icon> call sites depended on a runtime web component
-// (/static/iconify-icon.min.js) that lays out at 0x0 without its script,
-// needed a syncIcons() workaround in theme.js, and loaded twice per page
-// (ThemeHead AND the app assets). Inline SVG has no script, no flash,
-// and inherits the surrounding font size via width/height 1em.
+// The bodies are glyphs vendored from Iconify (api.iconify.design/
+// {family}/{name}.svg) at the time of the iconify removal. One owner on
+// purpose: before this, ten <iconify-icon> call sites depended on a
+// runtime web component (/static/iconify-icon.min.js) that lays out at 0x0
+// without its script, needed a syncIcons() workaround in theme.js, and
+// loaded twice per page (ThemeHead AND the app assets). Inline SVG has no
+// script, no flash, and inherits the surrounding font size via
+// width/height 1em.
 //
-// Keys keep the full "material-symbols:..." names so internal/ui/modules.go
-// needs no translation layer (its Icon field feeds Icon() directly) and a
-// trim still drops module lines without touching this file.
+// Two families live here. "material-symbols:..." are the filled glyphs
+// the modules use; their bodies carry fill="currentColor". "daisyui:..."
+// are the drawer's own outlined glyphs, whose bodies carry
+// fill="none" stroke="currentColor" instead.
+//
+// Keys keep the full "{family}:..." names so internal/ui/modules.go needs
+// no translation layer (its Icon field feeds Icon() directly) and a trim
+// still drops module lines without touching this file.
 //
 // Adding a glyph: vendor the body from the URL above (keep ONLY the inner
-// <path>, the <svg> wrapper lives in icons.templ), add the map entry, and
+// markup, the <svg> wrapper lives in icons.templ), add the map entry, and
 // extend TestIconCatalogCoversModules if it backs a module.
 package icon
 
-// iconPath returns the vendored inner SVG for a Material Symbols glyph.
+// iconPath returns the vendored inner SVG for a catalogued glyph.
 // An unknown name returns "": the <svg> renders empty (visible as missing
 // in review captures), and the coverage tests pin every name the tree uses,
 // so a typo fails loudly in CI instead of silently on the page.
@@ -38,7 +43,8 @@ var iconPaths = map[string]string{
 	"material-symbols:settings":       `<path fill="currentColor" d="m9.25 22l-.4-3.2q-.325-.125-.612-.3t-.563-.375L4.7 19.375l-2.75-4.75l2.575-1.95Q4.5 12.5 4.5 12.338v-.675q0-.163.025-.338L1.95 9.375l2.75-4.75l2.975 1.25q.275-.2.575-.375t.6-.3l.4-3.2h5.5l.4 3.2q.325.125.613.3t.562.375l2.975-1.25l2.75 4.75l-2.575 1.95q.025.175.025.338v.674q0 .163-.05.338l2.575 1.95l-2.75 4.75l-2.95-1.25q-.275.2-.575.375t-.6.3l-.4 3.2zm2.8-6.5q1.45 0 2.475-1.025T15.55 12t-1.025-2.475T12.05 8.5q-1.475 0-2.488 1.025T8.55 12t1.013 2.475T12.05 15.5"/>`,
 	"material-symbols:notifications":  `<path fill="currentColor" d="M4 19v-2h2v-7q0-2.075 1.25-3.687T10.5 4.2v-.7q0-.625.438-1.062T12 2t1.063.438T13.5 3.5v.7q2 .5 3.25 2.113T18 10v7h2v2zm8 3q-.825 0-1.412-.587T10 20h4q0 .825-.587 1.413T12 22"/>`,
 	"material-symbols:menu":           `<path fill="currentColor" d="M3 18v-2h18v2zm0-5v-2h18v2zm0-5V6h18v2z"/>`,
-	"material-symbols:chevron-left":   `<path fill="currentColor" d="M14 18L8 12L14 6L15.4 7.4L10.8 12L15.4 16.6Z"/>`,
+	"daisyui:panel-close":             `<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 4m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"/><path d="M9 4v16"/><path d="M16 10l-2 2 2 2"/></g>`,
+	"daisyui:panel-open":              `<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 4m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"/><path d="M9 4v16"/><path d="M14 10l2 2-2 2"/></g>`,
 	"material-symbols:layers":         `<path fill="currentColor" d="m12 21.05l-9-7l1.65-1.25L12 18.5l7.35-5.7L21 14.05zM12 16L3 9l9-7l9 7z"/>`,
 	"material-symbols:tune":           `<path fill="currentColor" d="M11 21v-6h2v2h8v2h-8v2zm-8-2v-2h6v2zm4-4v-2H3v-2h4V9h2v6zm4-2v-2h10v2zm4-4V3h2v2h4v2h-4v2zM3 7V5h10v2z"/>`,
 	"material-symbols:stack":          `<path fill="currentColor" d="M6 14v2H4q-.825 0-1.412-.587T2 14V4q0-.825.588-1.412T4 2h10q.825 0 1.413.588T16 4v2h-2V4H4v10zm4 8q-.825 0-1.412-.587T8 20V10q0-.825.588-1.412T10 8h10q.825 0 1.413.588T22 10v10q0 .825-.587 1.413T20 22z"/>`,
