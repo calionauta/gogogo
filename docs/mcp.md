@@ -58,38 +58,43 @@ JSON-config clients take the Claude Code block verbatim.
 
 ## Tools
 
-| Tool | Changes anything? | What it does |
-|---|---|---|
-| `advise_stack` | No | Opinions **and the route**: which capabilities fit a use-case, off-switches, and the ordered commands for `intent` (`update`/`port`/`new-feature`/`scaffold`). Optional `dir` adds the same probe as the CLI's `--dir`. Answers in one of four scopes — see below. Start here |
-| `capabilities_list` | No | Full capability registry JSON |
-| `trim_plan` | No | Preview a scaffold (validates name/owner, shows the plan); changes nothing |
-| `trim_apply` | Yes (`confirm:true`) | Rename + tidy + build proof |
-| `version_status` | No | Is this tool — and this project's recorded base — behind the latest release? Pass `dir` for the project half. "An update exists" is a verdict, not an error |
-| `migrate_plan` | No | Releases between the project's recorded base and the latest, plus the gates that prove a migrated tree. Pass `files:true` to add the per-file impact, labelled by capability and by whether this tree kept the owning unit — the "which of these apply to me" half |
-| `export_unit` | Only writes `to` | Port bundle for a tree that is **not** a gogogo checkout: copies the unit's owned files into `to` + writes `PORTING.md` (routes, imports to rewrite, what to write by hand, proof). `dir` is never touched |
-| `new_feature` | Yes (`confirm:true`) | Scaffold one feature (handler + page + wiring + capability unit + RBAC rows) and prove the gates (`dryRun:true` previews) |
-| `recipe_install` | Yes (`confirm:true`) | Install a recipe into a gogogo checkout: copy, receipt, generated registration, schema/policy/codegen and proof (dry-run previews) |
-| `recipe_update` | Yes (`confirm:true`) | Update one installed recipe from a directory or catalog entry (dry-run previews) |
-| `recipe_uninstall` | Yes (`confirm:true`) | Remove one installed recipe by id; deletes only pristine files and keeps edited files |
-| `recipe_status` | No | Read-only recipe drift report: pristine vs edited files, generated/schema/policy state |
-| `recipe_list` | No | Recipe discovery: built-in capabilities plus user-installed recipes, with origin/lifecycle, summary, invocable verbs, and the mutating routes each recipe deliberately omits |
-| `recipe_describe` | No | Describe one recipe by id: kind, origin, summary, registration surface, dependencies, the declared surface, invocable verbs with a description, `{id}`/body params with per-param help, the metrics and outcomes it already declares (job, beneficiary, counter signals), and the routes it deliberately omits, with the reason |
-| `recipe_check` | No | Read-only recipe evaluator — the report `gogogo recipe check` prints: healthy flag, score, errors, warnings, suggestions, complexity, the declared metrics/panel cross-check, the derived test inventory and the headless-surface warnings. A blocked recipe comes back as a failed call carrying the report: the verdict is the point, and the transcript says which rule blocked it |
-| `recipe_test` | No (runs the recipe's own tests) | Run the tests ONE recipe owns, with the package scope derived from its receipt (`Files` + `Register`), through the module's own `go test`. `noRace` is the fast TDD loop, `run` selects one test, `list` prints the derived packages instead of running them. Needs Go on PATH |
-| `recipe_invoke` | Server state (mutating verbs only) | Client for one declared verb (read or mutating) against a running server (loopback only) under the operator session token; a declared `{id}` verb takes `id` in `params` as a UUID and validates it before dispatch. A mutating verb changes server state, so read `recipe_describe` first. This is not a product MCP |
-| `build_prerequisites` | No | How to build the desktop shell or the Android target: prerequisites, `make desktop`/`make mobile`, the smoke gates, the Android driver swap (tursogo → ncruces) and the mobile limits. `platform` is `desktop` or `mobile`; empty returns both. Same text as `gogogo --help` |
-| `sync_prerequisites` | No | Desktop↔server sync prerequisites: a reachable NATS leaf listener, `NATS_TOKEN`, `CLOUD_SYNC_URL`, account identity, and a private overlay before public exposure |
+<!-- MCP:TOOLS:START -->
+| Tool | Changes anything? | Params | What it does |
+|---|---|---|---|
+| `capabilities_list` | No | — | Raw registry JSON: every template capability with id, kind, summary, and off-switch. |
+| `build_prerequisites` | No | `platform?` | Read-only: how to build the desktop shell or the Android target on this host. |
+| `sync_prerequisites` | No | — | Read-only: what a desktop build needs to sync with a server (a reachable NATS leaf listener, NATS_TOKEN, CLOUD_SYNC_URL, account identity, a private overlay first). |
+| `version_status` | No | `dir?`, `format?` | Read-only version check: compares this tool AND the project's recorded template revision (the scaffolded-from: line in its AGENTS.md) against the latest release. |
+| `trim_plan` | No | `name`, `owner?`, `dir?`, `format?` | Preview scaffolding a checkout (validates name and owner, shows the plan envelope). |
+| `trim_apply` | Yes (`confirm:true`) | `name`, `owner?`, `dir?`, `format?`, `confirm: true` | Scaffold a checkout (rename, prove with build). |
+| `migrate_plan` | No | `from?`, `to?`, `dir?`, `changelog?`, `files?`, `format?` | Read-only migration list: every release between the project's recorded base revision (the scaffolded-from: line in its AGENTS.md) and the latest, plus the gates that prove a migrated tree conforms. |
+| `export_unit` | Only writes `to` | `unit`, `dir`, `to`, `module?`, `format?` | Read-only PORT BUNDLE for a tree that is not a gogogo checkout (a tree this build does not scaffold): copies the unit's owned files into the scratch `to` directory and writes PORTING.md with the measured wiring — routes it registers, imports to rewrite, what YOU must write by hand — plus the proof commands. |
+| `new_feature` | Yes (`confirm:true`) | `name`, `dir`, `confirm: true`, `dryRun?` | Scaffold one new feature inside a gogogo checkout: handler + page, composition-root wiring, capability unit, RBAC rows, then templ generate, generated docs, registry conformance, check-flatdeps and a build proof. |
+| `recipe_install` | Yes (`confirm:true`) | `src`, `dir`, `confirm: true`, `dryRun?`, `entry?`, `format?` | Install a recipe package (tree plus .recipe.yml) into a gogogo checkout: copy, receipt, generated registration, schema/policy/codegen and proof. |
+| `recipe_update` | Yes (`confirm:true`) | `src`, `dir`, `confirm: true`, `dryRun?`, `entry?`, `format?` | Update an already-installed recipe from a recipe directory or catalog entry. |
+| `recipe_uninstall` | Yes (`confirm:true`) | `id`, `dir`, `confirm: true`, `format?` | Uninstall one installed recipe by id: removes only pristine files, keeps edited or derived state, updates registration/policy/schema surfaces and marks the receipt removed. |
+| `recipe_status` | No | `dir`, `id?`, `catalog?`, `format?` | Read-only recipe drift report: pristine vs edited copy, generated/schema/policy state, or one recipe by id. |
+| `recipe_outdated` | No | `dir`, `id?`, `catalog?`, `format?` | Read-only recipe version check: compares each installed recipe's recorded version against the latest catalog version (catalog/<id>/<version>.yaml, default <dir>/catalog). |
+| `recipe_list` | No | `dir?`, `format?` | Read-only recipe discovery: every built-in capability plus every user-installed recipe, with origin, kind, summary, installed/removed state and the invocable verbs. |
+| `recipe_describe` | No | `id`, `dir?`, `format?` | Describe one recipe by id: kind, origin, summary, registration surface, dependencies, invocable verbs with a description, per-param help, and the metrics/outcomes it already declares (job, beneficiary, counter signals). |
+| `recipe_check` | No | `id?`, `dir`, `format?` | Read-only recipe evaluator: the report `gogogo recipe check` prints — healthy flag, score, errors, warnings, suggestions, complexity, the declared metrics/panel cross-check, the derived test inventory and the headless-surface warnings. |
+| `recipe_test` | No (runs the recipe's own tests) | `id?`, `dir`, `noRace?`, `run?`, `list?` | Run the tests ONE recipe owns, with the package scope derived from its receipt (Files + Register), through the module's own `go test`: the same run as `gogogo recipe test`. |
+| `recipe_invoke` | Server state (mutating verbs only) | `id`, `verb`, `server`, `session`, `params?`, `dir?`, `format?` | Invoke one declared verb (read or mutating) of a recipe against a running server (loopback only): runs it through the server's own session and policy stack with the operator token. |
+| `advise_stack` | No | `need?`, `intent?`, `dir?`, `format?` | Opinions, not changes: which units to keep for a use-case, how each switches off, and the exact command ROUTE for the goal. |
+<!-- MCP:TOOLS:END -->
+
+The table is **generated** from the catalog the server serves
+(`cmd/gogogo-mcp/catalog.go`): the last column is the first sentence of each
+tool's own description — the headline the agent reads at call time. Change the
+catalog, run `make docs-index`, and the prose follows: a tool cannot describe
+itself one way and be documented another. The complete description of every
+tool is what `gogogo-mcp --help` prints.
 
 Read-only tools need nothing else. Mutating tools fail closed without
 `confirm:true` — preview with `trim_plan` (or `dryRun:true`) first, then
 apply. `export_unit` is the exception to the exception: it mutates only the
 scratch directory you name, never the checkout it reads, so it needs no
 confirm gate. Formats default to `json` on this transport.
-
-Every recipe verb the CLI answers is on this transport too: `recipe_check` is
-the evaluator and `recipe_test` runs the recipe's own tests, so an agent that
-only speaks MCP never has to shell out to judge a declaration or to run what
-it wrote.
 
 ### Installer surface vs product surface
 

@@ -147,9 +147,10 @@ func main() {
 }
 
 // writeIndex regenerates what the guard treats as generated: the README page
-// index (from the site MANIFEST) and the measured numbers (from the files).
+// index (from the site MANIFEST), the measured numbers (from the files) and
+// the MCP tool tables (from the catalog the server serves).
 var writeIndex = flag.Bool("write", false,
-	"regenerate the README page index and the measured Client weight numbers")
+	"regenerate the README page index, the measured Client weight numbers and the MCP tool tables")
 
 func run() error {
 	root, err := moduleRoot()
@@ -163,7 +164,10 @@ func run() error {
 		if werr := writeClientWeight(root); werr != nil {
 			return werr
 		}
-		fmt.Fprintln(os.Stdout, "check-docs: README page index and measured numbers regenerated")
+		if werr := writeMCPTools(root); werr != nil {
+			return werr
+		}
+		fmt.Fprintln(os.Stdout, "check-docs: README page index, measured numbers and the MCP tool tables regenerated")
 	}
 	files, err := docFiles(root)
 	if err != nil {
@@ -176,6 +180,7 @@ func run() error {
 	problems := checkCounts(root, files)
 	problems = append(problems, checkPaths(root, files, trimmedPaths(root))...)
 	problems = append(problems, checkCommands(root, files, subs)...)
+	problems = append(problems, checkMCPTools(root)...)
 	problems = append(problems, checkManifest(root)...)
 	problems = append(problems, checkReadmeIndex(root)...)
 	problems = append(problems, checkClientWeight(root)...)

@@ -25,28 +25,35 @@ Claude Code (`~/.claude.json`) / Cursor (`~/.cursor/mcp.json`) / BB:
 
 ## Tools
 
+<!-- MCP:TOOLS:START -->
 | Tool | Params | Effect |
 |---|---|---|
-| `capabilities_list` | — | Full registry JSON, including each capability's `kind`, summary, and off-switch |
-| `build_prerequisites` | `platform?` | How to build the desktop shell or the Android target: prerequisites, `make desktop`/`make mobile`, the smoke gates, the Android driver swap (tursogo → ncruces) and the mobile limits. Read-only; same text as `gogogo --help` |
-| `sync_prerequisites` | — | What a desktop build needs to sync: a reachable NATS leaf listener (`NATS_LEAFNODE_LISTEN`), `NATS_TOKEN`, `CLOUD_SYNC_URL`, account identity, a private overlay first. Read-only; same text as `gogogo --help` |
-| `advise_stack` | `need?`, `intent?`, `dir?`, `format?` | Opinions + the command ROUTE: use-case → off switches, and the ordered commands for `intent` (update/port/new-feature/scaffold). A `dir` that is not a gogogo checkout gets the copy surface + the export route |
-| `trim_plan` | `name`, `owner?`, `dir?`, `format?` | Validates name and owner; shows the plan envelope (full tree). Changes nothing |
-| `trim_apply` | trim_plan params + `confirm: true` | Rename + tidy + build proof. Refuses without `confirm:true` |
-| `version_status` | `dir?`, `format?` | Is the tool — and the project's recorded base — behind the latest release? Read-only, opt-in, never on startup. "Update exists" is a verdict, not an error |
-| `migrate_plan` | `from?`, `to?`, `dir?`, `changelog?`, `files?`, `format?` | Releases between the recorded base and the latest, plus the gates that prove a migrated tree. `files:true` adds the per-file impact (capability + kept/removed). Read-only; nothing is applied |
-| `export_unit` | `unit`, `dir`, `to`, `module?`, `format?` | Read-only PORT BUNDLE for a tree that is not a gogogo checkout: copies the unit's files into `to` + writes `PORTING.md` (routes, imports to rewrite, what to write by hand, proof). Changes nothing in `dir` |
-| `new_feature` | `name`, `dir`, `confirm`, `dryRun?` | Scaffold one feature inside a checkout: handler + page + wiring + capability unit + RBAC rows, then gates + build proof. Refuses without `confirm:true` (or preview with `dryRun:true`) |
-| `recipe_install` | `src`, `dir`, `confirm`, `dryRun?`, `entry?`, `format?` | Install a packaged recipe (tree plus `.recipe.yml`) into a gogogo checkout. Receipt, registration, schema/policy/codegen and proof included; `dryRun:true` previews |
-| `recipe_update` | `src`, `dir`, `confirm`, `dryRun?`, `entry?`, `format?` | Update one installed recipe from a directory or a catalog entry. `dryRun:true` previews; refuses without an existing receipt |
-| `recipe_uninstall` | `id`, `dir`, `confirm`, `format?` | Remove one installed recipe by id. Removes only pristine files, marks the receipt removed, and updates registration/policy/schema surfaces |
-| `recipe_status` | `dir`, `id?`, `catalog?`, `format?` | Read-only recipe drift report: pristine vs edited files, generated/schema/policy state, plus the version verdict against the catalog |
-| `recipe_outdated` | `dir`, `id?`, `catalog?`, `format?` | Read-only recipe version check: each installed recipe's recorded version vs the latest catalog version (`catalog/<id>/<version>.yaml`). Behind is a verdict (exit 3 accepted), unversioned installs and missing catalog entries report unknown |
-| `recipe_list` | `dir?`, `format?` | Discover recipes: built-in capabilities plus user-installed recipes, with origin, kind, installed/removed state, dependencies, declared surface, invocable verbs and available lifecycle verbs |
-| `recipe_describe` | `id`, `dir?`, `format?` | Describe one recipe by id: kind, origin, summary, registration surface, dependencies, declared surface, invocable verbs and available lifecycle verbs |
-| `recipe_check` | `id?`, `dir`, `format?` | Read-only recipe evaluator: healthy flag, score, errors, warnings, suggestions, complexity, the declared metrics/panel cross-check, the derived test inventory and the headless-surface warnings. A blocked recipe comes back as a failed call carrying the report — the verdict is the point |
-| `recipe_test` | `id?`, `dir`, `noRace?`, `run?`, `list?` | Run the tests ONE recipe owns, with the package scope derived from its receipt, through the module's own `go test`. `noRace` is the fast TDD loop, `run` selects one test, `list` prints the derived packages instead of running them. Needs Go on PATH |
-| `recipe_invoke` | `id`, `verb`, `server`, `session`, `params?`, `dir?`, `format?` | Developer client for one declared verb against a running server (loopback only): the verb runs through the server's own session and policy stack under the operator token. A declared `{id}` takes `params.id` as a UUID. Mutates server state — read `recipe_describe` first. Not a product MCP |
+| `capabilities_list` | — | No |
+| `build_prerequisites` | `platform?` | No |
+| `sync_prerequisites` | — | No |
+| `version_status` | `dir?`, `format?` | No |
+| `trim_plan` | `name`, `owner?`, `dir?`, `format?` | No |
+| `trim_apply` | `name`, `owner?`, `dir?`, `format?`, `confirm: true` | Yes (`confirm:true`) |
+| `migrate_plan` | `from?`, `to?`, `dir?`, `changelog?`, `files?`, `format?` | No |
+| `export_unit` | `unit`, `dir`, `to`, `module?`, `format?` | Only writes `to` |
+| `new_feature` | `name`, `dir`, `confirm: true`, `dryRun?` | Yes (`confirm:true`) |
+| `recipe_install` | `src`, `dir`, `confirm: true`, `dryRun?`, `entry?`, `format?` | Yes (`confirm:true`) |
+| `recipe_update` | `src`, `dir`, `confirm: true`, `dryRun?`, `entry?`, `format?` | Yes (`confirm:true`) |
+| `recipe_uninstall` | `id`, `dir`, `confirm: true`, `format?` | Yes (`confirm:true`) |
+| `recipe_status` | `dir`, `id?`, `catalog?`, `format?` | No |
+| `recipe_outdated` | `dir`, `id?`, `catalog?`, `format?` | No |
+| `recipe_list` | `dir?`, `format?` | No |
+| `recipe_describe` | `id`, `dir?`, `format?` | No |
+| `recipe_check` | `id?`, `dir`, `format?` | No |
+| `recipe_test` | `id?`, `dir`, `noRace?`, `run?`, `list?` | No (runs the recipe's own tests) |
+| `recipe_invoke` | `id`, `verb`, `server`, `session`, `params?`, `dir?`, `format?` | Server state (mutating verbs only) |
+| `advise_stack` | `need?`, `intent?`, `dir?`, `format?` | No |
+<!-- MCP:TOOLS:END -->
+
+The table is **generated** from `catalog.go`, the file the server serves from:
+the last column is what each tool changes, and the full description of every
+tool is in [docs/mcp.md](../../docs/mcp.md#tools). Change the catalog, run
+`make docs-index`, and both tables follow.
 
 Formats default to `json` on this transport (humans get text on the CLI).
 Mutating tools return the same envelopes the CLI prints, including
