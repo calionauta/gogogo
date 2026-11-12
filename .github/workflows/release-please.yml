@@ -92,4 +92,5 @@ jobs:
         if: ${{ steps.release.outputs.release_created == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run deploy.yml -R "$GITHUB_REPOSITORY" --ref master
+          TAG: ${{ steps.release.outputs.tag_name }}
+        run: gh workflow run deploy.yml -R "$GITHUB_REPOSITORY" --ref master -f tag="$TAG"

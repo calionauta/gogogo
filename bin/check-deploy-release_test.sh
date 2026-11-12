@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # Contract test for bin/check-deploy-release.sh.
 #
-# The check guards a promise ("every release ships the released version"),
-# so the check itself needs a promise: it must FAIL when the guarantee is
-# removed. A check that only ever passes is decoration.
+# The check guards a promise ("production runs the release; the badge says
+# what runs"), so the check itself needs a promise: it must FAIL when the
+# guarantee is removed. A check that only ever passes is decoration.
 #
-# Each case removes ONE fact from the real workflows — the release trigger,
-# the tag resolution, the schedule, the manual path — and the check must
-# catch it. The real workflows must pass.
+# Each case removes ONE fact from the real workflows — production following
+# master, the release trigger, the tag in the dispatch, the checkout of the
+# release, the version, the net, the manual path — and the check must catch
+# it. The real workflows must pass.
 set -uo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -38,18 +39,43 @@ strip() { # pattern, source, destination
   grep -vE -- "$1" "$2" >"$3"
 }
 
-strip 'gh workflow run deploy\.yml' "$real_release" "$tmp/no-trigger-release.yml"
-expect 1 "a release that cannot trigger the deploy is caught" \
-  "$real_deploy" "$tmp/no-trigger-release.yml"
+# production following master again: the trigger comes BACK
+python3 - "$real_deploy" "$tmp/pushes.yml" <<'PY2'
+import sys
+src, dst = sys.argv[1], sys.argv[2]
+text = open(src).read()
+# A push trigger on master, the regression the model forbids.
+text = text.replace("on:\n", "on:\n  push:\n    branches: [master]\n", 1)
+open(dst, "w").write(text)
+PY2
+expect 1 "production following master is caught" "$tmp/pushes.yml" "$real_release"
 
+# the release no longer triggers the deploy
+strip 'gh workflow run deploy\.yml' "$real_release" "$tmp/no-trigger.yml"
+expect 1 "a release that cannot trigger the deploy is caught" \
+  "$real_deploy" "$tmp/no-trigger.yml"
+
+# the dispatch without the tag
+strip 'deploy\.yml.*-f tag=' "$real_release" "$tmp/no-tag-arg.yml"
+expect 1 "a dispatch that does not name the tag is caught" \
+  "$real_deploy" "$tmp/no-tag-arg.yml"
+
+# the dispatch firing on every push
 strip "release_created == 'true'" "$real_release" "$tmp/no-condition.yml"
 expect 1 "a dispatch that fires on every push is caught" \
   "$real_deploy" "$tmp/no-condition.yml"
 
-strip 'git tag --points-at' "$real_deploy" "$tmp/no-tag.yml"
-expect 1 "a version that ignores the built commit's tag is caught" \
-  "$tmp/no-tag.yml" "$real_release"
+# the build checking out the event SHA instead of the release
+strip 'ref: \$\{\{ needs\.reconcile\.outputs\.ref \}\}' "$real_deploy" "$tmp/no-ref.yml"
+expect 1 "a build that ignores the release is caught" \
+  "$tmp/no-ref.yml" "$real_release"
 
+# the version not coming from the release
+strip 'version="\$\{\{ needs\.reconcile\.outputs\.version \}\}"' "$real_deploy" "$tmp/no-version.yml"
+expect 1 "a version that is not the release is caught" \
+  "$tmp/no-version.yml" "$real_release"
+
+# the net and the manual path
 strip '^\s*schedule:' "$real_deploy" "$tmp/no-schedule.yml"
 expect 1 "a missing safety-net schedule is caught" \
   "$tmp/no-schedule.yml" "$real_release"
