@@ -15,6 +15,23 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.69.0 (2026-11-12)
+
+## What's Changed
+* feat(recipe): measure a job as a success/total pair and stamp the catalog version by @calionauta in https://github.com/calionauta/gogogo/pull/405
+* fix(notes): make peer caret and selection presence owner-authoritative by @calionauta in https://github.com/calionauta/gogogo/pull/406
+* docs(research): survey headless CMS in Go, and why none is adopted by @calionauta in https://github.com/calionauta/gogogo/pull/407
+* feat(recipe): derive each recipe's test scope, require tests where routes are mounted by @calionauta in https://github.com/calionauta/gogogo/pull/404
+* docs: document outcome cards and drop a drifting line count by @calionauta in https://github.com/calionauta/gogogo/pull/409
+* docs: sync the agent index, the landing and the shell references with #404-#406 by @calionauta in https://github.com/calionauta/gogogo/pull/410
+* feat(mcp): reach the recipe evaluator and the recipe's own tests over MCP by @calionauta in https://github.com/calionauta/gogogo/pull/411
+* gate: generate the MCP tool tables from the catalog the server serves by @calionauta in https://github.com/calionauta/gogogo/pull/412
+* gate: catch the doc drift classes mechanically and name the page in the PR by @calionauta in https://github.com/calionauta/gogogo/pull/413
+* docs(glossary): one meaning per term, and the retired names the checker rejects by @calionauta in https://github.com/calionauta/gogogo/pull/414
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.68.0...v0.69.0
+
 ## 0.68.0 (2026-11-11)
 
 ## What's Changed
