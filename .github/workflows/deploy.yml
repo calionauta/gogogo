@@ -113,6 +113,13 @@ on:
     # would already be on the tag. Note that GitHub does not evaluate path
     # filters for tag pushes, so a tag always deploys regardless of the paths
     # allow-list above.
+    #
+    # EXCEPT for release-please's own tags: those are pushed with
+    # GITHUB_TOKEN, and a workflow started by GITHUB_TOKEN never runs — so this
+    # arm does NOT fire for a release-please release. That is why the release
+    # itself dispatches the deploy (release-please.yml, the same bridge
+    # release.yml uses for the installer binaries): the RELEASE is what must
+    # ship, and it is dispatched at the moment the tag exists.
     tags: ["v*"]
   workflow_dispatch:
 
@@ -242,9 +249,36 @@ jobs:
         id: meta
         # The commit is shortened here, not by the Dockerfile, because the
         # build stamp is what /health reports and what the deploy asserts on.
+        #
+        # The version is the TAG THAT POINTS AT THE COMMIT BEING BUILT, not
+        # merely the nearest tag. The two differ exactly when it matters: a
+        # release commit is tagged by release-please moments after the push
+        # that merged it, and the deploy starts from that SAME push — so
+        # `git describe` alone can resolve the PREVIOUS tag and ship a
+        # release labelled as the version before it. The tag is therefore
+        # waited for (bounded), because this is the moment the released
+        # version goes out; a stale label is the bug the badge exists to
+        # avoid. A commit that is not a release commit never waits: it has no
+        # tag coming and the nearest tag is the right label.
         run: |
           repo="$(printf '%s' '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
-          version="$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')"
+          sha='${{ github.sha }}'
+          release_commit=false
+          if ! git diff --name-only "${sha}~1" "$sha" -- .github/.release-please-manifest.json 2>/dev/null | grep -q .; then
+            :
+          else
+            release_commit=true
+          fi
+          version=""
+          for attempt in 1 2 3 4 5 6 7 8; do
+            version="$(git tag --points-at "$sha" 2>/dev/null | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | head -1 | sed 's/^v//')"
+            [ -n "$version" ] && break
+            [ "$release_commit" = "true" ] || break
+            echo "→ waiting for the release tag of ${sha} (attempt ${attempt})…"
+            sleep 15
+            git fetch --tags --force --quiet || true
+          done
+          version="${version:-$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')}"
           echo "image_repo=ghcr.io/${repo}" >> "$GITHUB_OUTPUT"
           echo "version=${version:-dev}" >> "$GITHUB_OUTPUT"
           echo "short_sha=$(printf '%s' '${{ github.sha }}' | cut -c1-7)" >> "$GITHUB_OUTPUT"

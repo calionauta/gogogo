@@ -52,7 +52,7 @@ pre-commit:
     # whenever the policies or their consumers change. Milliseconds.
     - name: ci-scripts
       run: make check-ci-scripts
-      glob: "{scripts/ci-changes-classifier.sh,scripts/ci-changes-classifier.test.sh,scripts/ci-shard-packages.sh,scripts/ci-shard-packages.test.sh,.github/workflows/ci.yml}"
+      glob: "{scripts/ci-changes-classifier.sh,scripts/ci-changes-classifier.test.sh,scripts/ci-shard-packages.sh,scripts/ci-shard-packages.test.sh,bin/check-deploy-release.sh,bin/check-deploy-release_test.sh,.github/workflows/ci.yml,.github/workflows/deploy.yml}"
 
     # Markup ↔ stylesheet ↔ doc, plus the DaisyUI part rules. Globs are the
     # three things it compares: a change to any of them can break the invariant.
