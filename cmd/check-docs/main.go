@@ -183,6 +183,7 @@ func run() error {
 	}
 	problems := checkCounts(root, files)
 	problems = append(problems, checkLineCounts(root, files)...)
+	problems = append(problems, checkRetiredTerms(root, files)...)
 	problems = append(problems, checkPaths(root, files, trimmedPaths(root))...)
 	problems = append(problems, checkCommands(root, files, subs)...)
 	problems = append(problems, checkCLIVerbs(root, subs, recipeVerbsList)...)
@@ -337,7 +338,7 @@ func trimmedPaths(root string) map[string]bool {
 func checkCommands(root string, files, known []string) []string {
 	var out []string
 	for _, rel := range files {
-		if slices.Contains(historyDocs, rel) {
+		if slices.Contains(historyDocs, rel) || rel == glossaryPage {
 			continue
 		}
 		lines, err := fileLines(root, rel)
