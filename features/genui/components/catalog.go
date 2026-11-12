@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash/fnv"
+	"io"
 	"net/http"
 	"slices"
 	"strings"
@@ -346,6 +348,30 @@ func Registered(name string) bool {
 	}
 	_, ok := renderers[name]
 	return ok
+}
+
+// CatalogVersion fingerprints the vocabulary the chat surfaces advertise right
+// now, including panel names (installing or retiring a panel changes it).
+//
+// Derived, not bumped by hand: a rename, a retirement or a new leaf moves the
+// fingerprint by construction, so a stored answer cannot carry a version that
+// lies about the components it names. It is the stamp chat writes beside an
+// answer, and the comparison that decides whether history still renders
+// through this catalog or must be filtered first (see CatalogVersionOf).
+func CatalogVersion() string {
+	return catalogVersionOf(CatalogComponents())
+}
+
+// catalogVersionOf is the pure half: same names in, same fingerprint out, and
+// any difference in the set (added, removed, renamed) changes it. Separated from
+// CatalogVersion so the property is testable without mutating the registry.
+func catalogVersionOf(names []string) string {
+	h := fnv.New64a()
+	for _, name := range names {
+		_, _ = io.WriteString(h, name)
+		_, _ = h.Write([]byte{0})
+	}
+	return fmt.Sprintf("%08x", h.Sum64())
 }
 
 // CatalogComponents lists the names Chat may lead with under its default

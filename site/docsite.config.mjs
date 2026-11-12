@@ -103,6 +103,8 @@ export default {
     desc: "License gate, account pairing or cloud-only? The 2026 desktop distribution options, the offline-first matrix, and why gogogo keeps one identity per profile." },
   { group: "Research", slug: "ui-engine-research", file: "research/ui-engine-research.md",
     desc: "The 2026-10-21 engine and component-library evaluation behind the UI stack, with local benchmarks and the Rocket assessment." },
+  { group: "Research", slug: "genui-schema-patterns", file: "research/genui-schema-patterns-2026-11.md",
+    desc: "OpenUI Lang vs A2UI catalogs measured against this catalog: what is worth copying (per-component fixtures, prompt/validator parity) and why neither format is adopted." },
   { group: "Research", slug: "ui-components", file: "research/ui-components-2026-10-21.md",
     desc: "The 2026-10-21 comparison of DaisyUI, Starbase, datastar-ui and dsx on Datastar, SSE, lightness, performance, functionality and forkability." },
   { group: "Research", slug: "supply-chain-scanning", file: "research/supply-chain-scanning-2026.md",
