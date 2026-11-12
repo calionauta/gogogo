@@ -310,6 +310,14 @@ jobs:
         # docs-only (a false "true" is a green build that skipped every heavy
         # gate). Synthetic path lists: no repo, no git, instant.
         run: bash scripts/ci-changes-classifier.test.sh
+      - name: Workflow shell contract
+        # A workflow's shell is only validated when it RUNS, and a deploy that
+        # dies on a syntax error is a deploy that never happens (a raw double
+        # quote inside the ssh block of deploy.yml broke two release
+        # dispatches while the PR's own CI stayed green). `bash -n` over every
+        # shell block is the cheapest proof that the shell will at least
+        # START.
+        run: bash bin/check-workflow-shell_test.sh
       - name: Shard split contract
         # The selector decides WHICH tests run, so its own test pins that the
         # union of every shard is exactly web-packages.sh (no gap, no duplicate),
