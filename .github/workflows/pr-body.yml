@@ -38,12 +38,21 @@ jobs:
           BODY: ${{ github.event.pull_request.body }}
         run: |
           fail=0
-          for marker in 'Closes #NNN' 'Write this yourself' 'Required, one line' '<the page this change updates'; do
+          for marker in 'Closes #NNN' 'Write this yourself' 'Required, one line'; do
             if printf '%s' "$BODY" | grep -qF "$marker"; then
               echo "❌ PR body still contains template placeholder: $marker"
               fail=1
             fi
           done
+          # The Docs slot is matched as a LINE PREFIX, not as a bare substring:
+          # a body may legitimately QUOTE the placeholder (a PR that explains
+          # the template, or the evidence that the check fires), but the slot
+          # itself must not still hold it. A substring match made the check
+          # fail on its own documentation.
+          if printf '%s' "$BODY" | grep -qF -- '- Page(s): <the page this change updates'; then
+            echo "❌ PR body still contains template placeholder: - Page(s): <the page this change updates>"
+            fail=1
+          fi
           if [ "$fail" -ne 0 ]; then
             echo ""
             echo "Fill every .github/PULL_REQUEST_TEMPLATE.md section (linked issue,"
