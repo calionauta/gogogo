@@ -11,12 +11,13 @@
 - skills/gogogo-coding-standards/SKILL.md — Go + template rules (read when editing .go; on a .templ edit also read the UI skill below for the Datastar/backend gate)
 - skills/gogogo-ui/SKILL.md — template UI rules over the vendored DaisyUI vocabulary (read before any .templ/CSS edit, with docs/ui-themes.md)
 - skills/gogogo-recipe-authoring/SKILL.md — extension authoring contract (read before creating a feature, installing/editing a recipe, filling a slot, or declaring routes/tables/jobs)
+- Measuring a recipe (an outcome is the job as a success/total pair of counts, no event stream, propose-then-confirm): skills/gogogo-recipe-authoring/references/outcomes.md. Find what a recipe already counts with `recipe describe <id>` (or MCP `recipe_describe`) — metrics and outcomes are in its JSON — and validate a declaration with `recipe check <id>`. Rationale, not procedure: docs/research/recipe-outcomes-2026-11.md
 - Two surfaces, never conflated: `cmd/gogogo` + `cmd/gogogo-mcp` are the **evolution** tools (developer only, may rewrite a checkout); a product's users/agents use `cmd/web` routes + `POST /api/ext/invoke` under session/RBAC. `recipe invoke` / `recipe_invoke` are developer clients of that route, not a product MCP. Details: docs/mcp.md#installer-surface-vs-product-surface.
 
 ## By task
 
 - New feature or product plan: docs/overview.md, docs/features.md
-- Creating a feature or extension (recipe contract — what a recipe may own, what it must never touch, slots, update path): skills/gogogo-recipe-authoring/SKILL.md; reference slice: features/todo (in-tree); minimal installable example: _extensions/pomodoro (not installed by default)
+- Creating a feature or extension (recipe contract — what a recipe may own, what it must never touch, slots, outcomes, update path): skills/gogogo-recipe-authoring/SKILL.md; reference slice: features/todo (in-tree); minimal installable example: _recipes/pomodoro (not installed by default); voice + outcome demo: _recipes/coffee
 - Adding a dependency, or writing something a library could do (write-vs-rent,
   the ordered procedure, the four human-gated cases): docs/dependency-principles.md
 - Search layers (substring / fuzzy / BM25), the runtime picker, the trim story: docs/search.md

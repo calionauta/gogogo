@@ -46,6 +46,15 @@ the root installs the catalog once. `Hydrate` fills a live answer;
 provider that cannot fill is replaced by the honest
 "couldn't load this" placeholder, never an empty panel.
 
+**History is versioned against the catalog.** `components.CatalogVersion()` is
+the fingerprint of the vocabulary the chat surfaces advertise — leaves plus
+installed panel names, hashed, never bumped by hand. The worker stamps it on
+every stored answer (`store.Message.CatalogVersion`); on reload, an answer whose
+stamp differs is filtered through `FilterDirectives` before rendering, so a
+renamed or retired component drops out and the rest of the message survives.
+Without the stamp, one retired name makes `RenderAll` fail and blanks the whole
+answer. Unstamped (older) rows and matching rows render exactly as stored.
+
 ## Declarative spec (schema-first)
 
 The component name, prompt and writable props also live in the recipe's

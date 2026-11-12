@@ -1,0 +1,348 @@
+// The coffee demo's page: one text field, one preview card, one order list.
+//
+// Two deliberate choices:
+//
+//   - Text first. The microphone fills the same input the keyboard fills, and the
+//     same debounced request parses both. There is no second code path to keep in
+//     step, and a browser without speech support loses nothing but the button.
+//   - The recognizer runs ON DEVICE or not at all (processLocally). A demo that
+//     quietly streams a microphone to a vendor is a privacy decision nobody made;
+//     when the local language pack is missing the button says so and the user
+//     types.
+//
+// The script is inline rather than a static asset: the page owns ~90 lines of
+// behavior with no templ expression in a script body, and inlining keeps the
+// recipe from declaring a route (and a policy row) just to serve one file. The
+// dashboard's odometer island is the same shape.
+package components
+
+import (
+	"strconv"
+
+	"github.com/calionauta/gogogo/internal/ui"
+)
+
+// Order is one confirmed order as the page and the chat panel render it. The
+// view type is local so this package never imports the generated query package:
+// the page compiles whether or not codegen has run.
+type Order struct {
+	Drink     string
+	Size      string
+	Milk      string
+	Extras    string
+	Price     string
+	When      string
+	Corrected bool
+}
+
+// PageData is everything Page needs: the viewer, the build label, the
+// recognizer's phrase list and the rows.
+type PageData struct {
+	Email       string
+	Role        string
+	BuildLabel  string
+	BuildCommit string
+	// Phrases is the JSON array the recognizer uses as contextual bias. It is
+	// rendered from the menu, so the vocabulary has one source.
+	Phrases  string
+	MenuLine string
+	Orders   []Order
+}
+
+// seedSignals is the page's initial signal set. Text is deliberately absent:
+// $coffeeText is bound to the input, which owns it, so a server write could
+// clobber what the user is typing (the bug docs/realtime-recipe.md records).
+func seedSignals() Seeds {
+	return Seeds{
+		"coffeeDrink":   "",
+		"coffeeSize":    "",
+		"coffeeMilk":    "",
+		"coffeeExtras":  "",
+		"coffeePrice":   "",
+		"coffeeNeed":    "",
+		"coffeePreview": "",
+		"coffeeNotice":  "",
+		"coffeeBusy":    false,
+		"coffeeQueued":  false,
+	}
+}
+
+// Page renders /coffee inside the shell.
+templ Page(data PageData) {
+	@ui.Shell(ui.Data{
+		Title:       "Coffee — gogogo",
+		Heading:     "Coffee",
+		Context:     "demo · ext_coffee_orders",
+		Email:       data.Email,
+		Role:        data.Role,
+		BuildLabel:  data.BuildLabel,
+		BuildCommit: data.BuildCommit,
+	}, coffeeHead(), nil, nil, coffeeBody(data))
+}
+
+// coffeeHead carries the voice wiring. The recognizer only fills the input and
+// dispatches `input`: the request itself belongs to the markup, next to the
+// debounce, so there is one place that decides when the server is asked.
+templ coffeeHead() {
+	<script nonce={ templ.GetNonce(ctx) }>
+		(function () {
+			var root = document.getElementById("coffee-voice");
+			var input = document.getElementById("coffee-text");
+			var status = document.getElementById("coffee-voice-status");
+			var mic = document.getElementById("coffee-mic");
+			if (!root || !input || !status || !mic) return;
+
+			var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+			var lang = document.documentElement.lang || "en-US";
+			var recognition = null;
+			var listening = false;
+			var lastResultAt = 0;
+			var watchdog = 0;
+
+			function say(text) { status.textContent = text; }
+			function idle() {
+				listening = false;
+				mic.setAttribute("aria-pressed", "false");						mic.textContent = "Microphone";
+			}
+
+			function stop() {
+				clearTimeout(watchdog);
+				if (recognition && listening) recognition.stop();
+				idle();
+			}
+
+			// On-device gating. available()/install() are the 2026 Web Speech API
+			// surface; without them the browser can only recognize remotely, and
+			// this page does not use a remote recognizer.
+			function localSupport() {
+				return !!(SR && typeof SR.available === "function" && typeof SR.install === "function");
+			}
+
+			function prepare(next) {
+				if (recognition) return recognition;
+				recognition = new SR();
+				recognition.lang = lang;
+				recognition.continuous = true;
+				recognition.interimResults = true;
+				recognition.maxAlternatives = 1;
+				recognition.processLocally = true;
+				bias(recognition);
+				recognition.onresult = function (event) {
+					lastResultAt = Date.now();
+					var text = "";
+					for (var i = 0; i < event.results.length; i++) {
+						text += event.results[i][0].transcript + " ";
+					}
+					input.value = text.trim();
+					input.dispatchEvent(new Event("input", { bubbles: true }));
+				};
+				recognition.onerror = function (event) {
+					say("Microphone: " + (event.error || "error") + " — type the order.");
+					stop();
+				};
+				recognition.onend = function () {
+					// The browser ends a session on its own after silence. Leave it
+					// stopped and say so rather than pretending it is still listening.
+					if (listening) {
+						say("Listening stopped — tap the microphone to continue, or type.");
+						idle();
+					}
+				};
+				return next(recognition);
+			}
+
+			// bias supplies the menu as phrases. Contextual biasing is the cheap half
+			// of accuracy: the recognizer prefers words it was told about.
+			function bias(rec) {
+				if (!rec.phrases || !window.SpeechRecognitionPhrase) return;
+				if (!root.dataset.phrases) return;
+				try {
+					var labels = JSON.parse(root.dataset.phrases);
+					rec.phrases = labels.map(function (label) {
+						return new SpeechRecognitionPhrase(label, 1);
+					});
+				} catch (_) {
+					// A malformed attribute costs the bias, not the feature.
+				}
+			}
+
+			function start() {
+				if (!localSupport()) {
+					say("This browser offers no on-device recognition — type the order.");
+					return;
+				}
+				var options = { langs: [lang], processLocally: true };
+				SR.available(options).then(function (state) {
+					if (state === "available") return true;
+					say("Downloading the language pack once…");
+					return SR.install(options);
+				}).then(function (ready) {
+					if (!ready) {
+						say("No local language pack — type the order.");
+						return;
+					}
+					prepare(function (rec) {
+						listening = true;
+						mic.setAttribute("aria-pressed", "true");
+						mic.textContent = "Stop";
+						say("Listening on device…");
+						lastResultAt = Date.now();
+						rec.start();
+						// A known browser bug (Chromium 579050368) detects speech and
+						// never fires a result. Silence must become an instruction,
+						// not a spinner that never ends.
+						watchdog = setTimeout(function () {
+							if (listening && Date.now() - lastResultAt > 4000) {
+								say("I did not catch that — type the order.");
+								stop();
+							}
+						}, 4500);
+					});
+				}).catch(function () {
+					say("On-device recognition unavailable — type the order.");
+				});
+			}
+
+			mic.addEventListener("click", function () {
+				if (listening) stop(); else start();
+			});
+
+			window.__coffeeVoice = { toggle: function () { if (listening) stop(); else start(); } };
+		})();
+	</script>
+}
+
+templ coffeeBody(data PageData) {
+	<div class="ui-page ui-page-narrow ui-stack" data-signals={ MarshalSignals(seedSignals()) }>
+		<section class="ui-card" id="coffee-voice" data-phrases={ data.Phrases }>
+			<div class="ui-card-body ui-stack">
+				<h2 class="ui-title">Say the order</h2>
+				<p class="ui-meta">
+					The microphone uses the device's own recognition. Without support,
+					permission or the language pack, type it: the path is the same.
+				</p>
+				<form
+					id="coffee-form"
+					class="ui-row"
+					data-on:submit__prevent="@post('/api/coffee/preview', {contentType: 'form'})"
+				>
+					<input
+						id="coffee-text"
+						name="text"
+						class="input input-sm grow"
+						autocomplete="off"
+						placeholder="a large latte with oat milk"
+						aria-label="Order"
+						maxlength="240"
+						data-bind="coffeeText"
+						data-on:input__debounce.250ms="!$coffeeBusy ? ($coffeeBusy = true, @post('/api/coffee/preview', {contentType: 'form'}).finally(() => { $coffeeBusy = false; if ($coffeeQueued) { $coffeeQueued = false; el.dispatchEvent(new CustomEvent('coffee-retry', { bubbles: true })) } })) : ($coffeeQueued = true)"
+						data-on:coffee-retry="!$coffeeBusy ? ($coffeeBusy = true, @post('/api/coffee/preview', {contentType: 'form'}).finally(() => { $coffeeBusy = false; })) : null"
+					/>
+					<input type="hidden" name="previewed" data-attr:value="$coffeePreview"/>
+					<button type="submit" class="btn btn-sm">Interpret</button>
+				</form>
+				<div class="ui-row">
+					<button
+						type="button"
+						id="coffee-mic"
+						class="btn btn-sm"
+						aria-pressed="false"
+						data-on:click="window.__coffeeVoice && window.__coffeeVoice.toggle()"
+					>
+						Microphone
+					</button>
+					<span id="coffee-voice-status" class="ui-meta" role="status">
+						Typing always works — the microphone is optional.
+					</span>
+				</div>
+				<p class="ui-meta">{ data.MenuLine }</p>
+			</div>
+		</section>
+
+		<section class="ui-card">
+			<div class="ui-card-body ui-stack">
+				<h2 class="ui-title">Preview</h2>
+				<p class="ui-meta">
+					Provisional. Nothing is submitted until you confirm.
+				</p>
+				<dl class="ui-stack">
+					<div class="ui-row justify-between">
+						<dt class="ui-meta">Drink</dt>
+						<dd data-text="$coffeeDrink || '—'"></dd>
+					</div>
+					<div class="ui-row justify-between">
+						<dt class="ui-meta">Size</dt>
+						<dd data-text="$coffeeSize || '—'"></dd>
+					</div>
+					<div class="ui-row justify-between">
+						<dt class="ui-meta">Milk</dt>
+						<dd data-text="$coffeeMilk || '—'"></dd>
+					</div>
+					<div class="ui-row justify-between">
+						<dt class="ui-meta">Extras</dt>
+						<dd data-text="$coffeeExtras || '—'"></dd>
+					</div>
+					<div class="ui-row justify-between">
+						<dt class="ui-meta">Price</dt>
+						<dd data-text="$coffeePrice || '—'"></dd>
+					</div>
+				</dl>
+				<p class="ui-meta" data-show="!!$coffeeNeed" data-text="$coffeeNeed"></p>
+				<button
+					type="button"
+					class="btn btn-primary btn-sm"
+					data-attr:disabled="!!($coffeeBusy || !$coffeeDrink || $coffeeNeed)"
+					data-on:click="$coffeeBusy = true; @post('/api/coffee/confirm', {contentType: 'form'}).finally(() => { $coffeeBusy = false; })"
+				>
+					Confirm
+				</button>
+				<p class="ui-meta" data-show="!!$coffeeNotice" data-text="$coffeeNotice"></p>
+			</div>
+		</section>
+
+		<section class="ui-card">
+			<div class="ui-card-body">
+				<div id="coffee-orders">@OrdersList(data.Orders)</div>
+			</div>
+		</section>
+	</div>
+}
+
+// OrdersList is the page's list AND the chat panel's body: one component, so the
+// panel cannot drift from the page it summarizes (the rule docs/native-panels.md
+// records).
+templ OrdersList(orders []Order) {
+	<div class="ui-row justify-between">
+		<h2 class="ui-title">Orders</h2>
+		<span class="ui-meta">{ strconv.Itoa(len(orders)) }</span>
+	</div>
+	if len(orders) == 0 {
+		<div class="ui-empty">
+			<p class="ui-empty-title">No orders yet</p>
+			<p class="ui-empty-body">
+				Say or type an order and confirm it. Orders are per account: the list is
+				scoped in SQL, not filtered in the template.
+			</p>
+		</div>
+	} else {
+		<ul class="ui-stack text-sm">
+			for _, o := range orders {
+				<li class="ui-row justify-between">
+					<span>
+						{ o.Drink } · { o.Size }
+						if o.Milk != "" {
+							· { o.Milk }
+						}
+						if o.Extras != "" {
+							· { o.Extras }
+						}
+						if o.Corrected {
+							<span class="badge badge-warning badge-sm">corrected</span>
+						}
+					</span>
+					<span class="ui-meta">{ o.Price } · { o.When }</span>
+				</li>
+			}
+		</ul>
+	}
+}

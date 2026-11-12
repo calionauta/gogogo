@@ -126,6 +126,7 @@ func (h *Handler) index(w http.ResponseWriter, r *http.Request) {
 // (chat messages, credits balance).
 type counts struct {
 	declared             map[string][]components.Metric
+	outcomes             map[string][]components.Outcome
 	chatTotal, chatHuman int
 	balance              int
 }
@@ -140,6 +141,7 @@ func (h *Handler) loadCounts(ctx context.Context, owner string) counts {
 	// user-installed) is executed here generically — one COUNT query
 	// per metric, bound to the viewing owner. No per-recipe switch.
 	c.declared = h.declaredMetrics(ctx, owner)
+	c.outcomes = h.declaredOutcomes(ctx, owner)
 	if h.chatCount != nil {
 		if total, human, err := h.chatCount(ctx, owner); err == nil {
 			c.chatTotal, c.chatHuman = total, human
@@ -169,15 +171,8 @@ func (h *Handler) declaredMetrics(ctx context.Context, owner string) map[string]
 	for _, p := range h.registry.Providers() {
 		id := p.ID()
 		for _, m := range p.Declaration().Metrics {
-			var n int
-			args := []any{owner}
-			if !m.BindsOwner() {
-				args = nil
-			}
-			if err := h.db.QueryRowContext(ctx, m.Query, args...).Scan(&n); err != nil {
-				observability.Warn(ctx, "dashboard: metric query failed",
-					append(observability.WithComponent("dashboard", "core"),
-						"recipe", id, "metric", m.Label, "error", err)...)
+			n, ok := h.count(ctx, id, m, owner, "metric", m.Label)
+			if !ok {
 				continue
 			}
 			signal := m.Signal
@@ -188,6 +183,61 @@ func (h *Handler) declaredMetrics(ctx context.Context, owner string) map[string]
 		}
 	}
 	return out
+}
+
+// declaredOutcomes executes every installed recipe's declared outcome pair for
+// one owner. Two COUNTs per outcome, the same generic path as a metric (see
+// count) — the declaration carries the arithmetic, so no per-recipe switch and
+// no second query language appear here. A failing half omits the outcome
+// rather than rendering a ratio with an invented number.
+func (h *Handler) declaredOutcomes(ctx context.Context, owner string) map[string][]components.Outcome {
+	out := map[string][]components.Outcome{}
+	if h.registry == nil || h.db == nil {
+		return out
+	}
+	for _, p := range h.registry.Providers() {
+		id := p.ID()
+		for _, o := range p.Declaration().Outcomes {
+			success, ok := h.count(ctx, id, o.Success, owner, "outcome", o.ID)
+			if !ok {
+				continue
+			}
+			total, ok := h.count(ctx, id, o.Total, owner, "outcome", o.ID)
+			if !ok {
+				continue
+			}
+			out[id] = append(out[id], components.Outcome{
+				Label: o.Success.Label, Success: success, Total: total,
+			})
+		}
+	}
+	return out
+}
+
+// count runs one declared COUNT for one owner: the owner binds when the metric
+// asks for it, and a failure is logged and reported rather than rendered as
+// zero. Metrics and outcomes share it so "a declared count" has one executor —
+// but each keeps its own log line and field name, because the operator looking
+// at a missing card is diagnosing a metric or an outcome, not a generic count.
+func (h *Handler) count(
+	ctx context.Context, recipeID string, m recipe.Metric, owner, kind, name string,
+) (int, bool) {
+	var n int
+	args := []any{owner}
+	if !m.BindsOwner() {
+		args = nil
+	}
+	if err := h.db.QueryRowContext(ctx, m.Query, args...).Scan(&n); err != nil {
+		msg, field := "dashboard: metric query failed", "metric"
+		if kind == "outcome" {
+			msg, field = "dashboard: outcome query failed", "outcome"
+		}
+		observability.Warn(ctx, msg,
+			append(observability.WithComponent("dashboard", "core"),
+				"recipe", recipeID, field, name, "error", err)...)
+		return 0, false
+	}
+	return n, true
 }
 
 // metricSignal derives the odometer signal for a declared metric
@@ -251,7 +301,7 @@ func buildCards(mods []ui.Module, reach map[string]bool, c counts) []components.
 			}
 			cards = append(cards, components.Card{
 				Title: m.Title, URL: m.URL, Cta: cardCta(m, reach, "Open "+m.Title),
-				Locked: !reach[m.ID], Metrics: metrics,
+				Locked: !reach[m.ID], Metrics: metrics, Outcomes: c.outcomes[m.ID],
 			})
 		}
 	}

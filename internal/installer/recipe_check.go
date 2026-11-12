@@ -32,6 +32,7 @@ type RecipeCheckReport struct {
 	Declaration   recipe.Declaration    `json:"declaration"`
 	ProviderFiles []string              `json:"providerFiles,omitempty"`
 	Metrics       []checkMetricSummary  `json:"metrics,omitempty"`
+	Outcomes      []checkOutcomeSummary `json:"outcomes,omitempty"`
 	Panel         *recipe.PanelSpec     `json:"panel,omitempty"`
 	// Omitted is information, not a warning: the author explained why the
 	// route is not headless, and the report shows that decision.
@@ -44,6 +45,17 @@ type checkMetricSummary struct {
 	Query  string `json:"query"`
 	Signal string `json:"signal"`
 	Owner  *bool  `json:"owner,omitempty"`
+}
+
+// checkOutcomeSummary is the checker-facing shape of one declared outcome: the
+// job and the two counts, so a reader can see the ratio without opening the
+// receipt.
+type checkOutcomeSummary struct {
+	ID             string   `json:"id"`
+	Job            string   `json:"job"`
+	Success        string   `json:"success"`
+	Total          string   `json:"total"`
+	CounterSignals []string `json:"counterSignals,omitempty"`
 }
 
 // runRecipeCheck evaluates installed recipes without mutating the tree.
@@ -107,6 +119,12 @@ func checkOneRecipe(root, id string) RecipeCheckReport {
 			Label: m.Label, Query: m.Query, Signal: m.Signal, Owner: m.OwnerBinds,
 		})
 	}
+	for _, o := range receipt.Declaration.Outcomes {
+		report.Outcomes = append(report.Outcomes, checkOutcomeSummary{
+			ID: o.ID, Job: o.Job, Success: o.Success.Query, Total: o.Total.Query,
+			CounterSignals: o.CounterSignals,
+		})
+	}
 	if receipt.Removed != "" {
 		return reportWithErrors(report, "recipe is removed; restore or uninstall it")
 	}
@@ -126,14 +144,18 @@ func checkOneRecipe(root, id string) RecipeCheckReport {
 	}
 	metrics := recipe.MetricProblems(receipt.Declaration)
 	panelProblems := recipe.PanelProblems(receipt.Declaration)
+	outcomeProblems := recipe.OutcomeProblems(receipt.Declaration)
 	report.Errors = append(report.Errors, metrics...)
 	report.Errors = append(report.Errors, panelProblems...)
-	if len(metrics)+len(panelProblems) > 0 {
+	report.Errors = append(report.Errors, outcomeProblems...)
+	if len(metrics)+len(panelProblems)+len(outcomeProblems) > 0 {
 		report.Suggestions = append(report.Suggestions,
 			"fix the declaration first: metrics must be COUNT queries "+
-				"bound to owner (or ownerBinds:false), and a panel needs a "+
-				"snake_case component, prompt, and exactly one writable prop")
+				"bound to owner (or ownerBinds:false), a panel needs a "+
+				"snake_case component, prompt, and exactly one writable prop, "+
+				"and an outcome is a success/total pair of such counts over a declared table")
 	}
+	report = checkOutcomeInstrumentation(root, receipt, report)
 	report = checkRecipeRegistration(root, receipt, report)
 	report = checkRecipeHeadless(receipt, report)
 	report = checkRecipeMetricsAndPanel(root, receipt, report)
@@ -160,6 +182,23 @@ func checkOneRecipe(root, id string) RecipeCheckReport {
 	}
 	report.Score = recipeCheckScore(report)
 	report.Healthy = len(report.Errors) == 0
+	return report
+}
+
+// checkOutcomeInstrumentation blocks an outcome whose counter signal no write
+// path records. The token is the state the ratio is limited by, so a success
+// count nobody can move is a number nobody can read. Boot never applies this
+// rule (an older receipt must keep running), which is why the check — the place
+// the declaration is judged — is where it becomes an error.
+func checkOutcomeInstrumentation(root string, receipt recipe.Receipt, report RecipeCheckReport) RecipeCheckReport {
+	gaps := recipe.OutcomeInstrumentationGaps(root, receipt)
+	if len(gaps) == 0 {
+		return report
+	}
+	report = reportWithErrors(report, gaps...)
+	report.Suggestions = appendUnique(report.Suggestions,
+		"record each counter signal in the recipe's write path (the column the "+
+			"success query filters), or drop the signal from the declaration")
 	return report
 }
 
@@ -213,6 +252,9 @@ func printRecipeCheck(stdout io.Writer, report RecipeCheckReport) {
 	}
 	for _, o := range report.Omitted {
 		fmt.Fprintf(stdout, "  omitted: %s %s — %s\n", o.Route.Method, o.Route.Pattern, o.Reason)
+	}
+	for _, o := range report.Outcomes {
+		fmt.Fprintf(stdout, "  outcome: %s — %s\n", o.ID, o.Job)
 	}
 }
 

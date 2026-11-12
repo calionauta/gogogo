@@ -28,16 +28,17 @@ import (
 )
 
 // stubProvider is a minimal recipe.Provider for the generic dashboard
-// path: it only declares metrics (no routes served).
+// path: it declares metrics and outcomes (no routes served).
 type stubProvider struct {
-	id      string
-	metrics []recipe.Metric
+	id       string
+	metrics  []recipe.Metric
+	outcomes []recipe.Outcome
 }
 
 func (s *stubProvider) ID() string { return s.id }
 
 func (s *stubProvider) Declaration() recipe.Declaration {
-	return recipe.Declaration{Metrics: s.metrics}
+	return recipe.Declaration{Metrics: s.metrics, Outcomes: s.outcomes}
 }
 
 func (s *stubProvider) Routes() chi.Router { return chi.NewRouter() }
@@ -99,6 +100,19 @@ func (f *fixture) signup(t *testing.T, email string) *http.Cookie {
 	return nil
 }
 
+// ownerOf resolves the test user's id through its session cookie, so the ratio
+// fixture inserts rows the authenticated page actually counts.
+func (f *fixture) ownerOf(t *testing.T, cookie *http.Cookie) string {
+	t.Helper()
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
+	req.AddCookie(cookie)
+	sess, err := f.auth.Session(req)
+	if err != nil {
+		t.Fatalf("session: %v", err)
+	}
+	return sess.User.ID
+}
+
 func TestDashboardRequiresSession(t *testing.T) {
 	f := newFixture(t)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/dashboard", nil)
@@ -155,6 +169,69 @@ func TestDashboardRendersSummaryAndCards(t *testing.T) {
 	}
 	if strings.Contains(body, "Open Whiteboard") {
 		t.Fatalf("dashboard has a link card for Whiteboard; summary only")
+	}
+}
+
+// TestDashboardRendersDeclaredOutcomeRatio closes the loop the declaration
+// opens: the receipt's pair runs against the recipe's own rows through the same
+// generic COUNT executor as a metric, and the card renders the ratio. Revert
+// declaredOutcomes and the card loses its "1/2 · 50%"; drop the owner binding
+// and the ratio goes to 2/3 because the other owner's row leaks in.
+func TestDashboardRendersDeclaredOutcomeRatio(t *testing.T) {
+	f := newFixture(t)
+	cookie := f.signup(t, "outcome@example.com")
+	if _, err := f.sqlDB.ExecContext(context.Background(),
+		`CREATE TABLE ext_probe_orders (owner TEXT NOT NULL, corrected INTEGER NOT NULL)`); err != nil {
+		t.Fatalf("create table: %v", err)
+	}
+	owner := f.ownerOf(t, cookie)
+	rows := []struct {
+		owner     string
+		corrected int
+	}{
+		{owner, 0}, {owner, 1}, {"someone-else", 0},
+	}
+	for _, r := range rows {
+		if _, err := f.sqlDB.ExecContext(context.Background(),
+			`INSERT INTO ext_probe_orders (owner, corrected) VALUES (?, ?)`, r.owner, r.corrected); err != nil {
+			t.Fatalf("insert: %v", err)
+		}
+	}
+
+	// The card set is keyed off the rail destination, so the declared outcome
+	// rides the todo card here; the queries read this test's own table, which is
+	// the whole point of the generic path.
+	reg := &recipe.Registry{}
+	reg.Add(&stubProvider{
+		id:      "todo",
+		metrics: []recipe.Metric{{Label: "Orders", Query: "SELECT COUNT(*) FROM ext_probe_orders WHERE owner = ?"}},
+		outcomes: []recipe.Outcome{{
+			ID: "probe_without_repair", Job: "Order without fixing it", Beneficiary: "user",
+			Success: recipe.Metric{
+				Label: "Without repair",
+				Query: "SELECT COUNT(*) FROM ext_probe_orders WHERE owner = ? AND corrected = 0",
+			},
+			Total: recipe.Metric{
+				Label: "Orders",
+				Query: "SELECT COUNT(*) FROM ext_probe_orders WHERE owner = ?",
+			},
+			CounterSignals: []string{"corrected"},
+		}},
+	})
+	f.h.SetRegistry(reg, f.sqlDB)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/dashboard", nil)
+	req.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	f.r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /dashboard = %d, want 200", rec.Code)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{"Without repair", "Orders", "1/2 · 50%"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("dashboard body missing %q", want)
+		}
 	}
 }
 

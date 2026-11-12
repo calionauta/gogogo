@@ -142,6 +142,9 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 	answer := store.Message{
 		Owner: p.UserID, Role: roleAssistant, Text: text,
 		Components: dirs, IdemKey: p.Idem + "#answer", Created: time.Now(),
+		// Stamped with the vocabulary this answer was validated against, so a
+		// later reload can tell "renders as stored" from "the catalog moved".
+		CatalogVersion: comp.CatalogVersion(),
 	}
 	_ = h.store.Append(ctx, p.UserID, answer)
 	// The live patch carries the SAME id stem the stored copy will render with
