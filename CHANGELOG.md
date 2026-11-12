@@ -15,6 +15,20 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.69.1 (2026-11-12)
+
+## What's Changed
+* fix(deploy): every release ships the released version by @calionauta in https://github.com/calionauta/gogogo/pull/415
+* fix(deploy): production runs releases, so the badge names what runs by @calionauta in https://github.com/calionauta/gogogo/pull/417
+* fix(deploy): the tag trigger is a push child, not a sibling by @calionauta in https://github.com/calionauta/gogogo/pull/418
+* fix(deploy): the server's clone mirrors the remote's tags by @calionauta in https://github.com/calionauta/gogogo/pull/419
+* fix(deploy): no raw quotes inside the ssh block by @calionauta in https://github.com/calionauta/gogogo/pull/420
+* gate: prove every workflow shell block parses before it runs by @calionauta in https://github.com/calionauta/gogogo/pull/421
+* fix(ui): keep the rail unread count inside the row, adopt the drawer-button collapse glyph by @calionauta in https://github.com/calionauta/gogogo/pull/422
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.69.0...v0.69.1
+
 ## 0.69.0 (2026-11-12)
 
 ## What's Changed
