@@ -98,6 +98,17 @@ jobs:
           fi
           echo "docs_only=$DOCS_ONLY" >> "$GITHUB_OUTPUT"
           echo "docs-only changeset: $DOCS_ONLY"
+      - name: Warn when a behaviour surface changed without its docs
+        # The pre-commit hook asks this question of the INDEX (the commit);
+        # CI asks it of the BRANCH, so a PR opened from the web UI or a
+        # commit made with --no-verify still gets the signal. Advisory by
+        # design: "did this change alter documented behaviour" is a judgment
+        # call, so the answer is a warning on the PR, never a red build. The
+        # mechanical half of the same question is blocking and lives in
+        # check-docs.
+        if: github.event_name == 'pull_request'
+        run: |
+          bash bin/check-docs-staleness.sh --diff "${{ github.event.pull_request.base.sha }}..HEAD"
       - if: steps.filter.outputs.docs_only != 'true'
         name: Install the pinned Go toolchain manually
         # The scope step below shells out to scripts/changed-packages.sh, which

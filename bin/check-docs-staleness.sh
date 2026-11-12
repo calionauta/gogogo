@@ -25,10 +25,19 @@ set -e
 [ -f go.mod ] || exit 0
 [ -f AGENTS.md ] || exit 0
 
-# Nothing staged (e.g. run standalone in CI) — nothing to judge.
-git diff --cached --quiet && exit 0
+# What diff to judge. The default is the INDEX: the pre-commit hook asks
+# "does this commit carry its docs?". CI asks the same question about the
+# PR: `--diff <base>..HEAD` judges the branch diff instead. One
+# implementation, two callers — the answer must not depend on who asks.
+DIFF=(--cached)
+if [ "${1:-}" = "--diff" ]; then
+  DIFF=("${2:-}")
+fi
 
-STAGED=$(git diff --cached --name-only)
+# Nothing changed (e.g. run standalone) — nothing to judge.
+git diff "${DIFF[@]}" --quiet && exit 0
+
+STAGED=$(git diff "${DIFF[@]}" --name-only)
 
 # Already touching docs? Then the author has made the call; stay quiet.
 # "Docs" is every surface a reader reads: the pages, the agent index, the
@@ -56,7 +65,10 @@ SURFACE=$(echo "$STAGED" | grep -E \
 [ -n "$SURFACE" ] || exit 0
 
 COUNT=$(echo "$SURFACE" | wc -l | tr -d ' ')
-echo "⚠️  docs staleness: $COUNT behaviour-carrying file(s) changed, no docs/*.md staged"
+# A GitHub annotation makes the signal visible ON the PR, not only in a
+# terminal: the reader of the diff sees it without running the hook.
+warn() { if [ "${CI:-}" = "true" ]; then echo "::warning::$1"; else echo "$1"; fi; }
+warn "⚠️  docs staleness: $COUNT behaviour-carrying file(s) changed, no docs/*.md in the diff"
 echo "$SURFACE" | head -12 | sed 's/^/    /'
 [ "$COUNT" -gt 12 ] && echo "    … and $((COUNT - 12)) more"
 
