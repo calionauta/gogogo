@@ -314,20 +314,36 @@ The CI image build passes the same three values as build args (`deploy.yml`,
 the `image` job's `build-args`), so the badge on the running box matches the tag
 that produced it — and the deploy refuses to finish unless it does.
 
-> **Why the tag push is supposed to deploy again (but doesn't).** The release flow is push → CI green → tag,
-> so the deploy triggered by the *push* runs before the tag exists and
+> **How a release ships (and why the tag push is not what ships it).** The release flow is push → CI green → tag → release. The
+> deploy triggered by the *push* runs before the tag exists, so
 > `git describe --tags --abbrev=0` resolves to the **previous** tag — the box
 > would run the new code while reporting the old version. (Observed for real: the
 > v0.36.1 push deployed a binary labelled `0.36.0`, and again at v0.48.0:
 > header `0.47.0-5095026` serving the tagged tree.) `deploy.yml` keeps a
 > `tags: ["v*"]` arm for that re-deploy, but tags created by release-please
 > use `GITHUB_TOKEN`, which starts no workflow runs — so the arm never
-> fires. The `schedule` reconciler (every 30 min) closes the gap in both
-> dimensions: running build SHA vs master HEAD (code drift), and badge
-> version vs latest tag (label drift — redeploys the same code so the
-> badge reports what is running). Tagging
-> before CI passes would avoid the second restart, but a red CI would then
-> already be on the tag — not a trade worth making.
+> fires for a release.
+>
+> So **the release dispatches the deploy** (`release-please.yml` runs
+> `gh workflow run deploy.yml` when a release was cut) — the same
+> `workflow_dispatch` bridge `release.yml` uses for the installer binaries,
+> and the same one that had to be added there when v0.43.0–v0.50.0 published
+> zero assets. Dispatching at the release rather than at the tag push also
+> means the tag already exists when the deploy builds, so the badge carries
+> the released version the first time.
+>
+> Before that bridge existed, a release deployed **nothing**: the release
+> commit touches only `CHANGELOG.md` and the version manifest, neither of
+> which is in the deploy allow-list, and the tag was invisible to Actions.
+> Production then served the new code labelled with the previous version
+> (v0.69.0's code, 0.68.0's badge) until the next code push.
+>
+> The `schedule` reconciler (cron `*/30 * * * *`) stays as the safety net —
+> it heals a missed trigger in both dimensions: running build SHA vs master
+> HEAD (code drift), and badge version vs latest tag (label drift). GitHub
+> runs schedules on its own cadence (observed 4–10 hours apart), so it is a
+> net, not a promise. `bin/check-deploy-release.sh` holds the four facts that
+> make the release deterministic, so the guarantee cannot rot.
 >
 > **The one place that gap is bridged instead of reconciled.**
 > `release.yml` (the GoReleaser installer binaries, not the deploy) does not

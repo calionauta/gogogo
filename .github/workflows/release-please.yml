@@ -69,3 +69,27 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.release.outputs.tag_name }}
         run: gh workflow run release.yml -R "$GITHUB_REPOSITORY" --ref master -f tag="$TAG"
+
+      # Ship the release. A release is not "the code is on master": it is the
+      # code AND the version, and production has to run both. release-please
+      # pushes the tag with GITHUB_TOKEN, which starts no workflow run, so
+      # deploy.yml's tag arm never fires for a release — and the release
+      # COMMIT (CHANGELOG.md plus the version bump) matches no path in the
+      # deploy allow-list, so the push arm does not fire either. Production
+      # then served the new code labelled with the PREVIOUS version (v0.69.0's
+      # code, 0.68.0's badge) until the next code push; the 30-minute
+      # schedule was supposed to heal it, but GitHub runs schedules on its own
+      # cadence (hours apart, observed), so "the badge is right eventually" was
+      # the best the pipeline promised.
+      #
+      # workflow_dispatch is the documented exception to the GITHUB_TOKEN
+      # anti-recursion rule — the same bridge the step above uses for the
+      # installer binaries, and the same one that had to be added there when
+      # v0.43.0–v0.50.0 shipped zero assets. Dispatching HERE (not the tag
+      # push) also means the tag already exists when the deploy builds, so the
+      # badge carries the released version the first time.
+      - name: Deploy the released version
+        if: ${{ steps.release.outputs.release_created == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run deploy.yml -R "$GITHUB_REPOSITORY" --ref master

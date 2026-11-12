@@ -270,10 +270,11 @@ check-fast-capacity:
 # milliseconds — and CI runs both in the `checks` job. Wired here too so a
 # wrong verdict is caught before a push rather than in the run it wasted.
 check-ci-scripts:
-	@echo "→ check-ci-scripts (changeset classifier + shard split contracts)..."
+	@echo "→ check-ci-scripts (changeset classifier + shard split + release-deploy contracts)..."
 	@bash scripts/ci-changes-classifier.test.sh > /dev/null
 	@bash scripts/ci-shard-packages.test.sh > /dev/null
 	@bash bin/install-browser_test.sh > /dev/null
+	@bash bin/check-deploy-release_test.sh > /dev/null
 	@node --test scripts/lib/features.test.mjs > /dev/null
 	@echo "✅ CI script contracts hold"
 
