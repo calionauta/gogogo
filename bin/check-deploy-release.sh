@@ -61,9 +61,14 @@ reject() { # file, pattern, description
   fi
 }
 
-# 1. production does not follow master
-reject "$deploy" '^  push:' \
+# 1. production does not follow master: the push trigger is TAGS-ONLY, so a
+# push to master cannot start this workflow at all.
+reject "$deploy" '^\s+branches: \[master\]' \
   'a push to master does not deploy production (production runs the release)'
+require "$deploy" '^\s+tags: \["v\*"\]' \
+  'the push trigger is tags-only (a release is what deploys)'
+require "$deploy" '^  push:' \
+  'the push trigger is a MAPPING under on: (tags: is its child, not a sibling)'
 # 2. the release dispatches the deploy, with the tag
 require "$release" 'gh workflow run deploy\.yml' \
   'the release dispatches the deploy (the release trigger)'

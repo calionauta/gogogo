@@ -82,9 +82,11 @@ on:
   # the LATEST TAG, so a release whose dispatch failed still lands (and a
   # rollback — dispatching an older tag — is the same command).
   #
-  # Note that GitHub does not evaluate path filters for tag pushes, so a tag
-  # always deploys.
-  tags: ["v*"]
+  # The push trigger is TAGS-ONLY: no `branches:` key, so a push to master
+  # cannot start this workflow. (GitHub does not evaluate path filters for
+  # tag pushes, so a tag always deploys.)
+  push:
+    tags: ["v*"]
   workflow_dispatch:
     inputs:
       tag:

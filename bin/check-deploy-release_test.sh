@@ -39,16 +39,28 @@ strip() { # pattern, source, destination
   grep -vE -- "$1" "$2" >"$3"
 }
 
-# production following master again: the trigger comes BACK
+# production following master again: the push trigger grows a branches key
 python3 - "$real_deploy" "$tmp/pushes.yml" <<'PY2'
 import sys
 src, dst = sys.argv[1], sys.argv[2]
 text = open(src).read()
-# A push trigger on master, the regression the model forbids.
-text = text.replace("on:\n", "on:\n  push:\n    branches: [master]\n", 1)
+# The push trigger that once shipped master HEAD, the regression the model
+# forbids: a tag-only push trigger becomes "master too".
+text = text.replace('  push:\n    tags: ["v*"]', "  push:\n    branches: [master]\n    tags: [\"v*\"]", 1)
 open(dst, "w").write(text)
 PY2
 expect 1 "production following master is caught" "$tmp/pushes.yml" "$real_release"
+
+# the push trigger in the wrong SHAPE (tags as a sibling of push: is not a
+# valid trigger - GitHub refuses to parse the workflow)
+python3 - "$real_deploy" "$tmp/bad-shape.yml" <<'PY2'
+import sys
+src, dst = sys.argv[1], sys.argv[2]
+text = open(src).read()
+text = text.replace('  push:\n    tags: ["v*"]', '  tags: ["v*"]', 1)
+open(dst, "w").write(text)
+PY2
+expect 1 "a push trigger in the wrong shape is caught" "$tmp/bad-shape.yml" "$real_release"
 
 # the release no longer triggers the deploy
 strip 'gh workflow run deploy\.yml' "$real_release" "$tmp/no-trigger.yml"
