@@ -13,7 +13,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -21,7 +20,6 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/calionauta/gogogo/internal/capabilities"
 	"github.com/calionauta/gogogo/internal/installer"
 )
 
@@ -149,16 +147,6 @@ type adviseArgs struct {
 	Intent string `json:"intent,omitempty" jsonschema:"optional route: update|port|add-unit|new-feature|scaffold (omitted = infer from need, and the answer says so)"`
 	Format string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
 	Dir    string `json:"dir,omitempty" jsonschema:"optional: also check this path, so the answer can say it is not a gogogo checkout (omitted = the answer depends on need alone)"`
-}
-
-func handleCapabilitiesList(
-	_ context.Context, _ *mcp.CallToolRequest, _ struct{},
-) (*mcp.CallToolResult, any, error) {
-	raw, err := json.MarshalIndent(capabilities.All, "", "  ")
-	if err != nil {
-		return nil, nil, err
-	}
-	return textResult(string(raw)), nil, nil
 }
 
 func trimCLIArgs(a trimArgs, extra ...string) []string {

@@ -33,6 +33,15 @@ announces a share (that is `notifications`).
 - `Delete` requires `canDeleteDoc` — author or admin.
 ```
 
+The card has two writers and two readers. **`gogogo new feature <name>` writes
+it** (the scaffold knows the routes it just registered and the rules the
+generated handler already keeps), and **`capabilities_list` reads it**: pass
+`dir` and every feature in the registry answer carries the one-line `owns`
+boundary, so an agent choosing a unit sees what the slice is for and not just
+its id. The card is written outside the recipe receipt on purpose — it is
+documentation, not pristine unit code, so rewriting a boundary must not read as
+drift in the code it describes.
+
 `make check-domains` proves the mechanical half:
 
 - every `feature` capability has a card, and every card maps to a `feature`
@@ -61,3 +70,13 @@ the bug you fix now.
 
 The proposal that led here, including what of DDD was deliberately left out, is
 the "Domain-first gogogo" research note under `docs/research/`.
+
+## What the gate deliberately does not check
+
+- **The routes.** `docs/unit-contracts.md` already lists them, generated from
+  the code. A second copy in the card would be a second source of truth — the
+  exact drift this gate exists to prevent. The card names the *slice*, the
+  generated doc names the *surface*.
+- **The prose.** A gate that guessed at meaning would become the second source
+  of truth the card exists to prevent. A heading is not a boundary; a wrong
+  boundary is review's job.

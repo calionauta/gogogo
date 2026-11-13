@@ -15,10 +15,12 @@ import "github.com/modelcontextprotocol/go-sdk/mcp"
 var toolCatalog = []toolDef{
 	{
 		name: "capabilities_list",
-		desc: "Raw registry JSON: every template capability with id, kind, summary, and off-switch. Registry " +
-			"only — takes no path, so it answers from any directory. Use it to look up an id or off-switch; " +
-			"use advise_stack to decide WHICH ones apply.",
-		params: "—",
+		desc: "Registry JSON: every template capability with id, kind, summary, and off-switch. Without `dir` " +
+			"it is the registry only, so it answers from anywhere. Pass `dir` (a gogogo checkout) and each " +
+			"feature also carries `owns` — the one-line boundary from its docs/domain card, so a client " +
+			"choosing a unit sees what the slice is for, not just its id. Use it to look up an id or " +
+			"off-switch; use advise_stack to decide WHICH ones apply.",
+		params: "`dir?`",
 		effect: "No",
 		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleCapabilitiesList) },
 	},

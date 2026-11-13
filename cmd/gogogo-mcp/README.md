@@ -28,7 +28,7 @@ Claude Code (`~/.claude.json`) / Cursor (`~/.cursor/mcp.json`) / BB:
 <!-- MCP:TOOLS:START -->
 | Tool | Params | Effect |
 |---|---|---|
-| `capabilities_list` | — | No |
+| `capabilities_list` | `dir?` | No |
 | `build_prerequisites` | `platform?` | No |
 | `sync_prerequisites` | — | No |
 | `version_status` | `dir?`, `format?` | No |

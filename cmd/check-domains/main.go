@@ -15,8 +15,10 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -25,8 +27,10 @@ import (
 	"github.com/calionauta/gogogo/internal/capabilities"
 )
 
-// dir is where the cards live, relative to the tree root.
-const dir = "docs/domain"
+// dir is where the cards live, relative to the tree root. The parser is
+// shared with the MCP catalog (`capabilities_list`), which reports the same
+// boundary to a client that never sees this gate.
+var dir = capabilities.CardDir
 
 func main() {
 	root := flag.String("dir", ".", "tree to check")
@@ -57,8 +61,7 @@ func Check(root string) ([]string, int) {
 			continue
 		}
 		features[c.ID] = true
-		path := filepath.Join(root, filepath.FromSlash(dir), c.ID+".md")
-		raw, err := os.ReadFile(path)
+		raw, err := os.ReadFile(capabilities.CardPath(root, c.ID))
 		if err != nil {
 			problems = append(problems, fmt.Sprintf("%s/%s.md: missing (%s is a feature unit; "+
 				"write owns / does-not-own / language / invariants)", dir, c.ID, c.ID))
@@ -70,7 +73,7 @@ func Check(root string) ([]string, int) {
 	// The reverse direction: a card for a feature that no longer exists is the
 	// stale half of the same drift.
 	entries, err := os.ReadDir(filepath.Join(root, filepath.FromSlash(dir)))
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		problems = append(problems, fmt.Sprintf("%s: %v", dir, err))
 	}
 	for _, e := range entries {
@@ -89,80 +92,22 @@ func Check(root string) ([]string, int) {
 
 // cardProblems validates one card's structure. The four parts are the contract:
 // a card missing one is a card an agent would read and still have to guess.
+// The check runs on the parsed card rather than on the raw text, so a heading
+// with nothing under it cannot pass as a boundary.
 func cardProblems(id, text string) []string {
+	card := capabilities.ParseCard(text)
 	var problems []string
-	if !hasLine(text, "**Owns.**") {
-		problems = append(problems, id+": missing a `**Owns.**` line (what this slice is responsible for)")
+	if card.Owns == "" {
+		problems = append(problems, id+": missing a filled `**Owns.**` line (what this slice is responsible for)")
 	}
-	if !hasLine(text, "**Does not own.**") {
-		problems = append(problems, id+": missing a `**Does not own.**` line (the nearest wrong neighbour)")
+	if card.DoesNotOwn == "" {
+		problems = append(problems, id+": missing a filled `**Does not own.**` line (the nearest wrong neighbour)")
 	}
-	if rows := tableRows(section(text, "## Language")); rows == 0 {
-		problems = append(problems, id+": `## Language` needs a table with at least one term row")
+	if len(card.Language) == 0 {
+		problems = append(problems, id+": `## Language` needs a table with at least one defined term")
 	}
-	if bullets := bulletCount(section(text, "## Invariants")); bullets == 0 {
+	if len(card.Invariants) == 0 {
 		problems = append(problems, id+": `## Invariants` needs at least one bullet")
 	}
 	return problems
-}
-
-// hasLine reports a non-empty line that starts with prefix — "**Owns.**" with
-// nothing after it is a heading, not a boundary.
-func hasLine(text, prefix string) bool {
-	for line := range strings.SplitSeq(text, "\n") {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, prefix) && len(strings.TrimSpace(strings.TrimPrefix(trimmed, prefix))) > 0 {
-			return true
-		}
-	}
-	return false
-}
-
-// section returns the body under heading up to the next heading of the same
-// level, or "" when the heading is absent.
-func section(text, heading string) string {
-	var out []string
-	in := false
-	for line := range strings.SplitSeq(text, "\n") {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "#") {
-			if in {
-				break
-			}
-			in = strings.EqualFold(trimmed, heading)
-			continue
-		}
-		if in {
-			out = append(out, line)
-		}
-	}
-	return strings.Join(out, "\n")
-}
-
-// tableRows counts data rows in the first markdown table of body (the header
-// and the `---` separator are not rows).
-func tableRows(body string) int {
-	rows := 0
-	for line := range strings.SplitSeq(body, "\n") {
-		trimmed := strings.TrimSpace(line)
-		if !strings.HasPrefix(trimmed, "|") {
-			continue
-		}
-		if strings.Contains(trimmed, "---") || strings.HasPrefix(trimmed, "| term") {
-			continue
-		}
-		rows++
-	}
-	return rows
-}
-
-// bulletCount counts list items in body.
-func bulletCount(body string) int {
-	n := 0
-	for line := range strings.SplitSeq(body, "\n") {
-		if strings.HasPrefix(strings.TrimSpace(line), "- ") {
-			n++
-		}
-	}
-	return n
 }

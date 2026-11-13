@@ -61,7 +61,7 @@ JSON-config clients take the Claude Code block verbatim.
 <!-- MCP:TOOLS:START -->
 | Tool | Changes anything? | Params | What it does |
 |---|---|---|---|
-| `capabilities_list` | No | — | Raw registry JSON: every template capability with id, kind, summary, and off-switch. |
+| `capabilities_list` | No | `dir?` | Registry JSON: every template capability with id, kind, summary, and off-switch. |
 | `build_prerequisites` | No | `platform?` | Read-only: how to build the desktop shell or the Android target on this host. |
 | `sync_prerequisites` | No | — | Read-only: what a desktop build needs to sync with a server (a reachable NATS leaf listener, NATS_TOKEN, CLOUD_SYNC_URL, account identity, a private overlay first). |
 | `version_status` | No | `dir?`, `format?` | Read-only version check: compares this tool AND the project's recorded template revision (the scaffolded-from: line in its AGENTS.md) against the latest release. |
@@ -89,6 +89,11 @@ tool's own description — the headline the agent reads at call time. Change the
 catalog, run `make docs-index`, and the prose follows: a tool cannot describe
 itself one way and be documented another. The complete description of every
 tool is what `gogogo-mcp --help` prints.
+
+`capabilities_list` takes an optional `dir`: without it the answer is the
+registry alone and works from any directory; with it, every feature also
+carries the one-line `owns` boundary from its domain card, so an agent
+choosing a unit reads the slice's boundary instead of inferring it from the id.
 
 Read-only tools need nothing else. Mutating tools fail closed without
 `confirm:true` — preview with `trim_plan` (or `dryRun:true`) first, then
