@@ -1,6 +1,13 @@
 package main
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/calionauta/gogogo/internal/prompts"
+)
 
 // TestLooksLikePrompt pins the heuristic in both directions. A gate that never
 // fires is indistinguishable from a gate that is broken, and one that fires on
@@ -60,5 +67,53 @@ func TestHasExemptionRequiresReason(t *testing.T) {
 	}
 	if !hasExemption(lines, 4) {
 		t.Error("reasoned exemption not honoured")
+	}
+}
+
+// TestDeclaredPromptIsFound pins the rule that catches the short prompts the
+// length heuristic cannot see: a `Prompt:` field holding a literal is
+// model-facing by construction, whatever its length.
+func TestDeclaredPromptIsFound(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "recipe.go")
+	src := `package handlers
+
+import "github.com/calionauta/gogogo/internal/recipe"
+
+func (p provider) Declaration() recipe.Declaration {
+	return recipe.Declaration{
+		Panel: &recipe.PanelSpec{
+			Component: "notes_list",
+			Prompt:    "notes_list {scope: all|mine} whenever the request involves the user's shared notes",
+		},
+	}
+}
+`
+	if err := os.WriteFile(path, []byte(src), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	hits, errs := declaredInFile(path)
+	if len(errs) > 0 {
+		t.Fatalf("declaredInFile() = %v", errs)
+	}
+	if len(hits) != 1 {
+		t.Fatalf("declaredInFile() = %d hits, want the declared prompt", len(hits))
+	}
+	if !strings.Contains(hits[0].Text, "notes_list") {
+		t.Errorf("the hit lost the prompt text: %q", hits[0].Text)
+	}
+}
+
+// TestUnusedPromptIDs pins the dead-file rule: a prompt no code loads is
+// reported, and a longer id that starts with it does not count as a reference.
+func TestUnusedPromptIDs(t *testing.T) {
+	all := []prompts.Prompt{{ID: "panels/notes"}, {ID: "panels/notes-list"}}
+	code := `package handlers
+
+func p() string { return prompts.Text("panels/notes-list") }
+`
+	unused := unusedPromptIDs(code, all)
+	if len(unused) != 1 || unused[0] != "panels/notes" {
+		t.Fatalf("unusedPromptIDs() = %v, want only panels/notes", unused)
 	}
 }

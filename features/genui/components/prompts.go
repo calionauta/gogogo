@@ -192,9 +192,7 @@ func smalltalkRule(surfaces []Surface) string {
 	if !HasSurfaces(surfaces, SurfaceNative) || len(panelNames()) == 0 {
 		return ""
 	}
-	return "Greetings, thanks and other smalltalk (hi, hello, hey, thanks, ok, " +
-		"goodbye) are never about the user's data: answer them briefly and " +
-		"never emit a panel or a data component for them. "
+	return prompts.Text("genui/rule-smalltalk")
 }
 
 // advertisedAs reports whether a catalog name is inside the enabled vocabulary.

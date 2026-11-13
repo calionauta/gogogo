@@ -4,6 +4,7 @@ package handlers
 import (
 	"github.com/go-chi/chi/v5"
 
+	"github.com/calionauta/gogogo/internal/prompts"
 	"github.com/calionauta/gogogo/internal/recipe"
 )
 
@@ -44,7 +45,7 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 		},
 		Panel: &recipe.PanelSpec{
 			Component: "notes_list",
-			Prompt:    "notes_list {scope: all|mine} whenever the request involves the user's shared notes",
+			Prompt:    prompts.Text("panels/notes-list"),
 			Writable:  []string{propScope},
 		},
 		Routes: []recipe.Route{

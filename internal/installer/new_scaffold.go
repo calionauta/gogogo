@@ -86,8 +86,7 @@ func newReceiptSource(name string, files map[string]string) string {
 	b.WriteString("      route: { method: GET, pattern: /api/" + name + "/ping }\n")
 	b.WriteString("  panel:\n")
 	b.WriteString("    component: \"" + name + "_list\"\n")
-	b.WriteString("    prompt: \"" + name + "_list {scope: all|mine} " +
-		"whenever the request involves the user's " + name + " data\"\n")
+	b.WriteString("    prompt: \"" + panelPromptText(name) + "\"\n")
 	b.WriteString("    writable: [scope]\n")
 	b.WriteString("register: features/" + name + "/handlers\n")
 	return b.String()
@@ -341,6 +340,7 @@ package handlers
 import (
 	"github.com/go-chi/chi/v5"
 
+	"{{module}}/internal/prompts"
 	"{{module}}/internal/recipe"
 )
 
@@ -364,7 +364,7 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 		// recipe-check enforces the pair.
 		Panel: &recipe.PanelSpec{
 			Component: "{{name}}_list",
-			Prompt:    "{{name}}_list {scope: all|mine} whenever the request involves the user's {{name}} data",
+			Prompt:    prompts.Text("panels/{{name}}"),
 			Writable:  []string{"scope"},
 		},
 		Routes: []recipe.Route{
@@ -386,90 +386,4 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 }
 
 func (p recipeProvider) Routes() chi.Router { return p.h.Routes() }
-`
-
-// newPanelSource renders features/<name>/handlers/genui_panel.go: the
-// SlicePanel skeleton. The two closures are the whole recipe-specific
-// surface — List (owner-scoped rows) and View (the page's own component).
-func newPanelSource(name, module string) string {
-	return strings.NewReplacer(
-		"{{namePascal}}", pascalName(name),
-		"{{name}}", name,
-		"{{module}}", module,
-	).Replace(newPanelTemplate)
-}
-
-// pascalName renders {{namePascal}} for the panel skeleton.
-func pascalName(name string) string {
-	if name == "" {
-		return name
-	}
-	r := []rune(name)
-	if r[0] >= 'a' && r[0] <= 'z' {
-		r[0] -= 32
-	}
-	return string(r)
-}
-
-// newPanelTemplate is the genui panel skeleton. It implements the
-// PanelProvider interface via comp.SlicePanel (the shared base), so a
-// scaffolded recipe only writes its two closures.
-// allow-inline-prompt: Go source template for a scaffolded recipe (codegen), not model instructions
-const newPanelTemplate = `// The {{name}} feature's native panel: one file that makes its own
-// data answerable from Chat. Render returns the feature's OWN component
-// (never a chat-specific copy); Fill owns the rows; the model picks
-// only the scope. Bult on comp.SlicePanel, the shared base.
-package handlers
-
-import (
-	"context"
-	"fmt"
-
-	"github.com/a-h/templ"
-)
-
-// {{namePascal}}Panel is the {{name}}_list provider.
-type {{namePascal}}Panel struct {
-	// wire the store/queries here when the list grows beyond the skeleton
-}
-
-func (p *{{namePascal}}Panel) Component() string { return "{{name}}_list" }
-
-func (p *{{namePascal}}Panel) Prompt() string {
-	return "{{name}}_list {scope: all|mine} whenever the request involves the user's {{name}} data"
-}
-
-func (p *{{namePascal}}Panel) HomePage() string { return "/{{name}}" }
-
-func (p *{{namePascal}}Panel) Aliases() []string { return []string{"{{name}}"} }
-
-func (p *{{namePascal}}Panel) Writable() []string { return []string{"scope"} }
-
-func (p *{{namePascal}}Panel) Fill(ctx context.Context, owner string, props map[string]any) (map[string]any, error) {
-	scope, _ := props["scope"].(string)
-	if scope != "all" && scope != "mine" {
-		return nil, fmt.Errorf("{{name}} panel: scope %q is not one of [all mine]", scope)
-	}
-	// TODO: list the owner-scoped rows here (scope=mine filters owner).
-	rows, err := p.list(ctx, owner, scope)
-	if err != nil {
-		return nil, err
-	}
-	return map[string]any{"scope": scope, "rows": rows}, nil
-}
-
-func (p *{{namePascal}}Panel) Render(props map[string]any) (templ.Component, error) {
-	scope, _ := props["scope"].(string)
-	if scope != "all" && scope != "mine" {
-		return nil, fmt.Errorf("{{name}} panel: scope %q is not one of [all mine]", scope)
-	}
-	// TODO: return the feature's OWN list component, e.g.
-	// components.{{namePascal}}List(rows...).
-	return nil, fmt.Errorf("{{name}} panel: render your page component here")
-}
-
-func (p *{{namePascal}}Panel) list(ctx context.Context, owner string, scope string) (any, error) {
-	_ = scope
-	return nil, nil
-}
 `

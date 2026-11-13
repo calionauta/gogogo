@@ -109,7 +109,7 @@ declaration:
   - {label: Shared, query: "SELECT COUNT(*) FROM ext_todo_todos WHERE visibility = 'public'", signal: sharedTodos, ownerBinds: false}
   panel:
     component: "todo_list"
-    prompt: "todo_list {filter: open|done|all} whenever the request involves the user's OWN todos or tasks"
+    prompt: "todo_list {filter: open|done|all} whenever the request involves the user's OWN todos or tasks (show/list/filter them, check what is left, plan a day around them, summarize progress): it renders their REAL rows, so it is the only component allowed to answer with todo content. Pick the slice the user asked for: open/pending/remaining/left/active/unfinished => open; done/completed/finished => done; all ONLY when the user asks for everything or for completed rows too — a request about what is left is NEVER all. Always send filter inside props. Never for greetings, thanks or other smalltalk"
     writable: [filter]
   tables:
   - ext_todo_todos

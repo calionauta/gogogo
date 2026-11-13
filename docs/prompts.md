@@ -85,10 +85,16 @@ the *prose* in files: `prompts.go` decides which files participate,
    with no assertion is a comment), keep the assertion and confirm it still
    passes. Prompt text moving into a file must not change the wire behaviour.
 
+`gogogo new feature <name>` follows this by construction: it writes
+`internal/prompts/files/panels/<name>.prompt`, the generated panel and the
+generated declaration both load it by id, and the scaffold's proof runs
+`check-prompts` — so a scaffolded feature cannot reintroduce the inline pattern
+the gate forbids.
+
 ## The gate
 
 `go run ./cmd/check-prompts` (also `make check-prompts`, the pre-commit
-`prompts` job, and the CI checks job) enforces two invariants:
+`prompts` job, and the CI checks job) enforces four invariants:
 
 1. **Every file is valid.** Frontmatter name matches its path, description and
    version are present, `output` is `json`/`text`, declared variables and the
@@ -99,6 +105,14 @@ the *prose* in files: `prompts.go` decides which files participate,
    two sentence boundaries fails. The heuristic is conservative on purpose: an
    error message, a log line, or a Go source template cannot reach all three
    thresholds by accident.
+3. **No declared prompt in Go.** A `Prompt:` field holding a literal fails
+   whatever its length — a panel's sentence is model-facing by construction, so
+   the field name is the rule and the length never matters. This is the rule that
+   catches the short ones the heuristic above cannot see.
+4. **No dead prompt file.** A file no code loads fails: it is a second copy of
+   a prompt waiting to drift, or the residue of a migration that left the old
+   string in the code. Renaming a prompt without updating its reader is caught
+   here.
 
 A deliberate exception states a reason on the line above:
 

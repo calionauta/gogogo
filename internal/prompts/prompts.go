@@ -34,6 +34,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Dir is the prompt library's path inside a tree, so a caller that writes a
+// prompt (the scaffolder) and a caller that reads one (the loader) agree on
+// where it lives.
+const Dir = "internal/prompts/files"
+
 // files is the prompt library. One directory per domain (chat, genui, review,
 // installer) keeps the tree scannable as prompts grow; the id is the path
 // inside `files/` without the extension, e.g. `genui/envelope`.
