@@ -13,6 +13,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/calionauta/gogogo/internal/capabilities"
+	"github.com/calionauta/gogogo/internal/prompts"
 	"github.com/calionauta/gogogo/internal/recipe"
 )
 
@@ -302,6 +303,39 @@ func TestTheCardIsNotReceipted(t *testing.T) {
 	})
 	if strings.Contains(receipt, "docs/domain/") || strings.Contains(receipt, capabilities.CardDir) {
 		t.Errorf("the receipt must not pin the card (it is documentation, not unit code):\n%s", receipt)
+	}
+}
+
+// TestNewScaffoldWritesThePromptFile pins the pattern the gate enforces: the
+// scaffolded feature's panel prompt is a FILE, the panel and the declaration
+// load it by id, and the file carries the same sentence the receipt pins.
+// A scaffold that wrote the prompt inline would be caught by check-prompts in
+// the tree it just created — so the template must not teach the pattern the
+// gate forbids.
+//
+// Red-proof: put the sentence back into newPanelTemplate and this test
+// fails — the panel would load a file that says nothing about the feature.
+func TestNewScaffoldWritesThePromptFile(t *testing.T) {
+	src := newPanelPromptSource("reports")
+	parsed, err := prompts.Parse("panels/reports", []byte(src))
+	if err != nil {
+		t.Fatalf("the scaffolded prompt file is not a valid prompt: %v\n%s", err, src)
+	}
+	if parsed.Body != panelPromptText("reports") {
+		t.Errorf("the prompt file body %q must be the sentence the receipt pins", parsed.Body)
+	}
+	panel := newPanelSource("reports", "github.com/acme/app")
+	if !strings.Contains(panel, `prompts.Text("panels/reports")`) {
+		t.Errorf("the scaffolded panel must load its prompt by id:\n%s", panel)
+	}
+	decl := newRecipeSource("reports", "github.com/acme/app")
+	if !strings.Contains(decl, `prompts.Text("panels/reports")`) {
+		t.Errorf("the scaffolded declaration must load its prompt by id:\n%s", decl)
+	}
+	for name, code := range map[string]string{"recipe.go": decl, "genui_panel.go": panel} {
+		if _, perr := parser.ParseFile(token.NewFileSet(), name, code, parser.AllErrors); perr != nil {
+			t.Errorf("the scaffolded %s does not parse: %v\n%s", name, perr, code)
+		}
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/calionauta/gogogo/features/kiosk"
+	"github.com/calionauta/gogogo/internal/prompts"
 	"github.com/calionauta/gogogo/internal/recipe"
 )
 
@@ -81,7 +82,7 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 		}},
 		Panel: &recipe.PanelSpec{
 			Component: "kiosk_orders",
-			Prompt:    "kiosk_orders {scope: recent|all} whenever the user asks about their orders",
+			Prompt:    prompts.Text("panels/kiosk-orders"),
 			Writable:  []string{"scope"},
 			Values:    []string{scopeRecent, scopeAll},
 		},

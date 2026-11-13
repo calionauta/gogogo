@@ -1,0 +1,8 @@
+---
+name: panels/chat-history
+description: "Panel line: when the model should answer from the user's own conversation history."
+version: 1
+output: json
+variables: []
+---
+chat_history {limit: 5|10|20} whenever the request involves the user's recent conversation (what did we discuss, what did I ask before, summarize the thread). Renders their REAL history, so it is the only component allowed to answer with conversation content. limit is how many recent messages to show: 5 for a quick recall, 20 for a full summary. Always send limit inside props.

@@ -45,12 +45,13 @@ desktop choice persists in `localStorage.railCompact` and is seeded before
 Datastar initialises, so the first frame is already the right width.
 
 **The rail is ordered, not alphabetised.** The inbox is pinned above the first
-heading: it is the always-on surface, and it carries the unread count as a
-DaisyUI `indicator-item` on the row label, so the bubble hangs off the row's
-far corner clear of the icon. When the rail collapses the label is gone, so the
-same fact moves onto the icon as a bare `status` dot (no number — a 4.5rem
-column has no room for one) and the count keeps an `sr-only` label for screen
-readers. The count is seeded once per page
+heading: it is the always-on surface, and it carries the unread count as a DaisyUI
+`indicator-item` anchored to the row's trailing edge, pinned inside the row's
+background (`.app-rail-count`) instead of centred on a zero-width anchor, which would
+hang half the bubble past the row. When the rail collapses the label is gone, so the
+same fact moves onto the icon as a bare `status` dot (no number — a 4.5rem column has
+no room for one) and the count keeps an `sr-only` label for screen readers.
+The count is seeded once per page
 navigation by `inboxBadgeMiddleware` (`internal/server/inbox_badge.go`), kept
 live on pages without a feature stream by the leader session stream
 (`session.js`), and refreshed on visibility/focus/online on pages that already hold a stream —
@@ -200,7 +201,11 @@ daisyUI's drawer owns the slide, the overlay and the visibility handoff;
 is what a phone user taps.
 
 From 1024px up the same markup is a persistent column, and the header's second
-trigger collapses it to icons. Nothing about the work area changes with the
+trigger collapses it to icons. That trigger is the drawer pattern's own
+`drawer-button` (`btn btn-square btn-ghost`) carrying the pattern's panel glyph:
+a panel with a chevron that points at the edge the rail will move to. Both
+glyphs ship in the markup and CSS shows the one matching the state, so the
+panel itself never mirrors. Nothing about the work area changes with the
 width: the drawer content is a flex column that fills the viewport (`.app-main`
 + `.app-content` minimum height), which is the height a `FullBleed` page
 spends — the whiteboard's canvas chain (`app-body` → `flex-1` → `#canvas-wrap`)

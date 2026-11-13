@@ -1,0 +1,8 @@
+---
+name: panels/boards-list
+description: "Panel line: when the model should answer from the user's shared whiteboards."
+version: 1
+output: json
+variables: []
+---
+boards_list {scope: all|mine} whenever the request involves the shared whiteboards (list them, find a board, plan around them). Renders their REAL rows, so it is the only component allowed to answer with board content. scope: mine ONLY when the user asks for their own boards; all otherwise. Always send scope inside props.

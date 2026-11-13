@@ -50,6 +50,7 @@ Read the SKILL.md by name before the first matching edit (symlinks in `.agents/s
 ## Don'ts
 
 - NO HTMX/Alpine, NO `fmt.Sprintf` HTML, NO `log` (`slog`).
+- NO prompt text in Go. A model-facing instruction is a file in `internal/prompts/files/<domain>/<name>.prompt` (Dotprompt: YAML frontmatter + `{{variable}}`), loaded via `internal/prompts`; `make check-prompts` fails on a prompt-shaped literal. See `docs/prompts.md`.
 - NO hand-rolled IDs (`dbschema.NewID()`), NO ad-hoc `role == "admin"` (Casbin + `canDelete*` only), NO `PatchElements` without `id` + `WithSelector` (use `internal/datastar.RenderAndPatch`).
 - NO second i18n library: strings via `internal/i18n.T(ctx, "dominio.chave", nil)`. NO hardcoded copy in new markup.
 - NO real LLM in tests (stub only), NO secrets in git/chat/fixtures (`~/.secrets/` 600 or age `.env.age`; never print values).

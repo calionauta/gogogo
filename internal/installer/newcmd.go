@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/calionauta/gogogo/internal/capabilities"
+	"github.com/calionauta/gogogo/internal/prompts"
 	"github.com/calionauta/gogogo/internal/recipe"
 )
 
@@ -48,6 +49,7 @@ type newPaths struct {
 	handler  string
 	page     string
 	card     string
+	prompt   string
 	chi      string
 	registry string
 	policy   string
@@ -58,6 +60,7 @@ func newProjectPaths(name string) newPaths {
 		handler:  filepath.ToSlash(filepath.Join("features", name, "handlers", "chi.go")),
 		page:     filepath.ToSlash(filepath.Join("features", name, "components", "page.templ")),
 		card:     filepath.ToSlash(filepath.Join(capabilities.CardDir, name+".md")),
+		prompt:   filepath.ToSlash(filepath.Join(prompts.Dir, "panels", name+".prompt")),
 		chi:      "internal/server/chi.go",
 		registry: "internal/capabilities/registry.go",
 		policy:   "internal/rbac/casbin/policy.csv",
@@ -309,6 +312,7 @@ func printNewPlan(w io.Writer, opt newOptions, plan newPlan) error {
 		"features/" + opt.name + "/handlers/genui_panel.go",
 		".recipes/" + opt.name + ".yml",
 		capabilities.CardDir + "/" + opt.name + ".md",
+		prompts.Dir + "/panels/" + opt.name + ".prompt",
 	}
 	if opt.format == planFormatJSON {
 		enc := json.NewEncoder(w)
@@ -321,7 +325,7 @@ func printNewPlan(w io.Writer, opt newOptions, plan newPlan) error {
 			"edits":   []string{plan.paths.chi, plan.paths.registry, plan.paths.policy},
 			"proof": []string{
 				"templ generate", "generated docs", "registry conformance",
-				"check-flatdeps", "check-domains", "go build ./cmd/web", "recipe check",
+				"check-flatdeps", "check-domains", "check-prompts", "go build ./cmd/web", "recipe check",
 			},
 			"next": newNextSteps(opt.name),
 		})
@@ -332,7 +336,7 @@ func printNewPlan(w io.Writer, opt newOptions, plan newPlan) error {
 	fmt.Fprintf(w, "  edits   %s (one feature unit)\n", plan.paths.registry)
 	fmt.Fprintf(w, "  edits   %s (two user rows)\n", plan.paths.policy)
 	fmt.Fprintln(w, "  proof   templ generate, generated docs, registry conformance,")
-	fmt.Fprintln(w, "  proof   check-flatdeps, check-domains, go build ./cmd/web, recipe check")
+	fmt.Fprintln(w, "  proof   check-flatdeps, check-domains, check-prompts, go build ./cmd/web, recipe check")
 	return nil
 }
 
@@ -364,6 +368,7 @@ func applyNew(ctx context.Context, opt newOptions, plan newPlan, stdout io.Write
 	files := map[string]string{
 		plan.paths.handler: newHandlerSource(opt.name, plan.module),
 		plan.paths.page:    newPageSource(opt.name, plan.module),
+		plan.paths.prompt:  newPanelPromptSource(opt.name),
 		"features/" + opt.name + "/handlers/register.go":    newRegisterSource(opt.name, plan.module),
 		"features/" + opt.name + "/handlers/recipe.go":      newRecipeSource(opt.name, plan.module),
 		"features/" + opt.name + "/handlers/genui_panel.go": newPanelSource(opt.name, plan.module),
@@ -453,6 +458,16 @@ func proveNewFeature(ctx context.Context, root, name string, stdout io.Writer) e
 		fmt.Fprintln(stdout, "gogogo: prove: check-domains …")
 		if out, err := runIn(ctx, root, "go", "run", "./cmd/check-domains"); err != nil {
 			return &ExitError{code: 2, msg: "check-domains failed — the scaffolded card is not a boundary:\n" +
+				tailLines(string(out), proofBuildTailLines)}
+		}
+	}
+	// The prompt gate runs only on a tree that carries it: an older
+	// checkout still scaffolds, with the step skipped instead of failing on a
+	// command it does not have.
+	if _, statErr := os.Stat(filepath.Join(root, "cmd", "check-prompts")); statErr == nil {
+		fmt.Fprintln(stdout, "gogogo: prove: check-prompts …")
+		if out, err := runIn(ctx, root, "go", "run", "./cmd/check-prompts"); err != nil {
+			return &ExitError{code: 2, msg: "check-prompts failed — the scaffolded prompt is not a file:\n" +
 				tailLines(string(out), proofBuildTailLines)}
 		}
 	}

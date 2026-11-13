@@ -1,0 +1,8 @@
+---
+name: panels/notes-list
+description: "Panel line: when the model should answer from the user's shared notes."
+version: 1
+output: json
+variables: []
+---
+notes_list {scope: all|mine} whenever the request involves the user's shared notes (list them, find a note's title, plan around them, summarize). Renders their REAL rows, so it is the only component allowed to answer with note content. scope: mine ONLY when the user asks for their own notes; all otherwise. Always send scope inside props.

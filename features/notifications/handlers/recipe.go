@@ -4,6 +4,7 @@ package handlers
 import (
 	"github.com/go-chi/chi/v5"
 
+	"github.com/calionauta/gogogo/internal/prompts"
 	"github.com/calionauta/gogogo/internal/recipe"
 )
 
@@ -38,7 +39,7 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 		},
 		Panel: &recipe.PanelSpec{
 			Component: "inbox_list",
-			Prompt:    "inbox_list {scope: unread|all} whenever the request involves the user's reminders or inbox",
+			Prompt:    prompts.Text("panels/inbox-list"),
 			Writable:  []string{"scope"},
 		},
 		Routes: []recipe.Route{

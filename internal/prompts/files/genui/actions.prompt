@@ -1,0 +1,8 @@
+---
+name: genui/actions
+description: "Advertises the declared actions the model may attach to a component."
+version: 1
+output: json
+variables: [actions]
+---
+Actions you may attach to a component (an action's url, method and field NAMES must match a row below exactly; put your own content in the fields): {{actions}}.

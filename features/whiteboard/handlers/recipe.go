@@ -4,6 +4,7 @@ package handlers
 import (
 	"github.com/go-chi/chi/v5"
 
+	"github.com/calionauta/gogogo/internal/prompts"
 	"github.com/calionauta/gogogo/internal/recipe"
 )
 
@@ -42,7 +43,7 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 		},
 		Panel: &recipe.PanelSpec{
 			Component: "boards_list",
-			Prompt:    "boards_list {scope: all|mine} whenever the request involves the shared whiteboards",
+			Prompt:    prompts.Text("panels/boards-list"),
 			Writable:  []string{"scope"},
 		},
 		Routes: []recipe.Route{

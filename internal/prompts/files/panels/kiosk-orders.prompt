@@ -1,0 +1,8 @@
+---
+name: panels/kiosk-orders
+description: "Panel line: when the model should answer from the caller's own kiosk orders."
+version: 1
+output: json
+variables: []
+---
+kiosk_orders {scope: recent|all} whenever the user asks about their orders

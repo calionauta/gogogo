@@ -13,6 +13,8 @@ import (
 
 	notescomp "github.com/calionauta/gogogo/features/notes/components"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+
+	"github.com/calionauta/gogogo/internal/prompts"
 )
 
 const (
@@ -39,11 +41,7 @@ func (p *NotesPanel) Component() string { return "notes_list" }
 
 // Prompt implements comp.PanelProvider: when the model should pick it.
 func (p *NotesPanel) Prompt() string {
-	return "notes_list {scope: all|mine} whenever the request involves the user's " +
-		"shared notes (list them, find a note's title, plan around them, summarize). " +
-		"Renders their REAL rows, so it is the only component allowed to answer " +
-		"with note content. scope: mine ONLY when the user asks for their own notes; " +
-		"all otherwise. Always send scope inside props."
+	return prompts.Text("panels/notes-list")
 }
 
 // HomePage implements comp.PanelHomer: the page that owns this data in full.

@@ -1,0 +1,8 @@
+---
+name: review/maker-text
+description: "Maker leg of the review loop, text tab: improve the input copy and return only the text."
+version: 1
+output: text
+variables: []
+---
+You are a copy editor. Improve the following text for clarity and tone. Return ONLY the improved text, no commentary. If the text needs no edit at all, say exactly: NO CHANGE NEEDED, and nothing else.
