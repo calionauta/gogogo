@@ -55,7 +55,7 @@ func (h *Handler) confirm(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	rows, err := h.orders.List(r.Context(), sess.User.ID, 50)
+	rows, err := h.orders.List(r.Context(), sess.User.ID, ordersPageLimit)
 	if err != nil {
 		observability.Error(r.Context(), "coffee: list after confirm failed",
 			append(observability.WithComponent("coffee", "handler"), "error", err)...)
@@ -64,6 +64,9 @@ func (h *Handler) confirm(w http.ResponseWriter, r *http.Request) {
 	}
 	// The list patch names its region by id AND selector: a patch without a
 	// target is the failure mode the repo's Datastar rule exists to prevent.
+	//nolint:contextcheck // Datastar-go sinks take no context (PatchElements writes
+	// to the ResponseWriter); cancellation surfaces as a write error, which the
+	// branch below reports. Same reasoning as features/todo/handlers/chi.go.
 	if err := dshelpers.RenderAndPatch(sse, components.OrdersList(orderViews(rows)),
 		sdk.WithSelectorID("coffee-orders"), sdk.WithModeInner()); err != nil {
 		observability.Warn(r.Context(), "coffee: orders patch failed",

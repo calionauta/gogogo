@@ -65,13 +65,21 @@ func (h *Handler) session(w http.ResponseWriter, r *http.Request) (*auth.Validat
 	return sess, true
 }
 
+const (
+	// ordersPageLimit bounds the page's list. One constant: the page and the
+	// list-after-confirm patch render the same rows.
+	ordersPageLimit = 50
+	// shortStampLen is the length of the shortened "YYYY-MM-DD HH:MM" stamp.
+	shortStampLen = 16
+)
+
 // page renders the caller's own orders.
 func (h *Handler) page(w http.ResponseWriter, r *http.Request) {
 	sess, ok := h.session(w, r)
 	if !ok {
 		return
 	}
-	rows, err := h.orders.List(r.Context(), sess.User.ID, 50)
+	rows, err := h.orders.List(r.Context(), sess.User.ID, ordersPageLimit)
 	if err != nil {
 		// Not a fake empty list: an unrunnable query would render as "no orders
 		// yet", which is indistinguishable from the real thing.
@@ -152,7 +160,7 @@ func formatPrice(cents int) string {
 // not parse is shown as stored: a timestamp the page cannot read is still a fact
 // the user should see, not a blank.
 func displayTime(stamp string) string {
-	if len(stamp) < 16 {
+	if len(stamp) < shortStampLen {
 		return stamp
 	}
 	if _, err := time.Parse(time.RFC3339, stamp); err != nil {

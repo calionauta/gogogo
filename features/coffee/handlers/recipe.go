@@ -13,6 +13,11 @@ import (
 // RecipeID is the recipe's id, matching .recipe.yml and the receipt.
 const RecipeID = "coffee"
 
+const (
+	methodGet  = "GET"
+	methodPost = "POST"
+)
+
 // Recipe returns the declaration the composition root mounts through the seam.
 // It lives beside the routes it describes so the two cannot drift without one
 // edit: install compares this against the receipt, and the receipt against the
@@ -33,15 +38,15 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 	return recipe.Declaration{
 		Tables: []string{"ext_coffee_orders"},
 		Routes: []recipe.Route{
-			{Method: "GET", Pattern: "/coffee"},
-			{Method: "POST", Pattern: "/api/coffee/preview"},
-			{Method: "POST", Pattern: "/api/coffee/confirm"},
+			{Method: methodGet, Pattern: "/coffee"},
+			{Method: methodPost, Pattern: "/api/coffee/preview"},
+			{Method: methodPost, Pattern: "/api/coffee/confirm"},
 		},
 		Slots: []string{string(recipe.SlotNavSidebar)},
 		Actions: []recipe.InvokeAction{{
 			Verb:        "confirm",
 			Description: "Confirm one order for the calling owner, parsed from the posted text.",
-			Route:       recipe.Route{Method: "POST", Pattern: "/api/coffee/confirm"},
+			Route:       recipe.Route{Method: methodPost, Pattern: "/api/coffee/confirm"},
 			Params:      []string{"text", "previewed"},
 			ParamHelp: map[string]string{
 				"text":      "The spoken or typed order, in the recipe's own menu vocabulary.",
@@ -52,7 +57,7 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 		// would receive a signal frame and no result. Declared rather than
 		// forgotten, which is the difference the omission check reports.
 		Omitted: []recipe.OmittedRoute{{
-			Route:  recipe.Route{Method: "POST", Pattern: "/api/coffee/preview"},
+			Route:  recipe.Route{Method: methodPost, Pattern: "/api/coffee/preview"},
 			Reason: "Demo-only parse that writes nothing and answers with a UI patch; it never completes headless.",
 		}},
 		Metrics: []recipe.Metric{{
@@ -78,7 +83,7 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 			Component: "coffee_orders",
 			Prompt:    "coffee_orders {scope: recent|all} whenever the user asks about their coffee orders",
 			Writable:  []string{"scope"},
-			Values:    []string{"recent", "all"},
+			Values:    []string{scopeRecent, scopeAll},
 		},
 	}
 }

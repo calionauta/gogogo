@@ -285,7 +285,7 @@ type vocabulary struct {
 // list: the alias a customer can say and the ID the row stores are one fact.
 
 func drinkVocabulary() []vocabulary {
-	var out []vocabulary
+	out := make([]vocabulary, 0, len(Drinks))
 	for _, d := range Drinks {
 		out = append(out, aliasesOf(d.ID, d.Aliases)...)
 	}
@@ -293,7 +293,7 @@ func drinkVocabulary() []vocabulary {
 }
 
 func sizeVocabulary() []vocabulary {
-	var out []vocabulary
+	out := make([]vocabulary, 0, len(Sizes))
 	for _, s := range Sizes {
 		out = append(out, aliasesOf(s.ID, s.Aliases)...)
 	}
@@ -301,7 +301,7 @@ func sizeVocabulary() []vocabulary {
 }
 
 func milkVocabulary() []vocabulary {
-	var out []vocabulary
+	out := make([]vocabulary, 0, len(Milks))
 	for _, m := range Milks {
 		out = append(out, aliasesOf(m.ID, m.Aliases)...)
 	}
@@ -309,7 +309,7 @@ func milkVocabulary() []vocabulary {
 }
 
 func extraVocabulary() []vocabulary {
-	var out []vocabulary
+	out := make([]vocabulary, 0, len(Extras))
 	for _, e := range Extras {
 		out = append(out, aliasesOf(e.ID, e.Aliases)...)
 	}
@@ -353,36 +353,36 @@ func matchAll(norm string, vocab []vocabulary) []string {
 // drops punctuation and collapses whitespace. A hand-written replacer, not a
 // normalization dependency: the vocabulary is closed and small, and the parser
 // is easier to read when the exact substitutions are visible.
+var accentFolder = strings.NewReplacer(
+	"á", "a", "à", "a", "â", "a", "ã", "a", "ä", "a",
+	"é", "e", "è", "e", "ê", "e",
+	"í", "i", "ì", "i", "î", "i",
+	"ó", "o", "ò", "o", "ô", "o", "õ", "o", "ö", "o",
+	"ú", "u", "ù", "u", "û", "u", "ü", "u",
+	"ç", "c", "ñ", "n",
+)
+
 func normalize(s string) string {
-	replacer := strings.NewReplacer(
-		"á", "a", "à", "a", "â", "a", "ã", "a", "ä", "a",
-		"é", "e", "è", "e", "ê", "e",
-		"í", "i", "ì", "i", "î", "i",
-		"ó", "o", "ò", "o", "ô", "o", "õ", "o", "ö", "o",
-		"ú", "u", "ù", "u", "û", "u", "ü", "u",
-		"ç", "c", "ñ", "n",
-	)
-	lower := replacer.Replace(strings.ToLower(s))
+	lower := accentFolder.Replace(strings.ToLower(s))
 	var b strings.Builder
 	space := false
 	for _, r := range lower {
-		switch {
-		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '_':
+		if isWordRune(r) {
 			b.WriteRune(r)
 			space = false
-		case r == ' ' || r == '\t' || r == '\n' || r == ',' || r == '.' || r == '!' || r == '?':
-			if !space && b.Len() > 0 {
-				b.WriteByte(' ')
-				space = true
-			}
-		default:
-			// Anything else (quotes, dashes, emoji) separates words rather than
-			// joining them, which is what a spoken sentence does.
-			if !space && b.Len() > 0 {
-				b.WriteByte(' ')
-				space = true
-			}
+			continue
+		}
+		// Anything else (spaces, punctuation, quotes, dashes, emoji) separates
+		// words rather than joining them, which is what a spoken sentence does.
+		if !space && b.Len() > 0 {
+			b.WriteByte(' ')
+			space = true
 		}
 	}
 	return strings.TrimSpace(b.String())
+}
+
+// isWordRune keeps what the closed vocabulary and its aliases are spelled with.
+func isWordRune(r rune) bool {
+	return r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '_'
 }

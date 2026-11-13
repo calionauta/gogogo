@@ -7,8 +7,9 @@
 package handlers
 
 import (
-	"log/slog"
+	"context"
 
+	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/recipe"
 	"github.com/calionauta/gogogo/internal/recipe/register"
 )
@@ -40,7 +41,8 @@ func Register(reg *recipe.Registry, d register.Deps) {
 		// A build that offers no nav slot cannot show the destination. The routes
 		// still work, so a boot-time warning is the honest report: failing here
 		// would take the whole tree down for a missing menu entry. Boot has no
-		// request context, which is the one place slog is the right logger.
-		slog.Warn("coffee: sidebar entry refused", "error", err)
+		// request context, so the empty one keeps the log on the app's logger.
+		observability.Warn(context.Background(), "coffee: sidebar entry refused",
+			append(observability.WithComponent("coffee", "handler"), "error", err)...)
 	}
 }

@@ -342,7 +342,8 @@ voice-first coffee order demo (closed menu, on-device voice, one declared outcom
 - **Routes:** `/api/coffee/confirm`, `/api/coffee/preview`, `/coffee`
 - **Store calls:** `dbgen.CreateCoffeeOrder`, `dbgen.ListCoffeeOrders`
 - **Depends on:** genui
-- **Note:** Bundled like the other demos: the code lives in features/coffee and the receipt in .recipes/coffee.yml, so it mounts through the same seam and can be uninstalled like any recipe. The outcome (success over eligible orders) is the worked example of a declared measurement — docs/scope-taxonomy.md.
+- **Why that class:** Bundled like the other demos: the code lives in features/coffee and the receipt in .recipes/coffee.yml, so it mounts through the same seam and `recipe uninstall coffee` removes it. Its chat panel renders through genui — remove it with genui.
+- **Note:** The declared outcome (orders that needed no repair over orders confirmed) is the worked example of a declared measurement — docs/scope-taxonomy.md.
 
 ## `config-view` — feature
 

@@ -4,6 +4,8 @@ package capabilities
 // All is the full capability map. Installer units cover a subset (see
 // Offered); the rest are env-blessed, core, or manual-removal with the
 // reason recorded.
+const idGenui = "genui" // the unit id coffee depends on
+
 var baseUnits = []Capability{
 	{
 		ID:      "capabilities",
@@ -223,7 +225,7 @@ var baseUnits = []Capability{
 		Reason:  "Every .templ page renders through it; deletion is manual.",
 	},
 	{
-		ID:      "genui",
+		ID:      idGenui,
 		Kind:    KindPlugin,
 		Summary: "generative UI: the Chat demo renders LLM answers as Templ directives over the SSE hub",
 		Dirs:    []string{"features/genui"},
@@ -366,27 +368,10 @@ var baseUnits = []Capability{
 		Reason: "Reference implementation — remove manually later per docs/scope-taxonomy.md.",
 	},
 	{
-		ID:        "coffee",
-		Kind:      KindFeature,
-		Summary:   "voice-first coffee order demo (closed menu, on-device voice, one declared outcome)",
-		DependsOn: []string{"genui"},
-		Dirs:      []string{"features/coffee"},
-		Register:  "features/coffee/handlers",
-		Actions:   []string{"confirm"},
-		ActionParams: map[string][]string{
-			"confirm": {"text", "previewed"},
-		},
-		Note: "Bundled like the other demos: the code lives in features/coffee " +
-			"and the receipt in .recipes/coffee.yml, so it mounts through the " +
-			"same seam and can be uninstalled like any recipe. The outcome " +
-			"(success over eligible orders) is the worked example of a " +
-			"declared measurement — docs/scope-taxonomy.md.",
-	},
-	{
 		ID:        "chat",
 		Kind:      KindFeature,
 		Summary:   "conversation demo (persisted history + catalog answers on genui)",
-		DependsOn: []string{"genui"},
+		DependsOn: []string{idGenui},
 		Dirs:      []string{"features/chat"},
 		Register:  "features/chat/handlers",
 		Reason: "Bundled into the genui unit: chat imports genui components " +

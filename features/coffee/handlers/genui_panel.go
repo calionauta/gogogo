@@ -23,6 +23,12 @@ import (
 	comp "github.com/calionauta/gogogo/features/genui/components"
 )
 
+const (
+	// scopeRecent is the short recap; scopeAll is the page's own cap.
+	scopeRecent = "recent"
+	scopeAll    = "all"
+)
+
 // panel is the SlicePanel plus nothing: embedding keeps the inherited methods
 // and lets this type stay a value, the same shape NewSlicePanel returns.
 type panel struct {
@@ -36,7 +42,7 @@ func (h *Handler) Panel() comp.PanelProvider {
 		"coffee_orders",
 		"coffee_orders {scope: recent|all} whenever the user asks about their coffee orders",
 		"scope",
-		[]string{"recent", "all"},
+		[]string{scopeRecent, scopeAll},
 		h.panelRows,
 		panelRowsFromProps,
 		func(rows []any, _ string) (templ.Component, error) {
@@ -48,8 +54,8 @@ func (h *Handler) Panel() comp.PanelProvider {
 // panelRows is the List closure: the viewer's own rows, bounded by the slice the
 // model chose. `recent` is a short recap; `all` is the page's own cap.
 func (h *Handler) panelRows(ctx context.Context, owner, scope string) (any, error) {
-	limit := 50
-	if scope == "recent" {
+	limit := ordersPageLimit
+	if scope == scopeRecent {
 		limit = 5
 	}
 	rows, err := h.orders.List(ctx, owner, limit)
