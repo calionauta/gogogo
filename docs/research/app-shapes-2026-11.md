@@ -12,7 +12,7 @@ gated without resurrecting a second registry?
 and which **capabilities** the tree ships, declared once in
 `internal/capabilities`, recorded in the generated `AGENTS.md` provenance block
 and in a `.gogogo/shape.yml`, applied by the existing unit-removal mechanics,
-and proved by a `shape check` subcommand (proposed). It is not a new prompt: the CLI, the
+and proved by a `shape check` subcommand. It is not a new prompt: the CLI, the
 MCP tool and the docs all read the same enum.
 
 ## Why the current scaffold cannot answer it
@@ -95,6 +95,13 @@ a `shape check --dir .` subcommand (proposed; also `make check-shape`, cheap, te
 **Not in scope:** a `library`/`embedded` shape (no HTTP at all). It needs a
 different composition root, and the native panels already prove the
 "render the page's components" path separately.
+
+## Status
+
+Phase 1 shipped (PR #425): the enum, the `.gogogo/shape.yml` record, the
+`check-shape` gate and the `shape check` subcommand. Phase 2
+(`Capability.Shapes`) and phase 3 (the `server.PageRoutes` seam that makes the
+`api` shape cheap) are still open.
 
 ## Decision
 
