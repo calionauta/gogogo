@@ -34,7 +34,7 @@ type DocSnapshot struct {
 	Updated  string
 }
 
-type ExtCoffeeOrder struct {
+type ExtKioskOrder struct {
 	ID          string
 	Owner       string
 	Drink       string

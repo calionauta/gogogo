@@ -7,7 +7,7 @@ import (
 
 	sdk "github.com/starfederation/datastar-go/datastar"
 
-	"github.com/calionauta/gogogo/features/coffee"
+	"github.com/calionauta/gogogo/features/kiosk"
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
 	"github.com/calionauta/gogogo/internal/observability"
 )
@@ -17,7 +17,7 @@ import (
 // the demo, and it is deliberately the same parse the confirm runs — one
 // vocabulary, one parser, two callers.
 //
-// The handler never echoes the text back. $coffeeText belongs to the input
+// The handler never echoes the text back. $kioskText belongs to the input
 // (data-bind), so a server write would clobber what the user is typing — the bug
 // docs/realtime-recipe.md records for the todo search box.
 func (h *Handler) preview(w http.ResponseWriter, r *http.Request) {
@@ -28,11 +28,11 @@ func (h *Handler) preview(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad form", http.StatusBadRequest)
 		return
 	}
-	parsed := coffee.Parse(r.PostFormValue("text"))
+	parsed := kiosk.Parse(r.PostFormValue("text"))
 	sse := sdk.NewSSE(w, r)
 	if err := dshelpers.MergeSignals(sse, previewSignals(parsed)); err != nil {
-		observability.Warn(r.Context(), "coffee: preview signals failed",
-			append(observability.WithComponent("coffee", "handler"), "error", err)...)
+		observability.Warn(r.Context(), "kiosk: preview signals failed",
+			append(observability.WithComponent("kiosk", "handler"), "error", err)...)
 	}
 }
 
@@ -40,30 +40,30 @@ func (h *Handler) preview(w http.ResponseWriter, r *http.Request) {
 // shows its labels and price, an unsettled one says what is missing, an
 // ambiguous one asks instead of picking. Every signal is written on every answer
 // so a stale field cannot survive a correction.
-func previewSignals(parsed coffee.ParseResult) map[string]any {
+func previewSignals(parsed kiosk.ParseResult) map[string]any {
 	signals := map[string]any{
-		"coffeeDrink":   "",
-		"coffeeSize":    "",
-		"coffeeMilk":    "",
-		"coffeeExtras":  "",
-		"coffeePrice":   "",
-		"coffeeNeed":    "",
-		"coffeePreview": "",
+		"kioskDrink":   "",
+		"kioskSize":    "",
+		"kioskMilk":    "",
+		"kioskExtras":  "",
+		"kioskPrice":   "",
+		"kioskNeed":    "",
+		"kioskPreview": "",
 	}
 	if parsed.Ambiguous {
-		signals["coffeeNeed"] = "I could not tell which drink — say one, or type it."
+		signals["kioskNeed"] = "I could not tell which drink — say one, or type it."
 		return signals
 	}
 	if parsed.Order.Drink != "" {
-		signals["coffeeDrink"] = coffee.DrinkLabel(parsed.Order.Drink)
-		signals["coffeeSize"] = coffee.SizeLabel(parsed.Order.Size)
-		signals["coffeeMilk"] = coffee.MilkLabel(parsed.Order.Milk)
-		signals["coffeeExtras"] = coffee.ExtraLabels(parsed.Order.Extras)
-		signals["coffeePrice"] = formatPrice(coffee.PriceCents(parsed.Order))
-		signals["coffeePreview"] = coffee.Serialize(parsed.Order)
+		signals["kioskDrink"] = kiosk.DrinkLabel(parsed.Order.Drink)
+		signals["kioskSize"] = kiosk.SizeLabel(parsed.Order.Size)
+		signals["kioskMilk"] = kiosk.MilkLabel(parsed.Order.Milk)
+		signals["kioskExtras"] = kiosk.ExtraLabels(parsed.Order.Extras)
+		signals["kioskPrice"] = formatPrice(kiosk.PriceCents(parsed.Order))
+		signals["kioskPreview"] = kiosk.Serialize(parsed.Order)
 	}
 	if len(parsed.Missing) > 0 {
-		signals["coffeeNeed"] = "Missing: " + strings.Join(missingLabels(parsed.Missing), ", ")
+		signals["kioskNeed"] = "Missing: " + strings.Join(missingLabels(parsed.Missing), ", ")
 	}
 	return signals
 }

@@ -39,8 +39,6 @@ Every `/api/*` literal in non-test, non-generated Go sources.
 - `/api/chat/ask`
 - `/api/chat/clear`
 - `/api/chat/stream`
-- `/api/coffee/confirm`
-- `/api/coffee/preview`
 - `/api/credits`
 - `/api/credits/checkout`
 - `/api/credits/stripe-webhook`
@@ -49,6 +47,8 @@ Every `/api/*` literal in non-test, non-generated Go sources.
 - `/api/graph/panorama`
 - `/api/graph/ping`
 - `/api/graph/presence`
+- `/api/kiosk/confirm`
+- `/api/kiosk/preview`
 - `/api/notes/fragment`
 - `/api/notes/{docID}`
 - `/api/notes/{docID}/caret`
@@ -96,9 +96,9 @@ Every `/api/*` URL fired from `.templ` and `.js` sources.
 - `/api/chat/ask`
 - `/api/chat/clear`
 - `/api/chat/stream`
-- `/api/coffee/confirm`
-- `/api/coffee/preview`
 - `/api/graph/`
+- `/api/kiosk/confirm`
+- `/api/kiosk/preview`
 - `/api/notes/`
 - `/api/notes/fragment`
 - `/api/notifications/badge`

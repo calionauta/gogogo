@@ -270,9 +270,9 @@ p, user, /whiteboard, .*
 p, user, /whiteboard/*, .*
 p, user, /whiteboard/new, .*
 # end recipe:whiteboard
-# recipe:coffee
+# recipe:kiosk
 # written by `gogogo recipe install`; `gogogo recipe uninstall` removes this block
-p, user, /api/coffee/confirm, .*
-p, user, /api/coffee/preview, .*
-p, user, /coffee, .*
-# end recipe:coffee
+p, user, /api/kiosk/confirm, .*
+p, user, /api/kiosk/preview, .*
+p, user, /kiosk, .*
+# end recipe:kiosk

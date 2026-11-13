@@ -1,4 +1,4 @@
-// The coffee recipe's boot entry point.
+// The kiosk recipe's boot entry point.
 //
 // `Register` is the one function the generated registration calls. It builds the
 // handler, hands its provider to the seam, contributes its sidebar entry and
@@ -20,7 +20,7 @@ func Register(reg *recipe.Registry, d register.Deps) {
 	reg.Add(h.Recipe())
 
 	// The panel is the recipe's chat surface. It renders the page's own list, so
-	// the answer cannot drift from /coffee. The root asserts it to the panel
+	// the answer cannot drift from /kiosk. The root asserts it to the panel
 	// interface and installs the registry once, with every other recipe's.
 	if d.Panels != nil {
 		*d.Panels = append(*d.Panels, h.Panel())
@@ -34,7 +34,7 @@ func Register(reg *recipe.Registry, d register.Deps) {
 	}
 	err := d.Slots.Add(recipe.Contribution{
 		Entries: map[recipe.SlotID][]recipe.Entry{
-			recipe.SlotNavSidebar: {{Label: "Coffee", Href: "/coffee"}},
+			recipe.SlotNavSidebar: {{Label: "Kiosk", Href: "/kiosk"}},
 		},
 	})
 	if err != nil {
@@ -42,7 +42,7 @@ func Register(reg *recipe.Registry, d register.Deps) {
 		// still work, so a boot-time warning is the honest report: failing here
 		// would take the whole tree down for a missing menu entry. Boot has no
 		// request context, so the empty one keeps the log on the app's logger.
-		observability.Warn(context.Background(), "coffee: sidebar entry refused",
-			append(observability.WithComponent("coffee", "handler"), "error", err)...)
+		observability.Warn(context.Background(), "kiosk: sidebar entry refused",
+			append(observability.WithComponent("kiosk", "handler"), "error", err)...)
 	}
 }

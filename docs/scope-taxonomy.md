@@ -245,12 +245,12 @@ card per installed recipe (its rail destination), then renders
 `graph` renders the capability/recipe map itself. Pomodoro (`_recipes/pomodoro`:
 one table, one page, one write, one sidebar entry, and the five contract tests
 a recipe that mounts routes must ship) stays the minimal installable example;
-Coffee is the worked instrumentation example — a closed-menu parser with
+Kiosk is the worked instrumentation example — a closed-menu parser with
 on-device voice and one declared outcome (a success/total pair over its own
-table, `recipe describe coffee`). It ships **bundled**, like the other demos:
-the code lives in `features/coffee`, the receipt in `.recipes/coffee.yml`, and
+table, `recipe describe kiosk`). It ships **bundled**, like the other demos:
+the code lives in `features/kiosk`, the receipt in `.recipes/kiosk.yml`, and
 the registry row is what says it is a feature — so it mounts by default and
-`recipe uninstall coffee` removes it like any other. `features/todo` stays the
+`recipe uninstall kiosk` removes it like any other. `features/todo` stays the
 in-tree reference slice. New cost: none — deleting a bundled unit is
 `recipe uninstall <id>` (see `docs/features.md`).
 

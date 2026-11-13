@@ -1,9 +1,9 @@
-// The coffee parser's contract, one case per behavior a customer can produce.
+// The kiosk parser's contract, one case per behavior a customer can produce.
 //
 // These are the tests `recipe check` looks for, and the ones a browser smoke
 // cannot replace: the value of a deterministic parser is that every utterance
 // shape is a table row.
-package coffee
+package kiosk
 
 import (
 	"slices"
@@ -56,7 +56,7 @@ func TestParseReportsWhatIsMissing(t *testing.T) {
 		{"a latte", []string{"size"}},
 		{"large", []string{"drink"}},
 		{"", []string{"drink"}},
-		{"an iced coffee with caramel", []string{"drink"}},
+		{"an iced kiosk with caramel", []string{"drink"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.text, func(t *testing.T) {

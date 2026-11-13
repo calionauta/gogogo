@@ -80,12 +80,12 @@ var pagesUnderTest = []pageUnderTest{
 		`value="custom"`,
 		`value="native"`,
 	}},
-	{name: "coffee", route: "/coffee", must: []string{
-		`id="coffee-voice"`,
-		`id="coffee-form"`,
-		`data-bind="coffeeText"`,
-		`id="coffee-voice-status"`,
-		`id="coffee-orders"`,
+	{name: "kiosk", route: "/kiosk", must: []string{
+		`id="kiosk-voice"`,
+		`id="kiosk-form"`,
+		`data-bind="kioskText"`,
+		`id="kiosk-voice-status"`,
+		`id="kiosk-orders"`,
 	}},
 	{name: "review", route: "/review", must: []string{
 		// The composer (review-composer / review-tab / review-content) is gated

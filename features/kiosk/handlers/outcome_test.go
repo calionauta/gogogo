@@ -17,14 +17,14 @@ import (
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 
-	"github.com/calionauta/gogogo/features/coffee"
+	"github.com/calionauta/gogogo/features/kiosk"
 )
 
 // outcomeRatio is the answer the dashboard renders: the two counts, in the
 // order the declaration names them.
 func TestOutcomeRatioOverItsOwnSchema(t *testing.T) {
 	ctx := context.Background()
-	dsn := "file:" + filepath.Join(t.TempDir(), "coffee.db")
+	dsn := "file:" + filepath.Join(t.TempDir(), "kiosk.db")
 	// The DDL references users(id), a core table this recipe does not own, so
 	// the fixture pins the ratio instead of pretending to build a user. The
 	// pragma rides the DSN so every pooled connection gets it.
@@ -33,7 +33,7 @@ func TestOutcomeRatioOverItsOwnSchema(t *testing.T) {
 		t.Fatalf("open sqlite3: %v", err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-	applyCoffeeMigrations(ctx, t, db)
+	applyKioskMigrations(ctx, t, db)
 
 	// Two orders for the caller, one of them repaired, plus an order that
 	// belongs to someone else: without it, a missing `WHERE owner = ?` would
@@ -65,11 +65,11 @@ func TestOutcomeRatioOverItsOwnSchema(t *testing.T) {
 	}
 }
 
-// applyCoffeeMigrations replays the recipe's embedded DDL, the same bytes the
+// applyKioskMigrations replays the recipe's embedded DDL, the same bytes the
 // seam applies at boot.
-func applyCoffeeMigrations(ctx context.Context, t *testing.T, db *sql.DB) {
+func applyKioskMigrations(ctx context.Context, t *testing.T, db *sql.DB) {
 	t.Helper()
-	entries, err := fs.ReadDir(coffee.Migrations, "migrations")
+	entries, err := fs.ReadDir(kiosk.Migrations, "migrations")
 	if err != nil {
 		t.Fatalf("read migrations: %v", err)
 	}
@@ -77,7 +77,7 @@ func applyCoffeeMigrations(ctx context.Context, t *testing.T, db *sql.DB) {
 		if entry.IsDir() {
 			continue
 		}
-		raw, err := fs.ReadFile(coffee.Migrations, "migrations/"+entry.Name())
+		raw, err := fs.ReadFile(kiosk.Migrations, "migrations/"+entry.Name())
 		if err != nil {
 			t.Fatalf("read %s: %v", entry.Name(), err)
 		}
@@ -90,7 +90,7 @@ func applyCoffeeMigrations(ctx context.Context, t *testing.T, db *sql.DB) {
 func insertOrder(ctx context.Context, t *testing.T, db *sql.DB, id, owner string, corrected int) {
 	t.Helper()
 	_, err := db.ExecContext(ctx, `
-		INSERT INTO ext_coffee_orders (id, owner, drink, size, milk, extras, price_cents, corrected, confirmed_at)
+		INSERT INTO ext_kiosk_orders (id, owner, drink, size, milk, extras, price_cents, corrected, confirmed_at)
 		VALUES (?, ?, 'latte', 'large', '', '', 450, ?, '2026-11-12T00:00:00Z')`,
 		id, owner, corrected)
 	if err != nil {

@@ -4,7 +4,7 @@ package capabilities
 // All is the full capability map. Installer units cover a subset (see
 // Offered); the rest are env-blessed, core, or manual-removal with the
 // reason recorded.
-const idGenui = "genui" // the unit id coffee depends on
+const idGenui = "genui" // the unit id kiosk depends on
 
 var baseUnits = []Capability{
 	{

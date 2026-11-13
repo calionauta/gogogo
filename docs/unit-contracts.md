@@ -334,17 +334,6 @@ conversation demo (persisted history + catalog answers on genui)
 - **Depends on:** genui
 - **Why that class:** Bundled into the genui unit: chat imports genui components (no-compile without it) — one unit is the honest shape, same as whiteboard+collab+notes.
 
-## `coffee` — feature
-
-voice-first coffee order demo (closed menu, on-device voice, one declared outcome)
-
-- **Owned:** `features/coffee`
-- **Routes:** `/api/coffee/confirm`, `/api/coffee/preview`, `/coffee`
-- **Store calls:** `dbgen.CreateCoffeeOrder`, `dbgen.ListCoffeeOrders`
-- **Depends on:** genui
-- **Why that class:** Bundled like the other demos: the code lives in features/coffee and the receipt in .recipes/coffee.yml, so it mounts through the same seam and `recipe uninstall coffee` removes it. Its chat panel renders through genui — remove it with genui.
-- **Note:** The declared outcome (orders that needed no repair over orders confirmed) is the worked example of a declared measurement — docs/scope-taxonomy.md.
-
 ## `config-view` — feature
 
 admin-only /config view + user role/session actions
@@ -364,6 +353,17 @@ signed-in summary page; the dashboard.card slot host
 - **Routes:** `/dashboard`
 - **Depends on:** sounds
 - **Why that class:** Host page for dashboard.card: one unit mounts itself through the recipe seam. Remove manually (delete the unit, its two policy rows, its Modules entry).
+
+## `kiosk` — feature
+
+voice-first kiosk order demo (closed menu, on-device voice, one declared outcome)
+
+- **Owned:** `features/kiosk`
+- **Routes:** `/api/kiosk/confirm`, `/api/kiosk/preview`, `/kiosk`
+- **Store calls:** `dbgen.CreateKioskOrder`, `dbgen.ListKioskOrders`
+- **Depends on:** genui
+- **Why that class:** Bundled like the other demos: the code lives in features/kiosk and the receipt in .recipes/kiosk.yml, so it mounts through the same seam and `recipe uninstall kiosk` removes it. Its chat panel renders through genui — remove it with genui.
+- **Note:** The declared outcome (orders that needed no repair over orders confirmed) is the worked example of a declared measurement — docs/scope-taxonomy.md.
 
 ## `landing` — feature
 

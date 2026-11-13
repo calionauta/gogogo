@@ -1,4 +1,10 @@
-// The coffee demo's closed vocabulary and its parser.
+// The kiosk's catalog (the demo's coffee menu) and its parser.
+//
+// The capability is the pipeline around this file: free text — typed or spoken
+// — parsed against a CLOSED vocabulary, priced, previewed, then written as one
+// owner-scoped row. This file is the data half: which items, sizes, milks and
+// extras a counter sells, and what people call them. A different counter
+// replaces this data; the routes, preview, confirm, page and panel stay.
 //
 // Two decisions live here, and both are about what NOT to add:
 //
@@ -9,7 +15,7 @@
 //     does not need an LLM: it needs aliases, a unit test, and zero latency. The
 //     Jev seam stays available for utterances this cannot settle, but it is
 //     opt-in and measured first — see docs/research/recipe-outcomes-2026-11.md.
-package coffee
+package kiosk
 
 import (
 	"strings"

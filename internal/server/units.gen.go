@@ -5,10 +5,10 @@ package server
 import (
 	accounthandlers "github.com/calionauta/gogogo/features/account/handlers"
 	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
-	coffeehandlers "github.com/calionauta/gogogo/features/coffee/handlers"
 	confighandlers "github.com/calionauta/gogogo/features/config/handlers"
 	creditshandlers "github.com/calionauta/gogogo/features/credits/handlers"
 	dashboardhandlers "github.com/calionauta/gogogo/features/dashboard/handlers"
+	kioskhandlers "github.com/calionauta/gogogo/features/kiosk/handlers"
 	landinghandlers "github.com/calionauta/gogogo/features/landing/handlers"
 	noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"
 	notificationshandlers "github.com/calionauta/gogogo/features/notifications/handlers"
@@ -27,10 +27,10 @@ import (
 var bundledUnits = []register.Func{
 	accounthandlers.Register,
 	chathandlers.Register,
-	coffeehandlers.Register,
 	confighandlers.Register,
 	creditshandlers.Register,
 	dashboardhandlers.Register,
+	kioskhandlers.Register,
 	landinghandlers.Register,
 	noteshandlers.Register,
 	notificationshandlers.Register,

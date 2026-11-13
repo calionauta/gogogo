@@ -130,7 +130,7 @@ var catalogFixtures = []fixture{
 	},
 	{
 		name:  "unknown component",
-		json:  `{"components":[{"type":"coffee_menu","props":{}}]}`,
+		json:  `{"components":[{"type":"kiosk_menu","props":{}}]}`,
 		valid: false,
 	},
 	{

@@ -1,4 +1,4 @@
-// The coffee recipe's HTTP slice: one page, two POSTs.
+// The kiosk recipe's HTTP slice: one page, two POSTs.
 package handlers
 
 import (
@@ -12,9 +12,9 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/calionauta/gogogo/config"
-	"github.com/calionauta/gogogo/features/coffee"
-	"github.com/calionauta/gogogo/features/coffee/components"
-	"github.com/calionauta/gogogo/features/coffee/service"
+	"github.com/calionauta/gogogo/features/kiosk"
+	"github.com/calionauta/gogogo/features/kiosk/components"
+	"github.com/calionauta/gogogo/features/kiosk/service"
 	"github.com/calionauta/gogogo/internal/auth"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/observability"
@@ -33,7 +33,7 @@ type Handler struct {
 // recipe would otherwise dereference it on the first request.
 func NewHandler(a *auth.Auth, q *dbgen.Queries, cfg *config.Config) *Handler {
 	if a == nil || q == nil {
-		panic("coffee: NewHandler needs auth and queries")
+		panic("kiosk: NewHandler needs auth and queries")
 	}
 	return &Handler{auth: a, cfg: cfg, orders: service.NewOrders(q)}
 }
@@ -43,9 +43,9 @@ func NewHandler(a *auth.Auth, q *dbgen.Queries, cfg *config.Config) *Handler {
 // declaration in .recipe.yml: install checks that they do.
 func (h *Handler) Routes() chi.Router {
 	r := chi.NewRouter()
-	r.Get("/coffee", h.page)
-	r.Post("/api/coffee/preview", h.preview)
-	r.Post("/api/coffee/confirm", h.confirm)
+	r.Get("/kiosk", h.page)
+	r.Post("/api/kiosk/preview", h.preview)
+	r.Post("/api/kiosk/confirm", h.confirm)
 	return r
 }
 
@@ -83,8 +83,8 @@ func (h *Handler) page(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Not a fake empty list: an unrunnable query would render as "no orders
 		// yet", which is indistinguishable from the real thing.
-		observability.Error(r.Context(), "coffee: list orders failed",
-			append(observability.WithComponent("coffee", "handler"), "error", err)...)
+		observability.Error(r.Context(), "kiosk: list orders failed",
+			append(observability.WithComponent("kiosk", "handler"), "error", err)...)
 		http.Error(w, "listing orders failed", http.StatusInternalServerError)
 		return
 	}
@@ -103,7 +103,7 @@ func (h *Handler) page(w http.ResponseWriter, r *http.Request) {
 // phrasesJSON is the recognizer's contextual bias, rendered from the menu so the
 // browser cannot hold a second vocabulary.
 func phrasesJSON() string {
-	b, err := json.Marshal(coffee.Phrases())
+	b, err := json.Marshal(kiosk.Phrases())
 	if err != nil {
 		return "[]"
 	}
@@ -113,8 +113,8 @@ func phrasesJSON() string {
 // menuLine is the vocabulary the page shows: the closed set, with the medium
 // price, so a customer knows what can be said.
 func menuLine() string {
-	parts := make([]string, 0, len(coffee.Drinks))
-	for _, d := range coffee.Drinks {
+	parts := make([]string, 0, len(kiosk.Drinks))
+	for _, d := range kiosk.Drinks {
 		parts = append(parts, d.Label+" "+formatPrice(d.BaseCents))
 	}
 	return strings.Join(parts, " · ")
@@ -122,14 +122,14 @@ func menuLine() string {
 
 // orderViews converts stored rows into what the page and the panel render,
 // resolving IDs to labels and the price once and in one place.
-func orderViews(rows []dbgen.ExtCoffeeOrder) []components.Order {
+func orderViews(rows []dbgen.ExtKioskOrder) []components.Order {
 	out := make([]components.Order, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, components.Order{
-			Drink:     coffee.DrinkLabel(row.Drink),
-			Size:      coffee.SizeLabel(row.Size),
-			Milk:      coffee.MilkLabel(row.Milk),
-			Extras:    coffee.ExtraLabels(splitExtras(row.Extras)),
+			Drink:     kiosk.DrinkLabel(row.Drink),
+			Size:      kiosk.SizeLabel(row.Size),
+			Milk:      kiosk.MilkLabel(row.Milk),
+			Extras:    kiosk.ExtraLabels(splitExtras(row.Extras)),
 			Price:     formatPrice(int(row.PriceCents)),
 			When:      displayTime(row.ConfirmedAt),
 			Corrected: row.Corrected != 0,

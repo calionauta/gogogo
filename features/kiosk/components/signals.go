@@ -1,4 +1,4 @@
-// The coffee page's Datastar seed.
+// The kiosk page's Datastar seed.
 package components
 
 import "encoding/json"

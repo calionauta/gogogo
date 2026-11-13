@@ -1,4 +1,4 @@
-// The coffee demo's page: one text field, one preview card, one order list.
+// The kiosk demo's page: one text field, one preview card, one order list.
 //
 // Two deliberate choices:
 //
@@ -51,54 +51,54 @@ type PageData struct {
 }
 
 // seedSignals is the page's initial signal set. Text is deliberately absent:
-// $coffeeText is bound to the input, which owns it, so a server write could
+// $kioskText is bound to the input, which owns it, so a server write could
 // clobber what the user is typing (the bug docs/realtime-recipe.md records).
 func seedSignals() Seeds {
 	return Seeds{
-		"coffeeDrink":   "",
-		"coffeeSize":    "",
-		"coffeeMilk":    "",
-		"coffeeExtras":  "",
-		"coffeePrice":   "",
-		"coffeeNeed":    "",
-		"coffeePreview": "",
-		"coffeeNotice":  "",
-		"coffeeBusy":    false,
-		"coffeeQueued":  false,
+		"kioskDrink":   "",
+		"kioskSize":    "",
+		"kioskMilk":    "",
+		"kioskExtras":  "",
+		"kioskPrice":   "",
+		"kioskNeed":    "",
+		"kioskPreview": "",
+		"kioskNotice":  "",
+		"kioskBusy":    false,
+		"kioskQueued":  false,
 	}
 }
 
-// Page renders /coffee inside the shell.
+// Page renders /kiosk inside the shell.
 templ Page(data PageData) {
 	@ui.Shell(ui.Data{
-		Title:       "Coffee — gogogo",
-		Heading:     "Coffee",
-		Context:     "demo · ext_coffee_orders",
+		Title:       "Kiosk — gogogo",
+		Heading:     "Kiosk",
+		Context:     "demo · ext_kiosk_orders",
 		Email:       data.Email,
 		Role:        data.Role,
 		BuildLabel:  data.BuildLabel,
 		BuildCommit: data.BuildCommit,
-	}, coffeeHead(), coffeeSound(), nil, coffeeBody(data))
+	}, kioskHead(), kioskSound(), nil, kioskBody(data))
 }
 
-// coffeeSound is the rail's mute. The page owns no sound logic of its own — the
+// kioskSound is the rail's mute. The page owns no sound logic of its own — the
 // shell slot is filled with the plugin's switch, the same one every page
 // passes, so a demo page is not the one screen whose rail has no mute.
-templ coffeeSound() {
+templ kioskSound() {
 	@sounds.SoundSwitch()
 }
 
-// coffeeHead carries the voice wiring. The recognizer only fills the input and
+// kioskHead carries the voice wiring. The recognizer only fills the input and
 // dispatches `input`: the request itself belongs to the markup, next to the
 // debounce, so there is one place that decides when the server is asked.
-templ coffeeHead() {
+templ kioskHead() {
 	@sounds.SoundAssets()
 	<script nonce={ templ.GetNonce(ctx) }>
 		(function () {
-			var root = document.getElementById("coffee-voice");
-			var input = document.getElementById("coffee-text");
-			var status = document.getElementById("coffee-voice-status");
-			var mic = document.getElementById("coffee-mic");
+			var root = document.getElementById("kiosk-voice");
+			var input = document.getElementById("kiosk-text");
+			var status = document.getElementById("kiosk-voice-status");
+			var mic = document.getElementById("kiosk-mic");
 			if (!root || !input || !status || !mic) return;
 
 			var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -216,14 +216,14 @@ templ coffeeHead() {
 				if (listening) stop(); else start();
 			});
 
-			window.__coffeeVoice = { toggle: function () { if (listening) stop(); else start(); } };
+			window.__kioskVoice = { toggle: function () { if (listening) stop(); else start(); } };
 		})();
 	</script>
 }
 
-templ coffeeBody(data PageData) {
+templ kioskBody(data PageData) {
 	<div class="ui-page ui-page-narrow ui-stack" data-signals={ MarshalSignals(seedSignals()) }>
-		<section class="ui-card" id="coffee-voice" data-phrases={ data.Phrases }>
+		<section class="ui-card" id="kiosk-voice" data-phrases={ data.Phrases }>
 			<div class="ui-card-body ui-stack">
 				<h2 class="ui-title">Say the order</h2>
 				<p class="ui-meta">
@@ -231,36 +231,36 @@ templ coffeeBody(data PageData) {
 					permission or the language pack, type it: the path is the same.
 				</p>
 				<form
-					id="coffee-form"
+					id="kiosk-form"
 					class="ui-row"
-					data-on:submit__prevent="@post('/api/coffee/preview', {contentType: 'form'})"
+					data-on:submit__prevent="@post('/api/kiosk/preview', {contentType: 'form'})"
 				>
 					<input
-						id="coffee-text"
+						id="kiosk-text"
 						name="text"
 						class="input input-sm grow"
 						autocomplete="off"
 						placeholder="a large latte with oat milk"
 						aria-label="Order"
 						maxlength="240"
-						data-bind="coffeeText"
-						data-on:input__debounce.250ms="!$coffeeBusy ? ($coffeeBusy = true, @post('/api/coffee/preview', {contentType: 'form'}).finally(() => { $coffeeBusy = false; if ($coffeeQueued) { $coffeeQueued = false; el.dispatchEvent(new CustomEvent('coffee-retry', { bubbles: true })) } })) : ($coffeeQueued = true)"
-						data-on:coffee-retry="!$coffeeBusy ? ($coffeeBusy = true, @post('/api/coffee/preview', {contentType: 'form'}).finally(() => { $coffeeBusy = false; })) : null"
+						data-bind="kioskText"
+						data-on:input__debounce.250ms="!$kioskBusy ? ($kioskBusy = true, @post('/api/kiosk/preview', {contentType: 'form'}).finally(() => { $kioskBusy = false; if ($kioskQueued) { $kioskQueued = false; el.dispatchEvent(new CustomEvent('kiosk-retry', { bubbles: true })) } })) : ($kioskQueued = true)"
+						data-on:kiosk-retry="!$kioskBusy ? ($kioskBusy = true, @post('/api/kiosk/preview', {contentType: 'form'}).finally(() => { $kioskBusy = false; })) : null"
 					/>
-					<input type="hidden" name="previewed" data-attr:value="$coffeePreview"/>
+					<input type="hidden" name="previewed" data-attr:value="$kioskPreview"/>
 					<button type="submit" class="btn btn-sm">Interpret</button>
 				</form>
 				<div class="ui-row">
 					<button
 						type="button"
-						id="coffee-mic"
+						id="kiosk-mic"
 						class="btn btn-sm"
 						aria-pressed="false"
-						data-on:click="window.__coffeeVoice && window.__coffeeVoice.toggle()"
+						data-on:click="window.__kioskVoice && window.__kioskVoice.toggle()"
 					>
 						Microphone
 					</button>
-					<span id="coffee-voice-status" class="ui-meta" role="status">
+					<span id="kiosk-voice-status" class="ui-meta" role="status">
 						Typing always works — the microphone is optional.
 					</span>
 				</div>
@@ -277,41 +277,41 @@ templ coffeeBody(data PageData) {
 				<dl class="ui-stack">
 					<div class="ui-row justify-between">
 						<dt class="ui-meta">Drink</dt>
-						<dd data-text="$coffeeDrink || '—'"></dd>
+						<dd data-text="$kioskDrink || '—'"></dd>
 					</div>
 					<div class="ui-row justify-between">
 						<dt class="ui-meta">Size</dt>
-						<dd data-text="$coffeeSize || '—'"></dd>
+						<dd data-text="$kioskSize || '—'"></dd>
 					</div>
 					<div class="ui-row justify-between">
 						<dt class="ui-meta">Milk</dt>
-						<dd data-text="$coffeeMilk || '—'"></dd>
+						<dd data-text="$kioskMilk || '—'"></dd>
 					</div>
 					<div class="ui-row justify-between">
 						<dt class="ui-meta">Extras</dt>
-						<dd data-text="$coffeeExtras || '—'"></dd>
+						<dd data-text="$kioskExtras || '—'"></dd>
 					</div>
 					<div class="ui-row justify-between">
 						<dt class="ui-meta">Price</dt>
-						<dd data-text="$coffeePrice || '—'"></dd>
+						<dd data-text="$kioskPrice || '—'"></dd>
 					</div>
 				</dl>
-				<p class="ui-meta" data-show="!!$coffeeNeed" data-text="$coffeeNeed"></p>
+				<p class="ui-meta" data-show="!!$kioskNeed" data-text="$kioskNeed"></p>
 				<button
 					type="button"
 					class="btn btn-primary btn-sm"
-					data-attr:disabled="!!($coffeeBusy || !$coffeeDrink || $coffeeNeed)"
-					data-on:click="$coffeeBusy = true; @post('/api/coffee/confirm', {contentType: 'form'}).finally(() => { $coffeeBusy = false; })"
+					data-attr:disabled="!!($kioskBusy || !$kioskDrink || $kioskNeed)"
+					data-on:click="$kioskBusy = true; @post('/api/kiosk/confirm', {contentType: 'form'}).finally(() => { $kioskBusy = false; })"
 				>
 					Confirm
 				</button>
-				<p class="ui-meta" data-show="!!$coffeeNotice" data-text="$coffeeNotice"></p>
+				<p class="ui-meta" data-show="!!$kioskNotice" data-text="$kioskNotice"></p>
 			</div>
 		</section>
 
 		<section class="ui-card">
 			<div class="ui-card-body">
-				<div id="coffee-orders">@OrdersList(data.Orders)</div>
+				<div id="kiosk-orders">@OrdersList(data.Orders)</div>
 			</div>
 		</section>
 	</div>

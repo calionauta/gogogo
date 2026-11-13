@@ -1,13 +1,13 @@
-// The coffee recipe's native panel: the app's own orders, answerable from Chat.
+// The kiosk recipe's native panel: the app's own orders, answerable from Chat.
 //
 // It is built on comp.SlicePanel, the shared base (convention over
 // configuration): the recipe supplies the name, the prompt, the one writable
 // slice and two closures, and inherits Fill/Render. The view is
-// components.OrdersList — the SAME component /coffee renders — so the panel
+// components.OrdersList — the SAME component /kiosk renders — so the panel
 // cannot drift from the page it summarizes (the failure docs/native-panels.md
 // records).
 //
-// No ActionProvider: the confirm response patches the page's `#coffee-orders`
+// No ActionProvider: the confirm response patches the page's `#kiosk-orders`
 // region, which a chat thread does not have, and an action that writes while
 // looking inert is worse than no action. Headless callers use the declared
 // InvokeAction instead, which returns the same signals without a DOM target.
@@ -19,8 +19,8 @@ import (
 
 	"github.com/a-h/templ"
 
-	"github.com/calionauta/gogogo/features/coffee/components"
 	comp "github.com/calionauta/gogogo/features/genui/components"
+	"github.com/calionauta/gogogo/features/kiosk/components"
 )
 
 const (
@@ -39,8 +39,8 @@ type panel struct {
 // panel reads the store through the same service the page does.
 func (h *Handler) Panel() comp.PanelProvider {
 	return panel{comp.NewSlicePanel(
-		"coffee_orders",
-		"coffee_orders {scope: recent|all} whenever the user asks about their coffee orders",
+		"kiosk_orders",
+		"kiosk_orders {scope: recent|all} whenever the user asks about their orders",
 		"scope",
 		[]string{scopeRecent, scopeAll},
 		h.panelRows,

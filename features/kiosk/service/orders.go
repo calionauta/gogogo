@@ -1,4 +1,4 @@
-// The coffee recipe's write half.
+// The kiosk recipe's write half.
 //
 // Confirm is here rather than in the handler because it is the only place the
 // outcome's counter signal is decided: an order is `corrected` when a preview was
@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/calionauta/gogogo/features/coffee"
+	"github.com/calionauta/gogogo/features/kiosk"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
 )
@@ -27,7 +27,7 @@ type Orders struct {
 // the handler would dereference it on the first write.
 func NewOrders(q *dbgen.Queries) *Orders {
 	if q == nil {
-		panic("coffee: NewOrders with nil queries")
+		panic("kiosk: NewOrders with nil queries")
 	}
 	return &Orders{q: q}
 }
@@ -37,18 +37,18 @@ func NewOrders(q *dbgen.Queries) *Orders {
 // `previewed` is the serialization the customer was shown before confirming. An
 // empty value means nothing was previewed, so no divergence can be observed and
 // the order is recorded as not corrected — the honest reading, not a guess.
-func (s *Orders) Confirm(ctx context.Context, owner string, order coffee.Order, previewed string) error {
-	if problems := coffee.Validate(order); len(problems) > 0 {
-		return fmt.Errorf("coffee: %s", strings.Join(problems, "; "))
+func (s *Orders) Confirm(ctx context.Context, owner string, order kiosk.Order, previewed string) error {
+	if problems := kiosk.Validate(order); len(problems) > 0 {
+		return fmt.Errorf("kiosk: %s", strings.Join(problems, "; "))
 	}
-	return s.q.CreateCoffeeOrder(ctx, dbgen.CreateCoffeeOrderParams{
+	return s.q.CreateKioskOrder(ctx, dbgen.CreateKioskOrderParams{
 		ID:          dbschema.NewID(),
 		Owner:       owner,
 		Drink:       order.Drink,
 		Size:        order.Size,
 		Milk:        order.Milk,
 		Extras:      strings.Join(order.Extras, "+"),
-		PriceCents:  int64(coffee.PriceCents(order)),
+		PriceCents:  int64(kiosk.PriceCents(order)),
 		Corrected:   boolToInt(Corrected(previewed, order)),
 		ConfirmedAt: time.Now().UTC().Format(time.RFC3339),
 	})
@@ -56,11 +56,11 @@ func (s *Orders) Confirm(ctx context.Context, owner string, order coffee.Order, 
 
 // List returns one owner's newest orders. The limit is capped here rather than in
 // SQL so a caller cannot ask for the whole table through a bigger number.
-func (s *Orders) List(ctx context.Context, owner string, limit int) ([]dbgen.ExtCoffeeOrder, error) {
+func (s *Orders) List(ctx context.Context, owner string, limit int) ([]dbgen.ExtKioskOrder, error) {
 	if limit <= 0 || limit > 50 {
 		limit = 50
 	}
-	return s.q.ListCoffeeOrders(ctx, dbgen.ListCoffeeOrdersParams{
+	return s.q.ListKioskOrders(ctx, dbgen.ListKioskOrdersParams{
 		Owner: owner,
 		Limit: int64(limit),
 	})
@@ -70,8 +70,8 @@ func (s *Orders) List(ctx context.Context, owner string, limit int) ([]dbgen.Ext
 // shown and the confirmed order differs from it. Empty previewed means nothing
 // was shown, so no divergence can be observed — the honest reading of "no data",
 // not a claim that the order was right.
-func Corrected(previewed string, order coffee.Order) bool {
-	return previewed != "" && previewed != coffee.Serialize(order)
+func Corrected(previewed string, order kiosk.Order) bool {
+	return previewed != "" && previewed != kiosk.Serialize(order)
 }
 
 // boolToInt stores a boolean in the schema's INTEGER column, which is how the
