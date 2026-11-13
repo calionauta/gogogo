@@ -14,6 +14,8 @@ import (
 
 	chatcomp "github.com/calionauta/gogogo/features/chat/components"
 	"github.com/calionauta/gogogo/features/chat/store"
+
+	"github.com/calionauta/gogogo/internal/prompts"
 )
 
 const propLimit = "limit"
@@ -37,12 +39,7 @@ func (p *ChatPanel) Component() string { return "chat_history" }
 
 // Prompt implements comp.PanelProvider: when the model should pick it.
 func (p *ChatPanel) Prompt() string {
-	return "chat_history {limit: 5|10|20} whenever the request involves the user's " +
-		"recent conversation (what did we discuss, what did I ask before, summarize " +
-		"the thread). Renders their REAL history, so it is the only component " +
-		"allowed to answer with conversation content. limit is how many recent " +
-		"messages to show: 5 for a quick recall, 20 for a full summary. " +
-		"Always send limit inside props."
+	return prompts.Text("panels/chat-history")
 }
 
 // HomePage implements comp.PanelHomer: the page that owns this data in full.

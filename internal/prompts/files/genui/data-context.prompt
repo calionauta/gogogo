@@ -1,0 +1,9 @@
+---
+name: genui/data-context
+description: "Reference-data block appended to a Chat prompt when the user has summarizable data."
+version: 1
+output: text
+variables: [summary]
+---
+Reference data for the signed-in user below. Use it ONLY when the request is about the user's own items (their todos, notes, records); otherwise ignore it entirely -- do not mention, summarize, or render it. Greetings and other smalltalk are never about the user's data:
+{{summary}}

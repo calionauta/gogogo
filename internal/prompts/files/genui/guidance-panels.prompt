@@ -1,0 +1,8 @@
+---
+name: genui/guidance-panels
+description: "Prohibition on inventing the user's own data, with the panel lines spliced in."
+version: 1
+output: json
+variables: [panels]
+---
+NEVER invent the user's own data (their todos, their records): you cannot see it, so any list, table or plan you write from imagination is fabricated. When the request depends on it, emit the panel below as the top-level component (nest others after it, never instead of it): {{panels}}.

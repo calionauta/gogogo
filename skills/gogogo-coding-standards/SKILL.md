@@ -39,7 +39,8 @@ Activate when: editing any `.go` file, spawning a goroutine, creating a channel,
 | Runtime diagnostics (statsviz + pprof), the opt-in `perf` unit | [`docs/admin-dashboard.md`](../../docs/admin-dashboard.md) |
 | Any test, fixture, or flake | **Testing** + `references/go-testing.md` |
 | A `.templ` file, Datastar, SSE fragments | **Datastar (.templ)** + `references/datastar.md` |
-| Genui/chat answers, the component catalog, prompts, repair/fallback | `references/genui.md` |
+| Genui/chat answers, the component catalog, repair/fallback | `references/genui.md` |
+| Writing or changing a model-facing prompt | [`docs/prompts.md`](../../docs/prompts.md) — a prompt is a `.prompt` file, never a Go string |
 | Lint failing, adding a rule, CI red | **Enforcement** |
 | Proposing Zig (the native exception), or a NATIVE DESKTOP UI | **Exception-to-go gate** + `references/exception-to-go.md` (a native UI means `nanoui`) |
 | Building the desktop shell (`cmd/desktop`) or the native window (`cmd/gui`) | `references/desktop-native.md` — no CI job compiles either, so the build is the gate |
@@ -274,6 +275,16 @@ Full rules: `references/datastar.md`.
 - **A package with zero importers is opt-in, not dead.** State that in the
   package doc with the two exits: the trigger that wires it, and the exact
   removal step if it never fires.
+- **A prompt is a file, not a string.** Model-facing text lives in
+  `internal/prompts/files/<domain>/<name>.prompt` (Dotprompt shape: YAML
+  frontmatter with name/description/version/variables, body with `{{var}}`)
+  and is loaded with `internal/prompts` — `prompts.Text` for prose,
+  `prompts.MustRender` when data is spliced in. Never inline it in Go:
+  `make check-prompts` fails a prompt-shaped literal, and the separation is
+  what lets a prompt be instrumented by id/version and optimized (GEPA)
+  without parsing code. Composition logic stays in Go; the prose does not.
+  [`docs/prompts.md`](../../docs/prompts.md) has the format, the gate and the
+  optimizer workflow.
 - **Frontend strings go through the localization seam.** UI text is looked
   up with `internal/i18n.T(ctx, "dominio.chave", nil)` against the catalog
   in ctx; never hardcode a user-facing string in new markup, and never add a

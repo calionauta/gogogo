@@ -13,6 +13,8 @@ import (
 
 	notificationscomp "github.com/calionauta/gogogo/features/notifications/components"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+
+	"github.com/calionauta/gogogo/internal/prompts"
 )
 
 const (
@@ -41,11 +43,7 @@ func (p *InboxPanel) Component() string { return "inbox_list" }
 
 // Prompt implements comp.PanelProvider: when the model should pick it.
 func (p *InboxPanel) Prompt() string {
-	return "inbox_list {scope: unread|all} whenever the request involves the user's " +
-		"reminders or inbox (list them, find a reminder, plan around them). Renders " +
-		"their REAL rows, so it is the only component allowed to answer with inbox " +
-		"content. scope: unread ONLY when the user asks for what is still pending; " +
-		"all otherwise. Always send scope inside props."
+	return prompts.Text("panels/inbox-list")
 }
 
 // HomePage implements comp.PanelHomer: the page that owns this data in full.

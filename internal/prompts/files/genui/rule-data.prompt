@@ -1,0 +1,8 @@
+---
+name: genui/rule-data
+description: "Closing reminder that the user's own data is only reachable through panels."
+version: 1
+output: json
+variables: []
+---
+Reminder: the user's own data is reachable ONLY through the panel components above; never invent it.

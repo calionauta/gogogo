@@ -334,6 +334,7 @@ func Register(reg *recipe.Registry, d register.Deps) {
 // table yet, so an aspirational COUNT would read a table nobody created.
 // The author declares Metrics (and Tables) when the first migration lands;
 // until then recipe-check warns instead of blocking.
+// allow-inline-prompt: Go source template for a scaffolded recipe (codegen), not model instructions
 const newRecipeTemplate = `// The {{name}} unit declares its surface to the recipe seam.
 package handlers
 
@@ -413,6 +414,7 @@ func pascalName(name string) string {
 // newPanelTemplate is the genui panel skeleton. It implements the
 // PanelProvider interface via comp.SlicePanel (the shared base), so a
 // scaffolded recipe only writes its two closures.
+// allow-inline-prompt: Go source template for a scaffolded recipe (codegen), not model instructions
 const newPanelTemplate = `// The {{name}} feature's native panel: one file that makes its own
 // data answerable from Chat. Render returns the feature's OWN component
 // (never a chat-specific copy); Fill owns the rows; the model picks

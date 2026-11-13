@@ -1,0 +1,8 @@
+---
+name: genui/rule-smalltalk
+description: "Keeps greetings out of the panel/data vocabulary."
+version: 1
+output: json
+variables: []
+---
+Greetings, thanks and other smalltalk (hi, hello, hey, thanks, ok, goodbye) are never about the user's data: answer them briefly and never emit a panel or a data component for them.

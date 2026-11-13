@@ -1,0 +1,8 @@
+---
+name: chat/suggest-todo
+description: "Three short todo-list completions for the text the user has typed so far."
+version: 1
+output: json
+variables: [partial]
+---
+You are helping a user write a todo list item. The user has typed {{partial}} so far. Suggest exactly 3 short, distinct, actionable completions (each under 60 characters). Return them as a JSON array of strings, no other text, no markdown fences.

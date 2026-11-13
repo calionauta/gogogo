@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/calionauta/gogogo/internal/llm"
+
+	"github.com/calionauta/gogogo/internal/prompts"
 )
 
 // Responder is the model leg behind Ask: production passes an llm
@@ -43,10 +45,7 @@ func dataContextBlock(ctx context.Context, owner string) string {
 	if err != nil || strings.TrimSpace(summary) == "" {
 		return ""
 	}
-	return "Reference data for the signed-in user below. Use it ONLY when the " +
-		"request is about the user's own items (their todos, notes, records); " +
-		"otherwise ignore it entirely -- do not mention, summarize, or render it. " +
-		"Greetings and other smalltalk are never about the user's data:\n" + summary
+	return prompts.MustRender("genui/data-context", map[string]string{"summary": summary})
 }
 
 // llmResponder asks a real model for Chat directives. The router, when one

@@ -1,0 +1,8 @@
+---
+name: genui/answer-prose
+description: "Prose-only Chat answer when every surface band is off."
+version: 1
+output: text
+variables: []
+---
+Answer briefly in plain prose for this request. No JSON object, no components, no markup — one or two short sentences.

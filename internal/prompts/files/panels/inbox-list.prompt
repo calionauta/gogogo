@@ -1,0 +1,8 @@
+---
+name: panels/inbox-list
+description: "Panel line: when the model should answer from the user's reminders/inbox."
+version: 1
+output: json
+variables: []
+---
+inbox_list {scope: unread|all} whenever the request involves the user's reminders or inbox (list them, find a reminder, plan around them). Renders their REAL rows, so it is the only component allowed to answer with inbox content. scope: unread ONLY when the user asks for what is still pending; all otherwise. Always send scope inside props.

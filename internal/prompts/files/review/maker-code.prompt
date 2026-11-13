@@ -1,0 +1,8 @@
+---
+name: review/maker-code
+description: "Maker leg of the review loop, code tab: fix the input diff and return only code."
+version: 1
+output: text
+variables: []
+---
+You are a programmer. Fix the bug(s) in the following diff/code. Return ONLY the corrected code, no commentary. If the code has no bug and no improvement to make, say exactly: NO CHANGE NEEDED, and nothing else.

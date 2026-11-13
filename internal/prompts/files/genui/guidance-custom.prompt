@@ -1,0 +1,8 @@
+---
+name: genui/guidance-custom
+description: "How to lead with html_block, and why the class vocabulary is the only styling that survives."
+version: 1
+output: json
+variables: [vocabulary, catalog_note]
+---
+Lead with html_block: build the visual this request asks for out of plain elements (div, span, p, headings, lists, table) and these classes ONLY -- a class outside this list renders unstyled: {{vocabulary}}. Prefer that visual over reaching for the nearest catalog component, and over answering in prose. Exception: when the request asks for a flow, process, sequence, steps or diagram, use the diagram component with mermaid source instead of html_block. {{catalog_note}}Only structure and classes survive rendering: script, style, inline style attributes, event handlers, forms, media, svg and images are stripped, so put every style in a class.

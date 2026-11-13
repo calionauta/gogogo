@@ -348,6 +348,11 @@ jobs:
         # path alive, every `gogogo <sub>` real, every docs page in the
         # site MANIFEST.
         run: go run ./cmd/check-docs
+      - name: Check-prompts (prompt files, no inline prompts)
+        # Same gate as `make check-prompts` and the pre-commit prompts job:
+        # .prompt files are valid Dotprompt files, and no model-facing
+        # instruction is smuggled into a Go string literal.
+        run: go run ./cmd/check-prompts
       - name: Check-secrets-env (secret env sites)
         # Same gate as `make check-secrets-env` and the pre-commit
         # secrets-env job: secret-shaped env reads only in owner files
@@ -622,7 +627,7 @@ jobs:
     # wall-clock budget (scripts/run-browser-suite.sh, SMOKE_SUITE_TIMEOUT),
     # so this is the outer fence: without it a step that never ends holds the
     # runner for hours. On 2026-11-11 the whiteboard suite hung in CI and its
-    # step ran 44+ minutes with every assertion already green.
+    # step ran 33+ minutes with every assertion already green.
     timeout-minutes: 30
     env:
       GOTOOLCHAIN: local
