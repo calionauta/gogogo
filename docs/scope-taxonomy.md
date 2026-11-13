@@ -16,6 +16,30 @@ that owns it, and a package no row owns fails the registry's coverage test. That
 is the rule that makes the template safely trimmable — you never have to guess
 whether a directory is load-bearing.
 
+## Where things live (four directories, four questions)
+
+The tree keeps four places that all say "recipe" in some sense. They answer
+four different questions, and mixing them up is the fastest way to build the
+wrong thing:
+
+| Place | Question it answers | Who writes it | Who reads it |
+|---|---|---|---|
+| `features/<id>/` | **What is compiled into this app.** A bundled feature: in-tree, mounted by the registry (`units.gen.go`). | the template | the binary |
+| `.recipes/<id>.yml` | **What is installed HERE.** The receipt: declaration + pristine hashes. Bundled features have one too (ownership, not an install record). | `recipe install` / the bundling commit | `recipe status`, `recipe uninstall`, the drift check |
+| `_recipes/<id>/` | **Where an installable recipe's source lives.** A bundle: `.recipe.yml` plus the files it installs. | a recipe author | `gogogo recipe install ./_recipes/<id>` |
+| `catalog/<id>/<version>.yaml` | **What the reviewed catalog says about a recipe.** Source repo + ref, file hashes, license, `minCore`, `recommended`. | the catalog maintainer | `recipe install --entry`, `recipe outdated` |
+
+Two traps worth naming:
+
+- **`plugin` here is a removal class, not an extension.** In this taxonomy
+  `plugin` means "a servant": the binary still runs, but a capability stops
+  working. A *recipe* is the installable extension — a different word for a
+  different thing. `internal/nats` is a plugin; `features/todo` is a recipe.
+- **`landing` is the app's own front door, not an extension.** It is a bundled
+  feature (`GET /`) with a receipt, so removing it is auditable — but nobody
+  installs a landing page, and its receipt exists for the removal path, not
+  because it is distributable.
+
 ## The three removal classes
 
 The row carries a single axis — the removal class (`Kind`) — with three values:
