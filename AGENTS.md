@@ -37,6 +37,7 @@ Read the SKILL.md by name before the first matching edit (symlinks in `.agents/s
 | `make templ` / `make datastar-lint` / `make css` / `make css-check` | Templ gen / lint / bundle / verify |
 | `make test` | Race tests (prefer scoped locally) |
 | `make check-generated` / `check-ci-scripts` | Templ-drift gate / CI-script contracts |
+| `make check-shape` / `check-domains` | App-shape record / one card per feature slice |
 | `make ci-local-fast` | Cheap gate, scoped to changed pkgs |
 | `make verify-local` / `make verify-local-share` | Boot the real binary on a fresh data dir: URL + account + the routes the diff touched — the operator's 60 s click, after `ci-local-fast` |
 | `make test-recipe R=<id>` | Run the tests ONE recipe owns (package scope derived from its receipt) |
@@ -68,6 +69,7 @@ Normative: `docs/exception-to-go.md`. Go ~95-99%, zero Zig in tree. Bans: "Zig i
 - Thin seams, direct calls, explicit DI: small 1-3-method interfaces only when 2+ impls exist; no containers, no pass-throughs, no `GenericRepo[T]`. Fail fast.
 - **Driver by target:** tursogo (`turso`) web/desktop, ncruces (`sqlite3`) gui/mobile; one schema (`docs/stack-layers.md`).
 - **Service layer:** `features/<name>/service/` owns writes (`List/Create/Delete`, `canDeleteRow`); handlers/native shells call it. Vertical slices first; duplicate > wrong abstraction.
+- **A slice's written boundary** is `docs/domain/<feature>.md` — owns / does-not-own / language / invariants, gated by `make check-domains`. Read it before editing the slice; update it in the same commit as a behaviour change.
 - **Native panels render the page's components, never a copy** (`genui_panel.go` reuses `features/todo/components/panel.templ` pattern or it's drift).
 - Removal class is `Capability.Kind` only (`docs/scope-taxonomy.md`); `internal/` is the import boundary, not the class.
 

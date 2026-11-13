@@ -17,7 +17,7 @@ SMOKE_BIN ?= $(OS_TMPDIR)/gogogo-ci-local-web
 # build does not use the wails3 CLI at all — it is a plain `go build` — so no
 # copy of the version belongs here to drift from the module graph.
 
-.PHONY: all build desktop desktop-smoke desktop-sync-smoke mobile run-desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean templ fmt css css-install datastar-lint test test-recipe verify-local verify-local-share lint check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui gui-build gui-test run-gui lint-gui mygo mygo-build mygo-test run-mygo mygo-smoke check-generated install-sh-guard check-classes check-ci-scripts daisyui-lint vocabulary check-docs docs-index check-mcp site site-check
+.PHONY: all build desktop desktop-smoke desktop-sync-smoke mobile run-desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean templ fmt css css-install datastar-lint test test-recipe verify-local verify-local-share lint check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui gui-build gui-test run-gui lint-gui mygo mygo-build mygo-test run-mygo mygo-smoke check-generated install-sh-guard check-classes check-ci-scripts daisyui-lint vocabulary check-docs docs-index check-mcp site site-check check-shape check-domains
 
 all: build
 
@@ -337,6 +337,25 @@ check-naps:
 # (shared UI leaves excepted), sql.Open only in owner packages. Same
 # implementation the pre-commit flatdeps-lint job runs — not a parallel
 # bash reimplementation.
+# check-shape proves .gogogo/shape.yml agrees with the tree: the shape is one of
+# the closed enum, every entrypoint it keeps is a `package main` that exists, and
+# every path it says it dropped is gone. A tree with no file is `full`, so a
+# checkout that never declared one still passes. The build proof (CI builds the
+# declared entrypoints) stays out: a gate that compiles cannot run per commit.
+check-shape:
+	@echo "→ check-shape (the app-shape record matches the tree)..."
+	@go run ./cmd/check-shape -dir . -quiet
+	@echo "✅ the shape record matches the tree"
+
+# check-domains proves every feature slice carries its written boundary: what it
+# owns, what it does not, the words it uses and the rules its code keeps. Text
+# only — the gate checks that the parts exist and are non-empty; review judges
+# the prose, because a gate that guessed at meaning would be a second truth.
+check-domains:
+	@echo "→ check-domains (every feature has its card)..."
+	@go run ./cmd/check-domains -dir . -quiet
+	@echo "✅ feature cards present and complete"
+
 check-flatdeps:
 	@echo "→ check-flatdeps (flat-stack dependency guard)..."
 	@go run ./cmd/check-flatdeps
@@ -518,7 +537,7 @@ check-recipes:
 	@go run ./cmd/gogogo recipe check --dir . --format json >/dev/null
 	@echo "  ✓ recipes pass gogogo recipe check"
 
-ci-local: check-host-capacity reap-stale check-browser-cleanup check-generated check-recipes check-sizes datastar-lint css-check check-no-jsx check-ci-scripts check-classes daisyui-lint check-flatdeps check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
+ci-local: check-host-capacity reap-stale check-browser-cleanup check-generated check-shape check-recipes check-sizes datastar-lint css-check check-no-jsx check-ci-scripts check-classes daisyui-lint check-flatdeps check-domains check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
 	@echo "→ lint (golangci-lint, same as CI)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/web-packages.sh); golangci-lint run $$PKGS; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 	@echo "→ build (single build, reused by the smoke tests)"
@@ -555,7 +574,7 @@ check-no-jsx:
 # so a CSS or installer tweak would otherwise pay for the whole suite. This
 # narrows on the changed packages, falling back to all packages when a shared
 # file (go.mod, config/, db/) changed.
-ci-local-fast: check-fast-capacity reap-stale check-generated check-recipes check-sizes datastar-lint css-check check-no-jsx check-ci-scripts check-classes daisyui-lint check-flatdeps check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
+ci-local-fast: check-fast-capacity reap-stale check-generated check-shape check-recipes check-sizes datastar-lint css-check check-no-jsx check-ci-scripts check-classes daisyui-lint check-flatdeps check-domains check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
 # Pre-flight: check-fast-capacity refuses a wedged box (use CI instead).
 # Budget: more than $FAST_MAX_PARALLEL_PKGS (default 8) changed packages
 # runs serially (-p 1) to bound shared-host load.

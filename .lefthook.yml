@@ -71,6 +71,16 @@ pre-commit:
       run: go run ./cmd/check-flatdeps
       glob: "{go.mod,internal/**,features/**}"
 
+    # The app-shape record and the slice cards are the two written contracts a
+    # change silently outgrows: a route added to a feature, a unit dropped by a
+    # shape. Milliseconds, and they fire only when the record, a card or a Go
+    # file moved.
+    - name: shape-domains
+      run: |
+        go run ./cmd/check-shape -dir . -quiet
+        go run ./cmd/check-domains -dir . -quiet
+      glob: "{.gogogo/**,docs/domain/**,internal/capabilities/**,features/**,cmd/**}"
+
     # Every Test must pin behavior, not just plumbing: vacuous tests (no
     # failure call at all — fail only on panic) block the commit; err-only
     # tests (assert err==nil and nothing else) are warnings for review, kept

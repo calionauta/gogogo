@@ -156,6 +156,8 @@ func runSubcommand(ctx context.Context, args []string, stdin io.Reader, stdout, 
 		return true, runDoctor(args[1:], stdout)
 	case "generate":
 		return true, runGenerate(ctx, args[1:], stdout)
+	case "shape":
+		return true, runShape(args[1:], stdout)
 	}
 	return false, nil
 }

@@ -57,7 +57,12 @@ var historyDocs = []string{"docs/architecture-decision.md"}
 // from upgrading/cli rather than published on the docs site. The list is closed
 // on purpose — a new directory is either published or declared here with its
 // reason, never silently absent from both.
-var unpublishedDirs = []string{"docs/migrations/"}
+//
+// docs/domain/ is the same kind of page for a different reason: one card per
+// feature slice, read while editing that slice and gated by check-domains. The
+// contract that explains them (docs/domain-cards.md) is published; the cards
+// themselves are working notes, not chapters of the manual.
+var unpublishedDirs = []string{"docs/migrations/", "docs/domain/"}
 
 // unpublishedDir reports a page that is exempt from the publication rule.
 func unpublishedDir(rel string) bool {
