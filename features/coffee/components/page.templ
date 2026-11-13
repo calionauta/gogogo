@@ -19,6 +19,7 @@ package components
 import (
 	"strconv"
 
+	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/internal/ui"
 )
 
@@ -77,13 +78,21 @@ templ Page(data PageData) {
 		Role:        data.Role,
 		BuildLabel:  data.BuildLabel,
 		BuildCommit: data.BuildCommit,
-	}, coffeeHead(), nil, nil, coffeeBody(data))
+	}, coffeeHead(), coffeeSound(), nil, coffeeBody(data))
+}
+
+// coffeeSound is the rail's mute. The page owns no sound logic of its own — the
+// shell slot is filled with the plugin's switch, the same one every page
+// passes, so a demo page is not the one screen whose rail has no mute.
+templ coffeeSound() {
+	@sounds.SoundSwitch()
 }
 
 // coffeeHead carries the voice wiring. The recognizer only fills the input and
 // dispatches `input`: the request itself belongs to the markup, next to the
 // debounce, so there is one place that decides when the server is asked.
 templ coffeeHead() {
+	@sounds.SoundAssets()
 	<script nonce={ templ.GetNonce(ctx) }>
 		(function () {
 			var root = document.getElementById("coffee-voice");
