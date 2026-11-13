@@ -11,8 +11,9 @@ var baseUnits = []Capability{
 		ID:      "capabilities",
 		Kind:    KindPlugin,
 		Summary: "capability registry + installer engine (CLI and MCP share it)",
-		Dirs:    []string{"internal/capabilities", "internal/installer"},
-		Note:    "Meta-capability: deleting it breaks cmd/gogogo, not the web binary.",
+		Dirs:    []string{"internal/capabilities", "internal/installer", "internal/shape"},
+		Note: "Meta-capability: deleting it breaks cmd/gogogo, not the web binary. " +
+			"internal/shape reads the shape record from the developer CLI, never cmd/web.",
 	},
 	{
 		ID:      "recipe",

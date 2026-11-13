@@ -147,8 +147,8 @@ AppContext (dependency bundle for the native window)
 
 capability registry + installer engine (CLI and MCP share it)
 
-- **Owned:** `internal/capabilities`, `internal/installer`
-- **Note:** Meta-capability: deleting it breaks cmd/gogogo, not the web binary.
+- **Owned:** `internal/capabilities`, `internal/installer`, `internal/shape`
+- **Note:** Meta-capability: deleting it breaks cmd/gogogo, not the web binary. internal/shape reads the shape record from the developer CLI, never cmd/web.
 
 ## `collab` — plugin
 
