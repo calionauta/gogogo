@@ -118,10 +118,10 @@ real model.
 
 ## References
 
-- OpenUI, language introduction: https://www.openui.com/docs/openui-lang
-- OpenUI, reliability: https://www.openui.com/docs/openui-lang/reliability
-- OpenUI, format benchmark: https://www.openui.com/benchmarks/framework
-- OpenUI, benchmark methodology: https://www.openui.com/benchmarks/methodology
-- A2UI, catalogs: https://a2ui.org/concepts/catalogs
-- A2UI, protocol v0.9.1: https://a2ui.org/specification/v0.9.1-a2ui
-- A2UI, basic catalog schema: https://github.com/a2ui-project/a2ui/blob/main/specification/v0_9/catalogs/basic/catalog.json
+- [OpenUI, language introduction](https://www.openui.com/docs/openui-lang)
+- [OpenUI, reliability](https://www.openui.com/docs/openui-lang/reliability)
+- [OpenUI, format benchmark](https://www.openui.com/benchmarks/framework)
+- [OpenUI, benchmark methodology](https://www.openui.com/benchmarks/methodology)
+- [A2UI, catalogs](https://a2ui.org/concepts/catalogs)
+- [A2UI, protocol v0.9.1](https://a2ui.org/specification/v0.9.1-a2ui)
+- [A2UI, basic catalog schema](https://github.com/a2ui-project/a2ui/blob/main/specification/v0_9/catalogs/basic/catalog.json)
