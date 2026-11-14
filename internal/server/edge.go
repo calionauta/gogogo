@@ -50,7 +50,16 @@ func securityHeaders(cfg *config.Config, next http.Handler) http.Handler {
 		h.Set("X-Frame-Options", "SAMEORIGIN")
 		h.Set("Cross-Origin-Opener-Policy", "same-origin")
 		h.Set("Cross-Origin-Resource-Policy", "same-origin")
-		h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		// `microphone=(self)` and NOT `microphone=()`: the empty allowlist blocks
+		// the feature for every document, so the browser refuses without ever
+		// prompting — the kiosk's voice button failed with not-allowed and the
+		// user never saw a permission dialog. `self` keeps the restriction to
+		// this origin (no third-party frame or embed can capture audio), which is
+		// the property the empty form was reaching for.
+		//
+		// camera and geolocation stay empty: nothing ships uses them, and an
+		// unused feature should be unreachable rather than merely unprompted.
+		h.Set("Permissions-Policy", "camera=(), microphone=(self), geolocation=()")
 		if cfg != nil && !cfg.Dev {
 			h.Set("Strict-Transport-Security", "max-age=31536000")
 		}

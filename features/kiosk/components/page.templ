@@ -210,50 +210,89 @@ templ kioskHead() {
 				]);
 			}
 
+			// askMicrophone asks the browser for microphone permission.
+			//
+			// SpeechRecognition.start() does NOT trigger the permission prompt on
+			// its own: the recognizer is handed an already-granted stream, so with
+			// no grant it fails immediately with `not-allowed` and the page says
+			// "type the order" — the reported bug ("it never asked me"). Calling
+			// getUserMedia IS what shows the prompt. The tracks are stopped right
+			// away: recognition opens its own capture, and holding a second
+			// stream would light the microphone indicator for no reason.
+			function askMicrophone() {
+				if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+					// No getUserMedia at all (insecure origin): the recognizer may
+					// still work on a granted permission, so do not block here.
+					return Promise.resolve(true);
+				}
+				return navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+					stream.getTracks().forEach(function (t) { t.stop(); });
+					return true;
+				}).catch(function () {
+					return false;
+				});
+			}
+
 			function start() {
 				if (!localSupport()) {
 					say("This browser offers no on-device recognition — type the order.");
 					return;
 				}
 				var options = { langs: [lang], processLocally: true };
-				availableWithTimeout(options).then(function (state) {
-					if (state === "available") return "ready";
-					// `downloading` means an install is already running: waiting on
-					// another one would stack downloads, so ask the user to retry.
-					if (state === "downloading") {
-						say("The language pack is still downloading — tap the microphone again in a moment.");
-						return "pending";
+				// Permission FIRST. The recognizer needs an already-granted stream,
+				// and a language-pack download is slow and can hang: asking after
+				// it meant the user clicked, waited, and never saw the prompt —
+				// which is exactly what was reported ("it never asked me").
+				askMicrophone().then(function (granted) {
+					if (!granted) {
+						say("Microphone permission was denied — allow it in the browser, or type the order.");
+						return null;
 					}
-					say("Downloading the language pack once…");
-					return installWithTimeout(options).then(function (ok) {
-						return ok ? "ready" : "pending";
+					return availableWithTimeout(options).then(function (state) {
+						if (state === "available") return "ready";
+						// `downloading` means an install is already running: waiting on
+						// another one would stack downloads, so ask the user to retry.
+						if (state === "downloading") {
+							say("The language pack is still downloading — tap the microphone again in a moment.");
+							return "pending";
+						}
+						say("Downloading the language pack once…");
+						return installWithTimeout(options).then(function (ok) {
+							return ok ? "ready" : "pending";
+						});
 					});
 				}).then(function (outcome) {
 					if (outcome !== "ready") {
-						// "pending": the install is still running in the background
-						// and the label already says what to do, so it is not
-						// overwritten here.
+						// null: permission refused (the message is already shown).
+						// pending: the install is still running in the background and
+						// the label already says what to do.
 						return;
 					}
-					prepare(function (rec) {
-						listening = true;
-						mic.setAttribute("aria-pressed", "true");
-						mic.textContent = mic.getAttribute("data-label-live") || "Stop";
-						say("Listening on device…");
-						lastResultAt = Date.now();
-						rec.start();
-						// A known browser bug (Chromium 579050368) detects speech and
-						// never fires a result. Silence must become an instruction,
-						// not a spinner that never ends.
-						watchdog = setTimeout(function () {
-							if (listening && Date.now() - lastResultAt > 4000) {
-								say("I did not catch that — type the order.");
-								stop();
-							}
-						}, 4500);
-					});
+					startRecognition();
 				}).catch(function () {
 					say("On-device recognition unavailable — type the order.");
+				});
+			}
+
+			// startRecognition begins a listening session, assuming the language
+			// pack is present and the microphone is allowed.
+			function startRecognition() {
+				prepare(function (rec) {
+					listening = true;
+					mic.setAttribute("aria-pressed", "true");
+					mic.textContent = mic.getAttribute("data-label-live") || "Stop";
+					say("Listening on device…");
+					lastResultAt = Date.now();
+					rec.start();
+					// A known browser bug (Chromium 579050368) detects speech and
+					// never fires a result. Silence must become an instruction,
+					// not a spinner that never ends.
+					watchdog = setTimeout(function () {
+						if (listening && Date.now() - lastResultAt > 4000) {
+							say("I did not catch that — type the order.");
+							stop();
+						}
+					}, 4500);
 				});
 			}
 

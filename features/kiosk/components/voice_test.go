@@ -140,3 +140,42 @@ func TestKioskLanguagePackDownloadCannotHang(t *testing.T) {
 		t.Error("the fallback instruction is gone")
 	}
 }
+
+// TestKioskAsksForTheMicrophoneBeforeAnythingElse is the reported bug: clicking
+// the button said "Microphone: not-allowed" without ever prompting. Chrome does
+// not show the permission dialog for SpeechRecognition.start() — the recognizer
+// expects an already-granted stream — so the page must call getUserMedia itself,
+// and it must do so BEFORE the slow language-pack step or the click looks dead.
+func TestKioskAsksForTheMicrophoneBeforeAnythingElse(t *testing.T) {
+	script := renderKioskHead(t)
+	if !strings.Contains(script, "getUserMedia") {
+		t.Fatal("the script never asks for the microphone; recognition will fail with not-allowed")
+	}
+	// Look inside start() only: askMicrophone is DEFINED earlier in the file, so
+	// the first Index would find the definition, not the call.
+	_, startBody, ok := strings.Cut(script, "function start()")
+	if !ok {
+		t.Fatal("start() is missing")
+	}
+	mic := strings.Index(startBody, "askMicrophone().then")
+	pack := strings.Index(startBody, "availableWithTimeout(options)")
+	if mic < 0 {
+		t.Fatal("start() never asks for the microphone")
+	}
+	if pack < 0 {
+		t.Fatal("the language-pack step disappeared")
+	}
+	if mic > pack {
+		t.Error("permission is requested after the language-pack download; the prompt may never appear")
+	}
+	// A refusal must be its own message: "denied" and "did not catch that" are
+	// different problems with different fixes.
+	if !strings.Contains(script, "permission was denied") {
+		t.Error("a denied prompt has no distinct message")
+	}
+	// The tracks are released immediately: holding a second stream would keep
+	// the microphone indicator on for no reason.
+	if !strings.Contains(script, "t.stop()") {
+		t.Error("the permission stream is not released")
+	}
+}
