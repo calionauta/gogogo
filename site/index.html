@@ -359,7 +359,7 @@
         <!--PLUGINS:START-->
         <div class="trim-head">
           <span class="trim-title">Switches — runtime opt-outs</span>
-          <span class="trim-count" id="trim-count" aria-live="polite">21 of 21 kept</span>
+          <span class="trim-count" id="trim-count" aria-live="polite">24 of 24 kept</span>
         </div>
         <p class="plan-group">Common opt-outs</p>
         <label class="plan-row">
@@ -406,6 +406,12 @@
         </label>
         <p class="plan-group">The rest</p>
         <label class="plan-row">
+          <input type="checkbox" checked data-cap="analytics">
+          <span class="plan-box" aria-hidden="true"></span>
+          <span class="plan-main"><span class="plan-name">analytics</span><span class="plan-desc">analytics provider sink for the event bus (PostHog, default none)</span></span>
+          <span class="plan-env">ANALYTICS_PROVIDER=none</span>
+        </label>
+        <label class="plan-row">
           <input type="checkbox" checked data-cap="app">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">App</span><span class="plan-desc">AppContext (dependency bundle for the native window)</span></span>
@@ -448,6 +454,12 @@
           <span class="plan-env">manual removal</span>
         </label>
         <label class="plan-row">
+          <input type="checkbox" checked data-cap="events">
+          <span class="plan-box" aria-hidden="true"></span>
+          <span class="plan-main"><span class="plan-name">events</span><span class="plan-desc">in-process domain event bus + outbound sinks (webhook, analytics)</span></span>
+          <span class="plan-env">manual removal</span>
+        </label>
+        <label class="plan-row">
           <input type="checkbox" checked data-cap="genkit">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">Genkit</span><span class="plan-desc">typed AI flows (Genkit Go): orchestration + traces above internal/llm</span></span>
@@ -482,6 +494,12 @@
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">perf</span><span class="plan-desc">opt-in operator diagnostics: statsviz dashboard + stdlib pprof</span></span>
           <span class="plan-env">PERF_ENABLED=false (default off in production)</span>
+        </label>
+        <label class="plan-row">
+          <input type="checkbox" checked data-cap="recipestate">
+          <span class="plan-box" aria-hidden="true"></span>
+          <span class="plan-main"><span class="plan-name">recipestate</span><span class="plan-desc">runtime recipe enable/disable: the one reader of recipe_state</span></span>
+          <span class="plan-env">manual removal</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="sounds">
