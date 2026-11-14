@@ -216,6 +216,7 @@ p, user, /notes/new, .*
 # recipe:notifications
 # written by `gogogo recipe install`; `gogogo recipe uninstall` removes this block
 p, user, /api/notifications/*/read, .*
+p, user, /api/notifications/*/unread, .*
 p, user, /api/notifications/badge, .*
 p, user, /api/notifications/read-all, .*
 p, user, /api/notifications/remind, .*
