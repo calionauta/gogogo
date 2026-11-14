@@ -82,14 +82,18 @@ omitted:
     reason: UI demo of the queue/retry stepper; it has no product outcome to invoke
 metrics:
   - label: Open
-    query: "SELECT COUNT(*) FROM todos WHERE owner = ? AND completed = 0"
+    query: "SELECT COUNT(*) FROM ext_todo_todos WHERE (owner = ? OR visibility = 'public') AND completed = 0"
     signal: openTodos
   - label: Done
-    query: "SELECT COUNT(*) FROM todos WHERE owner = ? AND completed = 1"
+    query: "SELECT COUNT(*) FROM ext_todo_todos WHERE (owner = ? OR visibility = 'public') AND completed = 1"
     signal: doneTodos
   - label: Total
-    query: "SELECT COUNT(*) FROM todos WHERE owner = ?"
+    query: "SELECT COUNT(*) FROM ext_todo_todos WHERE owner = ? OR visibility = 'public'"
     signal: totalTodos
+  - label: Shared
+    query: "SELECT COUNT(*) FROM ext_todo_todos WHERE visibility = 'public'"
+    signal: sharedTodos
+    ownerBinds: false
 panel:
   component: todo_list
   prompt: "todo_list {filter: open|done|all} whenever the request involves the user's OWN todos or tasks"

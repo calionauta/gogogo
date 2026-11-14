@@ -30,15 +30,14 @@ import (
 // stubProvider is a minimal recipe.Provider for the generic dashboard
 // path: it declares metrics and outcomes (no routes served).
 type stubProvider struct {
-	id       string
-	metrics  []recipe.Metric
-	outcomes []recipe.Outcome
+	id      string
+	metrics []recipe.Metric
 }
 
 func (s *stubProvider) ID() string { return s.id }
 
 func (s *stubProvider) Declaration() recipe.Declaration {
-	return recipe.Declaration{Metrics: s.metrics, Outcomes: s.outcomes}
+	return recipe.Declaration{Metrics: s.metrics}
 }
 
 func (s *stubProvider) Routes() chi.Router { return chi.NewRouter() }
@@ -203,20 +202,26 @@ func TestDashboardRendersDeclaredOutcomeRatio(t *testing.T) {
 	// the whole point of the generic path.
 	reg := &recipe.Registry{}
 	reg.Add(&stubProvider{
-		id:      "todo",
-		metrics: []recipe.Metric{{Label: "Orders", Query: "SELECT COUNT(*) FROM ext_probe_orders WHERE owner = ?"}},
-		outcomes: []recipe.Outcome{{
-			ID: "probe_without_repair", Job: "Order without fixing it", Beneficiary: "user",
-			Success: recipe.Metric{
-				Label: "Without repair",
-				Query: "SELECT COUNT(*) FROM ext_probe_orders WHERE owner = ? AND corrected = 0",
+		id: "todo",
+		metrics: []recipe.Metric{
+			{Label: "Orders", Query: "SELECT COUNT(*) FROM ext_probe_orders WHERE owner = ?"},
+			{
+				Kind: recipe.MetricOutcome, ID: "probe_without_repair",
+				Job: "Order without fixing it", Beneficiary: "user",
+				Success: &recipe.Count{
+					Label: "Without repair",
+					Query: "SELECT COUNT(*) FROM ext_probe_orders WHERE owner = ? AND corrected = 0",
+				},
+				Total: &recipe.Count{
+					Label: "Orders",
+					Query: "SELECT COUNT(*) FROM ext_probe_orders WHERE owner = ?",
+				},
+				Counterbalance: []recipe.Count{{
+					Label: "Corrected",
+					Query: "SELECT COUNT(*) FROM ext_probe_orders WHERE owner = ? AND corrected = 1",
+				}},
 			},
-			Total: recipe.Metric{
-				Label: "Orders",
-				Query: "SELECT COUNT(*) FROM ext_probe_orders WHERE owner = ?",
-			},
-			CounterSignals: []string{"corrected"},
-		}},
+		},
 	})
 	f.h.SetRegistry(reg, f.sqlDB)
 

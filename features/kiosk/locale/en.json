@@ -1,0 +1,23 @@
+{
+  "title": "Kiosk",
+  "sayOrder": "Say the order",
+  "sayOrderHelp": "The microphone uses the device's own recognition. Without support, permission or the language pack, type it: the path is the same.",
+  "orderPlaceholder": "a large latte with oat milk",
+  "orderLabel": "Order",
+  "interpret": "Interpret",
+  "microphone": "Microphone",
+  "micOptional": "Typing always works — the microphone is optional.",
+  "preview": "Preview",
+  "previewHelp": "Provisional. Nothing is submitted until you confirm.",
+  "drink": "Drink",
+  "size": "Size",
+  "milk": "Milk",
+  "extras": "Extras",
+  "price": "Price",
+  "confirm": "Confirm",
+  "orders": "Orders",
+  "noOrdersTitle": "No orders yet",
+  "noOrdersBody": "Say or type an order and confirm it. Orders are per account: the list is scoped in SQL, not filtered in the template.",
+  "corrected": "corrected",
+  "stop": "Stop"
+}

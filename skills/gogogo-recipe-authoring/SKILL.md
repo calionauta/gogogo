@@ -136,36 +136,66 @@ metrics:
 ```
 
 An **outcome** says whether the job got done, for whom, and how often it went
-wrong — declared as a **pair of counts** over the same kind of table:
+wrong — declared as a **pair of counts** plus the counterbalance readings that
+qualify the ratio. It is the same list, with `kind: outcome`:
 
 ```yaml
-outcomes:
-  - id: order_without_repair
+metrics:
+  - label: Orders confirmed
+    query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ?"
+  - kind: outcome
+    id: order_without_repair
     job: Receive the order you asked for without fixing a misread order
     beneficiary: user            # user | operator — never both
     success: { label: Orders without repair, query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ? AND corrected = 0" }
     total:   { label: Orders confirmed,     query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ?" }
-    counterSignals: [corrected]  # states your code actually records
+    counterbalance:              # a COUNT, not a token — shown beside the ratio
+      - { label: Orders corrected, query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ? AND corrected = 1" }
     window: session              # session | day | none
 ```
 
 Four rules, and the reference has the rest (field-by-field gates, denominator
 pitfalls, the questions to ask the operator, the tests, non-goals):
 
-- **Do not invent one.** Propose the job, the beneficiary, the pair and one
-  counter signal; wait for the operator before declaring.
-- **Both halves are `COUNT(*)`** over `declaration.tables` — a query on a table
-  you do not own is refused, and there is no event stream to fall back on.
-- **A counter signal is a column you write** (`corrected`), so the ratio cannot
-  drift from the rows. One signal; two means two outcomes.
+- **Do not invent one.** Propose the job, the beneficiary, the pair and the
+  counterbalance reading; wait for the operator before declaring.
+- **Every count is `COUNT(*)`** over `declaration.tables` — an outcome query on
+  a table you do not own is refused, and there is no event stream or log query
+  to fall back on.
+- **A counterbalance is a column you write** (`corrected`), so the ratio cannot
+  drift from the rows. One reading; two usually means two outcomes.
 - **Zero denominator is "no data"**, rendered `—`; never manufacture a `1`.
 
-A metric has one rule of its own: it must also be `COUNT(*)` over a declared
-table. It is the cheaper of the two — declare one when the surface shows a
-number, an outcome when it shows a ratio.
+`kind: activity` (or no `kind`) is the cheaper half — declare one when the
+surface shows a number, an outcome when it shows a ratio.
 
 Read `references/outcomes.md` (relative to this skill) before declaring or
 changing either.
+
+### Strings: ship them with the recipe
+
+A recipe's UI text lives in the recipe, under `locale/<tag>.json` — the same
+flat map the core catalog uses, read through the optional `Translations() fs.FS`
+seam (beside `Migrations()`). Keys are **unprefixed**: a key `title` in
+`features/kiosk/locale/en.json` is looked up as `kiosk.title`, because the engine
+prefixes every recipe key with its id. That is what lets two recipes both say
+`title` and lets deleting the recipe delete its strings with no core edit.
+
+```json
+// features/kiosk/locale/pt-BR.json
+{ "title": "Quiosque", "confirm": "Confirmar" }
+```
+
+Rules:
+
+- **Ship every supported locale, or accept a warning.** A missing `pt-BR.json`
+  falls back to English (the page still works) and logs a coverage gap. Do not
+  translate half a page and call it done.
+- **A JS label is a data attribute.** When a script rewrites `textContent`, put
+  the translation in `data-label-*` and have the script read it — hardcoding the
+  word in JS is the one string the catalog cannot reach.
+- **Keep the core keys out of the recipe.** `nav.*`, `prefs.*`, `login.*` belong
+  to the app; a recipe translating them would shadow core copy the operator owns.
 
 ### The chat panel is yours; the shared catalog is not
 

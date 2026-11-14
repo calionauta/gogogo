@@ -45,6 +45,17 @@ type Outcome struct {
 	Label   string
 	Success int
 	Total   int
+	// Counterbalance are the readings that qualify the ratio: the state that
+	// says the success number is not the whole story (orders corrected, retries,
+	// abandonments). Rendered beside the ratio, never folded into it — a rise in
+	// corrections must not be averageable away by a rise in volume.
+	Counterbalance []Counterbalance
+}
+
+// Counterbalance is one qualifying reading: a label and its count.
+type Counterbalance struct {
+	Label string
+	Value int
 }
 
 // Ratio is the display string: counts first, percentage second, "—" when
@@ -216,6 +227,12 @@ templ dashboardBody(data PageData) {
 											<span class="text-xs uppercase tracking-wide text-base-content/50">{ o.Label }</span>
 											<span class="text-sm">{ o.Ratio() }</span>
 										</div>
+										for _, c := range o.Counterbalance {
+											<div class="flex items-baseline justify-between gap-3 pl-3">
+												<span class="text-xs text-base-content/50">↳ { c.Label }</span>
+												<span class="text-sm text-base-content/70">{ strconv.Itoa(c.Value) }</span>
+											</div>
+										}
 									}
 								</div>
 							}

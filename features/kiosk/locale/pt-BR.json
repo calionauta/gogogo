@@ -1,0 +1,23 @@
+{
+  "title": "Quiosque",
+  "sayOrder": "Diga o pedido",
+  "sayOrderHelp": "O microfone usa o reconhecimento do próprio dispositivo. Sem suporte, permissão ou o pacote de idioma, digite: o caminho é o mesmo.",
+  "orderPlaceholder": "um latte grande com leite de aveia",
+  "orderLabel": "Pedido",
+  "interpret": "Interpretar",
+  "microphone": "Microfone",
+  "micOptional": "Digitar sempre funciona — o microfone é opcional.",
+  "preview": "Prévia",
+  "previewHelp": "Provisório. Nada é enviado até você confirmar.",
+  "drink": "Bebida",
+  "size": "Tamanho",
+  "milk": "Leite",
+  "extras": "Extras",
+  "price": "Preço",
+  "confirm": "Confirmar",
+  "orders": "Pedidos",
+  "noOrdersTitle": "Nenhum pedido ainda",
+  "noOrdersBody": "Diga ou digite um pedido e confirme. Pedidos são por conta: a lista é limitada em SQL, não filtrada no template.",
+  "corrected": "corrigido",
+  "stop": "Parar"
+}

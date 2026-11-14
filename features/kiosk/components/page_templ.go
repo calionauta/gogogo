@@ -44,6 +44,7 @@ import (
 	"strconv"
 
 	"github.com/calionauta/gogogo/features/sounds"
+	"github.com/calionauta/gogogo/internal/i18n"
 	"github.com/calionauta/gogogo/internal/ui"
 )
 
@@ -202,13 +203,13 @@ func kioskHead() templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 101, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 102, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\">\n\t\tfunction initKioskVoice() {\n\t\t\tvar root = document.getElementById(\"kiosk-voice\");\n\t\t\tvar input = document.getElementById(\"kiosk-text\");\n\t\t\tvar status = document.getElementById(\"kiosk-voice-status\");\n\t\t\tvar mic = document.getElementById(\"kiosk-mic\");\n\t\t\tif (!root || !input || !status || !mic) return;\n\n\t\t\tvar SR = window.SpeechRecognition || window.webkitSpeechRecognition;\n\t\t\t// No recognizer at all: the button cannot ever work, so it leaves\n\t\t\t// instead of sitting there inviting a click that does nothing.\n\t\t\tif (!SR) {\n\t\t\t\tmic.hidden = true;\n\t\t\t\tstatus.textContent = \"This browser has no speech recognition — type the order.\";\n\t\t\t\treturn;\n\t\t\t}\n\t\t\tvar lang = document.documentElement.lang || \"en-US\";\n\t\t\tvar recognition = null;\n\t\t\tvar listening = false;\n\t\t\tvar lastResultAt = 0;\n\t\t\tvar watchdog = 0;\n\n\t\t\tfunction say(text) { status.textContent = text; }\n\t\t\tfunction idle() {\n\t\t\t\tlistening = false;\n\t\t\t\tmic.setAttribute(\"aria-pressed\", \"false\");\n\t\t\t\tmic.textContent = \"Microphone\";\n\t\t\t}\n\n\t\t\tfunction stop() {\n\t\t\t\tclearTimeout(watchdog);\n\t\t\t\tif (recognition && listening) recognition.stop();\n\t\t\t\tidle();\n\t\t\t}\n\n\t\t\t// On-device gating. available()/install() are the 2026 Web Speech API\n\t\t\t// surface; without them the browser can only recognize remotely, and\n\t\t\t// this page does not use a remote recognizer.\n\t\t\tfunction localSupport() {\n\t\t\t\treturn !!(SR && typeof SR.available === \"function\" && typeof SR.install === \"function\");\n\t\t\t}\n\n\t\t\tfunction prepare(next) {\n\t\t\t\tif (recognition) return recognition;\n\t\t\t\trecognition = new SR();\n\t\t\t\trecognition.lang = lang;\n\t\t\t\trecognition.continuous = true;\n\t\t\t\trecognition.interimResults = true;\n\t\t\t\trecognition.maxAlternatives = 1;\n\t\t\t\trecognition.processLocally = true;\n\t\t\t\tbias(recognition);\n\t\t\t\trecognition.onresult = function (event) {\n\t\t\t\t\tlastResultAt = Date.now();\n\t\t\t\t\tvar text = \"\";\n\t\t\t\t\tfor (var i = 0; i < event.results.length; i++) {\n\t\t\t\t\t\ttext += event.results[i][0].transcript + \" \";\n\t\t\t\t\t}\n\t\t\t\t\tinput.value = text.trim();\n\t\t\t\t\tinput.dispatchEvent(new Event(\"input\", { bubbles: true }));\n\t\t\t\t};\n\t\t\t\trecognition.onerror = function (event) {\n\t\t\t\t\tsay(\"Microphone: \" + (event.error || \"error\") + \" — type the order.\");\n\t\t\t\t\tstop();\n\t\t\t\t};\n\t\t\t\trecognition.onend = function () {\n\t\t\t\t\t// The browser ends a session on its own after silence. Leave it\n\t\t\t\t\t// stopped and say so rather than pretending it is still listening.\n\t\t\t\t\tif (listening) {\n\t\t\t\t\t\tsay(\"Listening stopped — tap the microphone to continue, or type.\");\n\t\t\t\t\t\tidle();\n\t\t\t\t\t}\n\t\t\t\t};\n\t\t\t\treturn next(recognition);\n\t\t\t}\n\n\t\t\t// bias supplies the menu as phrases. Contextual biasing is the cheap half\n\t\t\t// of accuracy: the recognizer prefers words it was told about.\n\t\t\tfunction bias(rec) {\n\t\t\t\tif (!rec.phrases || !window.SpeechRecognitionPhrase) return;\n\t\t\t\tif (!root.dataset.phrases) return;\n\t\t\t\ttry {\n\t\t\t\t\tvar labels = JSON.parse(root.dataset.phrases);\n\t\t\t\t\trec.phrases = labels.map(function (label) {\n\t\t\t\t\t\treturn new SpeechRecognitionPhrase(label, 1);\n\t\t\t\t\t});\n\t\t\t\t} catch (_) {\n\t\t\t\t\t// A malformed attribute costs the bias, not the feature.\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// installTimeout bounds the language-pack download. Chrome's install()\n\t\t\t// can stay pending for minutes on a slow link and never reject, which\n\t\t\t// left the page saying \"Downloading…\" forever with no way back — the\n\t\t\t// button still worked, but nothing said so. A timeout turns that into\n\t\t\t// an instruction (type, or ask again) instead of a stuck label.\n\t\t\tvar installTimeout = 20000;\n\n\t\t\tfunction availableWithTimeout(options) {\n\t\t\t\treturn Promise.race([\n\t\t\t\t\tSR.available(options),\n\t\t\t\t\tnew Promise(function (resolve) { setTimeout(function () { resolve(\"unknown\"); }, 5000); })\n\t\t\t\t]);\n\t\t\t}\n\n\t\t\tfunction installWithTimeout(options) {\n\t\t\t\treturn Promise.race([\n\t\t\t\t\tSR.install(options),\n\t\t\t\t\tnew Promise(function (resolve) { setTimeout(function () { resolve(false); }, installTimeout); })\n\t\t\t\t]);\n\t\t\t}\n\n\t\t\tfunction start() {\n\t\t\t\tif (!localSupport()) {\n\t\t\t\t\tsay(\"This browser offers no on-device recognition — type the order.\");\n\t\t\t\t\treturn;\n\t\t\t\t}\n\t\t\t\tvar options = { langs: [lang], processLocally: true };\n\t\t\t\tavailableWithTimeout(options).then(function (state) {\n\t\t\t\t\tif (state === \"available\") return \"ready\";\n\t\t\t\t\t// `downloading` means an install is already running: waiting on\n\t\t\t\t\t// another one would stack downloads, so ask the user to retry.\n\t\t\t\t\tif (state === \"downloading\") {\n\t\t\t\t\t\tsay(\"The language pack is still downloading — tap the microphone again in a moment.\");\n\t\t\t\t\t\treturn \"pending\";\n\t\t\t\t\t}\n\t\t\t\t\tsay(\"Downloading the language pack once…\");\n\t\t\t\t\treturn installWithTimeout(options).then(function (ok) {\n\t\t\t\t\t\treturn ok ? \"ready\" : \"pending\";\n\t\t\t\t\t});\n\t\t\t\t}).then(function (outcome) {\n\t\t\t\t\tif (outcome !== \"ready\") {\n\t\t\t\t\t\t// \"pending\": the install is still running in the background\n\t\t\t\t\t\t// and the label already says what to do, so it is not\n\t\t\t\t\t\t// overwritten here.\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\t\t\t\t\tprepare(function (rec) {\n\t\t\t\t\t\tlistening = true;\n\t\t\t\t\t\tmic.setAttribute(\"aria-pressed\", \"true\");\n\t\t\t\t\t\tmic.textContent = \"Stop\";\n\t\t\t\t\t\tsay(\"Listening on device…\");\n\t\t\t\t\t\tlastResultAt = Date.now();\n\t\t\t\t\t\trec.start();\n\t\t\t\t\t\t// A known browser bug (Chromium 579050368) detects speech and\n\t\t\t\t\t\t// never fires a result. Silence must become an instruction,\n\t\t\t\t\t\t// not a spinner that never ends.\n\t\t\t\t\t\twatchdog = setTimeout(function () {\n\t\t\t\t\t\t\tif (listening && Date.now() - lastResultAt > 4000) {\n\t\t\t\t\t\t\t\tsay(\"I did not catch that — type the order.\");\n\t\t\t\t\t\t\t\tstop();\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}, 4500);\n\t\t\t\t\t});\n\t\t\t\t}).catch(function () {\n\t\t\t\t\tsay(\"On-device recognition unavailable — type the order.\");\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// ONE handler: the markup's data-on:click calls __kioskVoice.toggle.\n\t\t\t// An addEventListener here would fire on the same click as well, so\n\t\t\t// the two toggles cancelled out — the button flipped to Stop and\n\t\t\t// straight back to Microphone, and recognition never stayed on.\n\t\t\twindow.__kioskVoice = { toggle: function () { if (listening) stop(); else start(); } };\n\t\t}\n\n\t\t// The body is not parsed yet when this script runs (it is in <head>), so\n\t\t// the wiring waits for the DOM. `readyState` covers the case where a\n\t\t// later include has already fired the event.\n\t\tif (document.readyState === \"loading\") {\n\t\t\tdocument.addEventListener(\"DOMContentLoaded\", initKioskVoice);\n\t\t} else {\n\t\t\tinitKioskVoice();\n\t\t}\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\">\n\t\tfunction initKioskVoice() {\n\t\t\tvar root = document.getElementById(\"kiosk-voice\");\n\t\t\tvar input = document.getElementById(\"kiosk-text\");\n\t\t\tvar status = document.getElementById(\"kiosk-voice-status\");\n\t\t\tvar mic = document.getElementById(\"kiosk-mic\");\n\t\t\tif (!root || !input || !status || !mic) return;\n\n\t\t\tvar SR = window.SpeechRecognition || window.webkitSpeechRecognition;\n\t\t\t// No recognizer at all: the button cannot ever work, so it leaves\n\t\t\t// instead of sitting there inviting a click that does nothing.\n\t\t\tif (!SR) {\n\t\t\t\tmic.hidden = true;\n\t\t\t\tstatus.textContent = \"This browser has no speech recognition — type the order.\";\n\t\t\t\treturn;\n\t\t\t}\n\t\t\tvar lang = document.documentElement.lang || \"en-US\";\n\t\t\tvar recognition = null;\n\t\t\tvar listening = false;\n\t\t\tvar lastResultAt = 0;\n\t\t\tvar watchdog = 0;\n\n\t\t\tfunction say(text) { status.textContent = text; }\n\t\t\tfunction idle() {\n\t\t\t\tlistening = false;\n\t\t\t\tmic.setAttribute(\"aria-pressed\", \"false\");\n\t\t\t\tmic.textContent = mic.getAttribute(\"data-label-idle\") || \"Microphone\";\n\t\t\t}\n\n\t\t\tfunction stop() {\n\t\t\t\tclearTimeout(watchdog);\n\t\t\t\tif (recognition && listening) recognition.stop();\n\t\t\t\tidle();\n\t\t\t}\n\n\t\t\t// On-device gating. available()/install() are the 2026 Web Speech API\n\t\t\t// surface; without them the browser can only recognize remotely, and\n\t\t\t// this page does not use a remote recognizer.\n\t\t\tfunction localSupport() {\n\t\t\t\treturn !!(SR && typeof SR.available === \"function\" && typeof SR.install === \"function\");\n\t\t\t}\n\n\t\t\tfunction prepare(next) {\n\t\t\t\tif (recognition) return recognition;\n\t\t\t\trecognition = new SR();\n\t\t\t\trecognition.lang = lang;\n\t\t\t\trecognition.continuous = true;\n\t\t\t\trecognition.interimResults = true;\n\t\t\t\trecognition.maxAlternatives = 1;\n\t\t\t\trecognition.processLocally = true;\n\t\t\t\tbias(recognition);\n\t\t\t\trecognition.onresult = function (event) {\n\t\t\t\t\tlastResultAt = Date.now();\n\t\t\t\t\tvar text = \"\";\n\t\t\t\t\tfor (var i = 0; i < event.results.length; i++) {\n\t\t\t\t\t\ttext += event.results[i][0].transcript + \" \";\n\t\t\t\t\t}\n\t\t\t\t\tinput.value = text.trim();\n\t\t\t\t\tinput.dispatchEvent(new Event(\"input\", { bubbles: true }));\n\t\t\t\t};\n\t\t\t\trecognition.onerror = function (event) {\n\t\t\t\t\tsay(\"Microphone: \" + (event.error || \"error\") + \" — type the order.\");\n\t\t\t\t\tstop();\n\t\t\t\t};\n\t\t\t\trecognition.onend = function () {\n\t\t\t\t\t// The browser ends a session on its own after silence. Leave it\n\t\t\t\t\t// stopped and say so rather than pretending it is still listening.\n\t\t\t\t\tif (listening) {\n\t\t\t\t\t\tsay(\"Listening stopped — tap the microphone to continue, or type.\");\n\t\t\t\t\t\tidle();\n\t\t\t\t\t}\n\t\t\t\t};\n\t\t\t\treturn next(recognition);\n\t\t\t}\n\n\t\t\t// bias supplies the menu as phrases. Contextual biasing is the cheap half\n\t\t\t// of accuracy: the recognizer prefers words it was told about.\n\t\t\tfunction bias(rec) {\n\t\t\t\tif (!rec.phrases || !window.SpeechRecognitionPhrase) return;\n\t\t\t\tif (!root.dataset.phrases) return;\n\t\t\t\ttry {\n\t\t\t\t\tvar labels = JSON.parse(root.dataset.phrases);\n\t\t\t\t\trec.phrases = labels.map(function (label) {\n\t\t\t\t\t\treturn new SpeechRecognitionPhrase(label, 1);\n\t\t\t\t\t});\n\t\t\t\t} catch (_) {\n\t\t\t\t\t// A malformed attribute costs the bias, not the feature.\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// installTimeout bounds the language-pack download. Chrome's install()\n\t\t\t// can stay pending for minutes on a slow link and never reject, which\n\t\t\t// left the page saying \"Downloading…\" forever with no way back — the\n\t\t\t// button still worked, but nothing said so. A timeout turns that into\n\t\t\t// an instruction (type, or ask again) instead of a stuck label.\n\t\t\tvar installTimeout = 20000;\n\n\t\t\tfunction availableWithTimeout(options) {\n\t\t\t\treturn Promise.race([\n\t\t\t\t\tSR.available(options),\n\t\t\t\t\tnew Promise(function (resolve) { setTimeout(function () { resolve(\"unknown\"); }, 5000); })\n\t\t\t\t]);\n\t\t\t}\n\n\t\t\tfunction installWithTimeout(options) {\n\t\t\t\treturn Promise.race([\n\t\t\t\t\tSR.install(options),\n\t\t\t\t\tnew Promise(function (resolve) { setTimeout(function () { resolve(false); }, installTimeout); })\n\t\t\t\t]);\n\t\t\t}\n\n\t\t\tfunction start() {\n\t\t\t\tif (!localSupport()) {\n\t\t\t\t\tsay(\"This browser offers no on-device recognition — type the order.\");\n\t\t\t\t\treturn;\n\t\t\t\t}\n\t\t\t\tvar options = { langs: [lang], processLocally: true };\n\t\t\t\tavailableWithTimeout(options).then(function (state) {\n\t\t\t\t\tif (state === \"available\") return \"ready\";\n\t\t\t\t\t// `downloading` means an install is already running: waiting on\n\t\t\t\t\t// another one would stack downloads, so ask the user to retry.\n\t\t\t\t\tif (state === \"downloading\") {\n\t\t\t\t\t\tsay(\"The language pack is still downloading — tap the microphone again in a moment.\");\n\t\t\t\t\t\treturn \"pending\";\n\t\t\t\t\t}\n\t\t\t\t\tsay(\"Downloading the language pack once…\");\n\t\t\t\t\treturn installWithTimeout(options).then(function (ok) {\n\t\t\t\t\t\treturn ok ? \"ready\" : \"pending\";\n\t\t\t\t\t});\n\t\t\t\t}).then(function (outcome) {\n\t\t\t\t\tif (outcome !== \"ready\") {\n\t\t\t\t\t\t// \"pending\": the install is still running in the background\n\t\t\t\t\t\t// and the label already says what to do, so it is not\n\t\t\t\t\t\t// overwritten here.\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\t\t\t\t\tprepare(function (rec) {\n\t\t\t\t\t\tlistening = true;\n\t\t\t\t\t\tmic.setAttribute(\"aria-pressed\", \"true\");\n\t\t\t\t\t\tmic.textContent = mic.getAttribute(\"data-label-live\") || \"Stop\";\n\t\t\t\t\t\tsay(\"Listening on device…\");\n\t\t\t\t\t\tlastResultAt = Date.now();\n\t\t\t\t\t\trec.start();\n\t\t\t\t\t\t// A known browser bug (Chromium 579050368) detects speech and\n\t\t\t\t\t\t// never fires a result. Silence must become an instruction,\n\t\t\t\t\t\t// not a spinner that never ends.\n\t\t\t\t\t\twatchdog = setTimeout(function () {\n\t\t\t\t\t\t\tif (listening && Date.now() - lastResultAt > 4000) {\n\t\t\t\t\t\t\t\tsay(\"I did not catch that — type the order.\");\n\t\t\t\t\t\t\t\tstop();\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}, 4500);\n\t\t\t\t\t});\n\t\t\t\t}).catch(function () {\n\t\t\t\t\tsay(\"On-device recognition unavailable — type the order.\");\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// ONE handler: the markup's data-on:click calls __kioskVoice.toggle.\n\t\t\t// An addEventListener here would fire on the same click as well, so\n\t\t\t// the two toggles cancelled out — the button flipped to Stop and\n\t\t\t// straight back to Microphone, and recognition never stayed on.\n\t\t\twindow.__kioskVoice = { toggle: function () { if (listening) stop(); else start(); } };\n\t\t}\n\n\t\t// The body is not parsed yet when this script runs (it is in <head>), so\n\t\t// the wiring waits for the DOM. `readyState` covers the case where a\n\t\t// later include has already fired the event.\n\t\tif (document.readyState === \"loading\") {\n\t\t\tdocument.addEventListener(\"DOMContentLoaded\", initKioskVoice);\n\t\t} else {\n\t\t\tinitKioskVoice();\n\t\t}\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -244,7 +245,7 @@ func kioskBody(data PageData) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(MarshalSignals(seedSignals()))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 278, Col: 90}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 279, Col: 90}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 		if templ_7745c5c3_Err != nil {
@@ -257,26 +258,247 @@ func kioskBody(data PageData) templ.Component {
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.Phrases)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 279, Col: 71}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 280, Col: 71}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\"><div class=\"ui-card-body ui-stack\"><h2 class=\"ui-title\">Say the order</h2><p class=\"ui-meta\">The microphone uses the device's own recognition. Without support, permission or the language pack, type it: the path is the same.</p><form id=\"kiosk-form\" class=\"ui-row\" data-on:submit__prevent=\"@post('/api/kiosk/preview', {contentType: 'form'})\"><input id=\"kiosk-text\" name=\"text\" class=\"input input-sm grow\" autocomplete=\"off\" placeholder=\"a large latte with oat milk\" aria-label=\"Order\" maxlength=\"240\" data-bind=\"kioskText\" data-on:input__debounce.250ms=\"!$kioskBusy ? ($kioskBusy = true, @post('/api/kiosk/preview', {contentType: 'form'}).finally(() => { $kioskBusy = false; if ($kioskQueued) { $kioskQueued = false; el.dispatchEvent(new CustomEvent('kiosk-retry', { bubbles: true })) } })) : ($kioskQueued = true)\" data-on:kiosk-retry=\"!$kioskBusy ? ($kioskBusy = true, @post('/api/kiosk/preview', {contentType: 'form'}).finally(() => { $kioskBusy = false; })) : null\"> <input type=\"hidden\" name=\"previewed\" data-attr:value=\"$kioskPreview\"> <button type=\"submit\" class=\"btn btn-sm\">Interpret</button></form><div class=\"ui-row\"><button type=\"button\" id=\"kiosk-mic\" class=\"btn btn-sm\" aria-pressed=\"false\" data-on:click=\"window.__kioskVoice && window.__kioskVoice.toggle()\">Microphone</button> <span id=\"kiosk-voice-status\" class=\"ui-meta\" role=\"status\">Typing always works — the microphone is optional.</span></div><p class=\"ui-meta\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\"><div class=\"ui-card-body ui-stack\"><h2 class=\"ui-title\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var8 string
-		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(data.MenuLine)
+		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.sayOrder", nil))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 320, Col: 38}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 282, Col: 61}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</p></div></section><section class=\"ui-card\"><div class=\"ui-card-body ui-stack\"><h2 class=\"ui-title\">Preview</h2><p class=\"ui-meta\">Provisional. Nothing is submitted until you confirm.</p><dl class=\"ui-stack\"><div class=\"ui-row justify-between\"><dt class=\"ui-meta\">Drink</dt><dd data-text=\"$kioskDrink || '—'\"></dd></div><div class=\"ui-row justify-between\"><dt class=\"ui-meta\">Size</dt><dd data-text=\"$kioskSize || '—'\"></dd></div><div class=\"ui-row justify-between\"><dt class=\"ui-meta\">Milk</dt><dd data-text=\"$kioskMilk || '—'\"></dd></div><div class=\"ui-row justify-between\"><dt class=\"ui-meta\">Extras</dt><dd data-text=\"$kioskExtras || '—'\"></dd></div><div class=\"ui-row justify-between\"><dt class=\"ui-meta\">Price</dt><dd data-text=\"$kioskPrice || '—'\"></dd></div></dl><p class=\"ui-meta\" data-show=\"!!$kioskNeed\" data-text=\"$kioskNeed\"></p><button type=\"button\" class=\"btn btn-primary btn-sm\" data-attr:disabled=\"!!($kioskBusy || !$kioskDrink || $kioskNeed)\" data-on:click=\"$kioskBusy = true; @post('/api/kiosk/confirm', {contentType: 'form'}).finally(() => { $kioskBusy = false; })\">Confirm</button><p class=\"ui-meta\" data-show=\"!!$kioskNotice\" data-text=\"$kioskNotice\"></p></div></section><section class=\"ui-card\"><div class=\"ui-card-body\"><div id=\"kiosk-orders\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</h2><p class=\"ui-meta\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var9 string
+		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.sayOrderHelp", nil))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 283, Col: 63}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</p><form id=\"kiosk-form\" class=\"ui-row\" data-on:submit__prevent=\"@post('/api/kiosk/preview', {contentType: 'form'})\"><input id=\"kiosk-text\" name=\"text\" class=\"input input-sm grow\" autocomplete=\"off\" placeholder=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var10 string
+		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(i18n.T(ctx, "kiosk.orderPlaceholder", nil))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 294, Col: 62}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\" aria-label=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var11 string
+		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(i18n.T(ctx, "kiosk.orderLabel", nil))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 295, Col: 55}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\" maxlength=\"240\" data-bind=\"kioskText\" data-on:input__debounce.250ms=\"!$kioskBusy ? ($kioskBusy = true, @post('/api/kiosk/preview', {contentType: 'form'}).finally(() => { $kioskBusy = false; if ($kioskQueued) { $kioskQueued = false; el.dispatchEvent(new CustomEvent('kiosk-retry', { bubbles: true })) } })) : ($kioskQueued = true)\" data-on:kiosk-retry=\"!$kioskBusy ? ($kioskBusy = true, @post('/api/kiosk/preview', {contentType: 'form'}).finally(() => { $kioskBusy = false; })) : null\"> <input type=\"hidden\" name=\"previewed\" data-attr:value=\"$kioskPreview\"> <button type=\"submit\" class=\"btn btn-sm\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var12 string
+		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.interpret", nil))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 302, Col: 83}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</button></form><div class=\"ui-row\"><button type=\"button\" id=\"kiosk-mic\" class=\"btn btn-sm\" aria-pressed=\"false\" data-label-idle=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var13 string
+		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue(i18n.T(ctx, "kiosk.microphone", nil))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 310, Col: 60}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "\" data-label-live=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var14 string
+		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue(i18n.T(ctx, "kiosk.stop", nil))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 311, Col: 54}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\" data-on:click=\"window.__kioskVoice && window.__kioskVoice.toggle()\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var15 string
+		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.microphone", nil))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 314, Col: 44}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</button> <span id=\"kiosk-voice-status\" class=\"ui-meta\" role=\"status\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var16 string
+		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.micOptional", nil))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 317, Col: 45}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</span></div><p class=\"ui-meta\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var17 string
+		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(data.MenuLine)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 320, Col: 38}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</p></div></section><section class=\"ui-card\"><div class=\"ui-card-body ui-stack\"><h2 class=\"ui-title\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var18 string
+		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.preview", nil))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 326, Col: 60}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</h2><p class=\"ui-meta\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var19 string
+		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.previewHelp", nil))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 327, Col: 62}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</p><dl class=\"ui-stack\"><div class=\"ui-row justify-between\"><dt class=\"ui-meta\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var20 string
+		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.drink", nil))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 330, Col: 59}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</dt><dd data-text=\"$kioskDrink || '—'\"></dd></div><div class=\"ui-row justify-between\"><dt class=\"ui-meta\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var21 string
+		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.size", nil))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 334, Col: 58}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</dt><dd data-text=\"$kioskSize || '—'\"></dd></div><div class=\"ui-row justify-between\"><dt class=\"ui-meta\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var22 string
+		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.milk", nil))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 338, Col: 58}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</dt><dd data-text=\"$kioskMilk || '—'\"></dd></div><div class=\"ui-row justify-between\"><dt class=\"ui-meta\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var23 string
+		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.extras", nil))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 342, Col: 60}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</dt><dd data-text=\"$kioskExtras || '—'\"></dd></div><div class=\"ui-row justify-between\"><dt class=\"ui-meta\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var24 string
+		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.price", nil))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 346, Col: 59}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</dt><dd data-text=\"$kioskPrice || '—'\"></dd></div></dl><p class=\"ui-meta\" data-show=\"!!$kioskNeed\" data-text=\"$kioskNeed\"></p><button type=\"button\" class=\"btn btn-primary btn-sm\" data-attr:disabled=\"!!($kioskBusy || !$kioskDrink || $kioskNeed)\" data-on:click=\"$kioskBusy = true; @post('/api/kiosk/confirm', {contentType: 'form'}).finally(() => { $kioskBusy = false; })\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var25 string
+		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.confirm", nil))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 357, Col: 40}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</button><p class=\"ui-meta\" data-show=\"!!$kioskNotice\" data-text=\"$kioskNotice\"></p></div></section><section class=\"ui-card\"><div class=\"ui-card-body\"><div id=\"kiosk-orders\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -284,7 +506,7 @@ func kioskBody(data PageData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</div></div></section></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</div></div></section></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -311,145 +533,197 @@ func OrdersList(orders []Order) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var9 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var9 == nil {
-			templ_7745c5c3_Var9 = templ.NopComponent
+		templ_7745c5c3_Var26 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var26 == nil {
+			templ_7745c5c3_Var26 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<div class=\"ui-row justify-between\"><h2 class=\"ui-title\">Orders</h2><span class=\"ui-meta\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<div class=\"ui-row justify-between\"><h2 class=\"ui-title\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var10 string
-		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(len(orders)))
+		var templ_7745c5c3_Var27 string
+		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.orders", nil))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 379, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 376, Col: 57}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</span></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "</h2><span class=\"ui-meta\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var28 string
+		templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(len(orders)))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 377, Col: 51}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</span></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if len(orders) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<div class=\"ui-empty\"><p class=\"ui-empty-title\">No orders yet</p><p class=\"ui-empty-body\">Say or type an order and confirm it. Orders are per account: the list is scoped in SQL, not filtered in the template.</p></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "<div class=\"ui-empty\"><p class=\"ui-empty-title\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var29 string
+			templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.noOrdersTitle", nil))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 381, Col: 70}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "</p><p class=\"ui-empty-body\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var30 string
+			templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.noOrdersBody", nil))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 383, Col: 44}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "</p></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<ul class=\"ui-stack text-sm\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<ul class=\"ui-stack text-sm\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			for _, o := range orders {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<li class=\"ui-row justify-between\"><span>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<li class=\"ui-row justify-between\"><span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var11 string
-				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(o.Drink)
+				var templ_7745c5c3_Var31 string
+				templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(o.Drink)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 394, Col: 15}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 391, Col: 15}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, " · ")
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var12 string
-				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(o.Size)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 394, Col: 29}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, " · ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, " ")
+				var templ_7745c5c3_Var32 string
+				templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(o.Size)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 391, Col: 29}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, " ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if o.Milk != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "· ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "· ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var13 string
-					templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(o.Milk)
+					var templ_7745c5c3_Var33 string
+					templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(o.Milk)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 396, Col: 18}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 393, Col: 18}
 					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, " ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, " ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
 				if o.Extras != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "· ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "· ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var14 string
-					templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(o.Extras)
+					var templ_7745c5c3_Var34 string
+					templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(o.Extras)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 399, Col: 20}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 396, Col: 20}
 					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, " ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, " ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
 				if o.Corrected {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<span class=\"badge badge-warning badge-sm\">corrected</span>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "<span class=\"badge badge-warning badge-sm\">")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					var templ_7745c5c3_Var35 string
+					templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.corrected", nil))
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 399, Col: 87}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "</span>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</span> <span class=\"ui-meta\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "</span> <span class=\"ui-meta\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var15 string
-				templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(o.Price)
+				var templ_7745c5c3_Var36 string
+				templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(o.Price)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 405, Col: 36}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 402, Col: 36}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, " · ")
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var16 string
-				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(o.When)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 405, Col: 50}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, " · ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</span></li>")
+				var templ_7745c5c3_Var37 string
+				templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(o.When)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 402, Col: 50}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "</span></li>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</ul>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "</ul>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

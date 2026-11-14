@@ -83,7 +83,7 @@ type outcomeDescriptor struct {
 	Job            string   `json:"job"`
 	Beneficiary    string   `json:"beneficiary"`
 	Window         string   `json:"window,omitempty"`
-	CounterSignals []string `json:"counterSignals,omitempty"`
+	Counterbalance []string `json:"counterbalance,omitempty"`
 	SuccessLabel   string   `json:"successLabel"`
 	TotalLabel     string   `json:"totalLabel"`
 }
@@ -146,16 +146,26 @@ func applyReceiptSurface(desc *recipeDescriptor, r recipe.Receipt) {
 func applyReceiptInstrumentation(desc *recipeDescriptor, d recipe.Declaration) {
 	desc.Metrics = desc.Metrics[:0]
 	for _, m := range d.Metrics {
+		if m.ResolvedKind() != recipe.MetricActivity {
+			continue
+		}
 		desc.Metrics = append(desc.Metrics, metricDescriptor{Label: m.Label, Query: m.Query})
 	}
 	desc.Outcomes = desc.Outcomes[:0]
-	for _, o := range d.Outcomes {
+	for _, o := range d.Outcomes() {
+		if o.Success == nil || o.Total == nil {
+			continue
+		}
+		labels := make([]string, 0, len(o.Counterbalance))
+		for _, c := range o.Counterbalance {
+			labels = append(labels, c.Label)
+		}
 		desc.Outcomes = append(desc.Outcomes, outcomeDescriptor{
 			ID:             o.ID,
 			Job:            o.Job,
 			Beneficiary:    o.Beneficiary,
 			Window:         o.Window,
-			CounterSignals: append([]string(nil), o.CounterSignals...),
+			Counterbalance: labels,
 			SuccessLabel:   o.Success.Label,
 			TotalLabel:     o.Total.Label,
 		})
@@ -352,8 +362,8 @@ func printInstrumentation(stdout io.Writer, e recipeDescriptor) {
 		if o.Window != "" {
 			line += ", " + o.Window
 		}
-		if len(o.CounterSignals) > 0 {
-			line += "; counter: " + strings.Join(o.CounterSignals, ", ")
+		if len(o.Counterbalance) > 0 {
+			line += "; counterbalance: " + strings.Join(o.Counterbalance, ", ")
 		}
 		fmt.Fprintf(stdout, "%s)\n", line)
 	}

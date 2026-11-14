@@ -56,8 +56,8 @@ declaration:
     metrics:
         - label: Orders confirmed
           query: SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ?
-    outcomes:
-        - id: order_without_repair
+        - kind: outcome
+          id: order_without_repair
           job: Receive the order you asked for without fixing a misread order
           beneficiary: user
           success:
@@ -66,8 +66,9 @@ declaration:
           total:
             label: Orders confirmed
             query: SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ?
-          counterSignals:
-            - corrected
+          counterbalance:
+            - label: Orders corrected
+              query: SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ? AND corrected = 1
           window: session
     panel:
         component: kiosk_orders

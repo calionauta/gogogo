@@ -19,7 +19,7 @@ func TestDeclarationPassesEveryGate(t *testing.T) {
 	}{
 		{"metrics", recipe.MetricProblems(d)},
 		{"panel", recipe.PanelProblems(d)},
-		{"outcomes", recipe.OutcomeProblems(d)},
+		{"outcomes", recipe.OutcomeTableProblems(d)},
 		{"actions", recipe.ActionProblems(d)},
 		{"action docs", recipe.ActionDocProblems(d)},
 		{"omissions", recipe.OmissionProblems(d)},
@@ -36,13 +36,13 @@ func TestDeclarationPassesEveryGate(t *testing.T) {
 // table it forgot to declare.
 func TestDeclarationOwesItsOutcomeToItsOwnTable(t *testing.T) {
 	d := recipeProvider{}.Declaration()
-	if len(d.Outcomes) != 1 {
-		t.Fatalf("want exactly one declared outcome, got %d", len(d.Outcomes))
+	if len(d.Outcomes()) != 1 {
+		t.Fatalf("want exactly one declared outcome, got %d", len(d.Outcomes()))
 	}
 	// Dropping the table must break the outcome — the positive case above would
 	// pass a declaration that never checked ownership.
 	d.Tables = nil
-	problems := recipe.OutcomeProblems(d)
+	problems := recipe.OutcomeTableProblems(d)
 	if len(problems) == 0 {
 		t.Fatal("an outcome passed with no declared table")
 	}

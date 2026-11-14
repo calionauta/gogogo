@@ -288,14 +288,18 @@ files:
 declaration:
   tables:
   - ext_timer_sessions
-  outcomes:
-  - id: session_without_extension
+  metrics:
+  - kind: outcome
+    id: session_without_extension
     job: Finish a focus session without extending it
     beneficiary: user
     success: {label: Sessions kept, query: "SELECT COUNT(*) FROM ext_timer_sessions` +
 		` WHERE owner = ? AND extended = 0"}
     total: {label: Sessions, query: "SELECT COUNT(*) FROM ext_timer_sessions WHERE owner = ?"}
-    counterSignals: [extended]
+    counterbalance:
+    - label: Sessions extended
+      query: "SELECT COUNT(*) FROM ext_timer_sessions` +
+		` WHERE owner = ? AND extended = 1"
     window: session
 `
 	declared := `CREATE TABLE ext_timer_sessions (id TEXT PRIMARY KEY);` + "\n"
@@ -318,7 +322,7 @@ declaration:
 
 			report := checkOneRecipe(root, "timer")
 			joined := strings.Join(report.Errors, "\n")
-			blocked := strings.Contains(joined, `declares counter signal "extended"`)
+			blocked := strings.Contains(joined, `declares counterbalance "extended"`)
 			if blocked != tc.wantErrors {
 				t.Fatalf("counter-signal verdict = %v, want %v: errors=%v warnings=%v",
 					blocked, tc.wantErrors, report.Errors, report.Warnings)

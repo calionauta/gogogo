@@ -305,7 +305,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	handler = rateLimit(cfg.RateLimitRPM, shellMiddleware(cfg, a, queries, notificationsH, shellNav(slots), handler))
 	// Inside the edge wrappers (headers/log still apply) and outside the router: every route is gated.
 	handler = applyLicenseGate(cfg, licStore, handler)
-	handler = applyI18N(cfg, handler)
+	handler = applyI18N(cfg, mux.recipes.TranslationSets(), handler)
 	handler = edgeHandler(cfg, slog.Default(), handler)
 	return &ChiStack{
 		sqlDB:          sqlDB,

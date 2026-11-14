@@ -170,8 +170,8 @@ func (h *Handler) declaredMetrics(ctx context.Context, owner string) map[string]
 	}
 	for _, p := range h.registry.Providers() {
 		id := p.ID()
-		for _, m := range p.Declaration().Metrics {
-			n, ok := h.count(ctx, id, m, owner, "metric", m.Label)
+		for _, m := range p.Declaration().Activity() {
+			n, ok := h.count(ctx, id, m.AsCount(), owner, "metric", m.Label)
 			if !ok {
 				continue
 			}
@@ -197,18 +197,32 @@ func (h *Handler) declaredOutcomes(ctx context.Context, owner string) map[string
 	}
 	for _, p := range h.registry.Providers() {
 		id := p.ID()
-		for _, o := range p.Declaration().Outcomes {
-			success, ok := h.count(ctx, id, o.Success, owner, "outcome", o.ID)
+		for _, o := range p.Declaration().Outcomes() {
+			if o.Success == nil || o.Total == nil {
+				continue
+			}
+			success, ok := h.count(ctx, id, *o.Success, owner, "outcome", o.ID)
 			if !ok {
 				continue
 			}
-			total, ok := h.count(ctx, id, o.Total, owner, "outcome", o.ID)
+			total, ok := h.count(ctx, id, *o.Total, owner, "outcome", o.ID)
 			if !ok {
 				continue
 			}
-			out[id] = append(out[id], components.Outcome{
-				Label: o.Success.Label, Success: success, Total: total,
-			})
+			item := components.Outcome{Label: o.Success.Label, Success: success, Total: total}
+			// The counterbalance readings travel with the ratio: a peak in
+			// corrections cannot be averaged away by a rise in volume if the
+			// number sits beside it.
+			for _, c := range o.Counterbalance {
+				n, ok := h.count(ctx, id, c, owner, "outcome", o.ID)
+				if !ok {
+					continue
+				}
+				item.Counterbalance = append(item.Counterbalance, components.Counterbalance{
+					Label: c.Label, Value: n,
+				})
+			}
+			out[id] = append(out[id], item)
 		}
 	}
 	return out
@@ -220,7 +234,7 @@ func (h *Handler) declaredOutcomes(ctx context.Context, owner string) map[string
 // but each keeps its own log line and field name, because the operator looking
 // at a missing card is diagnosing a metric or an outcome, not a generic count.
 func (h *Handler) count(
-	ctx context.Context, recipeID string, m recipe.Metric, owner, kind, name string,
+	ctx context.Context, recipeID string, m recipe.Count, owner, kind, name string,
 ) (int, bool) {
 	var n int
 	args := []any{owner}

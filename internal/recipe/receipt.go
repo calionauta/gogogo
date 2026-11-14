@@ -141,52 +141,19 @@ type Declaration struct {
 	// headless surface. The reason is part of the declaration, so `recipe
 	// check` can tell a decision from a forgotten route.
 	Omitted []OmittedRoute `yaml:"omitted,omitempty"`
-	// Metrics are the dashboard's labeled counts (one COUNT query per
-	// entry, `?` bound to the viewing owner). Labels are the user's
-	// words; the dashboard groups them per recipe.
+	// Metrics are everything the recipe measures, in the order the dashboard
+	// should render it. Each entry declares its Kind: an `activity` count (how
+	// much happened) or an `outcome` (did the job get done, as success over
+	// eligible, with the counterbalance readings that qualify it). One list
+	// because both answer "is it working" at different strengths, and two
+	// parallel fields made the reader guess which one to trust.
 	Metrics []Metric `yaml:"metrics,omitempty"`
-	// Outcomes are the jobs this recipe claims to do, each declared as the
-	// pair of counts that answers it (success over eligible). Optional and
-	// additive: a receipt without them is valid and scores the same, which
-	// is what keeps an older install on this build.
-	Outcomes []Outcome `yaml:"outcomes,omitempty"`
 	// Panel is the chat answer slice this recipe offers (optional — a
 	// recipe with no list-shaped data declares none). The component
 	// name, prompt and writable props live here so the dashboard,
 	// /config and the model read the same words; Fill/Render still
 	// live in code (they must call the page's own component).
 	Panel *PanelSpec `yaml:"panel,omitempty"`
-}
-
-// Metric is one dashboard count a recipe declares: a label for the
-// user, a COUNT(*) query, and the odometer signal name (default:
-// derived from the label).
-//
-// OwnerBinds reports whether the query scopes to the viewing owner
-// (one `?`). It defaults to TRUE (convention: a per-user dashboard);
-// a recipe counting global rows (shared docs, instance totals) sets
-// false. The rule is fail-fast: exactly one `?` when OwnerBinds, none
-// otherwise.
-type Metric struct {
-	Label      string `yaml:"label"`
-	Query      string `yaml:"query"`
-	Signal     string `yaml:"signal,omitempty"`
-	OwnerBinds *bool  `yaml:"ownerBinds,omitempty"`
-}
-
-// BindsOwner reports whether the metric is owner-scoped. nil means
-// the convention default (true).
-func (m Metric) BindsOwner() bool {
-	if m.OwnerBinds == nil {
-		return true
-	}
-	return *m.OwnerBinds
-}
-
-// WithoutOwner is the global-rows spelling (OwnerBinds=false).
-func WithoutOwner() *bool {
-	f := false
-	return &f
 }
 
 // PanelSpec names the chat answer slice a recipe offers. Component is

@@ -70,7 +70,7 @@ type checkOutcomeSummary struct {
 	Job            string   `json:"job"`
 	Success        string   `json:"success"`
 	Total          string   `json:"total"`
-	CounterSignals []string `json:"counterSignals,omitempty"`
+	Counterbalance []string `json:"counterbalance,omitempty"`
 }
 
 // runRecipeCheck evaluates installed recipes without mutating the tree.
@@ -129,17 +129,7 @@ func checkOneRecipe(root, id string) RecipeCheckReport {
 	report.Declaration = receipt.Declaration
 	report.Panel = receipt.Declaration.Panel
 	report.Omitted = append([]recipe.OmittedRoute(nil), receipt.Declaration.Omitted...)
-	for _, m := range receipt.Declaration.Metrics {
-		report.Metrics = append(report.Metrics, checkMetricSummary{
-			Label: m.Label, Query: m.Query, Signal: m.Signal, Owner: m.OwnerBinds,
-		})
-	}
-	for _, o := range receipt.Declaration.Outcomes {
-		report.Outcomes = append(report.Outcomes, checkOutcomeSummary{
-			ID: o.ID, Job: o.Job, Success: o.Success.Query, Total: o.Total.Query,
-			CounterSignals: o.CounterSignals,
-		})
-	}
+	report.Metrics, report.Outcomes = summariseMetrics(receipt.Declaration)
 	if receipt.Removed != "" {
 		return reportWithErrors(report, "recipe is removed; restore or uninstall it")
 	}
@@ -159,7 +149,7 @@ func checkOneRecipe(root, id string) RecipeCheckReport {
 	}
 	metrics := recipe.MetricProblems(receipt.Declaration)
 	panelProblems := recipe.PanelProblems(receipt.Declaration)
-	outcomeProblems := recipe.OutcomeProblems(receipt.Declaration)
+	outcomeProblems := recipe.OutcomeTableProblems(receipt.Declaration)
 	report.Errors = append(report.Errors, metrics...)
 	report.Errors = append(report.Errors, panelProblems...)
 	report.Errors = append(report.Errors, outcomeProblems...)

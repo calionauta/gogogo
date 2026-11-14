@@ -141,8 +141,8 @@ declaration:
   metrics:
   - label: Probe rows
     query: "SELECT COUNT(*) FROM ext_probe_cards WHERE owner = ?"
-  outcomes:
-  - id: probe_without_repair
+  - kind: outcome
+    id: probe_without_repair
     job: Read one probe row without fixing a misread field
     beneficiary: user
     success:
@@ -151,7 +151,9 @@ declaration:
     total:
       label: Probe rows
       query: "SELECT COUNT(*) FROM ext_probe_cards WHERE owner = ?"
-    counterSignals: [corrected]
+    counterbalance:
+    - label: Corrected rows
+      query: "SELECT COUNT(*) FROM ext_probe_cards WHERE owner = ? AND corrected = 1"
     window: session
   actions:
   - verb: create
@@ -193,7 +195,7 @@ declaration:
 			t.Fatalf("probe outcomes missing: %v", e.Outcomes)
 		}
 		if o := e.Outcomes[0]; o.ID != "probe_without_repair" || o.TotalLabel != "Probe rows" ||
-			o.SuccessLabel != "Rows without repair" || !slices.Contains(o.CounterSignals, "corrected") {
+			o.SuccessLabel != "Rows without repair" || !slices.Contains(o.Counterbalance, "Corrected rows") {
 			t.Errorf("probe outcome drifted: %+v", o)
 		}
 		if e.InvokeDescriptions["create"] != "Create one probe row." {

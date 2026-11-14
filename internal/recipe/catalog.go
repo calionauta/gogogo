@@ -74,12 +74,11 @@ type CatalogEntry struct {
 	// reviewed install cannot turn a documented decision back into a
 	// `recipe check` warning.
 	Omitted []OmittedRoute `yaml:"omitted,omitempty"`
-	Metrics []Metric       `yaml:"metrics,omitempty"`
-	// Outcomes are reviewed like metrics: a catalog entry that omits them
-	// installs a recipe whose claims are smaller than the ones the author
-	// reviewed.
-	Outcomes []Outcome  `yaml:"outcomes,omitempty"`
-	Panel    *PanelSpec `yaml:"panel,omitempty"`
+	// Metrics are reviewed as one list (activity and outcome kinds alike): a
+	// catalog entry that omits them installs a recipe whose claims are smaller
+	// than the ones the author reviewed.
+	Metrics []Metric   `yaml:"metrics,omitempty"`
+	Panel   *PanelSpec `yaml:"panel,omitempty"`
 	// UpstreamDeps is a pointer so "absent" and "empty" are different claims:
 	// absent is a missing declaration, empty is "this recipe needs nothing".
 	UpstreamDeps    *[]string `yaml:"upstreamDeps"`
@@ -212,13 +211,13 @@ func (e CatalogEntry) surfaceProblems() []string {
 	// is smaller than the one the author reviewed.
 	decl := Declaration{
 		Routes: e.Routes, Actions: e.Actions, Omitted: e.Omitted,
-		Metrics: e.Metrics, Outcomes: e.Outcomes, Panel: e.Panel, Tables: e.Tables,
+		Metrics: e.Metrics, Panel: e.Panel, Tables: e.Tables,
 	}
 	out = append(out, ActionProblems(decl)...)
 	out = append(out, OmissionProblems(decl)...)
 	out = append(out, ActionDocProblems(decl)...)
 	out = append(out, MetricProblems(decl)...)
-	out = append(out, OutcomeProblems(decl)...)
+	out = append(out, OutcomeTableProblems(decl)...)
 	out = append(out, PanelProblems(decl)...)
 	for _, w := range e.WorksWith {
 		if w == "" {

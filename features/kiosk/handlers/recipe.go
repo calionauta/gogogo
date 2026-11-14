@@ -61,25 +61,35 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 			Route:  recipe.Route{Method: methodPost, Pattern: "/api/kiosk/preview"},
 			Reason: "Demo-only parse that writes nothing and answers with a UI patch; it never completes headless.",
 		}},
-		Metrics: []recipe.Metric{{
-			Label: "Orders confirmed",
-			Query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ?",
-		}},
-		Outcomes: []recipe.Outcome{{
-			ID:          "order_without_repair",
-			Job:         "Receive the order you asked for without fixing a misread order",
-			Beneficiary: "user",
-			Success: recipe.Metric{
-				Label: "Orders without repair",
-				Query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ? AND corrected = 0",
-			},
-			Total: recipe.Metric{
+		Metrics: []recipe.Metric{
+			{
+				// activity: how much happened.
 				Label: "Orders confirmed",
 				Query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ?",
 			},
-			CounterSignals: []string{"corrected"},
-			Window:         "session",
-		}},
+			{
+				// outcome: did the job get done, and did it go wrong.
+				Kind:        recipe.MetricOutcome,
+				ID:          "order_without_repair",
+				Job:         "Receive the order you asked for without fixing a misread order",
+				Beneficiary: "user",
+				Success: &recipe.Count{
+					Label: "Orders without repair",
+					Query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ? AND corrected = 0",
+				},
+				Total: &recipe.Count{
+					Label: "Orders confirmed",
+					Query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ?",
+				},
+				// The counterbalance is a READING, not a token: the same count a
+				// dashboard can show, so the tension is visible beside the ratio.
+				Counterbalance: []recipe.Count{{
+					Label: "Orders corrected",
+					Query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ? AND corrected = 1",
+				}},
+				Window: "session",
+			},
+		},
 		Panel: &recipe.PanelSpec{
 			Component: "kiosk_orders",
 			Prompt:    prompts.Text("panels/kiosk-orders"),
@@ -95,3 +105,8 @@ func (p recipeProvider) Routes() chi.Router { return p.h.Routes() }
 // embedded so the binary carries it and applied through the core ledger under
 // this recipe's id.
 func (p recipeProvider) Migrations() fs.FS { return kiosk.Migrations }
+
+// Translations is the optional seam's string half. The keys are unterminated
+// with the id on purpose: the engine prefixes them, so this recipe says "title"
+// and the catalog answers "kiosk.title".
+func (p recipeProvider) Translations() fs.FS { return kiosk.Translations }

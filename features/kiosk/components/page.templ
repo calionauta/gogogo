@@ -20,6 +20,7 @@ import (
 	"strconv"
 
 	"github.com/calionauta/gogogo/features/sounds"
+	"github.com/calionauta/gogogo/internal/i18n"
 	"github.com/calionauta/gogogo/internal/ui"
 )
 
@@ -124,7 +125,7 @@ templ kioskHead() {
 			function idle() {
 				listening = false;
 				mic.setAttribute("aria-pressed", "false");
-				mic.textContent = "Microphone";
+				mic.textContent = mic.getAttribute("data-label-idle") || "Microphone";
 			}
 
 			function stop() {
@@ -237,7 +238,7 @@ templ kioskHead() {
 					prepare(function (rec) {
 						listening = true;
 						mic.setAttribute("aria-pressed", "true");
-						mic.textContent = "Stop";
+						mic.textContent = mic.getAttribute("data-label-live") || "Stop";
 						say("Listening on device…");
 						lastResultAt = Date.now();
 						rec.start();
@@ -278,11 +279,8 @@ templ kioskBody(data PageData) {
 	<div class="ui-page ui-page-narrow ui-stack" data-signals={ MarshalSignals(seedSignals()) }>
 		<section class="ui-card" id="kiosk-voice" data-phrases={ data.Phrases }>
 			<div class="ui-card-body ui-stack">
-				<h2 class="ui-title">Say the order</h2>
-				<p class="ui-meta">
-					The microphone uses the device's own recognition. Without support,
-					permission or the language pack, type it: the path is the same.
-				</p>
+				<h2 class="ui-title">{ i18n.T(ctx, "kiosk.sayOrder", nil) }</h2>
+				<p class="ui-meta">{ i18n.T(ctx, "kiosk.sayOrderHelp", nil) }</p>
 				<form
 					id="kiosk-form"
 					class="ui-row"
@@ -293,15 +291,15 @@ templ kioskBody(data PageData) {
 						name="text"
 						class="input input-sm grow"
 						autocomplete="off"
-						placeholder="a large latte with oat milk"
-						aria-label="Order"
+						placeholder={ i18n.T(ctx, "kiosk.orderPlaceholder", nil) }
+						aria-label={ i18n.T(ctx, "kiosk.orderLabel", nil) }
 						maxlength="240"
 						data-bind="kioskText"
 						data-on:input__debounce.250ms="!$kioskBusy ? ($kioskBusy = true, @post('/api/kiosk/preview', {contentType: 'form'}).finally(() => { $kioskBusy = false; if ($kioskQueued) { $kioskQueued = false; el.dispatchEvent(new CustomEvent('kiosk-retry', { bubbles: true })) } })) : ($kioskQueued = true)"
 						data-on:kiosk-retry="!$kioskBusy ? ($kioskBusy = true, @post('/api/kiosk/preview', {contentType: 'form'}).finally(() => { $kioskBusy = false; })) : null"
 					/>
 					<input type="hidden" name="previewed" data-attr:value="$kioskPreview"/>
-					<button type="submit" class="btn btn-sm">Interpret</button>
+					<button type="submit" class="btn btn-sm">{ i18n.T(ctx, "kiosk.interpret", nil) }</button>
 				</form>
 				<div class="ui-row">
 					<button
@@ -309,12 +307,14 @@ templ kioskBody(data PageData) {
 						id="kiosk-mic"
 						class="btn btn-sm"
 						aria-pressed="false"
+						data-label-idle={ i18n.T(ctx, "kiosk.microphone", nil) }
+						data-label-live={ i18n.T(ctx, "kiosk.stop", nil) }
 						data-on:click="window.__kioskVoice && window.__kioskVoice.toggle()"
 					>
-						Microphone
+						{ i18n.T(ctx, "kiosk.microphone", nil) }
 					</button>
 					<span id="kiosk-voice-status" class="ui-meta" role="status">
-						Typing always works — the microphone is optional.
+						{ i18n.T(ctx, "kiosk.micOptional", nil) }
 					</span>
 				</div>
 				<p class="ui-meta">{ data.MenuLine }</p>
@@ -323,29 +323,27 @@ templ kioskBody(data PageData) {
 
 		<section class="ui-card">
 			<div class="ui-card-body ui-stack">
-				<h2 class="ui-title">Preview</h2>
-				<p class="ui-meta">
-					Provisional. Nothing is submitted until you confirm.
-				</p>
+				<h2 class="ui-title">{ i18n.T(ctx, "kiosk.preview", nil) }</h2>
+				<p class="ui-meta">{ i18n.T(ctx, "kiosk.previewHelp", nil) }</p>
 				<dl class="ui-stack">
 					<div class="ui-row justify-between">
-						<dt class="ui-meta">Drink</dt>
+						<dt class="ui-meta">{ i18n.T(ctx, "kiosk.drink", nil) }</dt>
 						<dd data-text="$kioskDrink || '—'"></dd>
 					</div>
 					<div class="ui-row justify-between">
-						<dt class="ui-meta">Size</dt>
+						<dt class="ui-meta">{ i18n.T(ctx, "kiosk.size", nil) }</dt>
 						<dd data-text="$kioskSize || '—'"></dd>
 					</div>
 					<div class="ui-row justify-between">
-						<dt class="ui-meta">Milk</dt>
+						<dt class="ui-meta">{ i18n.T(ctx, "kiosk.milk", nil) }</dt>
 						<dd data-text="$kioskMilk || '—'"></dd>
 					</div>
 					<div class="ui-row justify-between">
-						<dt class="ui-meta">Extras</dt>
+						<dt class="ui-meta">{ i18n.T(ctx, "kiosk.extras", nil) }</dt>
 						<dd data-text="$kioskExtras || '—'"></dd>
 					</div>
 					<div class="ui-row justify-between">
-						<dt class="ui-meta">Price</dt>
+						<dt class="ui-meta">{ i18n.T(ctx, "kiosk.price", nil) }</dt>
 						<dd data-text="$kioskPrice || '—'"></dd>
 					</div>
 				</dl>
@@ -356,7 +354,7 @@ templ kioskBody(data PageData) {
 					data-attr:disabled="!!($kioskBusy || !$kioskDrink || $kioskNeed)"
 					data-on:click="$kioskBusy = true; @post('/api/kiosk/confirm', {contentType: 'form'}).finally(() => { $kioskBusy = false; })"
 				>
-					Confirm
+					{ i18n.T(ctx, "kiosk.confirm", nil) }
 				</button>
 				<p class="ui-meta" data-show="!!$kioskNotice" data-text="$kioskNotice"></p>
 			</div>
@@ -375,15 +373,14 @@ templ kioskBody(data PageData) {
 // records).
 templ OrdersList(orders []Order) {
 	<div class="ui-row justify-between">
-		<h2 class="ui-title">Orders</h2>
+		<h2 class="ui-title">{ i18n.T(ctx, "kiosk.orders", nil) }</h2>
 		<span class="ui-meta">{ strconv.Itoa(len(orders)) }</span>
 	</div>
 	if len(orders) == 0 {
 		<div class="ui-empty">
-			<p class="ui-empty-title">No orders yet</p>
+			<p class="ui-empty-title">{ i18n.T(ctx, "kiosk.noOrdersTitle", nil) }</p>
 			<p class="ui-empty-body">
-				Say or type an order and confirm it. Orders are per account: the list is
-				scoped in SQL, not filtered in the template.
+				{ i18n.T(ctx, "kiosk.noOrdersBody", nil) }
 			</p>
 		</div>
 	} else {
@@ -399,7 +396,7 @@ templ OrdersList(orders []Order) {
 							· { o.Extras }
 						}
 						if o.Corrected {
-							<span class="badge badge-warning badge-sm">corrected</span>
+							<span class="badge badge-warning badge-sm">{ i18n.T(ctx, "kiosk.corrected", nil) }</span>
 						}
 					</span>
 					<span class="ui-meta">{ o.Price } · { o.When }</span>

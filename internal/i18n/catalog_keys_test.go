@@ -77,7 +77,7 @@ func scanKeys(t *testing.T) map[string]string {
 // TestEveryUsedKeyExistsInEveryLanguage is the gate. It names the file that
 // asks for the key, because "missing key" without a location is a hunt.
 func TestEveryUsedKeyExistsInEveryLanguage(t *testing.T) {
-	cat := i18n.Default()
+	cat := recipeCatalogs(t)
 	keys := scanKeys(t)
 	if len(keys) == 0 {
 		t.Fatal("scanned no keys; the matcher or the paths are wrong")
@@ -147,4 +147,39 @@ func jsonKeys(t *testing.T, raw []byte) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// recipeCatalogs returns the boot catalog merged with every recipe's own
+// locale files, discovered on disk.
+//
+// A recipe's strings live IN the recipe (`features/<id>/locale/<tag>.json`) and
+// are only visible after the merge, so a key scan against the core catalog alone
+// would report every recipe string as missing. Reading the recipe directories
+// here is what lets the same gate cover both halves.
+func recipeCatalogs(t *testing.T) *i18n.Catalog {
+	t.Helper()
+	core := i18n.Default()
+	var sets []i18n.RecipeCatalog
+	dirs, err := os.ReadDir(filepath.Join(sourceRoot, "features"))
+	if err != nil {
+		t.Fatalf("read features: %v", err)
+	}
+	for _, d := range dirs {
+		if !d.IsDir() {
+			continue
+		}
+		localeDir := filepath.Join(sourceRoot, "features", d.Name(), "locale")
+		if st, serr := os.Stat(localeDir); serr != nil || !st.IsDir() {
+			continue
+		}
+		// os.DirFS rooted at features/<id> matches the seam's fs layout.
+		sets = append(sets, i18n.RecipeCatalog{
+			ID: d.Name(), FS: os.DirFS(filepath.Join(sourceRoot, "features", d.Name())),
+		})
+	}
+	merged, err := core.WithRecipes(sets)
+	if err != nil {
+		t.Fatalf("merge recipe catalogs: %v", err)
+	}
+	return merged
 }

@@ -135,7 +135,7 @@ Three rules the grid keeps:
 
 A metric says how much happened. An **outcome** says whether the job got
 done: one declared job, as a success count over the eligible count, plus
-the counter signals that limit how the ratio may be read.
+the counterbalance readings that limit how the ratio may be read.
 
 ```go
 Outcomes: []recipe.Outcome{{

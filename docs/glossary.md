@@ -20,8 +20,12 @@ word that replaced it. One concept, one name, one place.
 | **servant** | A `servant`-kind capability: it serves other capabilities and outlives them (`nats`, `llm`, `graph`, `license-activation`). Not installable as a recipe; deleted by hand with the consumers that name it. | `internal/capabilities` |
 | **unit** | What a capability owns: its directories, its files, and its `Register`. The unit is the removal granularity. | `docs/unit-contracts.md` |
 | **slot** | A named contribution point a recipe fills without touching the host page: `dashboard.card`, a settings section, a row action. The page owns the frame; the recipe supplies the content. | `internal/recipe` |
-| **metric** | A declared COUNT over a table the recipe owns. It answers **how much happened**. | `internal/recipe` |
-| **outcome** | A declared job as a success count over the eligible count, plus the counter signals that limit the reading. It answers **did the job get done**. | `internal/recipe` |
+| **metric** | One reading a recipe declares, in the single `metrics` list. `kind` decides its claim: `activity` (how much happened) or `outcome` (did the job get done). | `internal/recipe` |
+| **activity metric** | A metric with `kind: activity` (the default): one COUNT over a table the recipe owns. No denominator, no claim. | `internal/recipe` |
+| **outcome** | A metric with `kind: outcome`: a job for a beneficiary, as a success count over the eligible count, plus the counterbalance readings that qualify it. | `internal/recipe` |
+| **counterbalance** | A declared count that limits how an outcome's success may be read — a correction, an abandonment, a retry. A count, not a token, so the tension is visible on the page. | `internal/recipe` |
+| **recipe catalog** | A recipe's own `locale/<tag>.json`, merged at boot under the recipe id as the key prefix (`kiosk.title`). It travels with the slice, so deleting the recipe deletes its strings. | `internal/i18n`, `internal/recipe` |
+| **beneficiary** | Whose job an outcome serves: `user` or `operator`. Never both, so optimizing against the person stays distinguishable from serving them. | `internal/recipe` |
 | **panel** | A declared chat surface: component, prompt and the values it may write. The feature's own components, never a copy. | `features/genui` |
 | **drift** | The difference between the receipt's hashes and the tree: **pristine**, **modified** or **deleted**. `recipe status` reads it; `recipe update` keeps your edits. | `internal/recipe` |
 | **catalog** | The reviewed set of recipe versions an install can come from, each with its own licence, version, `author`, `released` date and reviewed-against commit. It is also the only place a recipe is listed as installable. | `catalog/` |

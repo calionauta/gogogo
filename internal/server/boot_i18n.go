@@ -16,12 +16,13 @@ import (
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/internal/i18n"
+	"github.com/calionauta/gogogo/internal/recipe"
 )
 
 // bootI18N builds the request catalog once. Nil catalog
 // means disabled; templates fall back to the embedded
 // English catalog through CatalogFromContext.
-func bootI18N(cfg *config.Config) (*i18n.Catalog, error) {
+func bootI18N(cfg *config.Config, recipes []recipe.TranslationSet) (*i18n.Catalog, error) {
 	if !cfg.I18n.Enabled {
 		return nil, nil
 	}
@@ -34,15 +35,37 @@ func bootI18N(cfg *config.Config) (*i18n.Catalog, error) {
 	if err != nil {
 		return nil, fmt.Errorf("server: i18n catalog: %w", err)
 	}
-	return cat, nil
+	if len(recipes) == 0 {
+		return cat, nil
+	}
+	// Recipes bring their own strings and the engine prefixes them with the
+	// recipe id, so a slice can be copied in or deleted without touching a core
+	// catalog file. A collision (impossible with the prefix, unless a recipe id
+	// repeats a core prefix) refuses the boot: a silently shadowed string is
+	// worse than a failed start.
+	sets := make([]i18n.RecipeCatalog, 0, len(recipes))
+	for _, r := range recipes {
+		sets = append(sets, i18n.RecipeCatalog{ID: r.ID, FS: r.FS})
+	}
+	merged, merr := cat.WithRecipes(sets)
+	if merr != nil {
+		return nil, fmt.Errorf("server: i18n recipe catalog: %w", merr)
+	}
+	// A recipe that ships only some locales is not an error (the fallback
+	// answers), but it must be visible: the gap shows as an English word inside
+	// a translated page and nothing else notices.
+	for _, gap := range i18n.CheckRecipeCoverage(supported, sets) {
+		slog.Warn("server: i18n coverage gap", "detail", gap)
+	}
+	return merged, nil
 }
 
 // applyI18N loads the request catalog and wraps next with
 // locale resolution. Disabled is a pass-through: no context
 // change, no response change. A bad catalog degrades to
 // English with a warning rather than refusing the boot.
-func applyI18N(cfg *config.Config, next http.Handler) http.Handler {
-	cat, err := bootI18N(cfg)
+func applyI18N(cfg *config.Config, recipes []recipe.TranslationSet, next http.Handler) http.Handler {
+	cat, err := bootI18N(cfg, recipes)
 	if err != nil {
 		slog.Warn("server: i18n catalog, using default", "error", err)
 		return next
@@ -72,7 +95,7 @@ func joinConfigSupported(supported []string) string {
 // preference belongs beside them. A bad catalog degrades to "no picker" rather
 // than failing the route — the same rule applyI18N follows at boot.
 func registerLocaleRoute(r *Router, cfg *config.Config) {
-	cat, err := bootI18N(cfg)
+	cat, err := bootI18N(cfg, nil)
 	if err != nil {
 		cat = nil
 	}
