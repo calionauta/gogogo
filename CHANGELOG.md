@@ -15,6 +15,18 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.70.0 (2026-11-14)
+
+## What's Changed
+* feat(prompts): make every model-facing instruction a .prompt file by @calionauta in https://github.com/calionauta/gogogo/pull/424
+* fix(rbac): name the notifications unread row in the recipe's policy by @calionauta in https://github.com/calionauta/gogogo/pull/426
+* feat(coffee): bundle the coffee recipe like the other demos by @calionauta in https://github.com/calionauta/gogogo/pull/423
+* feat: written contracts (shape, cards), one vocabulary, and the gates that enforce them by @calionauta in https://github.com/calionauta/gogogo/pull/425
+* chore(skills): bump vendored daisyui vocabulary to 10b81057b8f8 by @github-actions[bot] in https://github.com/calionauta/gogogo/pull/427
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.69.1...v0.70.0
+
 ## 0.69.1 (2026-11-12)
 
 ## What's Changed
