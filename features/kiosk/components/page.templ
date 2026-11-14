@@ -73,7 +73,7 @@ func seedSignals() Seeds {
 templ Page(data PageData) {
 	@ui.Shell(ui.Data{
 		Title:       "Kiosk — gogogo",
-		Heading:     "Kiosk",
+		Heading:     i18n.T(ctx, "kiosk.title", nil),
 		Context:     "demo · ext_kiosk_orders",
 		Email:       data.Email,
 		Role:        data.Role,

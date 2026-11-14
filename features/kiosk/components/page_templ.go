@@ -117,7 +117,7 @@ func Page(data PageData) templ.Component {
 		ctx = templ.ClearChildren(ctx)
 		templ_7745c5c3_Err = ui.Shell(ui.Data{
 			Title:       "Kiosk — gogogo",
-			Heading:     "Kiosk",
+			Heading:     i18n.T(ctx, "kiosk.title", nil),
 			Context:     "demo · ext_kiosk_orders",
 			Email:       data.Email,
 			Role:        data.Role,

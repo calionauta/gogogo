@@ -87,7 +87,7 @@ func Page(data PageData, buildLabel string, buildCommit string) templ.Component 
 		templ_7745c5c3_Err = ui.Shell(ui.Data{
 			Title:       "Account — gogogo",
 			Module:      "account",
-			Heading:     "Account",
+			Heading:     i18n.T(ctx, "account.title", nil),
 			Context:     "security · sessions",
 			Email:       data.Email,
 			Role:        data.Role,
