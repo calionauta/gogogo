@@ -59,8 +59,34 @@ function parseLefthook(yaml) {
   return sections;
 }
 
+// parseShapes reads the closed enum from docs/shape.md, the page that owns it.
+// Hand-copying the six rows into the landing is the drift this generator exists
+// to prevent: a shape added to the doc would never reach the page.
+function parseShapes(md) {
+  const out = [];
+  let inTable = false;
+  for (const line of md.split("\n")) {
+    if (/^\|\s*Shape\s*\|/.test(line)) {
+      inTable = true;
+      continue;
+    }
+    if (!inTable) continue;
+    if (!line.startsWith("|")) break;
+    if (/^\|[\s-]+\|/.test(line)) continue;
+    const cells = line.split("|").slice(1, -1).map((c) => c.trim());
+    if (cells.length < 3) continue;
+    out.push({
+      id: cells[0].replace(/`/g, ""),
+      entrypoints: [...cells[1].matchAll(/`([^`]+)`/g)].map((m) => m[1]),
+      means: cells[2].replace(/`/g, ""),
+    });
+  }
+  return out;
+}
+
 const units = parseUnits(readFileSync(new URL("docs/unit-contracts.md", root), "utf8"));
 const hooks = parseLefthook(readFileSync(new URL(".lefthook.yml", root), "utf8"));
+const shapes = parseShapes(readFileSync(new URL("docs/shape.md", root), "utf8"));
 const page = readFileSync(pageURL, "utf8");
 
 const byID = new Map(units.map((u) => [u.id, u]));
@@ -82,13 +108,15 @@ const display = {
   search: "Search", sounds: "Sounds",
   account: "Account", chat: "Chat", "config-view": "Config",
   notes: "Notes", notifications: "Inbox", review: "Review", room: "Room", todo: "Todo",
-  whiteboard: "Whiteboard",
+  whiteboard: "Whiteboard", kiosk: "Kiosk",
+  events: "Events", analytics: "Analytics", recipestate: "Recipe state",
+  prompts: "Prompts",
 };
 const nameOf = (u) => display[u.id] || u.id;
 
 // ---------- features: ten units, four with a hand-built mini-UI ----------
 
-const featureOrder = ["todo", "notes", "whiteboard", "chat", "review", "room", "notifications", "config-view", "account"];
+const featureOrder = ["todo", "notes", "whiteboard", "chat", "review", "room", "kiosk", "notifications", "config-view", "account"];
 const featureLinks = {
   todo: "./docs/todo-example/",
   notes: "./docs/features/#what-each-capability-does",
@@ -96,6 +124,7 @@ const featureLinks = {
   chat: "./docs/features/#chat-one-demo-one-vocabulary",
   review: "./docs/review/",
   room: "./docs/features/#what-each-capability-does",
+  kiosk: "./docs/features/#what-each-capability-does",
   notifications: "./docs/notifications/",
   "config-view": "./docs/features/",
   account: "./docs/security/",
@@ -107,6 +136,7 @@ const featureNotes = {
   chat: "generative UI",
   review: "writer · critic · judge",
   room: "roster · presenter lock",
+  kiosk: "voice · decided menu",
   notifications: "durable · live",
   "config-view": "operator surface",
   account: "security page",
@@ -117,6 +147,7 @@ const featureIcons = {
   notifications: '<svg viewBox="0 0 24 24"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 18a2 2 0 0 0 4 0"/></svg>',
   "config-view": '<svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>',
   account: '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>',
+  kiosk: '<svg viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"/><path d="M12 14v7"/><path d="M8 21h8"/></svg>',
 };
 const richFeatures = {
   todo: `<span class="tile-ui todo-ui">
@@ -137,6 +168,10 @@ const richFeatures = {
   chat: `<span class="tile-ui chat-ui">
             <span class="bubble left"><i></i><i></i></span>
             <span class="bubble right"><i></i></span>
+          </span>`,
+  kiosk: `<span class="tile-ui kiosk-ui">
+            <span class="kiosk-said">“só um expresso”</span>
+            <span class="kiosk-ticket"><i>Espresso</i><b>…</b></span>
           </span>`,
 };
 
@@ -239,6 +274,90 @@ const core = `<div class="pillars">
           <p class="refusal" id="refusal" hidden>It won't build. That is the line between trimming and forking.</p>
         </div>`;
 
+// ---------- band chips: three names, then the rest as a count ----------
+//
+// The bands name three examples so the level reads at a glance, and the island
+// holds far more than three. A "+N" chip says so with the real number from the
+// registry instead of leaving the reader to assume the three are all there is.
+
+function counted(shown, total) {
+  const rest = total - shown.length;
+  const chips = shown.map((s) => `<span>${esc(s)}</span>`);
+  if (rest > 0) chips.push(`<span class="band-more" title="${total} total">+${rest}</span>`);
+  return chips.join("");
+}
+
+const kindCount = (kind) => units.filter((u) => u.kind === kind).length;
+const hookCount = hooks["pre-commit"].length + hooks["pre-push"].length + hooks["post-merge"].length;
+
+const bandChips = {
+  contact: counted(["skills", "mcp", "cli"], 3),
+  recipes: counted(["todo", "notes", "board"], kindCount("feature")),
+  servants: counted(["nats", "dagnats", "goakt"], kindCount("servant")),
+  core: counted(["db", "auth", "router"], kindCount("core")),
+  tests: counted(["race", "smoke", "layout"], 5),
+  gates: counted(["lint", "scope", "docs"], hookCount),
+  go: counted(["go 1.27", "embed"], 2),
+};
+
+// ---------- app shapes: one card per row of the enum ----------
+
+// Shape icons are visual nouns, not a status: web is a browser, desktop a
+// window, api a wire, and full is all of them stacked.
+const shapeIcons = {
+  full: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="11" height="8" rx="1.5"/><rect x="10" y="13" width="11" height="7" rx="1.5"/></svg>',
+  web: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><circle cx="6" cy="6.5" r=".9"/></svg>',
+  api: '<svg viewBox="0 0 24 24"><path d="M9 5v14M15 5v14M5 9h14M5 15h14"/></svg>',
+  desktop: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M9 20h6"/></svg>',
+  gui: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 8h18"/></svg>',
+  mobile: '<svg viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M10 19h4"/></svg>',
+};
+
+// The entrypoints each shape ships, read from docs/shape.md's own table — the
+// page that owns the enum. A second hand-written list here would be the drift
+// this generator exists to prevent, so only the prose gloss is local.
+const shapeNotes = {
+  full: "every target — the default",
+  web: "the browser app",
+  api: "API, health and assets only; pages answer 404",
+  desktop: "the Wails shell and the server it embeds",
+  gui: "the gogpu/ui native shell",
+  mobile: "the Wails Android shell and the server it embeds",
+};
+const allTargets = ["web", "desktop", "gui", "mobile"];
+// Short name per entrypoint: the doc lists cmd/web etc., the card reads better
+// with the target it is.
+const targetOf = (e) => e.replace(/^cmd\//, "");
+
+const shapeCards = shapes
+  .map((s) => {
+    const keeps = s.entrypoints.map(targetOf);
+    // Dropped = every target the FULL shape ships minus the ones this one
+    // keeps. Derived, so a new entrypoint in the doc cannot leave a card
+    // claiming to ship something it does not.
+    const drops = allTargets.filter((t) => !keeps.includes(t));
+    return `<article class="shape-card${s.id === "full" ? " shape-default" : ""}" data-shape="${esc(s.id)}">
+            <header class="shape-top">
+              <span class="shape-glyph" aria-hidden="true">${shapeIcons[s.id] || ""}</span>
+              <code class="shape-id">${esc(s.id)}</code>
+              ${s.id === "full" ? '<span class="shape-badge">default</span>' : ""}
+            </header>
+            <p class="shape-keeps">${keeps.map((k) => `<span>${esc(k)}</span>`).join("")}</p>
+            ${
+              drops.length
+                ? `<p class="shape-drops">${drops.map((d) => `<span>${esc(d)}</span>`).join("")}</p>`
+                : '<p class="shape-drops shape-none">nothing dropped</p>'
+            }
+            <p class="shape-note">${esc(shapeNotes[s.id] || s.means)}</p>
+          </article>`;
+  })
+  .join("\n        ");
+
+const shapeShelf = `<div class="shape-shelf">
+          ${shapeCards}
+        </div>
+        <p class="shape-legend"><span class="shape-key kept">kept</span> answers it · <span class="shape-key dropped">dropped</span> does not ship · a shape never invents a boot path</p>`;
+
 // ---------- gates: every hook, grouped by when it runs ----------
 
 const gateNotes = {
@@ -301,6 +420,21 @@ const gates = `<p class="gate-note" id="gate-note" aria-live="polite">Focus or t
         </div>
 `;
 
+// replaceBandChips swaps one band's chip list, keyed by its data-layer rather
+// than by line order: the bands are hand-written markup and a reordering must
+// not silently put Core's count on Servants.
+function replaceBandChips(source, layer, chips) {
+  // A band may carry a modifier class after its layer (the tip is
+  // "band band-contact band-tip"), so match the prefix, not the whole attribute.
+  const bandStart = source.indexOf(`class="band band-${layer}`);
+  if (bandStart < 0) throw new Error(`missing band: ${layer}`);
+  const open = '<span class="band-chips">';
+  const i = source.indexOf(open, bandStart);
+  const j = source.indexOf("</span>\n", i);
+  if (i < 0 || j < 0) throw new Error(`missing chip row: ${layer}`);
+  return source.slice(0, i + open.length) + chips + source.slice(j);
+}
+
 // ---------- inject ----------
 
 function between(source, start, end, body) {
@@ -316,6 +450,11 @@ out = between(out, "<!--WEIGHTS:START-->", "<!--WEIGHTS:END-->", weights);
 out = between(out, "<!--PLUGINS:START-->", "<!--PLUGINS:END-->", servants);
 out = between(out, "<!--CORE:START-->", "<!--CORE:END-->", core);
 out = between(out, "<!--GATES:START-->", "<!--GATES:END-->", gates);
+out = between(out, "<!--SHAPES:START-->", "<!--SHAPES:END-->", shapeShelf);
+// Band chips carry the real island size, so "+N" cannot drift from the registry.
+for (const [layer, chips] of Object.entries(bandChips)) {
+  out = replaceBandChips(out, layer, chips);
+}
 
 const check = process.argv.includes("--check");
 if (check) {

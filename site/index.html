@@ -115,23 +115,23 @@
 
           <a class="band band-recipes" href="#layer-recipes" data-layer="recipes" style="--w:100%">
             <span class="band-line"><span class="band-num">02</span><span class="band-name">Recipes</span></span>
-            <span class="band-chips"><span>todo</span><span>notes</span><span>board</span></span>
+            <span class="band-chips"><span>todo</span><span>notes</span><span>board</span><span class="band-more" title="11 total">+8</span></span>
           </a>
           <a class="band band-servants" href="#layer-servants" data-layer="servants" style="--w:93%">
             <span class="band-line"><span class="band-num">03</span><span class="band-name">Servants</span></span>
-            <span class="band-chips"><span>nats</span><span>dagnats</span><span>goakt</span></span>
+            <span class="band-chips"><span>nats</span><span>dagnats</span><span>goakt</span><span class="band-more" title="24 total">+21</span></span>
           </a>
           <a class="band band-core" href="#layer-core" data-layer="core" style="--w:86%">
             <span class="band-line"><span class="band-num">04</span><span class="band-name">Core</span></span>
-            <span class="band-chips"><span>db</span><span>auth</span><span>router</span></span>
+            <span class="band-chips"><span>db</span><span>auth</span><span>router</span><span class="band-more" title="17 total">+14</span></span>
           </a>
           <a class="band band-tests" href="#layer-tests" data-layer="tests" style="--w:79%">
             <span class="band-line"><span class="band-num">05</span><span class="band-name">Tests</span></span>
-            <span class="band-chips"><span>race</span><span>smoke</span><span>layout</span></span>
+            <span class="band-chips"><span>race</span><span>smoke</span><span>layout</span><span class="band-more" title="5 total">+2</span></span>
           </a>
           <a class="band band-gates" href="#layer-gates" data-layer="gates" style="--w:72%">
             <span class="band-line"><span class="band-num">06</span><span class="band-name">Gates</span></span>
-            <span class="band-chips"><span>lint</span><span>scope</span><span>docs</span></span>
+            <span class="band-chips"><span>lint</span><span>scope</span><span>docs</span><span class="band-more" title="37 total">+34</span></span>
           </a>
           <a class="band band-go" href="#layer-go" data-layer="go" style="--w:65%">
             <span class="band-line"><span class="band-num">07</span><span class="band-name">Go</span></span>
@@ -239,7 +239,6 @@
         <li>Receipt keeps it honest: <code>recipe status</code>, <code>update</code>, <code>uninstall</code>.</li>
         <li>Measured, not asserted: declared metrics and one outcome (success over total) count the rows the recipe already owns.</li>
       </ul>
-      <p class="chapter-lede">Reference: <code>features/todo</code>. Try: <code>gogogo recipe install ./_recipes/pomodoro --yes</code> · instrumentation example: <code>features/kiosk</code></p>
 
       <div class="viz tiles">
         <!--FEATURES:START-->
@@ -293,6 +292,15 @@
           <span class="tile-ui generic-ui"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17.5" cy="10" r="2.5"/><path d="M15 20a5 5 0 0 1 6.5-3.4"/></svg></span>
           <span class="tile-desc">room presence demo (one grain per room, crash hook included)</span>
           <span class="tile-note">roster · presenter lock</span>
+        </a>
+        <a class="tile" href="./docs/features/#what-each-capability-does">
+          <span class="tile-top"><span class="tile-dot live"></span> Kiosk<span class="tile-arrow" aria-hidden="true">↗</span></span>
+          <span class="tile-ui kiosk-ui">
+            <span class="kiosk-said">“só um expresso”</span>
+            <span class="kiosk-ticket"><i>Espresso</i><b>…</b></span>
+          </span>
+          <span class="tile-desc">voice-first kiosk order demo (closed menu, on-device voice, one declared outcome)</span>
+          <span class="tile-note">voice · decided menu</span>
         </a>
         <a class="tile" href="./docs/notifications/">
           <span class="tile-top"><span class="tile-dot live"></span> Inbox<span class="tile-arrow" aria-hidden="true">↗</span></span>
@@ -408,7 +416,7 @@
         <label class="plan-row">
           <input type="checkbox" checked data-cap="analytics">
           <span class="plan-box" aria-hidden="true"></span>
-          <span class="plan-main"><span class="plan-name">analytics</span><span class="plan-desc">analytics provider sink for the event bus (PostHog, default none)</span></span>
+          <span class="plan-main"><span class="plan-name">Analytics</span><span class="plan-desc">analytics provider sink for the event bus (PostHog, default none)</span></span>
           <span class="plan-env">ANALYTICS_PROVIDER=none</span>
         </label>
         <label class="plan-row">
@@ -456,7 +464,7 @@
         <label class="plan-row">
           <input type="checkbox" checked data-cap="events">
           <span class="plan-box" aria-hidden="true"></span>
-          <span class="plan-main"><span class="plan-name">events</span><span class="plan-desc">in-process domain event bus + outbound sinks (webhook, analytics)</span></span>
+          <span class="plan-main"><span class="plan-name">Events</span><span class="plan-desc">in-process domain event bus + outbound sinks (webhook, analytics)</span></span>
           <span class="plan-env">manual removal</span>
         </label>
         <label class="plan-row">
@@ -498,7 +506,7 @@
         <label class="plan-row">
           <input type="checkbox" checked data-cap="recipestate">
           <span class="plan-box" aria-hidden="true"></span>
-          <span class="plan-main"><span class="plan-name">recipestate</span><span class="plan-desc">runtime recipe enable/disable: the one reader of recipe_state</span></span>
+          <span class="plan-main"><span class="plan-name">Recipe state</span><span class="plan-desc">runtime recipe enable/disable: the one reader of recipe_state</span></span>
           <span class="plan-env">manual removal</span>
         </label>
         <label class="plan-row">
@@ -566,7 +574,7 @@
           <div class="brick"><span class="brick-name">Instance</span><span class="brick-desc">stable instance identity for cross-instance durables and event origins</span><span class="brick-path">instance</span></div>
           <div class="brick"><span class="brick-name">license</span><span class="brick-desc">offline entitlement tokens (Ed25519 license/account activation)</span><span class="brick-path">license</span></div>
           <div class="brick"><span class="brick-name">Observability</span><span class="brick-desc">core observability (slog + tracing)</span><span class="brick-path">observability</span></div>
-          <div class="brick"><span class="brick-name">prompts</span><span class="brick-desc">prompt library: .prompt files (Dotprompt shape) and their loader</span><span class="brick-path">prompts</span></div>
+          <div class="brick"><span class="brick-name">Prompts</span><span class="brick-desc">prompt library: .prompt files (Dotprompt shape) and their loader</span><span class="brick-path">prompts</span></div>
           <div class="brick"><span class="brick-name">RBAC</span><span class="brick-desc">RBAC with Casbin (embedded model + policy, enforced at the mux)</span><span class="brick-path">rbac</span></div>
           <div class="brick"><span class="brick-name">recipe</span><span class="brick-desc">recipe engine: declaration seam, receipt and drift check for installable extensions</span><span class="brick-path">recipe</span></div>
           <div class="brick"><span class="brick-name">Secrets</span><span class="brick-desc">age-decrypted env loader</span><span class="brick-path">secrets</span></div>
@@ -733,30 +741,77 @@
   </div>
 </section>
 
-<section class="async-layers" id="app-shapes">
+<section class="async-layers shapelab" id="app-shapes">
   <div class="cap-head">
-    <p class="kicker">One template, five products</p>
-    <h2>Same binary.<br><em>Five product shapes.</em></h2>
-    <p class="cap-lede">A shape is a row of the enum, not a fork. <code>APP_SHAPE</code> — or the committed <code>.gogogo/shape.yml</code> record — decides which entrypoints ship and which surfaces answer. No build tags, no second boot path, no stub files.</p>
+    <p class="kicker">One template, any product</p>
+    <h2>Pick a shape.<br><em>Not a fork.</em></h2>
   </div>
 
-  <div class="table-wrap" role="region" aria-label="App shapes">
-  <table class="async-table">
-    <thead>
-      <tr><th scope="col">Shape</th><th scope="col">Entrypoints</th><th scope="col">What it serves</th><th scope="col">Switch</th></tr>
-    </thead>
-    <tbody>
-      <tr><th scope="row"><code>full</code></th><td data-label="Entrypoints">web, desktop, gui, mobile</td><td data-label="What it serves">every target — the default</td><td data-label="Switch"><code>APP_SHAPE=full</code></td></tr>
-      <tr><th scope="row"><code>web</code></th><td data-label="Entrypoints">cmd/web</td><td data-label="What it serves">the browser product: pages, API, streams</td><td data-label="Switch"><code>APP_SHAPE=web</code></td></tr>
-      <tr><th scope="row"><code>api</code></th><td data-label="Entrypoints">cmd/web</td><td data-label="What it serves">API, health, auth API and assets only — page routes are not mounted and answer 404</td><td data-label="Switch"><code>APP_SHAPE=api</code></td></tr>
-      <tr><th scope="row"><code>desktop</code></th><td data-label="Entrypoints">cmd/desktop, cmd/web</td><td data-label="What it serves">the Wails shell and the server it embeds</td><td data-label="Switch"><code>APP_SHAPE=desktop</code></td></tr>
-      <tr><th scope="row"><code>gui</code></th><td data-label="Entrypoints">cmd/gui</td><td data-label="What it serves">the native gogpu/ui window</td><td data-label="Switch"><code>APP_SHAPE=gui</code></td></tr>
-      <tr><th scope="row"><code>mobile</code></th><td data-label="Entrypoints">cmd/mobile, cmd/web</td><td data-label="What it serves">the Wails Android shell and the server it embeds</td><td data-label="Switch"><code>APP_SHAPE=mobile</code></td></tr>
-    </tbody>
-  </table>
-  </div>
-
-  <p class="async-fine">The <code>api</code> shape prunes page routes at mount: the 404 comes from the route tree, not from a handler that runs and refuses. The enum and the <code>check-shape</code> gate are documented, not implied.</p>
+  <!--SHAPES:START-->
+        <div class="shape-shelf">
+          <article class="shape-card shape-default" data-shape="full">
+            <header class="shape-top">
+              <span class="shape-glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="11" height="8" rx="1.5"/><rect x="10" y="13" width="11" height="7" rx="1.5"/></svg></span>
+              <code class="shape-id">full</code>
+              <span class="shape-badge">default</span>
+            </header>
+            <p class="shape-keeps"><span>web</span><span>desktop</span><span>gui</span><span>mobile</span></p>
+            <p class="shape-drops shape-none">nothing dropped</p>
+            <p class="shape-note">every target — the default</p>
+          </article>
+        <article class="shape-card" data-shape="web">
+            <header class="shape-top">
+              <span class="shape-glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><circle cx="6" cy="6.5" r=".9"/></svg></span>
+              <code class="shape-id">web</code>
+              
+            </header>
+            <p class="shape-keeps"><span>web</span></p>
+            <p class="shape-drops"><span>desktop</span><span>gui</span><span>mobile</span></p>
+            <p class="shape-note">the browser app</p>
+          </article>
+        <article class="shape-card" data-shape="api">
+            <header class="shape-top">
+              <span class="shape-glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 5v14M15 5v14M5 9h14M5 15h14"/></svg></span>
+              <code class="shape-id">api</code>
+              
+            </header>
+            <p class="shape-keeps"><span>web</span></p>
+            <p class="shape-drops"><span>desktop</span><span>gui</span><span>mobile</span></p>
+            <p class="shape-note">API, health and assets only; pages answer 404</p>
+          </article>
+        <article class="shape-card" data-shape="desktop">
+            <header class="shape-top">
+              <span class="shape-glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M9 20h6"/></svg></span>
+              <code class="shape-id">desktop</code>
+              
+            </header>
+            <p class="shape-keeps"><span>desktop</span><span>web</span></p>
+            <p class="shape-drops"><span>gui</span><span>mobile</span></p>
+            <p class="shape-note">the Wails shell and the server it embeds</p>
+          </article>
+        <article class="shape-card" data-shape="gui">
+            <header class="shape-top">
+              <span class="shape-glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 8h18"/></svg></span>
+              <code class="shape-id">gui</code>
+              
+            </header>
+            <p class="shape-keeps"><span>gui</span></p>
+            <p class="shape-drops"><span>web</span><span>desktop</span><span>mobile</span></p>
+            <p class="shape-note">the gogpu/ui native shell</p>
+          </article>
+        <article class="shape-card" data-shape="mobile">
+            <header class="shape-top">
+              <span class="shape-glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M10 19h4"/></svg></span>
+              <code class="shape-id">mobile</code>
+              
+            </header>
+            <p class="shape-keeps"><span>mobile</span><span>web</span></p>
+            <p class="shape-drops"><span>desktop</span><span>gui</span></p>
+            <p class="shape-note">the Wails Android shell and the server it embeds</p>
+          </article>
+        </div>
+        <p class="shape-legend"><span class="shape-key kept">kept</span> answers it · <span class="shape-key dropped">dropped</span> does not ship · a shape never invents a boot path</p>
+        <!--SHAPES:END-->
 
   <p class="async-link"><a href="./docs/shape/">Read the app shape doc →</a></p>
 </section>
@@ -793,11 +848,26 @@
   </div>
 
   <aside class="offline-callout">
-    <p class="offline-kicker">Offline-capable writes are a mode, not one of the seven</p>
-    <p><strong>Writes go offline; reads stay server-owned.</strong> A mutation is stored in a durable outbox before it leaves the tab, and replayed on reconnect; the server dedupes by <code>idem_key</code>. Reads are queries — a view you never synced is refused, not answered from a stale replica. The desktop build is the exception: it has its own local database and loopback server, so reads work offline; the NATS leaf carries live CRUD, and offline replay is a follow-up.</p>
-    <p class="offline-switch"><span class="label">Switch</span> <code>OFFLINE_SYNC_ENABLED=false</code> disables the Service Worker app-shell cache and the NATS CRUD proxy together. The outbox is never gated — losing a queued write is worse than the cache it protects.</p>
-    <p class="offline-meta"><span class="label">Lives in</span> <a href="#layer-recipes">Features</a> <a href="#layer-servants">Plugins</a> <a href="#layer-core">Core</a> · <span class="label">Try it</span> disconnect, edit, reconnect.</p>
-    <p class="offline-unit">On the SCOPE axis, <a href="#layer-servants">offline-sync</a> is a servant unit; on this async axis it is the mode above, not one of the seven.</p>
+    <p class="offline-kicker">Offline is a mode, not a level</p>
+    <div class="offline-pair">
+      <div class="offline-lane offline-lane-write">
+        <span class="offline-lane-title">Writes</span>
+        <span class="offline-lane-tag">offline</span>
+        <p>Saved to a durable outbox <em>before</em> the tab closes, replayed on reconnect.</p>
+      </div>
+      <div class="offline-lane offline-lane-read">
+        <span class="offline-lane-title">Reads</span>
+        <span class="offline-lane-tag">server-owned</span>
+        <p>A view you never synced is refused, never answered from a stale replica.</p>
+      </div>
+    </div>
+    <div class="offline-facts">
+      <p class="offline-fact"><span class="label">Deduped by</span> <code>idem_key</code></p>
+      <p class="offline-fact"><span class="label">Desktop</span> own local database — reads work offline</p>
+      <p class="offline-fact"><span class="label">Switch</span> <span><code>OFFLINE_SYNC_ENABLED=false</code><span class="offline-note">app-shell cache + NATS CRUD proxy; the outbox is never gated</span></span></p>
+      <p class="offline-fact"><span class="label">Try it</span> <span>disconnect, edit, reconnect</span></p>
+    </div>
+    <p class="offline-unit">On the SCOPE axis, <a href="#layer-servants">offline-sync</a> is a servant. Here it is the mode above.</p>
   </aside>
 
   <p class="async-fine">One <code>make build</code>. No build tags, no stub files, no matrix.</p>
