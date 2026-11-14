@@ -31,6 +31,8 @@ import (
 	"github.com/calionauta/gogogo/internal/recipe"
 
 	"github.com/a-h/templ"
+
+	"github.com/calionauta/gogogo/internal/prompts"
 )
 
 // TodoPanel is the app's own todo_list panel.
@@ -65,15 +67,9 @@ func (p *TodoPanel) Component() string { return "todo_list" }
 // "open/left/pending" as a reason to show EVERYTHING it had a digest of: the
 // panel then answered "what are my open todos?" with completed rows mixed in.
 func (p *TodoPanel) Prompt() string {
-	return "todo_list {filter: " + strings.Join(todo.ListFilters, "|") + "} whenever the " +
-		"request involves the user's OWN todos or tasks (show/list/filter them, " +
-		"check what is left, plan a day around them, summarize progress): it " +
-		"renders their REAL rows, so it is the only component allowed to answer " +
-		"with todo content. Pick the slice the user asked for: open/pending/" +
-		"remaining/left/active/unfinished => open; done/completed/finished => " +
-		"done; all ONLY when the user asks for everything or for completed rows " +
-		"too — a request about what is left is NEVER all. Always send filter " +
-		"inside props. Never for greetings, thanks or other smalltalk"
+	return prompts.MustRender("panels/todo-list", map[string]string{
+		"filters": strings.Join(todo.ListFilters, "|"),
+	})
 }
 
 // HomePage implements comp.PanelHomer: the page that shows this data in full.

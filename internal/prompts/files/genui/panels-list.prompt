@@ -1,0 +1,8 @@
+---
+name: genui/panels-list
+description: "Names of the system panels a Chat leg may emit, spliced into the vocabulary."
+version: 1
+output: json
+variables: [panels]
+---
+Panels (the app's own data, always available): {{panels}}.

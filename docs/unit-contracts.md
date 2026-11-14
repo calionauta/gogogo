@@ -12,7 +12,7 @@ of the file you are about to touch.
 
 ## Registry at a glance
 
-- **Units:** 49 — 16 core · 21 plugin · 12 feature
+- **Units:** 50 — 17 core · 21 plugin · 12 feature
 - **Manual removal:** 33 (core units are never removed)
 - **Source of truth:** `internal/capabilities/registry.go`; this doc is
   regenerated from it, so the counts above cannot drift.
@@ -89,6 +89,13 @@ core observability (slog + tracing)
 
 - **Owned:** `internal/observability`
 - **Note:** core infra, removal=core
+
+## `prompts` — core
+
+prompt library: .prompt files (Dotprompt shape) and their loader
+
+- **Owned:** `internal/prompts`
+- **Why that class:** Every model-facing surface (genui, review, llm suggest, the installer's AGENTS.md) loads its instructions from these files. Removing the loader leaves the prompts with nowhere to live; the check-prompts gate keeps the tree honest.
 
 ## `queue` — core
 

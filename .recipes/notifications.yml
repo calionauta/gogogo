@@ -29,7 +29,7 @@ declaration:
   - {label: Total, query: "SELECT COUNT(*) FROM notifications WHERE owner = ?", signal: totalInbox}
   panel:
     component: "inbox_list"
-    prompt: "inbox_list {scope: unread|all} whenever the request involves the user's reminders or inbox"
+    prompt: "inbox_list {scope: unread|all} whenever the request involves the user's reminders or inbox (list them, find a reminder, plan around them). Renders their REAL rows, so it is the only component allowed to answer with inbox content. scope: unread ONLY when the user asks for what is still pending; all otherwise. Always send scope inside props."
     writable: [scope]
   routes:
   - method: GET

@@ -132,10 +132,13 @@ badge too — `badge badge-sm`.
 
 An unread count belongs to the thing it counts: use `indicator` +
 `indicator-item` so the bubble hangs off that element's corner (the rail's
-inbox label, the inbox title). When the surface loses the room — the rail
-collapsed to icons — swap the number for a bare `status` dot on the icon and
-keep the number in an `sr-only` child; never let a wide count paint over a
-label it sits beside.
+inbox label, the inbox title). When the bubble's anchor is a row that paints
+its own background — the rail's selected row — pin it inside that edge
+(`--indicator-x: 0`, the rail's `.app-rail-count`) rather than letting the
+default 50% translate hang half the bubble past the row. When the surface
+loses the room, swap the number for a bare `status` dot on the icon and keep
+the number in an `sr-only` child; never let a wide count paint over a label it
+sits beside.
 
 A back-and-forth between two speakers (the chat answer thread, the
 writer / critic / judge exchange on `/review`) is a DaisyUI `chat` transcript,

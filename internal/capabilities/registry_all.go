@@ -9,5 +9,6 @@ var All = append(baseUnits, append(
 		),
 		licenseUnits...,
 	),
-	append(append(append(perfUnits, dashboardUnits...), i18nUnit), append(graphUnits, kioskUnits...)...)...,
+	append(append(append(perfUnits, dashboardUnits...), i18nUnit),
+		append(append(graphUnits, kioskUnits...), promptUnits...)...)...,
 )...)

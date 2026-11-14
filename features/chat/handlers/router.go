@@ -16,6 +16,7 @@ import (
 	"github.com/calionauta/gogogo/config"
 	comp "github.com/calionauta/gogogo/features/genui/components"
 	"github.com/calionauta/gogogo/internal/observability"
+	"github.com/calionauta/gogogo/internal/prompts"
 )
 
 // routerQuestion is the one question the classifier answers. It names
@@ -23,13 +24,11 @@ import (
 // weight, and the model picks the component that fits what was asked.
 const routerQuestion = "component"
 
-// routerInstructions asks for the shape, never the content. The router
-// cannot fill props (it never sees the catalog's schemas), so a prompt
-// that invited it to would invite invented fields that fail closed at
-// parse time.
-const routerInstructions = "Which single component should lead the answer to this request? " +
-	"Choose the one that best fits what the user is asking for. " +
-	"Choose text_note only when the request wants plain prose with no structure."
+// routerInstructionsPrompt names the classifier instruction file. It asks for
+// the shape, never the content: the router cannot fill props (it never sees
+// the catalog's schemas), so a prompt that invited it to would invite invented
+// fields that fail closed at parse time.
+const routerInstructionsPrompt = "chat/router-instructions"
 
 // jevClient is the classifier leg. *jev.Client satisfies it; tests stub it
 // (the same 1-method seam features/review/handlers uses for its judge).
@@ -133,7 +132,7 @@ func (r *jevRouter) ChooseFor(ctx context.Context, request string, surfaces []co
 	resp, err := r.client.Evaluate(ctx, request, map[string]jev.Question{
 		routerQuestion: {
 			Type:         "choice",
-			Instructions: routerInstructions,
+			Instructions: prompts.Text(routerInstructionsPrompt),
 			Criteria:     criteria,
 		},
 	})

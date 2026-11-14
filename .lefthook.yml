@@ -67,6 +67,12 @@ pre-commit:
       run: make daisyui-lint
       glob: "{**/*.templ,**/*.html,web/resources/static/chrome.css,skills/daisyui/SKILL.md}"
 
+    # Prompt-as-data: a .prompt file that does not parse, or a prompt-shaped
+    # literal added to Go. Its own changes re-run it via the glob.
+    - name: prompts
+      run: go run ./cmd/check-prompts -quiet
+      glob: "{**/*.go,internal/prompts/files/**,cmd/check-prompts/**}"
+
     - name: flatdeps-lint
       run: go run ./cmd/check-flatdeps
       glob: "{go.mod,internal/**,features/**}"

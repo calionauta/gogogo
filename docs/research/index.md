@@ -14,6 +14,7 @@ individual notes.
 |---|---|---|
 | [UI engine research](ui-engine-research.md) | 2026-10-21 | templ vs gsx vs quicktemplate vs gomponents vs html/template: render performance, diagnostics and forkability |
 | [UI components comparison](ui-components-2026-10-21.md) | 2026-10-21 | DaisyUI vs Starbase vs datastar-ui vs dsx: Datastar/SSE fit, lightness, functionality, maintainability |
+| [Generative-UI schemas](genui-schema-patterns-2026-11.md) | 2026-11-12 | OpenUI Lang vs A2UI catalogs measured against this catalog: what is worth copying (per-component fixtures, prompt↔validator parity) and why neither format is adopted |
 | [Skill reading policy](skill-reading-policy.md) | 2026-10-25 | must an agent read the whole vendored DaisyUI skill before a `.templ` edit, or the component sections plus the linter? Two arms, same task: +36% tokens and +74% wall clock for the full read, identical markup and gates |
 | [Linter vocabulary source](daisyui-vocabulary-source.md) | 2026-10-25 | where a linter's class vocabulary lives (authored map vs derived snapshot), how it stays true, and why `daisyui-lint` embeds a generated snapshot |
 | [UI themes](../ui-themes.md) | living | the DaisyUI + themes architecture (single component library, palette catalog) |
@@ -37,11 +38,11 @@ individual notes.
 
 | page | reviewed | answers |
 |---|---|---|
+| [App shapes](app-shapes-2026-11.md) | 2026-11-12 | one template, five products: the closed shape enum (`web`/`api`/`desktop`/`gui`/`mobile`/`full`), where it is recorded, the `shape check` gate, the phase order, and why `api` is the only expensive shape |
 | [Scaffold choice](scaffold-choice-2026-10.md) | 2026-10-30 | why the prompt offers only the installer units, the three lists that disagree, and the `Scaffold` class that makes every capability an explicit keep-or-drop |
 | [Extensibility](extensibility-2026-11.md) | 2026-11-01 | recipe extensions: why `buildmode=plugin` is out, why a copied-and-owned recipe (not a pinned package) is the right unit, what breaks when code is meant to be edited, why schema must be declared rather than copied, and the ordered spikes that can falsify the idea |
 | [Recipe metrics and panel spec](recipe-metrics-panel-2026-11.md) | 2026-11-09 | declarative dashboard metrics (one COUNT per entry) and chat panel spec (name/prompt/writable): what was adopted vs. rejected, the SlicePanel base, the recipe-check evaluator, and the in-repo catalog decision |
 | [Recipe outcomes](recipe-outcomes-2026-11.md) | 2026-11-12 | an outcome as two declared counts (success over eligible) instead of an event stream: the validation rules, runtime warnings, what the dashboard shows, why not a Taguchi S/N, and the propose/confirm authorship rule |
-| [Generative-UI schemas](genui-schema-patterns-2026-11.md) | 2026-11-12 | OpenUI Lang vs A2UI catalogs measured against this catalog: what is worth copying (per-component fixtures, prompt↔validator parity) and why neither format is adopted |
 | [MyGo shell](mygo-2026-11.md) | 2026-11-08 | MyGo peer shell over the flat stack: webview cookie + SSE proof with `ENVIRONMENT=dev`, loopback vs native `ui.View`/`Bind`, driver matrix, and the `cmd/mygo` build recipe |
 | [Internationalization](i18n-2026-11.md) | 2026-11-08 | UI localization: own the seam on the text package, rent CLDR depth only on a trigger — the libraries evaluated, mitigations for their gaps, and the phased plan that deletes cleanly |
 | [Headless CMS in Go](headless-cms-go-2026-11.md) | 2026-11-11 | the Go CMS ecosystem probed against the two-month window: ocms-go and ridu as the finalists, why neither is adopted as a dependency (GPL-3.0; Bun + Svelte admin, one maintainer), the four GitHub-as-CMS models and what "issues as pages" actually means, and why the content surface belongs in a recipe |
@@ -59,6 +60,7 @@ individual notes.
 
 | page | reviewed | answers |
 |---|---|---|
+| [Domain-first gogogo](domain-first-2026-11.md) | 2026-11-12 | what of DDD actually helps an AI contributor — the domain card (language, boundary, invariants) and its gate, why aggregates/repositories/domain events are ceremony here, and the one testable claim to check after adoption |
 | [Architecture decision](../architecture-decision.md) | living | the flat-stack decision record: what it serves, what it replaced, and the migration it completed |
 | [Inspirations](../inspirations.md) | living | what this project learned from other projects, credited rather than vendored |
 | [Motivation](../motivation.md) | living | the thesis behind the stack and how to choose without hype |
