@@ -221,8 +221,6 @@ code {
   max-width: 56ch;
 }
 .chapter-points li::marker { color: var(--accent); }
-.viz.slots { margin-top: 40px; }
-.viz.slots > summary { cursor: pointer; }
 
 .chapter-foot {
   display: grid;
@@ -1256,91 +1254,6 @@ html:not(.js) .try-remove { display: none; }
   color: var(--muted);
 }
 
-.outcome-label {
-  margin: 26px 0 6px;
-  font: 600 10.5px/1 var(--mono);
-  letter-spacing: .1em;
-  text-transform: uppercase;
-  color: var(--faint);
-}
-
-.outcome-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-  margin: 0;
-}
-
-.outcome {
-  padding: 5px 10px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--paper-2);
-  font: 600 10.5px/1 var(--mono);
-  letter-spacing: .04em;
-  color: var(--ink-soft);
-}
-
-.outcome[data-outcome="offline"] { color: #356a8a; border-color: rgba(53, 106, 138, .3); }
-.outcome[data-outcome="realtime"] { color: #3f7a54; border-color: rgba(63, 122, 84, .3); }
-.outcome[data-outcome="durable"] { color: var(--accent); border-color: rgba(185, 61, 32, .3); }
-
-.async-table {
-  width: 100%;
-  margin-top: 26px;
-  border-collapse: collapse;
-}
-
-.async-table th {
-  padding: 0 18px 10px 0;
-  border-bottom: 1px solid var(--line);
-  text-align: left;
-  font: 600 9.5px/1 var(--mono);
-  letter-spacing: .1em;
-  text-transform: uppercase;
-  color: var(--faint);
-}
-
-.async-table td {
-  padding: 14px 18px 14px 0;
-  border-bottom: 1px solid var(--line-soft);
-  vertical-align: top;
-  font-size: 13.5px;
-  line-height: 1.5;
-  color: var(--muted);
-}
-
-.async-table tbody th {
-  width: 18%;
-  font-family: var(--serif);
-  font-size: 18px;
-  line-height: 1.15;
-  letter-spacing: -.01em;
-  color: var(--ink);
-}
-
-.async-table td:nth-child(2) { width: 40%; }
-.async-table td:nth-child(3) { width: 24%; }
-.async-table td:nth-child(4) { width: 18%; }
-
-.async-lives { display: flex; flex-wrap: wrap; gap: 5px; }
-
-.async-lives a {
-  display: inline-block;
-  padding: 2px 7px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  font: 10px/1.4 var(--mono);
-  color: var(--ink-soft);
-  text-decoration: none;
-  transition: border-color .2s, color .2s;
-}
-
-.async-lives a:hover { border-color: var(--accent); color: var(--accent); }
-
-.async-switch { font: 10px/1.5 var(--mono); color: var(--faint); }
-.async-switch code { font-size: 10px; }
-.async-table td:last-child code { font-size: 10px; }
 
 .offline-callout {
   margin-top: 30px;
@@ -1785,35 +1698,6 @@ html:not(.js) .try-remove { display: none; }
 @media (max-width: 900px) {
   .async-layers { padding: 56px 20px 50px; }
 
-  .async-table,
-  .async-table tbody,
-  .async-table tr { display: block; width: auto; }
-
-  .async-table td,
-  .async-table tbody th { display: block; width: auto; }
-
-  .async-table thead { display: none; }
-
-  .async-table tr {
-    padding: 16px 0;
-    border-top: 1px solid var(--line);
-  }
-
-  .async-table tr:first-child { border-top: 0; }
-  .async-table td { border: 0; padding: 2px 0; }
-
-  .async-table td::before {
-    content: attr(data-label);
-    display: block;
-    margin-bottom: 3px;
-    font: 600 10.5px/1 var(--mono);
-    letter-spacing: .1em;
-    text-transform: uppercase;
-    color: var(--faint);
-  }
-
-  .async-table tbody th { font-size: 21px; margin-bottom: 4px; }
-  .async-table td:first-child::before { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2215,4 +2099,116 @@ html:not(.js) .try-remove { display: none; }
   font-size: 12px;
   line-height: 1.5;
   color: var(--faint);
+}
+
+/* ---------- async lab: an outcome as the layers that compose it ---------- */
+
+/* Radio-driven panels, the same no-JS pattern the agent tabs use: the inputs
+   sit before the labels and panels, so `:checked ~` needs no script. */
+.async-lab > input { position: absolute; opacity: 0; pointer-events: none; }
+
+.async-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 26px;
+}
+
+.async-tab {
+  display: grid;
+  gap: 3px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper-2);
+  cursor: pointer;
+  transition: border-color .2s, background .2s, box-shadow .2s;
+}
+
+.async-tab:hover { border-color: #c9bfae; }
+
+.async-tab-name {
+  font-family: var(--serif);
+  font-size: 17px;
+  line-height: 1.15;
+  letter-spacing: -.01em;
+  color: var(--ink);
+}
+
+.async-tab-note {
+  font: 9.5px/1.4 var(--mono);
+  letter-spacing: .04em;
+  color: var(--faint);
+}
+
+#out-realtime:checked ~ .async-tabs label[for="out-realtime"],
+#out-durable:checked ~ .async-tabs label[for="out-durable"],
+#out-offline:checked ~ .async-tabs label[for="out-offline"] {
+  border-color: rgba(53, 106, 138, .45);
+  background: var(--paper);
+  box-shadow: inset 0 0 0 1px rgba(53, 106, 138, .18);
+}
+
+#out-realtime:focus-visible ~ .async-tabs label[for="out-realtime"],
+#out-durable:focus-visible ~ .async-tabs label[for="out-durable"],
+#out-offline:focus-visible ~ .async-tabs label[for="out-offline"] {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.async-panel { display: none; margin-top: 16px; }
+#out-realtime:checked ~ .async-panels .panel-realtime,
+#out-durable:checked ~ .async-panels .panel-durable,
+#out-offline:checked ~ .async-panels .panel-offline { display: block; }
+
+.layer-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.layer-card {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-left: 3px solid rgba(53, 106, 138, .5);
+  border-radius: 10px;
+  background: var(--paper-2);
+}
+
+/* A supporting layer, not one of the outcome's defining pieces. */
+.layer-card-quiet { border-left-color: var(--line); }
+
+.layer-card h3 {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 19px;
+  line-height: 1.1;
+  letter-spacing: -.01em;
+  color: var(--ink);
+}
+
+.layer-card p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.layer-foot {
+  margin-top: 2px !important;
+  font: 9.5px/1.6 var(--mono);
+  color: var(--faint);
+}
+
+.layer-foot code { font-size: 9.5px; }
+
+.layer-switch.on { color: #3f7a54; }
+
+@media (max-width: 900px) {
+  .async-tabs { grid-template-columns: 1fr; }
+  .layer-grid { grid-template-columns: 1fr; }
 }

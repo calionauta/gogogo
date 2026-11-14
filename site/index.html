@@ -58,8 +58,8 @@
 <section class="hero">
   <div class="hero-copy">
     <p class="kicker">Full-stack Go · one binary · nothing to operate</p>
-    <h1>Your stack is ready.<br><em>Summon</em> your AI agent <span class="nowrap">to build.</span></h1>
-    <p class="hero-sub">A product structure your agent can evolve — not a framework. One binary, and a CLI/MCP the agent drives it with.</p>
+    <h1>Your product structure <span class="nowrap">is ready.</span><br><em>Summon</em> your AI agent to evolve.</h1>
+    <p class="hero-sub">One binary, and a CLI/MCP the agent drives it with.</p>
     <div class="hero-ctas">
       <a class="btn primary" href="#install">Get started</a>
       <a class="btn" href="https://gogogo.calionauta.com/" rel="noopener">Try it live</a>
@@ -189,7 +189,7 @@
                 <li><code>recipe install</code><span>Copy a recipe in: code + declaration + receipt.</span></li>
                 <li><code>recipe list</code><span>What is installed, built-in, or removed.</span></li>
                 <li><code>recipe check</code><span>Evaluator: score, errors, warnings — blocks an unrecorded claim.</span></li>
-                <li><code>recipe describe</code><span>One recipe: verbs, params, metrics, outcomes.</span></li>
+                <li><code>recipe describe</code><span>One recipe: verbs, params, and the metrics it declares.</span></li>
                 <li><code>recipe test</code><span>Run the tests THAT recipe ships (scope from its receipt).</span></li>
                 <li><code>advise</code><span>Which lib or language fits the use case.</span></li>
                 <li><code>--dry-run</code><span>Preview the plan as JSON, zero changes.</span></li>
@@ -237,7 +237,7 @@
         <li>Copied with a receipt: pages, handlers, tables, jobs, policy rows.</li>
         <li>Your edits survive: pristine hashes + <code>git merge</code>, never overwrite.</li>
         <li>Receipt keeps it honest: <code>recipe status</code>, <code>update</code>, <code>uninstall</code>.</li>
-        <li>Measured, not asserted: declared metrics and one outcome (success over total) count the rows the recipe already owns.</li>
+        <li>Declares its own metrics: <code>COUNT(*)</code> readings over tables it already owns, so a number on the dashboard is a fact, not a claim.</li>
       </ul>
 
       <div class="viz tiles">
@@ -322,17 +322,6 @@
         </a>
         <!--FEATURES:END-->
       </div>
-
-      <details class="viz slots" id="slots">
-        <summary class="plan-group">How a recipe plugs in</summary>
-        <p class="plan-note">The page owns the frame; the recipe supplies content. Only slots with a host page in this build can be filled.</p>
-        <div class="slot-table">
-          <p><code>settings.section</code><span>Form section in <code>/config</code>.</span></p>
-          <p><code>nav.sidebar</code><span>Destination in the shell rail.</span></p>
-          <p><code>record.row-actions</code><span>Declarative row actions on the todo row.</span></p>
-          <p><code>dashboard.card</code><span>One metric cell on <code>/dashboard</code>.</span></p>
-        </div>
-      </details>
 
       <!--WEIGHTS:START-->
         <div class="weights">
@@ -820,31 +809,75 @@
   <div class="cap-head">
     <p class="kicker">The other axis</p>
     <h2>The code has levels.<br><em>The runtime has layers.</em></h2>
-    <p class="cap-lede">A capability is not one folder. Real-time multi-user is the sum of the collaboration, live-record, signal, broadcast and room rows; durable workflows is DagNats; offline-capable writes are the mode below.</p>
+    <p class="cap-lede">A capability is not one folder. An outcome is a few layers working together: pick one to see what composes it.</p>
   </div>
 
-  <p class="outcome-label">Outcomes</p>
-  <div class="outcome-row" aria-label="Outcomes">
-    <span class="outcome" data-outcome="offline">Offline-capable writes</span>
-    <span class="outcome" data-outcome="realtime">Real-time multi-user</span>
-    <span class="outcome" data-outcome="durable">Durable workflows</span>
-  </div>
+  <div class="async-lab" id="async-lab">
+    <input type="radio" name="async-outcome" id="out-realtime" checked>
+    <input type="radio" name="async-outcome" id="out-durable">
+    <input type="radio" name="async-outcome" id="out-offline">
+    <div class="async-tabs" role="group" aria-label="Async outcomes">
+      <label for="out-realtime" class="async-tab" data-outcome="realtime"><span class="async-tab-name">Real-time multi-user</span><span class="async-tab-note">4 layers compose it</span></label>
+      <label for="out-durable" class="async-tab" data-outcome="durable"><span class="async-tab-name">Durable workflows</span><span class="async-tab-note">1 layer, survives a restart</span></label>
+      <label for="out-offline" class="async-tab" data-outcome="offline"><span class="async-tab-name">Offline-capable writes</span><span class="async-tab-note">a mode on top of them</span></label>
+    </div>
 
-  <div class="table-wrap" role="region" aria-label="Async layers">
-  <table class="async-table">
-    <thead>
-      <tr><th scope="col">Async layer</th><th scope="col">What it does</th><th scope="col">Lives in</th><th scope="col">Switch</th></tr>
-    </thead>
-    <tbody>
-      <tr><th scope="row">Background jobs</th><td data-label="What it does">goqite + SSE Hub delivery. Work longer than ~50 ms goes here instead of blocking a request.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-core">Core</a><a href="#layer-recipes">Features</a></span></td><td data-label="Switch"><span class="async-switch">always on</span></td></tr>
-      <tr><th scope="row">Durable workflows</th><td data-label="What it does">DagNats over JetStream. Kill the process mid-run; it resumes at the last incomplete step.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-servants">Plugins</a><a href="#layer-recipes">Features</a></span></td><td data-label="Switch"><code>DAGNATS_ENABLED=false</code></td></tr>
-      <tr><th scope="row">Collaboration</th><td data-label="What it does">Loro CRDT. Offline edits merge; snapshots persist to Turso.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-recipes">Features</a><a href="#layer-servants">Plugins</a></span></td><td data-label="Switch"><span class="async-switch">remove <code>internal/collab/</code></span></td></tr>
-      <tr><th scope="row">Live record updates</th><td data-label="What it does">SSE Hub record-sync, scoped by owner and visibility.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-core">Core</a><a href="#layer-recipes">Features</a></span></td><td data-label="Switch"><span class="async-switch">always on</span></td></tr>
-      <tr><th scope="row">Ephemeral signals</th><td data-label="What it does">SSE Hub over Datastar: toasts, progress, chat answers.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-core">Core</a><a href="#layer-recipes">Features</a></span></td><td data-label="Switch"><span class="async-switch">always on</span></td></tr>
-      <tr><th scope="row">Cross-instance</th><td data-label="What it does">NATS JetStream. Records and docs converge across instances.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-servants">Plugins</a></span></td><td data-label="Switch"><code>NATS_ENABLED=false</code></td></tr>
-      <tr><th scope="row">Room ownership</th><td data-label="What it does">GoAkt grains. One owner per room: roster, locks, supervision.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-servants">Plugins</a><a href="#layer-recipes">Features</a></span></td><td data-label="Switch"><code>GOAKT_ENABLED=false</code></td></tr>
-    </tbody>
-  </table>
+    <div class="async-panels">
+      <div class="async-panel panel-realtime">
+        <div class="layer-grid">
+          <article class="layer-card">
+            <h3>Live record updates</h3>
+            <p>SSE Hub record-sync, scoped by owner and visibility.</p>
+            <p class="layer-foot"><span class="layer-switch on">always on</span></p>
+          </article>
+          <article class="layer-card">
+            <h3>Ephemeral signals</h3>
+            <p>SSE Hub over Datastar: toasts, progress, chat answers.</p>
+            <p class="layer-foot"><span class="layer-switch on">always on</span></p>
+          </article>
+          <article class="layer-card">
+            <h3>Cross-instance</h3>
+            <p>NATS JetStream. Records and docs converge across instances.</p>
+            <p class="layer-foot"><code>NATS_ENABLED=false</code></p>
+          </article>
+          <article class="layer-card">
+            <h3>Room ownership</h3>
+            <p>GoAkt grains. One owner per room: roster, locks, supervision.</p>
+            <p class="layer-foot"><code>GOAKT_ENABLED=false</code></p>
+          </article>
+        </div>
+      </div>
+
+      <div class="async-panel panel-durable">
+        <div class="layer-grid">
+          <article class="layer-card">
+            <h3>Durable workflows</h3>
+            <p>DagNats over JetStream. Kill the process mid-run; it resumes at the last incomplete step.</p>
+            <p class="layer-foot"><code>DAGNATS_ENABLED=false</code></p>
+          </article>
+          <article class="layer-card layer-card-quiet">
+            <h3>Background jobs</h3>
+            <p>goqite + SSE Hub delivery. Work longer than ~50 ms goes here instead of blocking a request.</p>
+            <p class="layer-foot"><span class="layer-switch on">always on</span></p>
+          </article>
+        </div>
+      </div>
+
+      <div class="async-panel panel-offline">
+        <div class="layer-grid">
+          <article class="layer-card">
+            <h3>Collaboration</h3>
+            <p>Loro CRDT. Offline edits merge; snapshots persist to Turso.</p>
+            <p class="layer-foot">remove <code>internal/collab/</code></p>
+          </article>
+          <article class="layer-card layer-card-quiet">
+            <h3>Outbox + replay</h3>
+            <p>A mutation is stored before it leaves the tab, then replayed on reconnect.</p>
+            <p class="layer-foot"><code>OFFLINE_SYNC_ENABLED=false</code></p>
+          </article>
+        </div>
+      </div>
+    </div>
   </div>
 
   <aside class="offline-callout">
@@ -867,7 +900,7 @@
       <p class="offline-fact"><span class="label">Switch</span> <span><code>OFFLINE_SYNC_ENABLED=false</code><span class="offline-note">app-shell cache + NATS CRUD proxy; the outbox is never gated</span></span></p>
       <p class="offline-fact"><span class="label">Try it</span> <span>disconnect, edit, reconnect</span></p>
     </div>
-    <p class="offline-unit">On the SCOPE axis, <a href="#layer-servants">offline-sync</a> is a servant. Here it is the mode above.</p>
+      <p class="offline-unit">On the SCOPE axis, <a href="#layer-servants">offline-sync</a> is a servant. Here it is the mode above.</p>
   </aside>
 
   <p class="async-fine">One <code>make build</code>. No build tags, no stub files, no matrix.</p>

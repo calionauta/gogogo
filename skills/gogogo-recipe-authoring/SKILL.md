@@ -129,10 +129,14 @@ Keep the declaration in step with the code. A declared route the code does not r
 a drift **failure**, not a warning: it ships a nav entry that leads nowhere. A declared job
 the code does not register burns CPU forever.
 
-### Metrics and outcomes: a count, and the job as two counts
+### Metrics: one list, two kinds
 
-A **metric** is one `COUNT(*)` over a table the recipe owns — no denominator, no
-claim:
+A **metric** is one `COUNT(*)` over a table the recipe owns. Both readings are
+metrics — the `kind` says how strong the claim is:
+
+- `activity` (default): how much happened. No denominator, no claim.
+- `outcome`: whether the job got done, for whom, and how often it went wrong —
+  the same list, with `kind: outcome`.
 
 ```yaml
 metrics:
@@ -140,9 +144,8 @@ metrics:
     query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ?"
 ```
 
-An **outcome** says whether the job got done, for whom, and how often it went
-wrong — declared as a **pair of counts** plus the counterMetrics readings that
-qualify the ratio. It is the same list, with `kind: outcome`:
+An **outcome** is that same list with `kind: outcome` — declared as a **pair of
+counts** plus the counterMetrics readings that qualify the ratio:
 
 ```yaml
 metrics:

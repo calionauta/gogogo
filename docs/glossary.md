@@ -14,7 +14,7 @@ word that replaced it. One concept, one name, one place.
 |---|---|---|
 | **recipe** | A working slice — pages, handlers, components, tables, a job, policy rows — **copied** into your tree, with a receipt, and intended to be edited. You own the code the moment it is written. | `catalog/`, `.recipes/<id>.yml` |
 | **receipt** | The recipe's record: where it came from, what it declares, and the hash of every file it installed. The only source for drift and update. | `.recipes/<id>.yml` |
-| **declaration** | The append-only half of the receipt: what the code *claims* — routes, tables, jobs, slots, actions, metrics, outcomes, panel. The engine applies it; you never hand-edit it. | `internal/recipe` |
+| **declaration** | The append-only half of the receipt: what the code *claims* — routes, tables, jobs, slots, actions, metrics, panel. The engine applies it; you never hand-edit it. | `internal/recipe` |
 | **capability** | One row of the registry: the thing that owns a set of files and routes. Its **kind** says how it is removed. | `internal/capabilities` |
 | **kind** | The removal class — the one answer to *what disappears if I delete this*: `core` (the binary or its gates break), `servant` (the binary works, a capability stops), `feature` (a user surface disappears). One name per level, in code, JSON, docs and UI. | `internal/capabilities` |
 | **servant** | A `servant`-kind capability: it serves other capabilities and outlives them (`nats`, `llm`, `graph`, `license-activation`). Not installable as a recipe; deleted by hand with the consumers that name it. | `internal/capabilities` |
