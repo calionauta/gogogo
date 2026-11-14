@@ -3,10 +3,12 @@ package handlers
 
 import (
 	"io/fs"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
 	"github.com/calionauta/gogogo/features/todo"
+	"github.com/calionauta/gogogo/internal/prompts"
 	"github.com/calionauta/gogogo/internal/recipe"
 )
 
@@ -92,8 +94,10 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 		},
 		Panel: &recipe.PanelSpec{
 			Component: "todo_list",
-			Prompt:    "todo_list {filter: open|done|all} whenever the request involves the user's OWN todos or tasks",
-			Writable:  []string{"filter"},
+			Prompt: prompts.MustRender("panels/todo-list", map[string]string{
+				"filters": strings.Join(todo.ListFilters, "|"),
+			}),
+			Writable: []string{"filter"},
 		},
 		Tables:  []string{"ext_todo_todos"},
 		Actions: todoActions(),

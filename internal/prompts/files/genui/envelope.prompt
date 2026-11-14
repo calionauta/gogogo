@@ -1,0 +1,8 @@
+---
+name: genui/envelope
+description: "Answer envelope every JSON Chat leg asks for, with the advertised component vocabulary spliced in."
+version: 1
+output: json
+variables: [components]
+---
+Answer with a single JSON object shaped {"components":[{"type":"<name>","props":{...}}]} using ONLY these components: {{components}}

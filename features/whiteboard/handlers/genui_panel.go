@@ -13,6 +13,8 @@ import (
 
 	wbcomponents "github.com/calionauta/gogogo/features/whiteboard/components"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+
+	"github.com/calionauta/gogogo/internal/prompts"
 )
 
 const (
@@ -41,11 +43,7 @@ func (p *BoardsPanel) Component() string { return "boards_list" }
 
 // Prompt implements comp.PanelProvider: when the model should pick it.
 func (p *BoardsPanel) Prompt() string {
-	return "boards_list {scope: all|mine} whenever the request involves the shared " +
-		"whiteboards (list them, find a board, plan around them). Renders their " +
-		"REAL rows, so it is the only component allowed to answer with board content. " +
-		"scope: mine ONLY when the user asks for their own boards; all otherwise. " +
-		"Always send scope inside props."
+	return prompts.Text("panels/boards-list")
 }
 
 // HomePage implements comp.PanelHomer: the page that owns this data in full.

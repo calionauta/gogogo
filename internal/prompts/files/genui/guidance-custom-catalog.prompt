@@ -1,0 +1,8 @@
+---
+name: genui/guidance-custom-catalog
+description: "The extra sentence html_block guidance carries when the catalog band is also advertised."
+version: 1
+output: json
+variables: []
+---
+Use the catalog where markup cannot act: action_buttons to post to this app, text_note for a single line of text.

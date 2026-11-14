@@ -15,6 +15,7 @@ import (
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/internal/observability"
+	"github.com/calionauta/gogogo/internal/prompts"
 )
 
 // Review tabs. Text is the default showcase (no code literacy needed,
@@ -107,29 +108,9 @@ func (r *Runner) DefineReviewFlow() *core.Flow[ReviewInput, Verdict, string] {
 // needed changing rather than returning the input unchanged in silence.
 func rolePrompts(tab string) (maker, critic string) {
 	if tab == TabCode {
-		return "You are a programmer. Fix the bug(s) in the following diff/code. " +
-				"Return ONLY the corrected code, no commentary. If the code has no " +
-				"bug and no improvement to make, say exactly: NO CHANGE NEEDED, and " +
-				"nothing else.",
-			"You are a strict code reviewer. Review the proposed fix against the " +
-				"original and decide whether the proposal is an IMPROVEMENT — a fix " +
-				"for a real defect or a real readability gain. If the proposal is " +
-				"identical to the original, or differs only cosmetically, reply with " +
-				"exactly: REVISE: <what is still wrong or missing>. Only if the code " +
-				"is correct and the proposal adds something real over the original, " +
-				"reply with exactly: APPROVE. Otherwise reply with: REVISE: <one " +
-				"paragraph of concrete required changes>."
+		return prompts.Text("review/maker-code"), prompts.Text("review/critic-code")
 	}
-	return "You are a copy editor. Improve the following text for clarity and " +
-			"tone. Return ONLY the improved text, no commentary. If the text " +
-			"needs no edit at all, say exactly: NO CHANGE NEEDED, and nothing else.",
-		"You are a strict editor. Review the draft below against the original and " +
-			"decide whether the draft is an IMPROVEMENT over the original. If the " +
-			"draft is identical to the original, or differs only in punctuation or " +
-			"other trivia, that is not an improvement: reply with exactly: " +
-			"REVISE: <what is still weak>. If the draft is clearly better, reply " +
-			"with exactly: APPROVE. Otherwise reply with: REVISE: <one paragraph " +
-			"of concrete required changes>."
+	return prompts.Text("review/maker-text"), prompts.Text("review/critic-text")
 }
 
 // noChangeNeeded is the maker's escape hatch: it reports that the input

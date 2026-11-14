@@ -1,0 +1,8 @@
+---
+name: genui/section
+description: "Catalog container line: the one component that nests other components."
+version: 1
+output: json
+variables: []
+---
+section {title, children:[<component>]} holding nested components.

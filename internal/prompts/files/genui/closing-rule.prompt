@@ -1,0 +1,8 @@
+---
+name: genui/closing-rule
+description: "Final rule of every JSON Chat leg: the answer is the JSON object and nothing else."
+version: 1
+output: json
+variables: []
+---
+No prose outside the JSON object.

@@ -25,6 +25,8 @@ import (
 	"sort"
 	"strings"
 	"sync"
+
+	"github.com/calionauta/gogogo/internal/prompts"
 )
 
 // ActionSpec is one action a feature offers to model-authored components.
@@ -210,20 +212,14 @@ func actionsFragment() string {
 	if len(specs) == 0 {
 		return ""
 	}
-	var b strings.Builder
-	b.WriteString("Actions you may attach to a component (an action's url, method " +
-		"and field NAMES must match a row below exactly; put your own content in the fields): ")
-	for i, spec := range specs {
-		if i > 0 {
-			b.WriteString("; ")
-		}
-		b.WriteString(spec.When)
-		b.WriteString(" -> ")
-		fmt.Fprintf(&b, "{label:%q, method:%s, url:%s, fields:{%s}}",
-			spec.Label, spec.Method, spec.URL, fieldHint(spec.Fields))
+	lines := make([]string, 0, len(specs))
+	for _, spec := range specs {
+		lines = append(lines, fmt.Sprintf("%s -> {label:%q, method:%s, url:%s, fields:{%s}}",
+			spec.When, spec.Label, spec.Method, spec.URL, fieldHint(spec.Fields)))
 	}
-	b.WriteString(". ")
-	return b.String()
+	return prompts.MustRender("genui/actions", map[string]string{
+		"actions": strings.Join(lines, "; "),
+	})
 }
 
 // fieldHint renders a declaration's fields as the prompt shows them: the key

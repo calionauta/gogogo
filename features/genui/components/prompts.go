@@ -8,13 +8,11 @@
 // that drift.
 package components
 
-import "strings"
+import (
+	"strings"
 
-// envelopePrefix is the answer shape every leg asks for, spelled once so the
-// two prompts cannot disagree on the wire format.
-const envelopePrefix = "Answer with a single JSON object shaped " +
-	`{"components":[{"type":"<name>","props":{...}}]} ` +
-	"using ONLY these components: "
+	"github.com/calionauta/gogogo/internal/prompts"
+)
 
 // fragment returns the catalog line for one shared leaf name, or "" when the
 // name is not a leaf (so callers can compose without knowing the registry
@@ -96,20 +94,16 @@ func customGuidance(surfaces []Surface) string {
 	if !HasSurfaces(surfaces, SurfaceCustom) {
 		return ""
 	}
-	guidance := "Lead with html_block: build the visual this request asks for out of " +
-		"plain elements (div, span, p, headings, lists, table) and these " +
-		"classes ONLY -- a class outside this list renders unstyled: " +
-		ModelHTMLVocabulary() + ". Prefer that visual over reaching for the " +
-		"nearest catalog component, and over answering in prose. " +
-		"Exception: when the request asks for a flow, process, sequence, steps or " +
-		"diagram, use the diagram component with mermaid source instead of html_block. "
+	note := ""
 	if HasSurfaces(surfaces, SurfaceCatalog) {
-		guidance += "Use the catalog where markup cannot act: action_buttons to " +
-			"post to this app, text_note for a single line of text. "
+		// Trailing space keeps the sentence boundary when the note is spliced
+		// into the middle of the guidance file.
+		note = prompts.Text("genui/guidance-custom-catalog") + " "
 	}
-	return guidance + "Only structure and classes survive rendering: " +
-		"script, style, inline style attributes, event handlers, forms, media, " +
-		"svg and images are stripped, so put every style in a class. "
+	return prompts.MustRender("genui/guidance-custom", map[string]string{
+		"vocabulary":   ModelHTMLVocabulary(),
+		"catalog_note": note,
+	})
 }
 
 // PromptForSurfaces is the entry point: the SURFACE SET decides the
@@ -126,7 +120,7 @@ func PromptForCatalogLeadSurfaces(lead string, surfaces []Surface) string {
 	if lead == "" || !Registered(lead) || !advertisedAs(lead, surfaces) {
 		return base
 	}
-	return base + " Lead with " + lead + " as the top-level component."
+	return base + " " + prompts.MustRender("genui/lead", map[string]string{"component": lead})
 }
 
 // PromptForChat is Chat's default surface: the catalog plus the invented-visual
@@ -156,18 +150,36 @@ func PromptForChat() string {
 func promptForSurfaces(surfaces []Surface) string {
 	surfaces = NormalizeSurfaces(surfaces)
 	if len(surfaces) == 0 {
-		return "Answer briefly in plain prose for this request. " +
-			"No JSON object, no components, no markup — one or two short sentences. "
+		return prompts.Text("genui/answer-prose")
 	}
-	return envelopePrefix +
-		bandFragments(surfaces) +
-		customGuidance(surfaces) +
-		panelsFragment(surfaces) +
-		panelsGuidance(surfaces) +
-		smalltalkRule(surfaces) +
-		actionsFragmentIfAllowed(surfaces) +
-		dataRule(surfaces) +
-		"No prose outside the JSON object."
+	return joinFragments([]string{
+		prompts.MustRender("genui/envelope", map[string]string{"components": bandFragments(surfaces)}),
+		customGuidance(surfaces),
+		panelsFragment(surfaces),
+		panelsGuidance(surfaces),
+		smalltalkRule(surfaces),
+		actionsFragmentIfAllowed(surfaces),
+		dataRule(surfaces),
+		prompts.Text("genui/closing-rule"),
+	})
+}
+
+// joinFragments assembles the prompt from the fragments that apply, with one
+// space between them. The prompt text itself lives in .prompt files; this
+// function only decides which files' output participates, so an operator
+// toggling a surface cannot leave a dangling sentence behind.
+func joinFragments(parts []string) string {
+	var b strings.Builder
+	for _, part := range parts {
+		if part == "" {
+			continue
+		}
+		if b.Len() > 0 {
+			b.WriteByte(' ')
+		}
+		b.WriteString(part)
+	}
+	return b.String()
 }
 
 // smalltalkRule keeps greetings from becoming data answers. The model
@@ -180,9 +192,7 @@ func smalltalkRule(surfaces []Surface) string {
 	if !HasSurfaces(surfaces, SurfaceNative) || len(panelNames()) == 0 {
 		return ""
 	}
-	return "Greetings, thanks and other smalltalk (hi, hello, hey, thanks, ok, " +
-		"goodbye) are never about the user's data: answer them briefly and " +
-		"never emit a panel or a data component for them. "
+	return prompts.Text("genui/rule-smalltalk")
 }
 
 // advertisedAs reports whether a catalog name is inside the enabled vocabulary.
@@ -203,7 +213,7 @@ func advertisedAs(name string, surfaces []Surface) bool {
 // sectionFragment is the container's line: it is part of the catalog, not a
 // panel, so it is spelled out rather than registered.
 func sectionFragment() string {
-	return "section {title, children:[<component>]} holding nested components. "
+	return prompts.Text("genui/section")
 }
 
 // panelsFragment lists the registered system panels after the catalog. A build
@@ -216,7 +226,7 @@ func panelsFragment(surfaces []Surface) string {
 	if len(names) == 0 {
 		return ""
 	}
-	return "Panels (the app's own data, always available): " + strings.Join(names, ", ") + ". "
+	return prompts.MustRender("genui/panels-list", map[string]string{"panels": strings.Join(names, ", ")})
 }
 
 // panelsGuidance is where each panel says when to reach for it: the text
@@ -242,11 +252,9 @@ func panelsGuidance(surfaces []Surface) string {
 	for _, name := range names {
 		fragments = append(fragments, panelPrompt(name))
 	}
-	return "NEVER invent the user's own data (their todos, their records): you " +
-		"cannot see it, so any list, table or plan you write from imagination is " +
-		"fabricated. When the request depends on it, emit the panel below as the " +
-		"top-level component (nest others after it, never instead of it): " +
-		strings.Join(fragments, "; ") + ". "
+	return prompts.MustRender("genui/guidance-panels", map[string]string{
+		"panels": strings.Join(fragments, "; "),
+	})
 }
 
 // dataRule is the same prohibition compressed to one line, appended LAST by
@@ -257,6 +265,5 @@ func dataRule(surfaces []Surface) string {
 	if !HasSurfaces(surfaces, SurfaceNative) || len(panelNames()) == 0 {
 		return ""
 	}
-	return "Reminder: the user's own data is reachable ONLY through the panel " +
-		"components above; never invent it. "
+	return prompts.Text("genui/rule-data")
 }

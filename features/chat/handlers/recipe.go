@@ -4,6 +4,7 @@ package handlers
 import (
 	"github.com/go-chi/chi/v5"
 
+	"github.com/calionauta/gogogo/internal/prompts"
 	"github.com/calionauta/gogogo/internal/recipe"
 )
 
@@ -34,7 +35,7 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 		// declared metric. The panel IS declared (chat_history slice).
 		Panel: &recipe.PanelSpec{
 			Component: "chat_history",
-			Prompt:    "chat_history {limit: 5|10|20} whenever the request involves the user's recent conversation",
+			Prompt:    prompts.Text("panels/chat-history"),
 			Writable:  []string{"limit"},
 		},
 		Routes: []recipe.Route{

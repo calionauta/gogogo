@@ -30,6 +30,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -39,6 +40,7 @@ import (
 
 	"github.com/calionauta/gogogo/internal/llm/fakeserver"
 	"github.com/calionauta/gogogo/internal/observability"
+	"github.com/calionauta/gogogo/internal/prompts"
 )
 
 // ErrNoAPIKey is returned by Chat/ChatStream when the client was built
@@ -350,12 +352,15 @@ func (c *Client) ChatSuggest(ctx context.Context, partial string) ([]string, err
 	if partial == "" {
 		return randomTasks(), nil
 	}
-	prompt := fmt.Sprintf(
-		"You are helping a user write a todo list item. The user has typed %q so far. "+
-			"Suggest exactly 3 short, distinct, actionable completions (each under 60 characters). "+
-			"Return them as a JSON array of strings, no other text, no markdown fences.",
-		partial,
-	)
+	// The instruction is a file (prompts/chat/suggest-todo.prompt); %q quoting is
+	// applied at the boundary so the model sees the same shape the Go constant
+	// produced, without prompt prose living in Go.
+	prompt, err := prompts.Render("chat/suggest-todo", map[string]string{
+		"partial": strconv.Quote(partial),
+	})
+	if err != nil {
+		return nil, err
+	}
 	text, err := c.Chat(ctx, prompt)
 	if err != nil {
 		return nil, err
