@@ -37,10 +37,21 @@ func (h *Handler) preview(w http.ResponseWriter, r *http.Request) {
 	// keystroke would make typing worse than the menu alone. The page asks for
 	// it explicitly (Interpret / the mic finishing a phrase), which is when a
 	// human is actually waiting for a decision.
-	parsed := kiosk.Parse(r.PostFormValue("text"))
+	text := r.PostFormValue("text")
+	parsed := kiosk.Parse(text)
 	if r.PostFormValue("decide") == "1" {
-		parsed = h.engine.Settle(r.Context(), r.PostFormValue("text"), parsed)
+		parsed = h.engine.Settle(r.Context(), text, parsed)
 	}
+	// A tapped choice is an EXPLICIT decision and wins over whatever the text
+	// implied: the customer pointed at "Oat", so a stale "whole" from an earlier
+	// sentence must not survive. The merge is one place (applyChoices) so the
+	// preview and the confirm agree.
+	parsed = kiosk.ApplyChoices(parsed, kiosk.Choices{
+		Drink:  r.PostFormValue("drink"),
+		Size:   r.PostFormValue("size"),
+		Milks:  r.PostForm["milk"],
+		Extras: r.PostForm["extras"],
+	})
 	sse := sdk.NewSSE(w, r)
 	if err := dshelpers.MergeSignals(sse, previewSignals(parsed)); err != nil {
 		observability.Warn(r.Context(), "kiosk: preview signals failed",

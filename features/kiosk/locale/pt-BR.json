@@ -21,5 +21,7 @@
   "corrected": "corrigido",
   "stop": "Parar",
   "reset": "Recomeçar",
-  "resetHint": "Limpar o pedido atual e começar de novo"
+  "resetHint": "Limpar o pedido atual e começar de novo",
+  "menu": "Cardápio",
+  "applyChoices": "Usar estas escolhas"
 }

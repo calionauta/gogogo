@@ -35,6 +35,14 @@ func (h *Handler) confirm(w http.ResponseWriter, r *http.Request) {
 	// page just showed as ready, so the engine decides here too.
 	text := r.PostFormValue("text")
 	parsed := h.engine.Settle(r.Context(), text, kiosk.Parse(text))
+	// The SAME merge the preview ran: a tapped choice must survive into the
+	// write, or the counter would charge for something else than it showed.
+	parsed = kiosk.ApplyChoices(parsed, kiosk.Choices{
+		Drink:  r.PostFormValue("drink"),
+		Size:   r.PostFormValue("size"),
+		Milks:  r.PostForm["milk"],
+		Extras: r.PostForm["extras"],
+	})
 	if !parsed.Complete() {
 		// Not a 400: the page asked, the answer is "not yet", and the same
 		// signals that explain the preview explain this.

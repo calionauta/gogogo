@@ -46,9 +46,10 @@ type PageData struct {
 	BuildCommit string
 	// Phrases is the JSON array the recognizer uses as contextual bias. It is
 	// rendered from the menu, so the vocabulary has one source.
-	Phrases  string
-	MenuLine string
-	Orders   []Order
+	Phrases   string
+	MenuLine  string
+	Catalogue Catalogue
+	Orders    []Order
 }
 
 // seedSignals is the page's initial signal set. Text is deliberately absent:
@@ -406,7 +407,17 @@ templ kioskBody(data PageData) {
 						{ i18n.T(ctx, "kiosk.micOptional", nil) }
 					</span>
 				</div>
+			</div>
+		</section>
+
+		{{/* The menu, visible and tappable. Dictation is one way to order; a
+		     noisy room or a customer who does not know the word "oat" needs to
+		     SEE what is sold. Both paths produce the same order. */}}
+		<section class="ui-card" id="kiosk-menu">
+			<div class="ui-card-body ui-stack">
+				<h2 class="ui-title">{ i18n.T(ctx, "kiosk.menu", nil) }</h2>
 				<p class="ui-meta">{ data.MenuLine }</p>
+				@MenuCatalogue(data.Catalogue)
 			</div>
 		</section>
 
@@ -414,26 +425,30 @@ templ kioskBody(data PageData) {
 			<div class="ui-card-body ui-stack">
 				<h2 class="ui-title">{ i18n.T(ctx, "kiosk.preview", nil) }</h2>
 				<p class="ui-meta">{ i18n.T(ctx, "kiosk.previewHelp", nil) }</p>
-				<dl class="ui-stack">
-					<div class="ui-row justify-between">
+				{{/* The preview is a receipt, not a form: what the customer is
+				     about to buy, read top to bottom, with the total set apart —
+				     the same shape a paper ticket has, so it is understood at a
+				     glance from the counter side. */}}
+				<dl class="divide-y divide-base-300/60">
+					<div class="flex items-baseline justify-between gap-3 py-1.5">
 						<dt class="ui-meta">{ i18n.T(ctx, "kiosk.drink", nil) }</dt>
-						<dd data-text="$kioskDrink || '—'"></dd>
+						<dd class="font-medium" data-text="$kioskDrink || '—'"></dd>
 					</div>
-					<div class="ui-row justify-between">
+					<div class="flex items-baseline justify-between gap-3 py-1.5">
 						<dt class="ui-meta">{ i18n.T(ctx, "kiosk.size", nil) }</dt>
-						<dd data-text="$kioskSize || '—'"></dd>
+						<dd class="font-medium" data-text="$kioskSize || '—'"></dd>
 					</div>
-					<div class="ui-row justify-between">
+					<div class="flex items-baseline justify-between gap-3 py-1.5">
 						<dt class="ui-meta">{ i18n.T(ctx, "kiosk.milk", nil) }</dt>
-						<dd data-text="$kioskMilk || '—'"></dd>
+						<dd class="font-medium" data-text="$kioskMilk || '—'"></dd>
 					</div>
-					<div class="ui-row justify-between">
+					<div class="flex items-baseline justify-between gap-3 py-1.5">
 						<dt class="ui-meta">{ i18n.T(ctx, "kiosk.extras", nil) }</dt>
-						<dd data-text="$kioskExtras || '—'"></dd>
+						<dd class="font-medium text-right" data-text="$kioskExtras || '—'"></dd>
 					</div>
-					<div class="ui-row justify-between">
-						<dt class="ui-meta">{ i18n.T(ctx, "kiosk.price", nil) }</dt>
-						<dd data-text="$kioskPrice || '—'"></dd>
+					<div class="flex items-baseline justify-between gap-3 pt-3 mt-1 border-t-2 border-base-300">
+						<dt class="text-sm font-semibold">{ i18n.T(ctx, "kiosk.price", nil) }</dt>
+						<dd class="text-2xl font-bold tabular-nums" data-text="$kioskPrice || '—'"></dd>
 					</div>
 				</dl>
 				<p class="ui-meta" data-show="!!$kioskNeed" data-text="$kioskNeed"></p>

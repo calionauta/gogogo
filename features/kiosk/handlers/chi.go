@@ -100,6 +100,7 @@ func (h *Handler) page(w http.ResponseWriter, r *http.Request) {
 		BuildCommit: h.cfg.BuildCommit,
 		Phrases:     phrasesJSON(),
 		MenuLine:    menuLine(),
+		Catalogue:   components.BuildCatalogue(),
 		Orders:      orderViews(rows),
 	}).Render(r.Context(), w)
 }

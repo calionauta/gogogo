@@ -399,3 +399,52 @@ func normalize(s string) string {
 func isWordRune(r rune) bool {
 	return r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '_'
 }
+
+// Choices is what the catalogue sends: the IDs a customer tapped. Empty means
+// "not chosen here", not "clear it" — the text may still have settled it.
+type Choices struct {
+	Drink  string
+	Size   string
+	Milks  []string
+	Extras []string
+}
+
+// ApplyChoices merges tapped IDs into a parsed order.
+//
+// An explicit tap WINS over what the text implied: the customer pointed at a
+// value, so a stale value from an earlier sentence must not survive. An empty
+// field is left alone — "did not tap" is not "clear it", and clearing would
+// delete what dictation already understood.
+//
+// Every ID is validated against the menu, so a hand-built form cannot inject one
+// the counter does not sell.
+func ApplyChoices(parsed ParseResult, c Choices) ParseResult {
+	if o, ok := LookupDrink(c.Drink); ok {
+		parsed.Order.Drink = o.ID
+	}
+	if s, ok := LookupSize(c.Size); ok {
+		parsed.Order.Size = s.ID
+	}
+	// One milk: the last valid tap is the choice, because the order model holds
+	// a single milk (see the Milks comment).
+	for _, id := range c.Milks {
+		if m, ok := LookupMilk(id); ok {
+			parsed.Order.Milk = m.ID
+		}
+	}
+	if len(c.Extras) > 0 {
+		next := make([]string, 0, len(c.Extras))
+		seen := map[string]bool{}
+		for _, id := range c.Extras {
+			e, ok := LookupExtra(id)
+			if !ok || seen[e.ID] {
+				continue
+			}
+			seen[e.ID] = true
+			next = append(next, e.ID)
+		}
+		parsed.Order.Extras = next
+	}
+	parsed.Missing = missingFields(parsed.Order)
+	return parsed
+}

@@ -21,5 +21,7 @@
   "corrected": "corrected",
   "stop": "Stop",
   "reset": "Start over",
-  "resetHint": "Clear the current order and start again"
+  "resetHint": "Clear the current order and start again",
+  "menu": "Menu",
+  "applyChoices": "Use these choices"
 }

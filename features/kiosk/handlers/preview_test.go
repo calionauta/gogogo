@@ -82,3 +82,47 @@ func TestPreviewDoesNotDecideOnEveryKeystroke(t *testing.T) {
 		t.Fatal("the handler decides unconditionally: every debounced keystroke would call the engine")
 	}
 }
+
+// TestTappedChoiceWinsOverText is the merge rule: the customer pointed at a
+// value, so a stale one from an earlier sentence must not survive.
+func TestTappedChoiceWinsOverText(t *testing.T) {
+	parsed := kiosk.Parse("large latte with whole milk")
+	got := kiosk.ApplyChoices(parsed, kiosk.Choices{Milks: []string{"oat"}})
+	if got.Order.Milk != "oat" {
+		t.Errorf("milk = %q, want the tapped oat", got.Order.Milk)
+	}
+	// The fields NOT tapped keep what the text said.
+	if got.Order.Drink != "latte" || got.Order.Size != "large" {
+		t.Errorf("an untouched field was lost: %+v", got.Order)
+	}
+}
+
+// TestEmptyChoiceDoesNotClear: "did not tap" is not "clear it".
+func TestEmptyChoiceDoesNotClear(t *testing.T) {
+	parsed := kiosk.Parse("large latte")
+	got := kiosk.ApplyChoices(parsed, kiosk.Choices{})
+	if got.Order.Drink != "latte" || got.Order.Size != "large" {
+		t.Errorf("an empty choice cleared the order: %+v", got.Order)
+	}
+}
+
+// TestOffMenuChoiceIsRefused: the catalogue is a form, and a form can be built
+// by hand, so an ID the counter does not sell is discarded.
+func TestOffMenuChoiceIsRefused(t *testing.T) {
+	got := kiosk.ApplyChoices(kiosk.Parse(""), kiosk.Choices{
+		Drink: "protein_shake", Size: "gigantic", Extras: []string{"gold_leaf"},
+	})
+	if got.Order.Drink != "" || got.Order.Size != "" || len(got.Order.Extras) != 0 {
+		t.Errorf("off-menu ids were accepted: %+v", got.Order)
+	}
+}
+
+// TestExtrasAccumulate covers the one multi-select field.
+func TestExtrasAccumulate(t *testing.T) {
+	got := kiosk.ApplyChoices(kiosk.Parse("large latte"), kiosk.Choices{
+		Extras: []string{"extra_shot", "cinnamon", "extra_shot"},
+	})
+	if len(got.Order.Extras) != 2 {
+		t.Fatalf("extras = %v, want two (the duplicate dropped)", got.Order.Extras)
+	}
+}
