@@ -36,8 +36,10 @@ async function ready() {
   return false;
 }
 
+// `/` is a redirect now (guest → /login, session → its home), so capturing it
+// would screenshot the login page under a second name. The public page is
+// /login; the rest is behind a session.
 const PAGES = [
-  ["landing", "/"],
   ["login", "/login"],
   ["todo", "/todo"],
   ["chat", "/chat"],

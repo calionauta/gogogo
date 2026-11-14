@@ -18,11 +18,11 @@ import (
 func newVersionedRecipeDir(t *testing.T, version string) string {
 	t.Helper()
 	dir := t.TempDir()
-	manifest := "id: pomodoro\nversion: " + version + "\n" +
+	manifest := "id: timer\nversion: " + version + "\n" +
 		"upstream:\n  repo: example.com/recipes\n  ref: " + version + "\n" +
-		"declaration:\n  routes:\n    - {method: GET, pattern: /pomodoro}\n"
+		"declaration:\n  routes:\n    - {method: GET, pattern: /timer}\n"
 	writeFile(t, filepath.Join(dir, recipeManifestFile), manifest)
-	writeFile(t, filepath.Join(dir, "features/pomodoro/handlers/chi.go"), recipeHandlerV1)
+	writeFile(t, filepath.Join(dir, "features/timer/handlers/chi.go"), recipeHandlerV1)
 	return dir
 }
 
@@ -30,15 +30,16 @@ func newVersionedRecipeDir(t *testing.T, version string) string {
 func writeCatalogEntry(t *testing.T, catalogDir, version string) {
 	t.Helper()
 	hash := recipe.Hash([]byte("catalog bytes"))
-	body := "id: pomodoro\nsummary: A pomodoro timer with one page.\nversion: " + version + "\n" +
+	body := "id: timer\nsummary: A timer with one page.\nversion: " + version + "\n" +
+		"author: {name: Test Author}\nreleased: \"2026-11-01\"\n" +
 		"source:\n  repo: example.com/recipes\n  ref: " + version + "\n" +
-		"files:\n  features/pomodoro/handlers/chi.go: sha256:" + hash + "\n" +
+		"files:\n  features/timer/handlers/chi.go: sha256:" + hash + "\n" +
 		"license: MIT\nminCore: v0.56.0\nupstreamDeps: []\n" +
 		"reviewedAt: \"2026-11-14\"\nreviewedBy: calionauta\nreviewedAgainst: 3f8a1c2\n"
-	writeFile(t, filepath.Join(catalogDir, "pomodoro", version+".yaml"), body)
+	writeFile(t, filepath.Join(catalogDir, "timer", version+".yaml"), body)
 }
 
-// installVersioned installs the versioned pomodoro into a fresh checkout.
+// installVersioned installs the versioned timer into a fresh checkout.
 func installVersioned(t *testing.T, version string) string {
 	t.Helper()
 	root := newRecipeCheckout(t)
@@ -51,7 +52,7 @@ func installVersioned(t *testing.T, version string) string {
 
 func TestRecipeInstallRecordsVersion(t *testing.T) {
 	root := installVersioned(t, "v1.2.0")
-	rec, lerr := recipe.LoadReceipt(root, "pomodoro")
+	rec, lerr := recipe.LoadReceipt(root, "timer")
 	if lerr != nil {
 		t.Fatalf("receipt: %v", lerr)
 	}
@@ -66,7 +67,7 @@ func TestRecipeInstallFromCatalogRecordsVersion(t *testing.T) {
 	if out, err := runRecipeCLI(t, "install", "--entry", entry, contents, "--dir", root, "--yes"); err != nil {
 		t.Fatalf("install: %v\n%s", err, out)
 	}
-	rec, lerr := recipe.LoadReceipt(root, "pomodoro")
+	rec, lerr := recipe.LoadReceipt(root, "timer")
 	if lerr != nil {
 		t.Fatalf("receipt: %v", lerr)
 	}
@@ -92,7 +93,7 @@ func TestRecipeOutdatedReportsBehindAndExits3(t *testing.T) {
 	if ExitCode(err) != 3 {
 		t.Fatalf("a behind verdict must exit 3, got %v\n%s", err, out)
 	}
-	for _, want := range []string{"pomodoro", "v1.2.0", "v1.3.0", "behind", "exit 3"} {
+	for _, want := range []string{"timer", "v1.2.0", "v1.3.0", "behind", "exit 3"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("output must contain %q:\n%s", want, out)
 		}
@@ -143,7 +144,7 @@ func TestRecipeOutdatedUnknownWithoutCatalog(t *testing.T) {
 func TestRecipeOutdatedUnknownInstalledVersion(t *testing.T) {
 	root := newRecipeCheckout(t)
 	src := newRecipeDir(t, "v1", map[string]string{
-		"features/pomodoro/handlers/chi.go": recipeHandlerV1,
+		"features/timer/handlers/chi.go": recipeHandlerV1,
 	})
 	if _, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes"); err != nil {
 		t.Fatal(err)
@@ -176,7 +177,7 @@ func TestRecipeOutdatedJSON(t *testing.T) {
 		t.Fatalf("unexpected report: %+v", rep)
 	}
 	row := rep.Results[0]
-	if row.ID != "pomodoro" || row.Installed != "v1.2.0" || row.Latest != "v1.3.0" || row.Status != "behind" {
+	if row.ID != "timer" || row.Installed != "v1.2.0" || row.Latest != "v1.3.0" || row.Status != "behind" {
 		t.Fatalf("unexpected row: %+v", row)
 	}
 	if row.MinCore != "v0.56.0" {
@@ -226,7 +227,7 @@ func TestRecipeDescribeShowsVersion(t *testing.T) {
 	}
 	found := false
 	for _, e := range exts {
-		if e.ID == "pomodoro" {
+		if e.ID == "timer" {
 			found = true
 			if e.Version != "v1.2.0" {
 				t.Fatalf("descriptor version = %q, want the receipt's", e.Version)
@@ -234,7 +235,7 @@ func TestRecipeDescribeShowsVersion(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Fatal("pomodoro descriptor not found")
+		t.Fatal("timer descriptor not found")
 	}
 }
 
@@ -242,9 +243,9 @@ func TestRecipeDescribeShowsVersion(t *testing.T) {
 // "latest" means: v1.10.0 outranks v1.2.0, which lexicographic order would miss.
 func TestLatestEntryPicksTheHighestSemver(t *testing.T) {
 	entries := []recipe.CatalogEntry{
-		{ID: "pomodoro", Version: "v1.2.0"},
-		{ID: "pomodoro", Version: "v1.10.0"},
-		{ID: "pomodoro", Version: "v1.3.0"},
+		{ID: "timer", Version: "v1.2.0"},
+		{ID: "timer", Version: "v1.10.0"},
+		{ID: "timer", Version: "v1.3.0"},
 	}
 	got, ok := latestEntry(entries)
 	if !ok || got.Version != "v1.10.0" {
@@ -260,11 +261,11 @@ func TestRecipeOutdatedOneID(t *testing.T) {
 	root := installVersioned(t, "v1.2.0")
 	writeCatalogEntry(t, filepath.Join(root, "catalog"), "v1.3.0")
 
-	out, err := runRecipeCLI(t, "outdated", "pomodoro", "--dir", root)
+	out, err := runRecipeCLI(t, "outdated", "timer", "--dir", root)
 	if ExitCode(err) != 3 {
 		t.Fatalf("one behind recipe must exit 3, got %v\n%s", err, out)
 	}
-	if strings.Count(out, "recipe pomodoro:") != 1 {
+	if strings.Count(out, "recipe timer:") != 1 {
 		t.Fatalf("a single id must render exactly one verdict line:\n%s", out)
 	}
 
@@ -278,12 +279,12 @@ func TestRecipeOutdatedOneID(t *testing.T) {
 // from status refuses as "recipe status:", never as the wrong command.
 func TestScanErrorNamesTheCallingCommand(t *testing.T) {
 	root := installVersioned(t, "v1.2.0")
-	catalog := filepath.Join(root, "catalog", "pomodoro")
+	catalog := filepath.Join(root, "catalog", "timer")
 	if err := os.MkdirAll(catalog, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(
-		filepath.Join(catalog, "v0.1.0.yaml"), []byte("id: pomodoro\nversion: v0.1.0\n"), 0o600); err != nil {
+		filepath.Join(catalog, "v0.1.0.yaml"), []byte("id: timer\nversion: v0.1.0\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -299,7 +300,7 @@ func TestScanErrorNamesTheCallingCommand(t *testing.T) {
 
 func TestRecipeInstallPreservesTheCatalogFiles(t *testing.T) {
 	root := installVersioned(t, "v1.2.0")
-	if _, err := os.Stat(filepath.Join(root, "features/pomodoro/handlers/chi.go")); err != nil {
+	if _, err := os.Stat(filepath.Join(root, "features/timer/handlers/chi.go")); err != nil {
 		t.Fatal("installed bytes missing — the version write must not eat the install")
 	}
 }

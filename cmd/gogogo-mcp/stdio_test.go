@@ -59,17 +59,17 @@ func TestStdioRoundTrip(t *testing.T) {
 	}
 
 	// Omitted handler-required fields must fail with the handler's
-	// friendly error, not a schema wall: trim_apply without confirm.
+	// friendly error, not a schema wall: scaffold_apply without confirm.
 	// (Tool failures surface as error content, not a Go error — assert there.)
 	res2, err := session.CallTool(ctx, &mcp.CallToolParams{
-		Name:      "trim_apply",
+		Name:      "scaffold_apply",
 		Arguments: map[string]any{"name": "x"},
 	})
 	if err != nil {
 		t.Fatalf("transport error, want tool-level refusal: %v", err)
 	}
 	if len(res2.Content) == 0 {
-		t.Fatal("empty trim_apply refusal")
+		t.Fatal("empty scaffold_apply refusal")
 	}
 	tc2, ok := res2.Content[0].(*mcp.TextContent)
 	if !ok || !strings.Contains(tc2.Text, "confirm:true") {

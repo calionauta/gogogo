@@ -25,7 +25,7 @@ func TestRecipeToolsRequireDirAndConfirm(t *testing.T) {
 			return err
 		}},
 		{"uninstall", func() error {
-			_, _, err := handleRecipeUninstall(context.Background(), nil, recipeArgs{ID: "pomodoro"})
+			_, _, err := handleRecipeUninstall(context.Background(), nil, recipeArgs{ID: "timer"})
 			return err
 		}},
 		{"status", func() error { _, _, err := handleRecipeStatus(context.Background(), nil, recipeArgs{}); return err }},
@@ -57,7 +57,7 @@ func TestRecipeToolsDryRunReachesTheEngine(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "cmd", "web", "main.go"), []byte("package main\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	const manifest = "id: pomodoro\ndeclaration:\n  routes:\n    - {method: GET, pattern: /pomodoro}\n"
+	const manifest = "id: timer\ndeclaration:\n  routes:\n    - {method: GET, pattern: /timer}\n"
 	if err := os.WriteFile(filepath.Join(root, ".recipe.yml"), []byte(manifest), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +67,7 @@ func TestRecipeToolsDryRunReachesTheEngine(t *testing.T) {
 	if err != nil {
 		t.Fatalf("handleRecipeInstall: %v", err)
 	}
-	if text := toolText(t, res); !strings.Contains(text, "pomodoro") {
+	if text := toolText(t, res); !strings.Contains(text, "timer") {
 		t.Errorf("plan does not name the recipe: %s", text)
 	}
 	if _, statErr := os.Stat(filepath.Join(root, "features")); !os.IsNotExist(statErr) {
@@ -134,17 +134,19 @@ func TestRecipeOutdatedVerdictIsNotAnError(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(dir, ".recipes"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, ".recipes", "pomodoro.yml"), []byte(
-		"id: pomodoro\nversion: v1.2.0\nupstream: {repo: example.com/recipes, ref: v1.2.0}\nfiles: {}\ndeclaration: {}\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".recipes", "timer.yml"), []byte(
+		"id: timer\nversion: v1.2.0\nupstream: {repo: example.com/recipes, ref: v1.2.0}\nfiles: {}\ndeclaration: {}\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	catalog := filepath.Join(dir, "catalog", "pomodoro")
+	catalog := filepath.Join(dir, "catalog", "timer")
 	if err := os.MkdirAll(catalog, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(catalog, "v1.3.0.yaml"), []byte(
-		"id: pomodoro\nsummary: A timer.\nversion: v1.3.0\nsource: {repo: example.com/recipes, ref: v1.3.0}\n"+
-			"files: {features/pomodoro/handlers/chi.go: sha256:"+strings.Repeat("a", 64)+"}\n"+
+		"id: timer\nsummary: A timer.\nversion: v1.3.0\n"+
+			"author: {name: Test Author}\nreleased: \"2026-11-01\"\n"+
+			"source: {repo: example.com/recipes, ref: v1.3.0}\n"+
+			"files: {features/timer/handlers/chi.go: sha256:"+strings.Repeat("a", 64)+"}\n"+
 			"license: MIT\nminCore: v0.56.0\nupstreamDeps: []\n"+
 			"reviewedAt: \"2026-11-14\"\nreviewedBy: calionauta\nreviewedAgainst: 3f8a1c2\n"), 0o600); err != nil {
 		t.Fatal(err)
@@ -220,8 +222,8 @@ func newRecipeCheckoutFixture(t *testing.T) string {
 		{"cmd/web/main.go", "package main\n"},
 		{"internal/installer/run.go", "package installer\n"},
 		{"go.mod", "module example.com/demo\n\ngo 1.27\n"},
-		{"features/pomodoro/handlers/chi.go", "package handlers\n"},
-		{"features/pomodoro/handlers/chi_test.go", "package handlers\n"},
+		{"features/timer/handlers/chi.go", "package handlers\n"},
+		{"features/timer/handlers/chi_test.go", "package handlers\n"},
 	} {
 		full := filepath.Join(dir, filepath.FromSlash(f.path))
 		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
@@ -234,11 +236,11 @@ func newRecipeCheckoutFixture(t *testing.T) string {
 	if err := os.MkdirAll(filepath.Join(dir, ".recipes"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	receipt := "id: pomodoro\nversion: v1.0.0\nupstream: {repo: example.com/recipes, ref: v1.0.0}\n" +
-		"files: {features/pomodoro/handlers/chi.go: sha256:" + strings.Repeat("a", 64) + "}\n" +
-		"register: features/pomodoro/handlers\n" +
-		"declaration:\n  routes:\n    - {method: GET, pattern: /pomodoro}\n"
-	if err := os.WriteFile(filepath.Join(dir, ".recipes", "pomodoro.yml"), []byte(receipt), 0o600); err != nil {
+	receipt := "id: timer\nversion: v1.0.0\nupstream: {repo: example.com/recipes, ref: v1.0.0}\n" +
+		"files: {features/timer/handlers/chi.go: sha256:" + strings.Repeat("a", 64) + "}\n" +
+		"register: features/timer/handlers\n" +
+		"declaration:\n  routes:\n    - {method: GET, pattern: /timer}\n"
+	if err := os.WriteFile(filepath.Join(dir, ".recipes", "timer.yml"), []byte(receipt), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	return dir
@@ -250,14 +252,14 @@ func newRecipeCheckoutFixture(t *testing.T) string {
 func TestRecipeCheckAnswersTheEvaluator(t *testing.T) {
 	dir := newRecipeCheckoutFixture(t)
 	res, _, err := handleRecipeCheck(context.Background(), nil, recipeCheckArgs{
-		ID: "pomodoro", Dir: dir, Format: "json",
+		ID: "timer", Dir: dir, Format: "json",
 	})
 	text := toolText(t, res)
 	if err != nil {
 		// A blocked recipe arrives as a failed call carrying the report.
 		text = err.Error()
 	}
-	if !strings.Contains(text, "pomodoro") {
+	if !strings.Contains(text, "timer") {
 		t.Errorf("recipe check must report the recipe it judged: %s", text)
 	}
 }
@@ -268,13 +270,13 @@ func TestRecipeCheckAnswersTheEvaluator(t *testing.T) {
 func TestRecipeTestDerivesTheScope(t *testing.T) {
 	dir := newRecipeCheckoutFixture(t)
 	res, _, err := handleRecipeTest(context.Background(), nil, recipeTestArgs{
-		ID: "pomodoro", Dir: dir, List: true,
+		ID: "timer", Dir: dir, List: true,
 	})
 	if err != nil {
 		t.Fatalf("recipe test --list: %v", err)
 	}
 	text := toolText(t, res)
-	if !strings.Contains(text, "./features/pomodoro/handlers") {
+	if !strings.Contains(text, "./features/timer/handlers") {
 		t.Errorf("derived scope missing from the plan: %s", text)
 	}
 	if !strings.Contains(text, "1 test file(s)") {

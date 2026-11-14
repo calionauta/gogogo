@@ -1,12 +1,12 @@
 # Search
 
-Search is a **plugin**, not a dependency: one `Searcher` seam, three layers you
+Search is a **servant**, not a dependency: one `Searcher` seam, three layers you
 can switch per request, and no external engine. The todo list is the reference
-consumer — `internal/search` is the plugin's half, `features/todo/handlers/`
+consumer — `internal/search` is the servant's half, `features/todo/handlers/`
 holds the consumer's half, and the two meet at a field name (`"title"`).
 
-Remove it with `trim search` and the app keeps working: the list falls back to
-the plain unfiltered view. See [Trim and degrade](#trim-and-degrade).
+Delete it (package + wiring call) and the app keeps working: the list falls
+back to the plain unfiltered view. See [Degrade when removed](#degrade-when-removed).
 
 ## Why no external engine
 
@@ -29,7 +29,7 @@ flag away rather than one service away.
 | `bm25` | relevance | Go scoring of `search_postings` in the same DB | one postings row per distinct term per mutation | BM25 | no (stemmed tokens) |
 
 **`substring` is the floor.** It costs nothing — no extra write, no scan in Go
-— and it is the layer that still answers when the plugin is trimmed or the
+— and it is the layer that still answers when the servant is removed or the
 smarter modes are off.
 
 **`fuzzy` is tiered, not scored.** The query is only as good as its weakest
@@ -80,7 +80,7 @@ not in that list is dropped, never resurrected — even if a stale posting
 outlived its row.
 
 An empty query returns the list untouched, so "no search" is exactly what the
-app rendered before the plugin existed.
+app rendered before the servant existed.
 
 ## The index, and the boot heal
 
@@ -101,9 +101,9 @@ and the postings carry the row's visibility so BM25 can include public rows
 without dropping the owner scope. A boot-time delete is a worse failure mode
 than a stale key.
 
-## Trim and degrade
+## Degrade when removed
 
-`trim search` removes `internal/search`, the consumer half
+Removing the servant means deleting `internal/search`, the consumer half
 (`features/todo/handlers/search_source.go`) and its tests, the wiring in
 `features/todo/handlers/register.go`, and the one composition-root call.
 
@@ -112,7 +112,7 @@ What stays, on purpose: the handler's search slice (`search.go`), the
 They hold stdlib-only interfaces and a bool, so the tree still compiles and the
 endpoint answers with the unfiltered list.
 
-A trimmed build shows no `Match` picker — one option would be noise.
+A build without the servant shows no `Match` picker — one option would be noise.
 
 ## Adding a fourth layer
 
@@ -126,7 +126,7 @@ with a raw name until `searchModeLabel` gives it a friendly one.
 
 ## Files
 
-- `internal/search/` — the plugin: `Searcher`, `New`, `NewAll`, `Modes`,
+- `internal/search/` — the servant: `Searcher`, `New`, `NewAll`, `Modes`,
   `Tokenize`, the three layers, the stemmer, the SQL index.
 - `features/todo/handlers/search*.go` — the consumer half: the source, the read
   path, the mode vocabulary, the heal, and the Register wiring.
@@ -136,7 +136,7 @@ with a raw name until `searchModeLabel` gives it a friendly one.
 
 - [Features](features.md) — the capability table and its runtime opt-outs.
 - [Configuration](configuration.md) — `SEARCH_MODE` and the runtime constants.
-- [Scope taxonomy](scope-taxonomy.md) — why the plugin half can be deleted and
-  the feature half cannot.
+- [Scope taxonomy](scope-taxonomy.md) — why the servant half can be deleted and
+  the consumer half cannot.
 - [Stack tradeoffs](stack-tradeoffs.md) — what an external search engine would
   have bought and cost.

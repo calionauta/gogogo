@@ -11,7 +11,7 @@
     nodes: [], edges: [],
     scale: 1, offX: 0, offY: 0,
     selected: null, hover: null,
-    filters: { core: true, plugin: true, feature: true },
+    filters: { core: true, servant: true, feature: true },
   };
 
   // Two live sources: system panorama (capabilities + receipts) and
@@ -25,14 +25,14 @@
         state.edges = doc.edges || [];
         // Radial deterministic layout: angle by index, radius by kind rank
         // so core in center, feature outer — prevents overlap.
-        const kinds = ['core','plugin','feature'];
-        const byKind = { core: [], plugin: [], feature: [] };
+        const kinds = ['core','servant','feature'];
+        const byKind = { core: [], servant: [], feature: [] };
         state.nodes.forEach((n) => {
           const k = kinds.includes(n.kind) ? n.kind : 'feature';
           (byKind[k] = byKind[k] || []).push(n);
         });
         const cx = 0, cy = 0;
-        const ringR = { core: 80, plugin: 140, feature: 200 };
+        const ringR = { core: 80, servant: 140, feature: 200 };
         Object.entries(byKind).forEach(([kind, list]) => {
           const r = ringR[kind] || 140;
           list.forEach((n, i) => {
@@ -81,7 +81,7 @@
       bg: dark ? '#1f2937' : '#ffffff',
       label: dark ? '#e5e7eb' : '#111827',
       edge: dark ? 'rgba(156,163,175,0.6)' : 'rgba(107,114,128,0.5)',
-      kind: { core: dark ? '#60a5fa' : '#2563eb', plugin: dark ? '#34d399' : '#059669', feature: dark ? '#f472b6' : '#db2777' }
+      kind: { core: dark ? '#60a5fa' : '#2563eb', servant: dark ? '#34d399' : '#059669', feature: dark ? '#f472b6' : '#db2777' }
     };
   }
 
@@ -156,7 +156,7 @@
       const el = document.getElementById('graph-detail');
       if (el) {
         if (n) {
-          const kind = n.kind === 'plugin' ? 'Servant' : (n.kind === 'feature' ? 'Recipe' : (n.kind || 'Node'));
+          const kind = n.kind === 'servant' ? 'Servant' : (n.kind === 'feature' ? 'Feature' : (n.kind === 'recipe' ? 'Recipe' : (n.kind || 'Node')));
           const meta = n.meta ? ' — ' + n.meta : (n.status ? ' — ' + n.status : '');
           // Link to the module page when the id maps to a known route (recipes).
           const routes = { todo: '/todo', notes: '/notes', whiteboard: '/whiteboard', chat: '/chat', inbox: '/notifications', room: '/room', review: '/review', dashboard: '/dashboard', config: '/config', graph: '/graph', landing: '/' };

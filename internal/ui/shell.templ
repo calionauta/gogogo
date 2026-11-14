@@ -75,6 +75,18 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 			<link rel="manifest" href={ resources.StaticURL("manifest.webmanifest") }/>
 			<link rel="icon" type="image/png" href={ resources.StaticURL("logo.png") }/>
 			<title>{ d.Title }</title>
+			// Rail width is a first-paint decision, so it is read from storage
+			// BEFORE the body is parsed: the attribute drives the desktop CSS and
+			// the body's script seeds $railOpen from the same value. Reading it in
+			// a body script (the old shape) painted the default width first and
+			// snapped afterwards — the flicker this attribute removes.
+			<script nonce={ templ.GetNonce(ctx) }>
+				(function () {
+					var compact = false;
+					try { compact = localStorage.getItem("railCompact") === "1"; } catch (e) { compact = false; }
+					document.documentElement.dataset.rail = compact ? "compact" : "expanded";
+				})();
+			</script>
 			@components.Assets()
 			@authviews.ThemeHead()
 			if head != nil {
@@ -141,7 +153,7 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 								title="Collapse or expand the sidebar"
 								data-class="{'is-collapsed': !$railOpen}"
 								data-attr:aria-expanded={ "$railOpen ? 'true' : 'false'" }
-								data-on:click="$railOpen = !$railOpen; localStorage.setItem('railCompact', $railOpen ? '0' : '1')">
+								data-on:click="$railOpen = !$railOpen; window.__gogogoSetRail($railOpen, true)">
 								// The drawer's own toggle glyph: a panel split by a divider,
 								// with a chevron that points at the edge the rail will move
 								// to. Both glyphs are in the markup and CSS shows the one
@@ -242,7 +254,7 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 					// open. Everything else about the compact rail is composition
 					// (brand column, centred rows, the popover) and lives in
 					// chrome.css, keyed off the same :checked.
-					<aside id="app-rail" class="app-rail is-drawer-close:w-18 is-drawer-open:w-60" aria-label="Modules">
+					<aside id="app-rail" class="app-rail" aria-label="Modules">
 						<div class="app-rail-brand">
 							<a href="/" class="app-rail-brand-link" aria-label="gogogo home">
 								<span class="app-rail-brand-word">gogogo</span>
@@ -294,12 +306,21 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 					// daisyUI's drawer and its is-drawer-open/is-drawer-close variants
 					// read :checked, not a signal.
 					//
-					// Desktop compact preference: the rail's width IS the checkbox
-					// state, so the stored choice is written before Datastar
-					// initialises (the seed goes into data-signals and is mirrored onto
-					// the input) — otherwise the first frame paints the wrong width.
-					// Below the drawer breakpoint nothing is restored: an offcanvas
-					// drawer open on load would cover the page it just opened.
+					// Desktop compact preference: the head script already put it on
+					// <html data-rail>, which is what the CSS paints from. Here the
+					// signal follows that attribute and the checkbox mirrors the
+					// signal, so one stored value drives all three. Below the drawer
+					// breakpoint nothing is restored: an offcanvas drawer open on
+					// load would cover the page it just opened.
+					// One writer for the rail preference: the attribute the CSS
+					// reads, the storage the next load reads, and (when asked) the
+					// signal the checkbox mirrors. Convention over a second state.
+					window.__gogogoSetRail = function (open, persist) {
+						document.documentElement.dataset.rail = open ? "expanded" : "compact";
+						if (persist) {
+							try { localStorage.setItem("railCompact", open ? "0" : "1"); } catch (e) { /* private mode */ }
+						}
+					};
 					var __gogogoShell = document.querySelector(".app-shell");
 					var __gogogoRailInput = document.getElementById("app-rail-toggle");
 					if (__gogogoShell && __gogogoRailInput && window.matchMedia("(min-width: 1024px)").matches) {
@@ -309,7 +330,8 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 						} catch (e) {
 							__gogogoSeed = {};
 						}
-						__gogogoSeed.railOpen = localStorage.getItem("railCompact") !== "1";
+						// The head script already decided; the signal follows it.
+						__gogogoSeed.railOpen = document.documentElement.dataset.rail !== "compact";
 						__gogogoShell.dataset.signals = JSON.stringify(__gogogoSeed);
 						// Attribute, never the .checked property: assigning the
 						// property sets the dirty-checkedness flag, after which no

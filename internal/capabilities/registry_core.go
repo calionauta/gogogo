@@ -4,10 +4,10 @@ package capabilities
 var coreExtraUnits = []Capability{
 	{
 		ID:      "desktopboot",
-		Kind:    KindPlugin,
+		Kind:    KindServant,
 		Summary: "shared native-shell boot (migrations, auth+TOTP, demo, instance-id, webview URL)",
 		Dirs:    []string{"internal/desktopboot"},
-		Note: "Plugin, not core: only cmd/desktop (Wails) and cmd/gui (gogpu/ui) " +
+		Note: "Servant, not core: only cmd/desktop (Wails) and cmd/gui (gogpu/ui) " +
 			"and future native shells read it — cmd/web boots through " +
 			"internal/server. Deleting it drops the shared boot, not the web app.",
 	},

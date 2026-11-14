@@ -218,7 +218,7 @@ a 403, never to an unauthorized write. Never gate a mutation on
   `r.Get/Post/...` in `features/*/handlers/chi.go` plus the core mounts in
   `internal/server/`, then demands a DIRECT `user` row per routed method.
   Reading source instead of importing handlers keeps this package free of
-  feature dependencies, so the check survives any trimmed tree (the
+  feature dependencies, so the check survives a tree that removed units (the
   installer drops whole features) with no manifest line. This replaced the
   hand-written path list that let a realtime probe ship unguarded.
 - **Anonymous access** (`TestNotesRejectsAnonymousAccess`,
@@ -320,7 +320,7 @@ a substitute for one. Two rules follow:
   turning RBAC off must not hand them to every signed-in account. The policy
   rows stay as the second layer.
 - **An `anonymous` row is a deliberate publication.** Add one only for a
-  surface that is safe with no session at all (the landing page, assets,
+  surface that is safe with no session at all (the login page, `/` which redirects, assets,
   `/health`, the SSE open probe). A wildcard that happens to include a
   private route is how a surface goes public by accident.
 

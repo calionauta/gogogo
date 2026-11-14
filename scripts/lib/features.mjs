@@ -32,11 +32,10 @@ import { fileURLToPath } from "node:url";
 // directory — CI runs the suites from the root, a developer may not.
 export const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
-// featurePresent reports whether a unit's slice is in this tree. A recipe
-// installed under _recipes/ counts too: it is the same feature, and a tree
-// that carries it can serve the page the suite drives.
+// featurePresent reports whether a unit's slice is in this tree. An installed
+// recipe copies into `features/<id>` too, so one check answers both.
 export function featurePresent(root, id) {
-  return existsSync(join(root, "features", id)) || existsSync(join(root, "_recipes", id));
+  return existsSync(join(root, "features", id));
 }
 
 // routeOwner maps a page route to the unit that mounts it. `login` is the auth

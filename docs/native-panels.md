@@ -100,7 +100,7 @@ The panel's rows carry the page's real actions:
 - [ ] `Writable` lists only model props; `Fill` is owner-scoped and maps the page model.
 - [ ] Ids and pending-row signals are server-minted and scoped per instance.
 - [ ] Tests: live wire round-trip (`rows` arriving as `[]any`), reload re-fill, native row markup, dialog scoping.
-- [ ] Port path: the panel files are in the genui built-in unit; every panel branch in a shared handler sits inside `// trim-genui:panel:start/end` and has a wiring rule in `internal/installer/builtin_genui.go`.
+- [ ] Port path: the panel files are in the genui built-in unit; every panel branch in a shared handler sits inside `// trim-genui:panel:start/end` and has a wiring rule in `internal/installer/builtin_genui.go` (the marker vocabulary the export bundle reads).
 
 Reference: `features/todo/handlers/genui_panel.go`,
 `features/todo/components/panel.templ`, `features/todo/handlers/panel_action.go`.

@@ -115,19 +115,19 @@ func renderRegistrySummary(b *strings.Builder, units []Capability) {
 		}
 	}
 	fmt.Fprintf(b, "## Registry at a glance\n\n")
-	fmt.Fprintf(b, "- **Units:** %d — %d core · %d plugin · %d feature\n",
-		len(units), counts[KindCore], counts[KindPlugin], counts[KindFeature])
+	fmt.Fprintf(b, "- **Units:** %d — %d core · %d servant · %d feature\n",
+		len(units), counts[KindCore], counts[KindServant], counts[KindFeature])
 	fmt.Fprintf(b, "- **Manual removal:** %d (core units are never removed)\n", manual)
 	b.WriteString("- **Source of truth:** `internal/capabilities/registry.go`; this doc is\n")
 	b.WriteString("  regenerated from it, so the counts above cannot drift.\n\n")
 }
 
-// contractKindRank orders cards core → plugin → feature.
+// contractKindRank orders cards core → servant → feature.
 func contractKindRank(k Kind) int {
 	switch k {
 	case KindCore:
 		return 0
-	case KindPlugin:
+	case KindServant:
 		return 1
 	default:
 		return 2

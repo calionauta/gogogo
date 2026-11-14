@@ -26,6 +26,8 @@ const (
 type recipeDescriptor struct {
 	ID               string              `json:"id"`
 	Version          string              `json:"version,omitempty"`
+	Author           recipe.Author       `json:"author,omitzero"`
+	Released         string              `json:"released,omitempty"`
 	Kind             string              `json:"kind"`
 	Summary          string              `json:"summary"`
 	Origin           string              `json:"origin"`
@@ -96,6 +98,8 @@ func descriptorState(installed, removed bool, origin string) string {
 
 func applyReceiptSurface(desc *recipeDescriptor, r recipe.Receipt) {
 	desc.Version = r.Version
+	desc.Author = r.Author
+	desc.Released = r.Released
 	desc.Tables = append([]string(nil), r.Declaration.Tables...)
 	desc.Jobs = append([]string(nil), r.Declaration.Jobs...)
 	desc.Slots = append([]string(nil), r.Declaration.Slots...)
@@ -336,6 +340,22 @@ func printInstrumentation(stdout io.Writer, e recipeDescriptor) {
 
 // printDescribe renders one descriptor as text. Extracted so
 // runRecipeDescribe stays under the complexity gate and the nestif gate.
+// printCredit is the provenance half of describe: who wrote the slice and when
+// the version shipped. Split out because describe is already at the complexity
+// gate, and because discovery's other forms may want the same two lines.
+func printCredit(stdout io.Writer, e recipeDescriptor) {
+	if e.Author.Name != "" {
+		credit := e.Author.Name
+		if e.Author.Email != "" {
+			credit += " <" + e.Author.Email + ">"
+		}
+		fmt.Fprintf(stdout, "  author: %s\n", credit)
+	}
+	if e.Released != "" {
+		fmt.Fprintf(stdout, "  released: %s\n", e.Released)
+	}
+}
+
 func printDescribe(stdout io.Writer, e recipeDescriptor) {
 	fmt.Fprintf(stdout, "%s\n  kind: %s\n  origin: %s\n  state: %s\n",
 		e.ID, e.Kind, e.Origin, e.State)
@@ -343,6 +363,7 @@ func printDescribe(stdout io.Writer, e recipeDescriptor) {
 	if e.Version != "" {
 		fmt.Fprintf(stdout, "  version: %s\n", e.Version)
 	}
+	printCredit(stdout, e)
 	if e.Register != "" {
 		fmt.Fprintf(stdout, "  register: %s\n", e.Register)
 	}

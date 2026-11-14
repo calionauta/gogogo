@@ -34,7 +34,7 @@ import (
 const recipePolicyFile = "internal/rbac/casbin/policy.csv"
 
 // The markers bound one recipe's block. They are matched as whole trimmed lines,
-// so `pomodoro` can never read `pomodoro-lab`'s block.
+// so recipe `timer` can never read `timer-lab`'s block.
 const (
 	recipePolicyBegin = "# recipe:"
 	recipePolicyEnd   = "# end recipe:"

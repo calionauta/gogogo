@@ -166,7 +166,7 @@ live in `.templ` markup rather than Go:
   `ThemeRootAttrs` supplies `data-signals` + `data-attr:data-theme` +
   `data-class:dark` + `data-theme-dark` (the dark-palette list the pre-paint
   bootstrap and `theme.js` read). The copy-per-page form is what diverged:
-  `/config`, `/room` and the landing page once shipped a toggle with none of
+  `/config` and `/room` once shipped a toggle with none of
   the bindings, and it silently did nothing. `features/authviews/theme_test.go`
   scans every template that owns `<html>` and fails on one that forgets.
 - **Icons are inline SVG (`internal/icon.Icon`), not a web component.** There
@@ -271,7 +271,7 @@ layers divide the job:
 The split in the Descent page follows the code: `daisyui-lint` guards the
 DaisyUI vocabulary every page shares, owned by the `shell` core unit (the theme
 catalog and the asset block) and consumed by every feature. `datastar-lint`
-guards the Datastar attributes in `.templ`; the `datastar` plugin unit
+guards the Datastar attributes in `.templ`; the `datastar` servant unit
 (`internal/datastar`) is the Go seam those pages render through, not the lint
 target. Details: [UI shell](ui-shell.md#the-same-rules-travel-daisyui-lint) and
 [UI themes](ui-themes.md).

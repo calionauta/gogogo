@@ -40,13 +40,20 @@ func TestManifestUnitsCoverTheRegistry(t *testing.T) {
 			}
 		}
 	}
-	p := buildPlan("x", "y", ".", true)
-	if len(p.Drop) != 0 {
-		t.Errorf("plan drops %v, want nothing", p.Drop)
+	p := buildPlan("x", "y", ".", "", true)
+	if len(p.Keep) != len(capabilities.All) {
+		t.Errorf("plan keeps %d units, want all %d", len(p.Keep), len(capabilities.All))
 	}
 	var b strings.Builder
 	printPlanText(&b, p)
-	if !strings.Contains(b.String(), "removal:        none (full template)") {
-		t.Errorf("plan text must say the trim is gone:\n%s", b.String())
+	if !strings.Contains(b.String(), "removal:        none (full template") {
+		t.Errorf("plan text must say nothing is removed:\n%s", b.String())
+	}
+	// The text groups by the same three kind words the JSON carries, so a
+	// reader cannot see one vocabulary in the plan and another in the registry.
+	for _, kind := range []capabilities.Kind{capabilities.KindCore, capabilities.KindServant, capabilities.KindFeature} {
+		if !strings.Contains(b.String(), string(kind)+": ") {
+			t.Errorf("plan text is missing the %q group:\n%s", kind, b.String())
+		}
 	}
 }

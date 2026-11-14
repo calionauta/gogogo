@@ -132,7 +132,7 @@ func TestDashboardRendersSummaryAndCards(t *testing.T) {
 	cookie := f.signup(t, "dash@example.com")
 	slots := recipe.NewSlotRegistry()
 	if err := slots.Add(recipe.Contribution{Fragments: map[recipe.SlotID]recipe.Fragment{
-		recipe.SlotDashboardCard: {Title: "Pomodoro", Render: func() string { return "<p>focus</p>" }},
+		recipe.SlotDashboardCard: {Title: "Timer", Render: func() string { return "<p>focus</p>" }},
 	}}); err != nil {
 		t.Fatalf("add card: %v", err)
 	}
@@ -161,7 +161,7 @@ func TestDashboardRendersSummaryAndCards(t *testing.T) {
 	body := rec.Body.String()
 	for _, want := range []string{
 		"Welcome back", "Todo", "Inbox", "Open", "Unread",
-		"Pomodoro", "focus", `data-slot="dashboard.card"`,
+		"Timer", "focus", `data-slot="dashboard.card"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("body missing %q", want)

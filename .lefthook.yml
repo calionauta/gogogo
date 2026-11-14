@@ -77,6 +77,13 @@ pre-commit:
       run: go run ./cmd/check-flatdeps
       glob: "{go.mod,internal/**,features/**}"
 
+    # The "not a framework" tripwire: a cmd/web import of the evolution tools
+    # (or an installer import of the server) would survive the build and only
+    # break when someone deletes cmd/gogogo. Source-level, milliseconds.
+    - name: product-boundary
+      run: go run ./cmd/check-product-boundary -dir .
+      glob: "{go.mod,cmd/**,internal/**,features/**}"
+
     # The app-shape record and the slice cards are the two written contracts a
     # change silently outgrows: a route added to a feature, a unit dropped by a
     # shape. Milliseconds, and they fire only when the record, a card or a Go
@@ -253,6 +260,11 @@ pre-push:
       run: bin/check-govulncheck.sh
     - name: deadcode
       run: bin/check-deadcode.sh
+    # The operator's click is a judgment no gate replaces, so it is the one
+    # gate that refuses to push without evidence of it. No-op on a diff with
+    # no page/CSS change (bin/check-operator-look.sh decides).
+    - name: operator-look
+      run: bin/check-operator-look.sh
 
 post-merge:
   jobs:

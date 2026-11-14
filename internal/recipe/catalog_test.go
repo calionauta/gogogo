@@ -10,41 +10,43 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// validCatalogEntry is the baseline every rule test mutates: a reviewed pomodoro
+// validCatalogEntry is the baseline every rule test mutates: a reviewed timer
 // version with one file, one route, one table, one job and one slot.
 func validCatalogEntry() CatalogEntry {
 	deps := []string{"google.golang.org/genai"}
 	return CatalogEntry{
-		ID:        "pomodoro",
-		Summary:   "A pomodoro timer with one page and one session table.",
+		ID:        "timer",
+		Summary:   "A timer with one page and one session table.",
 		Version:   "v1.2.0",
-		Source:    Upstream{Repo: "github.com/calionauta/gogogo", Ref: "v0.56.0", Path: "features/pomodoro"},
-		Files:     map[string]string{"features/pomodoro/handlers/chi.go": strings.Repeat("a", 64)},
+		Author:    Author{Name: "Test Author", Email: "author@example.com"},
+		Released:  "2026-11-01",
+		Source:    Upstream{Repo: "github.com/calionauta/gogogo", Ref: "v0.56.0", Path: "features/timer"},
+		Files:     map[string]string{"features/timer/handlers/chi.go": strings.Repeat("a", 64)},
 		License:   "MIT",
 		MinCore:   "v0.56.0",
 		WorksWith: []string{"core", "core+todo"},
 		Slots:     []string{"settings.section", "nav.sidebar"},
 		Routes: []Route{
-			{Method: "GET", Pattern: "/pomodoro"},
-			{Method: "POST", Pattern: "/api/pomodoro/start"},
+			{Method: "GET", Pattern: "/timer"},
+			{Method: "POST", Pattern: "/api/timer/start"},
 		},
 		Actions: []InvokeAction{{
 			Verb:        "start",
-			Description: "Start a pomodoro session.",
-			Route:       Route{Method: "POST", Pattern: "/api/pomodoro/start"},
+			Description: "Start a timer session.",
+			Route:       Route{Method: "POST", Pattern: "/api/timer/start"},
 			Params:      []string{"secs"},
 			ParamHelp:   map[string]string{"secs": "Seconds to run."},
 		}},
 		Metrics: []Metric{{
-			Label: "Sessions", Query: "SELECT COUNT(*) FROM ext_pomodoro_session WHERE owner = ?",
+			Label: "Sessions", Query: "SELECT COUNT(*) FROM ext_timer_session WHERE owner = ?",
 		}},
 		Panel: &PanelSpec{
-			Component: "pomodoro_list",
-			Prompt:    "pomodoro_list {scope: all|mine} whenever the user asks",
+			Component: "timer_list",
+			Prompt:    "timer_list {scope: all|mine} whenever the user asks",
 			Writable:  []string{"scope"},
 		},
-		Tables:          []string{"ext_pomodoro_session"},
-		Jobs:            []string{"ext:pomodoro:tick"},
+		Tables:          []string{"ext_timer_session"},
+		Jobs:            []string{"ext:timer:tick"},
 		UpstreamDeps:    &deps,
 		ReviewedAt:      "2026-11-14",
 		ReviewedBy:      "calionauta",
@@ -66,13 +68,13 @@ func TestCatalogEntryRules(t *testing.T) {
 		mutate func(*CatalogEntry)
 		want   string
 	}{
-		{"id not lower-case", func(e *CatalogEntry) { e.ID = "Pomodoro" }, "must be lower-case"},
+		{"id not lower-case", func(e *CatalogEntry) { e.ID = "Timer" }, "must be lower-case"},
 		{"version not semver", func(e *CatalogEntry) { e.Version = "1.2" }, "must be vMAJOR.MINOR.PATCH"},
 		{"no repo", func(e *CatalogEntry) { e.Source.Repo = "" }, "source.repo is empty"},
 		{"no ref", func(e *CatalogEntry) { e.Source.Ref = "" }, "source.ref is empty"},
 		{"no files", func(e *CatalogEntry) { e.Files = nil }, "files is empty"},
 		{"bad hash", func(e *CatalogEntry) {
-			e.Files["features/pomodoro/handlers/chi.go"] = "deadbeef"
+			e.Files["features/timer/handlers/chi.go"] = "deadbeef"
 		}, "not a sha256 digest"},
 		{"unsafe path", func(e *CatalogEntry) { e.Files["../escape.go"] = strings.Repeat("a", 64) }, "clean repo-relative"},
 		{"no license", func(e *CatalogEntry) { e.License = "" }, "license is required"},
@@ -81,9 +83,9 @@ func TestCatalogEntryRules(t *testing.T) {
 		{"no review", func(e *CatalogEntry) { e.ReviewedBy = "" }, "reviewedAt, reviewedBy and reviewedAgainst"},
 		{"core table", func(e *CatalogEntry) { e.Tables = []string{"todos"} }, "is a core table"},
 		{"unprefixed table", func(e *CatalogEntry) {
-			e.Tables = []string{"pomodoro_session"}
-		}, "must be prefixed ext_pomodoro"},
-		{"unprefixed job", func(e *CatalogEntry) { e.Jobs = []string{"tick"} }, "must be prefixed ext:pomodoro"},
+			e.Tables = []string{"timer_session"}
+		}, "must be prefixed ext_timer"},
+		{"unprefixed job", func(e *CatalogEntry) { e.Jobs = []string{"tick"} }, "must be prefixed ext:timer"},
 		{"unknown slot", func(e *CatalogEntry) { e.Slots = []string{"footer"} }, "not offered by this build"},
 		// The review-side half of the no-host rule no longer has a case in
 		// this build: every shaped slot has a host page now (dashboard.card
@@ -100,9 +102,9 @@ func TestCatalogEntryRules(t *testing.T) {
 			e.Actions[0].ParamHelp["ghost"] = "not accepted"
 		}, "documents param \"ghost\""},
 		{"non-count metric", func(e *CatalogEntry) {
-			e.Metrics = []Metric{{Label: "Sessions", Query: "SELECT id FROM ext_pomodoro_session"}}
+			e.Metrics = []Metric{{Label: "Sessions", Query: "SELECT id FROM ext_timer_session"}}
 		}, "must select count"},
-		{"bad panel name", func(e *CatalogEntry) { e.Panel.Component = "PomodoroList" }, "must be snake_case"},
+		{"bad panel name", func(e *CatalogEntry) { e.Panel.Component = "TimerList" }, "must be snake_case"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -145,11 +147,11 @@ func TestScanCatalogGroupsEntriesByID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("scan: %v", err)
 	}
-	if len(got["pomodoro"]) != 2 {
-		t.Fatalf("want 2 pomodoro entries, got %+v", got)
+	if len(got["timer"]) != 2 {
+		t.Fatalf("want 2 timer entries, got %+v", got)
 	}
 	found := map[string]bool{}
-	for _, e := range got["pomodoro"] {
+	for _, e := range got["timer"] {
 		found[e.Version] = true
 	}
 	if !found["v1.2.0"] || !found["v1.10.0"] {
@@ -173,11 +175,11 @@ func TestScanCatalogMissingDirIsEmptyNoError(t *testing.T) {
 // fails at scan time, with the file named.
 func TestScanCatalogRejectsAnInvalidEntry(t *testing.T) {
 	dir := t.TempDir()
-	file := filepath.Join(dir, "pomodoro", "v1.0.0.yaml")
+	file := filepath.Join(dir, "timer", "v1.0.0.yaml")
 	if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(file, []byte("id: pomodoro\nversion: v1.0.0\n"), 0o600); err != nil {
+	if err := os.WriteFile(file, []byte("id: timer\nversion: v1.0.0\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := ScanCatalog(dir); err == nil || !strings.Contains(err.Error(), "v1.0.0.yaml") {
@@ -193,14 +195,14 @@ func TestScanCatalogRejectsAnIDMismatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	file := filepath.Join(dir, "timer", "v1.2.0.yaml")
+	file := filepath.Join(dir, "other", "v1.2.0.yaml")
 	if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(file, raw, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ScanCatalog(dir); err == nil || !strings.Contains(err.Error(), "timer") {
+	if _, err := ScanCatalog(dir); err == nil || !strings.Contains(err.Error(), "other") {
 		t.Fatalf("an entry under the wrong id directory must fail, got %v", err)
 	}
 }
@@ -226,36 +228,38 @@ func writeCatalogEntryFile(t *testing.T, dir string, e CatalogEntry) {
 func TestCatalogEntryRoundTripsThroughYAML(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "entry.yml")
-	body := `id: pomodoro
-summary: A pomodoro timer with one page and one session table.
+	body := `id: timer
+summary: A timer with one page and one session table.
 version: v1.2.0
+author: {name: Test Author, email: author@example.com}
+released: "2026-11-01"
 source:
   repo: github.com/calionauta/gogogo
   ref: v0.56.0
-  path: features/pomodoro
+  path: features/timer
 files:
-  features/pomodoro/handlers/chi.go: sha256:` + strings.Repeat("a", 64) + `
+  features/timer/handlers/chi.go: sha256:` + strings.Repeat("a", 64) + `
 license: MIT
 minCore: v0.56.0
 worksWith: [core, core+todo]
 slots: [settings.section]
 routes:
-  - {method: GET, pattern: /pomodoro}
-  - {method: POST, pattern: /api/pomodoro/start}
+  - {method: GET, pattern: /timer}
+  - {method: POST, pattern: /api/timer/start}
 actions:
   - verb: start
-    description: Start a pomodoro session.
-    route: {method: POST, pattern: /api/pomodoro/start}
+    description: Start a timer session.
+    route: {method: POST, pattern: /api/timer/start}
     params: [secs]
     paramHelp: {secs: Seconds to run.}
 metrics:
-  - {label: Sessions, query: "SELECT COUNT(*) FROM ext_pomodoro_session WHERE owner = ?"}
+  - {label: Sessions, query: "SELECT COUNT(*) FROM ext_timer_session WHERE owner = ?"}
 panel:
-  component: pomodoro_list
-  prompt: "pomodoro_list {scope: all|mine} whenever the user asks"
+  component: timer_list
+  prompt: "timer_list {scope: all|mine} whenever the user asks"
   writable: [scope]
-tables: [ext_pomodoro_session]
-jobs: [ext:pomodoro:tick]
+tables: [ext_timer_session]
+jobs: [ext:timer:tick]
 upstreamDeps: []
 reviewedAt: "2026-11-14"
 reviewedBy: calionauta
@@ -268,7 +272,7 @@ reviewedAgainst: 3f8a1c2
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
-	if e.ID != "pomodoro" || e.Version != "v1.2.0" || len(e.Files) != 1 {
+	if e.ID != "timer" || e.Version != "v1.2.0" || len(e.Files) != 1 {
 		t.Fatalf("round trip lost fields: %+v", e)
 	}
 	if len(e.Actions) != 1 || e.Actions[0].Description == "" || e.Actions[0].ParamHelp["secs"] == "" {
@@ -287,7 +291,7 @@ reviewedAgainst: 3f8a1c2
 func TestCatalogEntryRejectsAnInvalidFile(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "entry.yml")
-	if err := os.WriteFile(file, []byte("id: pomodoro\nversion: v1.0.0\n"), 0o600); err != nil {
+	if err := os.WriteFile(file, []byte("id: timer\nversion: v1.0.0\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := LoadCatalogEntry(file); err == nil || !strings.Contains(err.Error(), "invalid catalog entry") {

@@ -1,0 +1,31 @@
+# Bundled recipes that are NOT in the catalog, with the reason.
+#
+# The catalog is the reviewed, installable set. Templates ship more slices than
+# they publish: a demo that is part of the tree but was never prepared as a
+# standalone install (no version, no license review, no pinned upstream) is not
+# a catalog entry, and pretending otherwise would be a claim nobody reviewed.
+#
+# One entry per id, each with a reason. A bundled recipe that is in neither
+# catalog/<id>/ nor this list fails a test — so "not published" is a decision
+# somebody wrote down, never an omission.
+recipes:
+  - id: account
+    why: "Session/security page tied to this app's auth; not portable as-is."
+  - id: chat
+    why: "Bundled with genui; the conversation slice is a demo, not a standalone install."
+  - id: credits
+    why: "Ledger is wired to this template's Biller and the ai-credits library."
+  - id: dashboard
+    why: "Host by role: it exists to host dashboard.card, not to be installed elsewhere."
+  - id: kiosk
+    why: "Instrumented demo; the worked outcome example, not a published recipe."
+  - id: notes
+    why: "Shares the collab transport with whiteboard; the bundle would need both."
+  - id: notifications
+    why: "Delivery is wired to this app's DagNats workflow engine."
+  - id: review
+    why: "Genkit flows depend on this template's llm.Client and billing hook."
+  - id: room
+    why: "GoAkt actor demo; the engine is a servant of this tree."
+  - id: whiteboard
+    why: "Shares the collab transport with notes; the bundle would need both."

@@ -13,6 +13,12 @@ code the moment it is written.
 That single fact decides everything below. Read this before creating a recipe, before
 editing a recipe's copied code, and before declaring anything in a receipt.
 
+**Two axes, two words.** A recipe answers *how code is distributed and owned*. It never
+answers *what disappears if this is deleted* — that is the removal class, `Kind`
+(`core`/`servant`/`feature`), owned by `internal/capabilities`. A recipe can ship a
+`feature` (the normal case) and a `servant` never ships as one. The boundary and the
+single name per level: [`docs/scope-taxonomy.md`](../../docs/scope-taxonomy.md).
+
 ## When to Use
 
 Activate when: adding a feature to a gogogo project, installing or editing a recipe,
@@ -47,10 +53,10 @@ Check in this order, and stop at the first hit:
    a receipt you can update.
 2. **The reference slice** — `features/todo` is the living in-tree example every recipe
    is derived from: handler shape, page shape, signals, policy rows, the receipt.
-   Copy it rather than inventing a structure. (`_recipes/pomodoro` is the worked
-   out-of-tree example — a minimal installable recipe with one table, one migration,
-   one page, one write and one sidebar entry — but it is **not** installed by default
-   and is not a substitute for reading the `todo` slice.)
+   Copy it rather than inventing a structure. (`features/kiosk` is the worked
+   instrumentation example — one table, one page, one declared outcome — and a
+   bundle (a directory with `.recipe.yml`) is what you point `recipe install` at when
+   the code must travel to ANOTHER tree; the template ships none.)
 3. **The scaffold** — `go run ./cmd/gogogo new feature <name>` writes a handler, a page,
    the wiring, the capability entry, the policy rows, then proves the build. Use it as the
    starting point; a hand-rolled slice will miss a gate.
@@ -118,11 +124,19 @@ Keep the declaration in step with the code. A declared route the code does not r
 a drift **failure**, not a warning: it ships a nav entry that leads nowhere. A declared job
 the code does not register burns CPU forever.
 
-### Outcomes: the job, as two counts
+### Metrics and outcomes: a count, and the job as two counts
 
-A metric says how much happened. An outcome says whether the job got done, for
-whom, and how often it went wrong — declared as a **pair of counts** over a table
-the recipe already owns:
+A **metric** is one `COUNT(*)` over a table the recipe owns — no denominator, no
+claim:
+
+```yaml
+metrics:
+  - label: Orders confirmed
+    query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ?"
+```
+
+An **outcome** says whether the job got done, for whom, and how often it went
+wrong — declared as a **pair of counts** over the same kind of table:
 
 ```yaml
 outcomes:
@@ -146,8 +160,12 @@ pitfalls, the questions to ask the operator, the tests, non-goals):
   drift from the rows. One signal; two means two outcomes.
 - **Zero denominator is "no data"**, rendered `—`; never manufacture a `1`.
 
+A metric has one rule of its own: it must also be `COUNT(*)` over a declared
+table. It is the cheaper of the two — declare one when the surface shows a
+number, an outcome when it shows a ratio.
+
 Read `references/outcomes.md` (relative to this skill) before declaring or
-changing one.
+changing either.
 
 ### The chat panel is yours; the shared catalog is not
 
@@ -257,29 +275,37 @@ An installable recipe directory carries a manifest beside the tree it copies:
 ```yaml
 # .recipe.yml — the installable half. The receipt (.recipes/<id>.yml) is
 # written by the installer; this file is what you author.
-id: pomodoro
-summary: A pomodoro timer with one page and one owner-scoped session table.
+id: timer
+summary: A timer with one page and one owner-scoped session table.
 version: v1.0.0
+author: {name: Your Name, email: you@example.com}   # credit travels with the copy
+released: "2026-11-13"                              # the date this version shipped
 upstream:
   repo: github.com/calionauta/gogogo
   ref: v0.56.0
 module: github.com/calionauta/gogogo
-register: features/pomodoro/handlers
+register: features/timer/handlers
 declaration:
   routes:
-    - {method: GET, pattern: /pomodoro}
-    - {method: POST, pattern: /api/pomodoro/start}
-  tables: [ext_pomodoro_session]
+    - {method: GET, pattern: /timer}
+    - {method: POST, pattern: /api/timer/start}
+  tables: [ext_timer_session]
   actions:
     - verb: start
-      description: Start a pomodoro session for the calling owner.
-      route: {method: POST, pattern: /api/pomodoro/start}
+      description: Start a timer session for the calling owner.
+      route: {method: POST, pattern: /api/timer/start}
       params: [secs]
       paramHelp:
         secs: Seconds to run; omit for the default.
 ```
 
-`summary` is what `recipe list` / `recipe_describe` show; without it an
+`author` is whose work this is — it survives the copy, so a reader of the
+installed slice can credit and contact the author. `released` dates the version
+and is recorded by the CATALOG review (a bundled recipe has no separate release
+date: its release is the template's); on install it is copied into the receipt,
+so "which release is installed?" is answerable without a changelog. A catalog
+entry requires `author.name` and `released`; a local manifest may omit them
+while drafting. `summary` is what `recipe list` / `recipe_describe` show; without it an
 installed recipe falls back to the upstream repo path. `go run ./cmd/gogogo
 new feature <name>` writes both the summary and one described action, so a
 scaffold starts with a complete discovery surface; replace the scaffolded
@@ -361,14 +387,14 @@ Three rules make that useful rather than decorative:
    the other account's view. "It called the function" is the failure mode both gates
    cannot see, and the one reviewers read as coverage.
 
-The shape to copy is `_recipes/pomodoro/features/pomodoro/handlers/recipe_test.go`:
+The shape to copy is `features/kiosk/handlers/recipe_test.go`:
 declaration vs mounted routes in both directions, the write asserted at the wire, owner
 scoping asserted from a second account, and the session check pinned from an anonymous
 request. Run them without guessing paths:
 
 ```bash
-make test-recipe R=pomodoro                 # package scope derived from the receipt
-go run ./cmd/gogogo recipe test pomodoro --race=false --run OwnerScoped
+make test-recipe R=timer                 # package scope derived from the receipt
+go run ./cmd/gogogo recipe test timer --race=false --run OwnerScoped
 ```
 
 **Why no `tests:` field in the declaration.** The declaration is the append-only half the
@@ -418,15 +444,15 @@ Say so rather than bending it. Three cases where it genuinely does not:
 
 ### Example 1: Scaffold a new recipe
 
-**Input:** "Add a pomodoro timer recipe."
+**Input:** "Add a timer timer recipe."
 
 **Steps:**
-1. Run `gogogo new feature pomodoro` — writes handler, page, wiring, capability row, RBAC rows, proves the build.
+1. Run `gogogo new feature timer` — writes handler, page, wiring, capability row, RBAC rows, proves the build.
 2. Declare `metrics` (COUNT) and `panel` (PanelSpec) if the recipe has a list slice; add
    `genui_panel.go` on `comp.SlicePanel` (the scaffold emits the skeleton).
-3. Run `gogogo recipe check pomodoro --format json` — fix errors before boot.
+3. Run `gogogo recipe check timer --format json` — fix errors before boot.
 
-**Output:** "pomodoro installed with dashboard metric + chat panel; recipe check healthy (score 100)."
+**Output:** "timer installed with dashboard metric + chat panel; recipe check healthy (score 100)."
 
 ### Example 2: Declare a metric and panel
 

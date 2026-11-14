@@ -171,7 +171,7 @@ go env -w GOTOOLCHAIN=auto   # the fix
 
 The installer checks this before it mutates anything
 (`checkToolchainForTree` in `internal/installer/requirements.go`), so a
-refused run leaves the checkout untouched: no trimmed wiring, no renamed
+refused run leaves the checkout untouched: no half-removed wiring, no renamed
 module, no half-written feature.
 
 Raising the pin instead is one command: `make go-bump` moves every file that

@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/calionauta/gogogo/internal/capabilities"
+	shapekit "github.com/calionauta/gogogo/internal/shape"
 )
 
 type options struct {
@@ -34,6 +35,9 @@ type options struct {
 	installRecommended bool
 	installIDs         string
 	skipRecommended    bool
+	// shape selects which entrypoints the scaffolded tree ships. Empty is
+	// `full` (every target), which is what a template clone already is.
+	shape string
 }
 
 // exitError carries a stable process exit code for agents.
@@ -118,7 +122,7 @@ func RunTo(ctx context.Context, args []string, stdin io.Reader, stdout, stderr i
 		return printUpdateCheck(ctx, stdout, opt.format, dir)
 	}
 	// Scaffold keeps everything: no keep/drop decision exists.
-	plan := buildPlan(opt.name, opt.owner, opt.dir, opt.dryRun)
+	plan := buildPlan(opt.name, opt.owner, opt.dir, opt.shape, opt.dryRun)
 	applyInstallSelection(&plan, opt)
 	if opt.format == planFormatJSON {
 		if opt.dryRun {
@@ -180,7 +184,9 @@ func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, err
 	fs.BoolVar(&opt.installRecommended, "install-recommended", false,
 		"accept recommended recipes (default: recommend only)")
 	fs.StringVar(&opt.installIDs, "install", "",
-		"comma-separated recipe ids to install (e.g. --install pomodoro)")
+		"comma-separated recipe ids to install (e.g. --install todo)")
+	fs.StringVar(&opt.shape, "shape", string(shapekit.Full),
+		"product shape: full|web|api|desktop|gui|mobile (which entrypoints the tree ships)")
 	fs.BoolVar(&opt.skipRecommended, "skip-recommended", false,
 		"hide the recommendation in the plan (install none)")
 	fs.Usage = func() { PrintUsage(stdout, fs) }
@@ -189,6 +195,9 @@ func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, err
 		return opt, err
 	}
 	opt.dirGiven = flagGiven(fs, "dir")
+	if !shapekit.Valid(shapekit.Shape(opt.shape)) {
+		return opt, fmt.Errorf("unknown --shape %q (want %s)", opt.shape, shapeNames())
+	}
 	if opt.format != planFormatText && opt.format != planFormatJSON {
 		return opt, fmt.Errorf("unknown --format %q (want text|json)", opt.format)
 	}
@@ -231,7 +240,7 @@ const templateCloneURL = "https://github.com/" + templateOwner + "/" + templateR
 // ensureCheckoutDir is the apply-path gate: an existing directory is used
 // as-is, a missing one is cloned from the template with explicit consent
 // (--yes, or an interactive [y/N]). Cloning rides on the same consent
-// model as trimming: never on an assumption.
+// model as removal: never on an assumption.
 func ensureCheckoutDir(ctx context.Context, opt options, stdin io.Reader, stdout io.Writer) error {
 	if _, err := os.Stat(opt.dir); err == nil {
 		return nil
@@ -277,6 +286,9 @@ func applyAndProve(ctx context.Context, opt options, stdout io.Writer) error {
 	if err := writeAgents(ctx, opt.dir, opt.name, nil); err != nil {
 		return err
 	}
+	if err := applyShapeIfNeeded(opt, stdout); err != nil {
+		return err
+	}
 	if err := prove(ctx, opt.dir, stdout); err != nil {
 		return err
 	}
@@ -287,30 +299,16 @@ func applyAndProve(ctx context.Context, opt options, stdout io.Writer) error {
 	return nil
 }
 
-// nextSteps is the printed + machine-readable handoff after a successful
-// scaffold. Without --run the installer ends with the exact commands: it
-// runs from an ephemeral `go run @latest` module and a child process
-// cannot cd its parent, so `cd <dir> && make dev` is printed, not run.
-// PORT is the scaffolded app's default; the binary reads it at boot.
-type nextSteps struct {
-	Dir   string `json:"dir"`
-	Email string `json:"email"`
-	Dev   string `json:"dev"`
-	App   string `json:"app"`
-	Todo  string `json:"todo"`
-	Login string `json:"login"`
-	Admin string `json:"admin"`
-	Flows string `json:"workflows"`
-}
-
 // applyAndProveJSON is the machine-readable apply path: one envelope at
 // the end carrying plan + receipt + proof result.
 func applyAndProveJSON(ctx context.Context, opt options, stdout io.Writer, plan scaffoldPlan) error {
-	rc := &Receipt{Units: []UnitReceipt{}}
 	if err := renameTree(opt.dir, opt.name, opt.owner); err != nil {
 		return err
 	}
 	if err := writeAgents(ctx, opt.dir, opt.name, nil); err != nil {
+		return err
+	}
+	if err := applyShapeIfNeeded(opt, io.Discard); err != nil {
 		return err
 	}
 	// Silence prove chatter in JSON mode: discard its progress lines,
@@ -321,7 +319,7 @@ func applyAndProveJSON(ctx context.Context, opt options, stdout io.Writer, plan 
 	}
 	defer func() { _ = devNull.Close() }()
 	proveErr := prove(ctx, opt.dir, devNull)
-	env := envelope{Plan: plan, Receipt: *rc, BuildOk: proveErr == nil, Next: buildNextSteps(opt.dir, nil)}
+	env := envelope{Plan: plan, BuildOk: proveErr == nil, Next: buildNextSteps(opt.dir, nil)}
 	if proveErr != nil {
 		env.BuildErr = proveErr.Error()
 	}
@@ -365,10 +363,10 @@ const (
 // prove runs templ generate (only when .templ files were edited in place),
 // go mod tidy, and the build. A failing proof exits 2 with compiler output.
 func prove(ctx context.Context, dir string, stdout io.Writer) error {
-	// With no trim, no in-place .templ is edited: the rename rewrites only
+	// With no removal pass, no in-place .templ is edited: the rename rewrites only
 	// module paths in Go sources, which `go build` proves as-is. The
 	// templ step the old port path ran for edited .templ files is gone
-	// with the trim itself.
+	// with the removal pass itself.
 	fmt.Fprintln(stdout, "gogogo: prove: go mod tidy …")
 	if out, err := runIn(ctx, dir, "go", "mod", "tidy"); err != nil {
 		return &ExitError{code: 2, msg: fmt.Sprintf(
@@ -405,7 +403,7 @@ func runIn(ctx context.Context, dir, name string, args ...string) ([]byte, error
 
 // proveAPIRoutesDoc regenerates the generated docs in the target tree: the
 // route inventory and the unit contract cards. Both are pinned by tests, so a
-// trim that deletes a unit without regenerating them leaves CI red.
+// removal that deletes a unit without regenerating them leaves CI red.
 // It returns the regen error (callers decide warn-only vs fatal) after
 // printing the WARN with the manual regen command, so no failure mode is
 // silent. Shared with the preset composition gate, which proves it on
@@ -467,7 +465,7 @@ func flagGiven(fs *flag.FlagSet, name string) bool {
 
 // runApply is the mutating tail: preflight, clone-if-missing, confirm,
 // then rename and prove. Separated so Run stays under the gocyclo gate.
-// (The apply-then-trim body lived in apply.go until the trim retired; the
+// (The apply-then-remove body lived in apply.go until the removal retired; the
 // function keeps its name so the call order in Run reads the same.)
 func runApply(ctx context.Context, opt options, plan scaffoldPlan, stdin io.Reader, stdout io.Writer) error {
 	if err := guardMutable(opt.dir); err != nil {

@@ -6,6 +6,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/calionauta/gogogo/internal/prompts"
 )
 
 // stubRouter stands in for the classifier: it reports one name (or one
@@ -113,6 +115,79 @@ func TestCatalogComponentsMatchesWhatChatAdvertises(t *testing.T) {
 		}
 		if !Registered(name) && name != "section" {
 			t.Errorf("router label %q does not resolve in the registry", name)
+		}
+	}
+}
+
+// TestLeadHintDefersToSmalltalk pins the precedence that "oi" exposed: the
+// router CAN pick a component, but a greeting must still be answered in prose.
+// Without the exception the last line of the prompt ("Lead with todo_list")
+// overrode the smalltalk rule that appears earlier.
+func TestLeadHintDefersToSmalltalk(t *testing.T) {
+	lead, err := prompts.Get("genui/lead")
+	if err != nil {
+		t.Fatalf("Get genui/lead: %v", err)
+	}
+	if !strings.Contains(lead.Body, "smalltalk") {
+		t.Errorf("genui/lead must state the smalltalk exception, got:\n%s", lead.Body)
+	}
+	smalltalk, err := prompts.Get("genui/rule-smalltalk")
+	if err != nil {
+		t.Fatalf("Get genui/rule-smalltalk: %v", err)
+	}
+	if !strings.Contains(smalltalk.Body, "text_note") {
+		t.Errorf("genui/rule-smalltalk must name the prose answer, got:\n%s", smalltalk.Body)
+	}
+	router, err := prompts.Get("chat/router-instructions")
+	if err != nil {
+		t.Fatalf("Get chat/router-instructions: %v", err)
+	}
+	if !strings.Contains(router.Body, "text_note") || !strings.Contains(router.Body, "smalltalk") {
+		t.Errorf("router instructions must route smalltalk to text_note, got:\n%s", router.Body)
+	}
+}
+
+// TestSmalltalkRuleYieldsToAGreetingWithAnAsk pins the other half: a greeting is
+// packaging, not the request. Before this, "oi, mostra meu todo" would have been
+// answered with prose because "oi" matched the smalltalk rule — the user asked a
+// question and got a greeting back.
+func TestSmalltalkRuleYieldsToAGreetingWithAnAsk(t *testing.T) {
+	smalltalk, err := prompts.Get("genui/rule-smalltalk")
+	if err != nil {
+		t.Fatalf("Get genui/rule-smalltalk: %v", err)
+	}
+	if !strings.Contains(smalltalk.Body, "carries a request") {
+		t.Errorf("genui/rule-smalltalk must scope itself to smalltalk-only messages, got:\n%s", smalltalk.Body)
+	}
+	if !strings.Contains(smalltalk.Body, "show") && !strings.Contains(smalltalk.Body, "mostra") {
+		t.Errorf("genui/rule-smalltalk must give a greeting-with-an-ask example, got:\n%s", smalltalk.Body)
+	}
+
+	router, err := prompts.Get("chat/router-instructions")
+	if err != nil {
+		t.Fatalf("Get chat/router-instructions: %v", err)
+	}
+	for _, want := range []string{"WRAPPED", "Decide on the ask"} {
+		if !strings.Contains(router.Body, want) {
+			t.Errorf("chat/router-instructions must tell the classifier to look past the greeting (%q missing), got:\n%s",
+				want, router.Body)
+		}
+	}
+}
+
+// TestPromptVersionsMovedWithTheBody is the gate the candidate tree also runs:
+// a body change without a version bump makes two evaluations incomparable.
+func TestPromptVersionsMovedWithTheBody(t *testing.T) {
+	for id, want := range map[string]int{
+		"chat/router-instructions": 3,
+		"genui/rule-smalltalk":     3,
+	} {
+		p, err := prompts.Get(id)
+		if err != nil {
+			t.Fatalf("Get %s: %v", id, err)
+		}
+		if p.Version != want {
+			t.Errorf("%s version = %d, want %d (the body changed)", id, p.Version, want)
 		}
 	}
 }

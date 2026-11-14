@@ -1,7 +1,7 @@
 # Porting into an existing app
 
 `gogogo new` only touches a checkout it scaffolded. (The sibling `add`
-command that restored trimmed units is retired: one-way removal is
+command that restored removed units is retired: one-way removal is
 preferable to anchor-patching that cannot see a moved core.) `gogogo new`
 rewrites the scaffold's own router, composition root and capability
 registry, and refuses rather than guessing at yours. That is the right default — a tool
@@ -67,7 +67,7 @@ your codes live in the same table. `add` is mechanical because it edits anchors
 it wrote itself; nothing in your tree was written by this tool, so the wiring
 stays a decision.
 
-If the unit you want is not a portable slice — a plugin that rewires the
+If the unit you want is not a portable slice — a servant that rewires the
 composition root (`dagnats`, `goakt`), or the auth stack — the honest answer is
 to scaffold with the units you want and move your own code into that tree
 instead. That inverts the work: you keep gogogo's wiring and port your

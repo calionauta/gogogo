@@ -134,9 +134,19 @@ p, err := prompts.Get("review/critic-code") // p.ID, p.Version
 
 That is the two-field handle an observability backend needs to group traces by
 prompt revision, which is what makes "the new prompt is worse on these inputs"
-answerable. The template's logging seam is `internal/observability`; logging a
-prompt by id/version is the supported move, and logging its text is not (the
-text can carry user data once composed).
+answerable. Logging a prompt by id/version is the supported move; logging its
+**text** is not, because the rendered text can carry the user's data.
+
+A composed prompt is several files, so the trace records the SET:
+`features/genui/components` builds it with `prompts.Composer`, and the model leg
+emits one `genui: prompt` line carrying
+
+- `prompt.parts` — the file ids, in composition order;
+- `prompt.parts.versioned` — the same ids as `id@version`, which is what an
+  evaluation groups by.
+
+`ChatSuggest` does the same with `prompts.RenderMeta` for its single file. A
+prompt text change therefore moves the version field, never the log shape.
 
 The intended next step is the OpenTelemetry GenAI semantic conventions
 (`gen_ai.prompt.name`, `gen_ai.prompt.version`) once the template grows an OTel
@@ -152,6 +162,37 @@ already provides:
 - **an evaluator** — a Go test or fixture set that exercises the call site (the
   existing `*_test.go` files around genui, review and the installer);
 - **a place to put the winner** — a file diff, reviewed like any other.
+
+### The override seam
+
+A candidate tree can shadow the embedded library without a rebuild:
+
+```bash
+GOGOGO_PROMPTS_DIR=/tmp/candidate make dev        # or go test ./features/genui/...
+```
+
+`internal/prompts` reads every `Get` through that directory first and falls back
+to the embedded copy when the id has no file there, so a candidate tree may
+hold only the prompts it changes. Three properties make it usable in a loop:
+
+- **Read fresh per call.** No cache in front of the override, so an optimizer
+  can rewrite a body between two runs of the same binary and see the change.
+- **Contained.** The read goes through `os.Root`, so an id that walks up the
+  tree (`../…`) is an error rather than a file above the directory.
+- **Same contract.** A candidate file is parsed by the same `Parse`/`Validate`
+  the embedded tree uses: a name that disagrees with its id, an undeclared
+  variable or a malformed fence fails the load instead of reaching a model.
+  Because `MustRender` panics on a malformed prompt, a bad candidate fails the
+  request loudly — which is what you want while scoring, and why the variable
+  is unset in every shipped configuration.
+
+Unset (the default everywhere outside an experiment) means the embedded tree
+alone. `make check-prompts` validates the embedded tree, because that is what
+ships — and when `GOGOGO_PROMPTS_DIR` is set it gates the candidate tree too:
+every file must parse, name an id the library already has, declare the same
+`variables`, and carry a higher `version` when the body differs. That last rule
+is the one that keeps an optimizer honest: a rewrite under the old version
+makes its score incomparable with the run it is supposed to beat.
 
 The workflow:
 

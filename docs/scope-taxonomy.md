@@ -1,81 +1,82 @@
 # Scope taxonomy
 
-> **Removal vs distribution.** This page answers *what disappears if I
-> delete this* — the removal class (`Kind`) on the registry row. It is **not**
-> the distribution model. The recipe model (copy + declaration + receipt,
-> [Extensibility](research/extensibility-2026-11.md), authoring contract
-> [`skills/gogogo-recipe-authoring`](../skills/gogogo-recipe-authoring/SKILL.md))
-> answers *how code is installed and owned*. The three classes below are
-> the removal taxonomy; the site presents them as **Core / Servants /
-> Recipes**.
+> **Removal vs distribution: two axes, never two names per level.** This page
+> answers *what disappears if I delete this* — the removal class (`Kind`) on the
+> registry row, whose three values are **`core` / `servant` / `feature`** and
+> those are the only names for them in code, JSON, docs and UI. It is **not**
+> the distribution model: *recipe* names how code is copied and owned (receipt +
+> declaration, [Extensibility](research/extensibility-2026-11.md), authoring
+> contract [`skills/gogogo-recipe-authoring`](../skills/gogogo-recipe-authoring/SKILL.md)),
+> and it is never a removal class — a `feature` happens to ship as a recipe, but
+> so could anything else.
 
 Every removable-or-toggleable piece of the template is one row in
 `internal/capabilities`, and the removal class is a field on that row. There is
 no per-file header and no second table: a package's class comes from the row
 that owns it, and a package no row owns fails the registry's coverage test. That
-is the rule that makes the template safely trimmable — you never have to guess
+is the rule that makes the template safely removable — you never have to guess
 whether a directory is load-bearing.
 
-## Where things live (four directories, four questions)
+## Where things live (three directories, three questions)
 
-The tree keeps four places that all say "recipe" in some sense. They answer
-four different questions, and mixing them up is the fastest way to build the
-wrong thing:
+The tree keeps three places that say "recipe" in some sense. They answer three
+different questions, and mixing them up is the fastest way to build the wrong
+thing:
 
 | Place | Question it answers | Who writes it | Who reads it |
 |---|---|---|---|
 | `features/<id>/` | **What is compiled into this app.** A bundled feature: in-tree, mounted by the registry (`units.gen.go`). | the template | the binary |
 | `.recipes/<id>.yml` | **What is installed HERE.** The receipt: declaration + pristine hashes. Bundled features have one too (ownership, not an install record). | `recipe install` / the bundling commit | `recipe status`, `recipe uninstall`, the drift check |
-| `_recipes/<id>/` | **Where an installable recipe's source lives.** A bundle: `.recipe.yml` plus the files it installs. | a recipe author | `gogogo recipe install ./_recipes/<id>` |
-| `catalog/<id>/<version>.yaml` | **What the reviewed catalog says about a recipe.** Source repo + ref, file hashes, license, `minCore`, `recommended`. | the catalog maintainer | `recipe install --entry`, `recipe outdated` |
+| `catalog/<id>/<version>.yaml` | **What can be installed, and what was reviewed.** Source repo + ref, file hashes, license, `author`, `released`, `minCore`. This is the installable set; there is no second directory of bundles. `catalog/unpublished.yml` records the bundled recipes deliberately NOT published, with the reason — so `catalog/` covers every installed recipe by decision. `recipe install --entry` also takes the directory holding the pinned bytes (a checkout of `source.ref`), because the entry reviews hashes, not content. | the catalog maintainer | `recipe install --entry`, `recipe outdated` |
 
 Two traps worth naming:
 
-- **`plugin` here is a removal class, not an extension.** In this taxonomy
-  `plugin` means "a servant": the binary still runs, but a capability stops
-  working. A *recipe* is the installable extension — a different word for a
-  different thing. `internal/nats` is a plugin; `features/todo` is a recipe.
-- **`landing` is the app's own front door, not an extension.** It is a bundled
-  feature (`GET /`) with a receipt, so removing it is auditable — but nobody
-  installs a landing page, and its receipt exists for the removal path, not
-  because it is distributable.
+- **`servant` is a removal class, not a recipe.** It means the binary still
+  runs, but a capability stops working. A *recipe* is the installable,
+  copied-and-owned slice — a different axis. `internal/nats` is a `servant`;
+  `features/todo` is a `feature` (and ships as a recipe).
 
 ## The three removal classes
 
-The row carries a single axis — the removal class (`Kind`) — with three values:
+The row carries a single axis — the removal class (`Kind`) — with three values,
+and each value has exactly one name:
 
-| Class (site name) | Meaning | You would… |
+| Class | Meaning | You would… |
 |------------|---------|-----------|
-| `core` 🔴 (Core) | The web binary **or its gates** do not work without it. Some have a runtime opt-out via env vars. Includes the recipe engine (`internal/recipe`). | Customize, never remove. |
-| `plugin` 🟡 (Servant) | Binary works but loses a capability. A servant serves other capabilities (jobs, metering, sounds) — no page disappears, but something stops working. | Swap for another implementation, or delete the package + wiring call (e.g. `BootChi` in `internal/server/chi.go`, `cmd/web/main.go`). |
-| `feature` 🟢 (Recipe) | A demo/add-on and a **recipe**: a terminal user surface — a page or journey disappears (todo, whiteboard, landing, config). In-tree recipes mount through the same seam installed recipes use (`recipes.gen.go` / `units.gen.go`). | Keep as a reference while building your own, then remove, or uninstall the receipt. |
+| `core` 🔴 | The web binary **or its gates** do not work without it. Some have a runtime opt-out via env vars. Includes the recipe engine (`internal/recipe`). | Customize, never remove. |
+| `servant` 🟡 | Binary works but loses a capability. A servant serves other capabilities (jobs, metering, sounds) — no page disappears, but something stops working. | Swap for another implementation, or delete the package + wiring call (e.g. `BootChi` in `internal/server/chi.go`, `cmd/web/main.go`). |
+| `feature` 🟢 | A terminal user surface — a page or journey disappears (todo, whiteboard, config). Bundled features mount through the same seam installed recipes use (`recipes.gen.go` / `units.gen.go`). | Keep as a reference while building your own, then remove, or `recipe uninstall` it. |
 
 Three clarifications the table alone does not carry:
 
 - **Core includes gate support.** `internal/hostgate` never links into the web
   binary, but every heavy suite and `ci-local` depends on it, so deleting it
   breaks the gates that ship the binary. That is the "or its gates" clause.
-- **Plugin does not promise a one-line delete.** `internal/nats`, `internal/llm`
-  and `internal/collab` are named in signatures, so removing one is a manual
-  refactor that touches its consumers; the class answers *what disappears*, not
-  *how mechanical the trim is*. A `core` unit is the one where removal is not
-  coherent at all.
+- **A servant does not promise a one-line delete.** `internal/nats`,
+  `internal/llm` and `internal/collab` are named in signatures, so removing one
+  is a manual refactor that touches its consumers; the class answers *what
+  disappears*, not *how mechanical the removal is*. A `core` unit is the one
+  where removal is not coherent at all.
 - **The servant wins ties.** A unit that both powers other surfaces and ships a
-  page is a plugin when the capability is the servant and the page is its demo.
-  `features/genui` is the precedent: the Chat page disappears with it,
+  page is a `servant` when the capability is the servant and the page is its
+  demo. `features/genui` is the precedent: the Chat page disappears with it,
   but the unit exists to render answers for chat, todo panels and review, so it
-  is classified plugin (and bundled with `features/chat` for trimming).
+  is classified `servant` (and bundled with `features/chat`).
 
 ## Recommendation (installer advisory)
 
-`Capability.Recommended` marks recipes the registry advises at scaffold
-time (today: `todo` only — the reference slice). `CatalogEntry.Recommended`
-does the same for out-of-tree catalog recipes: the catalog maintainer flips
-it without code changes. The installer prints `recommend:` in `--dry-run`;
-nothing installs without explicit acceptance (`--install-recommended` or
-`--install <ids>`). Bundled recommended recipes ship in the default set
-(they *are* the template), so acceptance is recorded in the plan; catalog
-recipes take the full copy + receipt + `recipes.gen.go` path on acceptance.
+ONE file answers "what does this template advise at install":
+[`catalog/recommended.yml`](../catalog/recommended.yml) — a list of
+`{id, why}` pairs, embedded by the `recipes` package. It used to be a bool on
+each capability row **and** a `recommended:` field on every catalog entry; two
+switches for one decision meant the scaffold and the catalog could disagree, so
+both were removed.
+
+The installer prints `recommend:` in `--dry-run`; nothing installs without
+explicit acceptance (`--install-recommended` or `--install <ids>`). Bundled
+recipes ship in the default set (they *are* the template), so acceptance is
+recorded in the plan. Over time this file is the dial: an id here is advised, an
+id absent is not, and changing it never changes what ships.
 
 ## Installer scope (scaffold prompt retired)
 
@@ -95,13 +96,14 @@ In the registry, next to the unit's identity:
 ```
 
 The class is one value: `core` = the binary or its shipped gates won't compile
-or boot; `plugin` = binary works but loses a capability (presentational name: servant); `feature` = pure demo / recipe. The **directory is
+or boot; `servant` = binary works but loses a capability; `feature` = a terminal
+user surface. The **directory is
 the layer** — `internal/` is infrastructure, `features/` is product — so there
 is no separate `layer` axis to keep in sync (a two-axis `layer=…,removal=…` form was considered and rejected for exactly that reason, and so was the per-file header that carried one).
 
 **`internal/` is Go's import boundary, not a removal class.** It keeps a package
 out of the public API; it says nothing about whether the app survives without
-it. Roughly half the packages under `internal/` are plugins — `nats`, `dagnats`,
+it. Roughly half the packages under `internal/` are servants — `nats`, `dagnats`,
 `goakt`, `collab`, `search`, `llm`, `datastar`, `components` — each removable
 with the capability it serves (its row says so). The other half is
 core because core wiring names it: `auth`, `db`, `dbschema`, `queue` (the SSE
@@ -122,7 +124,7 @@ Look the package up in `internal/capabilities` (or ask `gogogo`/`docs/unit-contr
 for the row). **Never delete a `core` row without asking. Never keep a
 `feature` row in production if the domain doesn't need it.**
 
-`feature` and `plugin` rows are free to delete: the row names the dirs and files
+`feature` and `servant` rows are free to delete: the row names the dirs and files
 the unit owns, and a unit that mounts itself (`Register`) has no line in the
 composition root to chase. A unit that does not is removed with its wiring call
 (`BootChi` in `internal/server/chi.go`, `cmd/web/main.go`).
@@ -133,7 +135,7 @@ Some surfaces exist only to advertise the template itself: the
 `TechStack` stack key the State/Stack panel renders (the Stack button), and the demo-accounts
 block on `/login` (the seeded pair, their roles, and the Casbin
 exercise). They teach gogogo's architecture and say nothing about a
-product's own domain, so a trimmed product must delete them.
+product's own domain, so a product that removed the demos must delete them.
 
 The machine handle is a `data-demo="<name>"` attribute on the element's
 wrapper. Two ship: `data-demo="stack-key"` (every `TechStack`) and
@@ -153,14 +155,15 @@ rename fails CI instead of shipping quietly.
 
 The flat stack composes every capability in two places, both inside
 `internal/server/chi.go`: `BootChi` builds each handler, `buildChiMux` flattens
-its routes onto the root with one `MountFeature` call. The installer (`gogogo` keep lists / presets)
-automated the common ones; when doing it by hand:
+its routes onto the root with one `MountFeature` call. A Feature is removed by
+`recipe uninstall <id>` (pristine files only); a servant or core unit is a hand
+edit, because its consumers name it:
 
 1. Delete the package directory (e.g. `features/todo/`).
 2. Delete dependent packages listed in the `Depends on:` comment.
 3. Drop the handler construction and `r.MountFeature(...)` line from
    `internal/server/chi.go` (and its test fixtures).
-4. If it was a plugin, also remove the `start*` call in `cmd/web/main.go`.
+4. If it was a servant, also remove the `start*` call in `cmd/web/main.go`.
 5. Run `go build ./cmd/web` (and the registry's tests) to catch anything left behind.
 
 ## Graceful degradation (UI rule)
@@ -193,37 +196,36 @@ top-level unit's dirs).
 | `internal/server/` | 🔴 CORE | Never — flat stack composition (BootChi + buildChiMux) |
 | `internal/auth/` | 🔴 CORE | Never — argon2id + sessions (owned auth) |
 | `internal/rbac/` | 🔴 CORE | Never — Casbin enforcer wired into the whole mux (`RBAC_ENABLED` decides whether it enforces) |
-| `internal/natswire/` | 🔴 CORE | Never — handlers name its types in signatures even with NATS off, so trimming would not compile |
+| `internal/natswire/` | 🔴 CORE | Never — handlers name its types in signatures even with NATS off, so removing it would not compile |
 | `internal/demo/` | 🔴 CORE | Never — the fresh-clone way in (one idempotent seed) |
 | `internal/observability/` | 🔴 CORE | Never — slog + tracing |
 | `internal/hostgate/` | 🔴 CORE | Never — test-capacity gate (tune with `HOSTGATE_*`) |
 | `internal/ui/`, `internal/uiregistry/`, `internal/icon/`, `internal/themes/` | 🔴 CORE | Never — one shell, the module registry, the icon set and the DaisyUI theme catalog |
 | `internal/instance/` | 🔴 CORE | Never — instance identity used by the runtime |
-| `features/app/` | 🟡 PLUGIN | Delete it to drop `cmd/gui`'s dependency bundle; `cmd/web` never links it (handlers take their deps directly) |
+| `features/app/` | 🟡 SERVANT | Delete it to drop `cmd/gui`'s dependency bundle; `cmd/web` never links it (handlers take their deps directly) |
 | `features/authviews/` | 🔴 CORE | Holds the shared shell controls (theme, user menu, palette) every page renders; the login page itself is manual removal |
 | `web/resources/` | 🔴 CORE | Never — embedded static assets |
-| `internal/datastar/` | 🟡 PLUGIN | Swap for another implementation, or delete + the wiring call in every page (manual) |
-| `internal/components/` | 🟡 PLUGIN | Shared UI (Toast, SessionBanner, OfflineBanner, RealtimeResync) — 14 importers, so removal is manual |
-| `internal/nats/` | 🟡 PLUGIN | Delete + wiring call (or `NATS_ENABLED=false`) |
-| `internal/dagnats/` | 🟡 PLUGIN | Delete `features/onboarding/` + `cmd/web/dagnats.go` too (or `DAGNATS_ENABLED=false`) |
-| `internal/llm/` | 🟡 PLUGIN | Delete + wiring call (or unset `GOAI_API_KEY`) |
-| `internal/collab/` | 🟡 PLUGIN | Delete `features/whiteboard/` too |
-| `internal/goakt/` | 🟡 PLUGIN | Delete `features/room/` + `cmd/web/goakt.go` too (or `GOAKT_ENABLED=false`) |
-| `internal/search/` | 🟡 PLUGIN | Delete the package + the search wiring; the SQL substring layer degrades rather than disappearing (the seam is swappable) |
-| `web/resources/static/offline-outbox.js` + `sw.js` + `config/config.go` (offline-sync) | 🟡 PLUGIN | Manual; `OFFLINE_SYNC_ENABLED=false` disables the page outbox and the NATS CRUD proxy together. On the async axis this is a mode, not one of the seven layers |
-| `features/review/` (Genkit flows) | 🟡 PLUGIN | The flow runtime behind the Review feature; `go mod tidy` drops Genkit + go-jev when the feature goes |
-| `internal/capabilities/`, `internal/installer/` | 🟡 PLUGIN | The installer itself: deleting breaks `cmd/gogogo`, not the web binary |
-| `features/sounds/` | 🟡 PLUGIN | Delete the package + its consumers (the checklist lives in `features/sounds/sounds.go`) |
-| `features/credits/` | 🟡 PLUGIN | Optional ledger (`CREDITS_ENABLED=false` already the default) |
-| `features/onboarding/` | 🟡 PLUGIN | The workflow engine side of the durable run — goes with `internal/dagnats/` |
-| `features/genui/` | 🟡 PLUGIN | The rendering capability behind Chat; one bundle with `features/chat/` — delete both |
+| `internal/datastar/` | 🟡 SERVANT | Swap for another implementation, or delete + the wiring call in every page (manual) |
+| `internal/components/` | 🟡 SERVANT | Shared UI (Toast, SessionBanner, OfflineBanner, RealtimeResync) — 14 importers, so removal is manual |
+| `internal/nats/` | 🟡 SERVANT | Delete + wiring call (or `NATS_ENABLED=false`) |
+| `internal/dagnats/` | 🟡 SERVANT | Delete `features/onboarding/` + `cmd/web/dagnats.go` too (or `DAGNATS_ENABLED=false`) |
+| `internal/llm/` | 🟡 SERVANT | Delete + wiring call (or unset `GOAI_API_KEY`) |
+| `internal/collab/` | 🟡 SERVANT | Delete `features/whiteboard/` too |
+| `internal/goakt/` | 🟡 SERVANT | Delete `features/room/` + `cmd/web/goakt.go` too (or `GOAKT_ENABLED=false`) |
+| `internal/search/` | 🟡 SERVANT | Delete the package + the search wiring; the SQL substring layer degrades rather than disappearing (the seam is swappable) |
+| `web/resources/static/offline-outbox.js` + `sw.js` + `config/config.go` (offline-sync) | 🟡 SERVANT | Manual; `OFFLINE_SYNC_ENABLED=false` disables the page outbox and the NATS CRUD proxy together. On the async axis this is a mode, not one of the seven layers |
+| `features/review/` (Genkit flows) | 🟡 SERVANT | The flow runtime behind the Review feature; `go mod tidy` drops Genkit + go-jev when the feature goes |
+| `internal/capabilities/`, `internal/installer/` | 🟡 SERVANT | The installer itself: deleting breaks `cmd/gogogo`, not the web binary |
+| `features/sounds/` | 🟡 SERVANT | Delete the package + its consumers (the checklist lives in `features/sounds/sounds.go`) |
+| `features/credits/` | 🟡 SERVANT | Optional ledger (`CREDITS_ENABLED=false` already the default) |
+| `features/onboarding/` | 🟡 SERVANT | The workflow engine side of the durable run — goes with `internal/dagnats/` |
+| `features/genui/` | 🟡 SERVANT | The rendering capability behind Chat; one bundle with `features/chat/` — delete both |
 | `features/todo/` | 🟢 FEATURE | Delete package + wiring call |
-| `features/chat/` | 🟢 FEATURE | Bundled into the `genui` unit (chat imports genui components, so both trim together) |
+| `features/chat/` | 🟢 FEATURE | Bundled into the `genui` unit (chat imports genui components, so both go together) |
 | `features/review/` | 🟢 FEATURE | Delete package (its Register) + regenerate `internal/server/units.gen.go` + `go mod tidy` (drops genkit + go-jev) |
 | `features/whiteboard/` | 🟢 FEATURE | Delete package + `internal/collab/` |
 | `features/notes/` | 🟢 FEATURE | Manual: delete the dir + its roots in `buildChiMux` + the `[]Module` entry in `internal/ui/modules.go` |
-| `features/room/` | 🟢 FEATURE | The room demo page; the engine behind it is the `goakt` plugin (either class is accepted for this dir — both units own it) |
-| `features/landing/` | 🟢 FEATURE | Delete package + wiring call |
+| `features/room/` | 🟢 FEATURE | The room demo page; the engine behind it is the `goakt` servant (either class is accepted for this dir — both units own it) |
 | `features/config/` | 🟢 FEATURE | Delete package + wiring call |
 | `features/account/` | 🟢 FEATURE | Delete package + wiring call |
 
@@ -232,19 +234,19 @@ top-level unit's dirs).
 
 The generated [unit contracts](unit-contracts.md) is the canonical per-unit map:
 it is rendered from `internal/capabilities` and pins each unit's kind, dirs,
-routes, runtime off and trim. The table above is the directory view; a
+routes, runtime off and removal path. The table above is the directory view; a
 directory can host more than one unit (for example `features/review/` holds
-the `review` feature and the `genkit` plugin).
+the `review` feature and the `genkit` servant).
 
 - **Core:** `appconfig`, `auth`, `crudwire`, `database`, `demo-seed`,
   `hostgate`, `instance`, `observability`, `queue`, `rbac`, `recipe`, `secrets`,
   `server`, `shell` (plus `cloudcfg`, `license` — see registry).
-- **Plugin (site: Servant):** `app`, `capabilities`, `collab`, `components`, `credits`,
+- **Servant:** `app`, `capabilities`, `collab`, `components`, `credits`,
   `dagnats`, `datastar`, `delivery`, `desktopboot`, `genkit`, `genui`, `goakt`, `graph`, `i18n`, `llm`, `nats`,
   `offline-sync`, `perf`, `search`, `sounds`.
-- **Feature (site: Recipe):** `account`, `chat`, `config-view`, `dashboard`, `landing`, `notes`, `notifications`, `review`,
+- **Feature:** `account`, `chat`, `config-view`, `dashboard`, `notes`, `notifications`, `review`,
   `room`, `todo`, `whiteboard` (all self-mounting via `Capability.Register`).
-  `graph` and `license-activation` are Servants (manual mounts, not installable recipes: the panorama host and the standalone activation page).
+  `graph` and `license-activation` are servants (manual mounts, not installable recipes: the panorama host and the standalone activation page).
 
 ## Bundled receipts (ownership, not installed registrations)
 
@@ -252,24 +254,25 @@ Every self-mounting bundled unit carries a receipt in `.recipes/<id>.yml`
 (front-matter declaration + pristine hashes of its `features/<id>/` tree).
 `gogogo recipe status` reports each one as pristine when the tree matches;
 `gogogo recipe uninstall <id> --yes` removes the pristine files, drops its
-policy block, regenerates `recipes.gen.go` and `units.gen.go`, and leaves a
-building tree. Because the bundled set mounts via `units.gen.go` (registry),
+policy block, its sidebar entry in `internal/ui/modules.go` (plus the viewer
+lookup beside it) and its `docs/domain/<id>.md` card, regenerates
+`recipes.gen.go` and `units.gen.go`, and leaves a building tree. Because the bundled set mounts via `units.gen.go` (registry),
 `recipes.gen.go` deliberately skips bundled Register paths: bundling them
 there would double-mount and panic at the route-claim gate. `config-view`
 is the one bundled unit without a `<id>.yml` receipt: its routes are
 admin-only (`p, admin, /config…`), so the user-owned recipe policy block
 cannot express them; its declaration is documented in the registry instead.
-`graph` is a Servant (the panorama is a wired capability over the registry,
+`graph` is a servant (the panorama is a wired capability over the registry,
 not a copyable slice), and `dashboard` is a recipe by kind but a host by role:
 hosts are recipes too (they mount via `Register`). `dashboard` hosts
 `dashboard.card` — it knows its numbers from
 `ListTodosByOwner` (open/total) and `CountUnreadInApp` (unread inbox), lists one
 card per installed recipe (its rail destination), then renders
 `SlotRegistry.Fragments(SlotDashboardCard)` for out-of-tree contributions;
-`graph` renders the capability/recipe map itself. Pomodoro (`_recipes/pomodoro`:
-one table, one page, one write, one sidebar entry, and the five contract tests
-a recipe that mounts routes must ship) stays the minimal installable example;
-Kiosk is the worked instrumentation example — a closed-menu parser with
+`graph` renders the capability/recipe map itself. There is no example bundle
+directory: the worked recipes are the bundled ones in `features/`, which carry
+their own receipts, and a bundle is something you point `recipe install` at. Kiosk is the worked instrumentation
+example — a closed-menu parser with
 on-device voice and one declared outcome (a success/total pair over its own
 table, `recipe describe kiosk`). It ships **bundled**, like the other demos:
 the code lives in `features/kiosk`, the receipt in `.recipes/kiosk.yml`, and
@@ -278,7 +281,7 @@ the registry row is what says it is a feature — so it mounts by default and
 in-tree reference slice. New cost: none — deleting a bundled unit is
 `recipe uninstall <id>` (see `docs/features.md`).
 
-## Trim vs recipe: what shadcn does and what we do
+## Recipes vs a copy-paste registry: what shadcn does and what we do
 
 shadcn's registry is distribution only: `add` copies files and records
 deps; there is **no uninstall** (remove = delete files by hand) and no hash
@@ -311,22 +314,34 @@ creates ownership relationships"), taken further:
    receipt stays when the recipe is removed, because the data still has
    an owner.
 
-Trim is **not** the recipe mechanism: it is scaffold-time removal of
-Servants/Core (engines and deps the binary would otherwise keep — `nats`,
-`dagnats`, `collab`, `search`, `goakt`, `genui`). For Features, trim
-overlaps `recipe uninstall <builtin>`; keeping both confuses, so Features go
-via `uninstall` and Trim keeps only Servants. `graph` is a Servant, not a
-recipe: it renders the recipe map, so making the panorama itself installable
-would be recursive, and it carries no receipt, so `recipe uninstall graph`
-could never honor a Feature contract. Servant fits — the binary works without
-it and loses the panorama capability — and Trim can remove it at scaffold
-time. The rail lists recipes only; Servant/Core surfaces (graph, config,
-dashboard-the-host) live in the account menu.
+Removal is **not** the recipe mechanism, and it is not scaffold-time either:
+the keep/drop list ("trim") was retired — `gogogo new` copies the whole
+template, and `.gogogo/shape.yml` only narrows the *entrypoints* a tree ships
+(`full`/`web`/`api`/`desktop`/`gui`/`mobile`, gated by `make check-shape`; see
+[Scaffold choice](research/scaffold-choice-2026-10.md)). So a servant or core
+unit is removed **by hand** — delete the dirs the row owns and the wiring line
+it names (`BootChi`, `cmd/web/main.go`) — while a Feature goes through
+`recipe uninstall <builtin>`, which removes only pristine files and
+regenerates the registration.
+
+`graph` is a servant, not a recipe: it renders the recipe map, so making the
+panorama itself installable would be recursive, and it carries no receipt, so
+`recipe uninstall graph` could never honor a feature contract. Servant fits —
+the binary works without it and loses the panorama capability — and it is the
+kind of unit a product deletes by hand when it does not want the map. The rail
+lists recipes only; servant/core surfaces (graph, config, dashboard-the-host)
+live in the account menu.
+
+A scaffolded `AGENTS.md` may still carry a `## Trim provenance` section with a
+`removed:` line: it is read (`gogogo migrate` labels per-file impact by whether
+the owning unit survived) for trees written while the scaffold trimmed. A new
+scaffold records `removed: none`, which no longer means "nothing to delete" —
+the class on the row is what answers that.
 
 ## Cross-package test dependencies
 
 Tests come along with the package you remove, **except** when a test in
-another package imports the deleted one. Check these when you trim:
+another package imports the deleted one. Check these when you remove a unit:
 
 | If you remove… | Delete these packages | Watch for |
 |---|---|---|
@@ -344,7 +359,7 @@ another package imports the deleted one. Check these when you trim:
 compiles `cmd/desktop`/`cmd/gui`/`cmd/mobile`, which need GTK + WebKit or the Android SDK; see
 [desktop & mobile](desktop-mobile.md)). If a compilation error mentions the
 deleted package in a test file, delete that test file too. Cross-package tests
-that import a trimmed package are the usual culprit; `make check-flatdeps` and
+that import a removed package are the usual culprit; `make check-flatdeps` and
 `gogogo --check` catch the wiring half before you build.
 
 ## Related

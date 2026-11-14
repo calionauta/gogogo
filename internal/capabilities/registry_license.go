@@ -26,7 +26,7 @@ var licenseUnits = []Capability{
 	},
 	{
 		ID:      "license-activation",
-		Kind:    KindPlugin,
+		Kind:    KindServant,
 		Summary: "standalone /activate page for a license or account token",
 		Dirs:    []string{"features/license"},
 		Reason: "Activation page; the gate is runtime-off with LICENSE_MODE=none. " +

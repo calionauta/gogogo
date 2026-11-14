@@ -19,7 +19,7 @@ Entry points and the data they read, from `ripwire`, `cymbal` and `xerj`:
 | Layer | Where | What it decides |
 |---|---|---|
 | CLI | `cmd/gogogo` → `installer.Run` (`internal/installer/run.go`) | flags, interactive form, plan, apply, prove |
-| MCP | `cmd/gogogo-mcp` → `toolCatalog` (`trim_plan`, `trim_apply`, `capabilities_list`, `advise_stack`, `add_unit`) | the same engine, JSON schemas |
+| MCP | `cmd/gogogo-mcp` → `toolCatalog` (`scaffold_plan`, `scaffold_apply`, `capabilities_list`, `advise_stack`, `add_unit`) | the same engine, JSON schemas |
 | Interactive form | `internal/installer/prompt.go` `promptForm` → `askKeep` | project, owner, **plugins**, **features** |
 | Unit list | `internal/installer/manifest.go` `manifestUnits` = `buildManifestUnits()` (`manifest_units.go`) | the units the prompt, plan and trim actually use |
 | Unit mechanics | `manifest_units.go` `trimUnit` — kept as the export index `mainStrips`, `extraStrips`, `extraDrops`, `replaces`, `goModDrops` | the wiring lines a port bundle carries (scaffold no longer strips) |
@@ -44,7 +44,7 @@ Three sources disagree by design, not by accident:
    (`docs/unit-contracts.md`; counts live in its
    [registry at a glance](../unit-contracts.md#registry-at-a-glance)).
 2. **Installer** — `manifestUnits` is the only set `--plugins`/`--features`,
-   `trim_plan` and `trim_apply` accept.
+   `scaffold_plan` and `scaffold_apply` accept.
 3. **Landing** — the trim plan previews every plugin, checkboxes included, and
    says "a preview, not a live switch" (`site/index.html`).
 
@@ -102,7 +102,7 @@ scripted adds `--opt-in perf` (or reuses `--plugins perf` with the class decidin
 the default). The plan prints the class and the runtime switch, not just strips.
 
 **4. MCP and docs read the same class.** `capabilities_list` returns `scaffold`;
-`trim_plan` accepts the same keep/opt-in lists and returns `scaffold` per unit;
+`scaffold_plan` accepts the same keep/opt-in lists and returns `scaffold` per unit;
 `add_unit` refuses a `manual` unit with the registry `Reason`. `unit-contracts.md`
 gains a `Scaffold:` line; `features.md` gains the column; `getting-started.md`
 explains default vs opt-in; the landing plan is generated from `scaffold` and stops
@@ -121,7 +121,7 @@ taxonomy already says so (`scope-taxonomy.md`).
 - The landing stops promising choices the installer cannot apply.
 - `Offered` stops being a boolean that means three things.
 - `add` gains a symmetric restore path for every offered unit.
-- Agents get the same class from `capabilities_list` and `trim_plan` that humans
+- Agents get the same class from `capabilities_list` and `scaffold_plan` that humans
   see in the prompt.
 
 ## Risks and gates

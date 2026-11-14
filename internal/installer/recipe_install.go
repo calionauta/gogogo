@@ -107,7 +107,7 @@ func recipeInstallTarget(dir, id string, requireExisting bool) (string, recipe.R
 		// the vanished entries from the baseline makes the planner write them;
 		// entries whose file survived stay, so the user's kept bytes are still
 		// compared against their pristine hash.
-		prev.Removed = ""
+		prev.MarkInstalled()
 		for p := range prev.Files {
 			if _, exists := treeReader(root)(p); !exists {
 				delete(prev.Files, p)
@@ -149,12 +149,14 @@ func applyRecipePlan(root string, manifest recipeManifest, prev recipe.Receipt,
 	next.ID = manifest.ID
 	next.Summary = manifest.Summary
 	next.Version = manifest.Version
+	next.Author = manifest.Author
+	next.Released = manifest.Released
 	next.Upstream = manifest.Upstream
 	next.Declaration = manifest.Declaration
 	next.Register = manifest.Register
 	// A reinstall of a removed recipe is a new install: the generated
 	// registration must import it again.
-	next.Removed = ""
+	next.MarkInstalled()
 	if serr := recipe.SaveReceipt(root, next); serr != nil {
 		return &ExitError{code: 1, msg: "recipe install: write receipt: " + serr.Error()}
 	}
@@ -228,12 +230,12 @@ func parseRecipeInstallArgs(args []string) (recipeInstallArgs, error) {
 	if opt.src == "" {
 		if opt.entry != "" {
 			return opt, &ExitError{code: 1, msg: "recipe install --entry needs the pristine " +
-				"contents directory (`recipe install --entry catalog/pomodoro/v1.2.0.yml " +
-				"./downloaded/pomodoro`)"}
+				"contents directory (`recipe install --entry catalog/todo/v1.0.0.yaml " +
+				"./downloaded/todo`)"}
 		}
 		return opt, &ExitError{code: 1, msg: "recipe install needs a recipe directory " +
-			"(`recipe install _recipes/pomodoro`) or " +
-			"(`recipe install pomodoro`); `gogogo --help` lists the offered units"}
+			"(`recipe install ./path/to/bundle`) or " +
+			"(`recipe install ./path/to/bundle`); `gogogo --help` lists the offered units"}
 	}
 	if fs.NArg() > 1 {
 		return opt, &ExitError{code: 1, msg: "recipe install takes one recipe directory"}

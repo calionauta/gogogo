@@ -84,7 +84,7 @@ func (h *Handler) page(w http.ResponseWriter, r *http.Request) {
 		// Not a fake empty list: an unrunnable query would render as "no orders
 		// yet", which is indistinguishable from the real thing.
 		observability.Error(r.Context(), "kiosk: list orders failed",
-			append(observability.WithComponent("kiosk", "handler"), "error", err)...)
+			append(observability.WithComponent("kiosk", observability.LayerFeature), "error", err)...)
 		http.Error(w, "listing orders failed", http.StatusInternalServerError)
 		return
 	}

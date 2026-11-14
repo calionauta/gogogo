@@ -24,23 +24,24 @@ func newCatalogFixture(t *testing.T, files map[string]string) (entryPath, conten
 	}
 	sort.Strings(paths)
 	var b strings.Builder
-	b.WriteString("id: pomodoro\nsummary: A pomodoro timer with one page.\nversion: v1.2.0\n")
+	b.WriteString("id: timer\nsummary: A timer with one page.\nversion: v1.2.0\n")
+	b.WriteString("author: {name: Test Author}\nreleased: \"2026-11-01\"\n")
 	b.WriteString("source:\n  repo: example.com/recipes\n  ref: v1.0.0\n")
 	b.WriteString("module: example.com/recipes\n")
-	b.WriteString("register: features/pomodoro/handlers\n")
+	b.WriteString("register: features/timer/handlers\n")
 	b.WriteString("files:\n")
 	for _, rel := range paths {
 		fmt.Fprintf(&b, "  %s: sha256:%s\n", rel, recipe.Hash([]byte(files[rel])))
 	}
 	b.WriteString("license: MIT\nminCore: v0.56.0\n")
 	b.WriteString("slots: [settings.section]\n")
-	b.WriteString("routes:\n  - {method: GET, pattern: /pomodoro}\n")
+	b.WriteString("routes:\n  - {method: GET, pattern: /timer}\n")
 	b.WriteString("actions:\n  - verb: show\n    description: Show the timer page.\n" +
-		"    route: {method: GET, pattern: /pomodoro}\n")
+		"    route: {method: GET, pattern: /timer}\n")
 	b.WriteString("metrics:\n  - {label: Sessions, query: \"SELECT COUNT(*) " +
-		"FROM ext_pomodoro_session WHERE owner = ?\"}\n")
-	b.WriteString("panel:\n  component: pomodoro_list\n" +
-		"  prompt: \"pomodoro_list {scope: all|mine} whenever the user asks\"\n" +
+		"FROM ext_timer_session WHERE owner = ?\"}\n")
+	b.WriteString("panel:\n  component: timer_list\n" +
+		"  prompt: \"timer_list {scope: all|mine} whenever the user asks\"\n" +
 		"  writable: [scope]\n")
 	b.WriteString("upstreamDeps: []\n")
 	b.WriteString("reviewedAt: \"2026-11-14\"\nreviewedBy: calionauta\nreviewedAgainst: 3f8a1c2\n")
@@ -55,11 +56,11 @@ func newCatalogFixture(t *testing.T, files map[string]string) (entryPath, conten
 // exist.
 func catalogFiles() map[string]string {
 	return map[string]string{
-		"features/pomodoro/handlers/chi.go": recipeHandlerV1,
-		"features/pomodoro/handlers/register.go": "package handlers\n\n" +
+		"features/timer/handlers/chi.go": recipeHandlerV1,
+		"features/timer/handlers/register.go": "package handlers\n\n" +
 			"import \"example.com/recipes/internal/recipe\"\n\n" +
 			"var slots = map[recipe.SlotID]recipe.Fragment{\n" +
-			"\trecipe.SlotSettingsSection: {Title: \"Pomodoro\"},\n}\n\n" +
+			"\trecipe.SlotSettingsSection: {Title: \"Timer\"},\n}\n\n" +
 			"func Register(reg any, d any) {}\n",
 	}
 }
@@ -72,18 +73,18 @@ func TestRecipeInstallFromCatalogEntryVerifiesAndInstalls(t *testing.T) {
 	if err != nil {
 		t.Fatalf("install from entry: %v\n%s", err, out)
 	}
-	got, rerr := os.ReadFile(filepath.Join(root, "features/pomodoro/handlers/chi.go"))
+	got, rerr := os.ReadFile(filepath.Join(root, "features/timer/handlers/chi.go"))
 	if rerr != nil || string(got) != recipeHandlerV1 {
 		t.Fatalf("reviewed bytes were not installed: %q, %v", got, rerr)
 	}
-	rec, lerr := recipe.LoadReceipt(root, "pomodoro")
+	rec, lerr := recipe.LoadReceipt(root, "timer")
 	if lerr != nil {
 		t.Fatalf("receipt: %v", lerr)
 	}
 	if rec.Upstream.Ref != "v1.0.0" {
 		t.Fatalf("receipt upstream = %+v, want the entry's source", rec.Upstream)
 	}
-	if len(rec.Declaration.Routes) != 1 || rec.Declaration.Routes[0].Pattern != "/pomodoro" {
+	if len(rec.Declaration.Routes) != 1 || rec.Declaration.Routes[0].Pattern != "/timer" {
 		t.Fatalf("receipt lost the entry's declaration: %+v", rec.Declaration)
 	}
 	if len(rec.Declaration.Slots) != 1 || rec.Declaration.Slots[0] != "settings.section" {
@@ -101,7 +102,7 @@ func TestRecipeInstallFromCatalogEntryVerifiesAndInstalls(t *testing.T) {
 		t.Fatalf("receipt lost the reviewed metrics/panel: metrics=%+v panel=%+v",
 			rec.Declaration.Metrics, rec.Declaration.Panel)
 	}
-	if gen := readOrEmpty(t, root, recipeRegistrationFile); !strings.Contains(gen, "pomodoro.Register") {
+	if gen := readOrEmpty(t, root, recipeRegistrationFile); !strings.Contains(gen, "timer.Register") {
 		t.Fatalf("entry install did not register the recipe:\n%s", gen)
 	}
 }
@@ -109,13 +110,13 @@ func TestRecipeInstallFromCatalogEntryVerifiesAndInstalls(t *testing.T) {
 func TestRecipeInstallFromCatalogEntryRejectsTamperedBytes(t *testing.T) {
 	root := newRecipeCheckout(t)
 	entry, contents := newCatalogFixture(t, catalogFiles())
-	writeFile(t, filepath.Join(contents, "features/pomodoro/handlers/chi.go"), "package handlers // tampered\n")
+	writeFile(t, filepath.Join(contents, "features/timer/handlers/chi.go"), "package handlers // tampered\n")
 
 	out, err := runRecipeCLI(t, "install", "--entry", entry, contents, "--dir", root, "--yes")
 	if err == nil || !strings.Contains(err.Error(), "does not hash to the reviewed bytes") {
 		t.Fatalf("tampered bytes must be refused, got %v\n%s", err, out)
 	}
-	if _, serr := os.Stat(filepath.Join(root, "features/pomodoro/handlers/chi.go")); !os.IsNotExist(serr) {
+	if _, serr := os.Stat(filepath.Join(root, "features/timer/handlers/chi.go")); !os.IsNotExist(serr) {
 		t.Fatal("a refused entry install wrote files")
 	}
 }
@@ -123,7 +124,7 @@ func TestRecipeInstallFromCatalogEntryRejectsTamperedBytes(t *testing.T) {
 func TestRecipeInstallFromCatalogEntryRejectsUnreviewedFiles(t *testing.T) {
 	root := newRecipeCheckout(t)
 	entry, contents := newCatalogFixture(t, catalogFiles())
-	writeFile(t, filepath.Join(contents, "features/pomodoro/backdoor.go"), "package pomodoro\n")
+	writeFile(t, filepath.Join(contents, "features/timer/backdoor.go"), "package timer\n")
 
 	out, err := runRecipeCLI(t, "install", "--entry", entry, contents, "--dir", root, "--yes")
 	if err == nil || !strings.Contains(err.Error(), "did not review") {
@@ -134,7 +135,7 @@ func TestRecipeInstallFromCatalogEntryRejectsUnreviewedFiles(t *testing.T) {
 func TestRecipeInstallFromCatalogRejectsUnshippedRegister(t *testing.T) {
 	root := newRecipeCheckout(t)
 	entry, contents := newCatalogFixture(t, map[string]string{
-		"features/pomodoro/service/service.go": "package service\n",
+		"features/timer/service/service.go": "package service\n",
 	})
 
 	out, err := runRecipeCLI(t, "install", "--entry", entry, contents, "--dir", root, "--yes")

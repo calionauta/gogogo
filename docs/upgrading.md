@@ -89,7 +89,7 @@ machine per day sits far under GitHub's 60/hour ceiling.
 
 ```bash
 gogogo recipe outdated --dir .            # every installed recipe
-gogogo recipe outdated pomodoro --dir .   # one, by id
+gogogo recipe outdated timer --dir .   # one, by id
 ```
 
 It compares the version each receipt recorded against the latest reviewed
@@ -156,7 +156,7 @@ against **your** manifest:
 |---|---|
 | `core <capability>` | no unit owns that capability (`server`, `auth`): it ships in every tree, so the change applies |
 | `kept <capability>` | a capability of a unit you kept: apply it |
-| `removed <unit>` | a capability of a unit you trimmed: nothing here to change |
+| `removed <unit>` | a capability of a unit you removed: nothing here to change |
 
 ```
 gogogo migrate --dir . --files
@@ -170,7 +170,7 @@ summary: 109 core, 7 in units you kept, 0 in units you removed (skippable)
 
 The capability name is the label, not the unit, because that is what the file
 *is*: `notes.js` reads `kept notes`, even though the unit that owns it is
-`whiteboard` (which trims notes with it). The verdict still uses the unit,
+`whiteboard` (which takes notes with it). The verdict still uses the unit,
 because that is what your `removed:` line recorded.
 
 Two honest limits, both reported rather than hidden:
@@ -234,7 +234,7 @@ read on every run.
 
 ## The installer is the one framework-shaped piece, and only at build time
 
-`trim`, `add` and `new` act on markers in the tree — the call lines in
+`export`, `add` and `new` act on markers in the tree — the call lines in
 `cmd/web/main.go`, the route lines in `internal/server/chi.go`, the `[]Module`
 entry in `internal/ui/modules.go`, and the unit rows in `internal/capabilities`.
 A release that moves wiring is therefore a compatibility event for your
@@ -251,7 +251,7 @@ instead of corrupting the file.
 | Fetching docs to inject as instructions | Runtime-fetched docs become part of an agent's instructions and cannot be pinned (OWASP AST05). Docs ship pinned with the tree; only the changelog is fetched, and only as data |
 | Merging template changes into your tree | You own every line. A migration you did not read is a regression you did not review |
 | Rewriting `scaffolded-from:` for you | Provenance must record what actually happened. A tool that bumps the marker on request lets a tree claim a base it never ran — see step 4 above |
-| Comparing versions inside `--check` | `--check` answers "does this tree match the manifest?", which must work with no network and no cache: it is the gate CI and a trimmed tree rely on. Version comparison is `--check-update` and `migrate`, both explicit |
+| Comparing versions inside `--check` | `--check` answers "does this tree match the manifest?", which must work with no network and no cache: it is the gate CI and a tree that removed units rely on. Version comparison is `--check-update` and `migrate`, both explicit |
 
 ## Related
 

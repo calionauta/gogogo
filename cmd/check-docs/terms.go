@@ -35,11 +35,21 @@ type retiredTerm struct {
 // commit that retired it — not discovered later by a reader.
 var retiredTerms = []retiredTerm{
 	{old: "gogogo extension", now: "gogogo recipe"},
-	{old: "_extensions/", now: "_recipes/"},
+	{old: "_extensions/", now: "catalog/ (reviewed entry) or .recipes/ (receipt)"},
 	{old: "extensions.gen.go", now: "recipes.gen.go"},
 	{old: "extension_list", now: "recipe_list"},
 	{old: "extension_describe", now: "recipe_describe"},
 	{old: "extension_invoke", now: "recipe_invoke"},
+	// The removal class was `plugin` in code and `servant` in prose: two names
+	// for one level, which is how a reader ends up translating instead of
+	// reading. The class is `servant` everywhere now. The bare word stays
+	// legal (a DaisyUI plugin, a provider plugin) — only the class forms go.
+	{old: "kind: plugin", now: "kind: servant"},
+	{old: "kind `plugin`", now: "kind `servant`"},
+	{old: "plugin-kind", now: "servant-kind"},
+	{old: "`plugin` row", now: "`servant` row"},
+	{old: "`plugin` unit", now: "`servant` unit"},
+	{old: "Kind: plugin", now: "Kind: servant"},
 }
 
 // checkRetiredTerms rejects a retired name in the prose a reader or an agent

@@ -49,6 +49,8 @@ type recipeManifest struct {
 	// without it the receipt records no version and `recipe outdated`
 	// honestly reports unknown instead of guessing.
 	Version     string             `yaml:"version,omitempty"`
+	Author      recipe.Author      `yaml:"author,omitempty"`
+	Released    string             `yaml:"released,omitempty"`
 	Upstream    recipe.Upstream    `yaml:"upstream"`
 	Declaration recipe.Declaration `yaml:"declaration"`
 	// Register is the repo-relative package exporting `Register`. Empty is a
@@ -307,7 +309,7 @@ func validateRegisterPath(rel string) error {
 		strings.HasPrefix(rel, "../") {
 		return &ExitError{code: 1, msg: fmt.Sprintf(
 			"recipe install: register %q must be a clean repo-relative package path "+
-				"(e.g. features/pomodoro/handlers)", rel)}
+				"(e.g. features/timer/handlers)", rel)}
 	}
 	return nil
 }

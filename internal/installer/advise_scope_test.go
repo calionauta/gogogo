@@ -173,7 +173,7 @@ func TestAdviseZigzagDoesNotTriggerZig(t *testing.T) {
 // inviting a scaffold nothing matched.
 func TestAdviseUnmatchedNeedGetsFullMapWithoutScaffold(t *testing.T) {
 	// "blog" is a universal loanword: even a Django blog is a static-public
-	// use-case, so it matches marketing-site (keep landing) with the full
+	// use-case, so it matches marketing-site with the full
 	// map behind it.
 	blog := buildAdvise("Django blog")
 	if blog.Scope != scopeTemplate || blog.FirstRun == nil {

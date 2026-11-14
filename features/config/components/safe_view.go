@@ -79,7 +79,7 @@ type PageData struct {
 	// enforced denies when true.
 	RBACEnabled bool
 	// Units is the inventory of everything this binary ships, grouped by
-	// removal class (Core / Servants / Recipes). Status is "in" (always
+	// removal class (Core / Servants / Features). Status is "in" (always
 	// shipped) or the unit's RuntimeOff switch text (opt-out); whether a
 	// switch is currently off is the Runtime tab's job, not guessed here.
 	Units []UnitGroup
@@ -138,7 +138,8 @@ type Group struct {
 }
 
 // UnitGroup is one removal-class group on the Units tab: Core, Servants or
-// Recipes (prose names — the Kind values stay in the registry).
+// Features. The label comes from capabilities.KindGroupLabel — the class has
+// exactly one name, so the page cannot drift from the registry.
 type UnitGroup struct {
 	Label string
 	Rows  []UnitRow
@@ -157,7 +158,7 @@ type UnitRow struct {
 // actually mounted: a recipe with no provider in this build is not "in" —
 // it was uninstalled (its registry row stays as removal-class data) or
 // switched off at boot. Switch-gated rows keep their opt-out text: for
-// them, unmounted is the documented off state, not a removal. Recipes only —
+// them, unmounted is the documented off state, not a removal. Features only —
 // Core/Servants are always wired when the row exists.
 func MarkRemovedUnits(data *PageData, mounted map[string]bool) {
 	for i := range data.Units {
@@ -174,15 +175,11 @@ func MarkRemovedUnits(data *PageData, mounted map[string]bool) {
 // with a RuntimeOff switch is opt-out (the switch text says how); the rest
 // are always in. Sorted by id per group so renders are stable.
 func buildUnits() []UnitGroup {
-	groups := []UnitGroup{
-		{Label: "Core"},
-		{Label: "Servants"},
-		{Label: "Recipes"},
-	}
-	byKind := map[capabilities.Kind]int{
-		capabilities.KindCore:    0,
-		capabilities.KindPlugin:  1,
-		capabilities.KindFeature: 2,
+	groups := make([]UnitGroup, 0, len(capabilities.Kinds))
+	byKind := make(map[capabilities.Kind]int, len(capabilities.Kinds))
+	for i, kind := range capabilities.Kinds {
+		groups = append(groups, UnitGroup{Label: capabilities.KindGroupLabel(kind)})
+		byKind[kind] = i
 	}
 	for _, u := range capabilities.All {
 		idx, ok := byKind[u.Kind]

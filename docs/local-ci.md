@@ -77,7 +77,7 @@ Playwright suites run in parallel via `scripts/ci-fanout.sh`, so the
 wall-clock is the slowest suite, not the sum). Heaviest race packages by
 package time (they overlap in parallel — wall is the max, not the sum):
 `internal/auth` ~292s (argon2id cost is intentional work, ~250ms per
-hash by calibration), `internal/installer` ~193s (trim build gates copy
+hash by calibration), `internal/installer` ~193s (removal gates copy
 and vet the whole repo per unit), `features/notes/handlers` ~188s,
 `features/todo/handlers` ~173s, `features/whiteboard/handlers` ~168s,
 `rules` ~110s (per-rule lint fixtures). Everything else is cheap:
@@ -148,7 +148,7 @@ bound shared-host load. Refused means the same as T4: scope to one
 package by hand, or let the PR's CI be the gate.
 
 Heavy Go tests guard themselves too: `internal/hostgate.SkipIfConstrained`
-makes repo-copying suites (notably `TestTrimmedTreeStillBuilds`, one full
+makes repo-copying suites (notably the removed-tree build proof, one full
 `go vet ./...` per unit) skip — with measured reason — when off-CI and
 constrained, instead of wedging a shared box no Makefile gate can see.
 
@@ -197,6 +197,31 @@ touched — never point it at a live instance.
 
 PASS → `make ci-local` (T4) / `make signoff` / push. FAIL → fix now: an edit and
 ten seconds, instead of six minutes of gate plus a CI round trip.
+
+### The look is enforced, not just advised
+
+The table above is a judgment rule, so it is also a gate — otherwise an agent
+can skip the ask and nothing notices:
+
+- `make verify-local` prompts **PASS / FAIL / later** when it has a terminal,
+  and records the answer as `.gogogo/verify-local.json` (gitignored).
+- `make operator-look-pass` / `make operator-look-fail` record the verdict when
+  the operator answered in chat instead (the agent runs them **only** after the
+  human replied).
+- `bin/check-operator-look.sh` runs in `make signoff` and the **pre-push hook**.
+  It refuses when the diff touches a `.templ` page, `src/css/`, or
+  `web/resources/static/chrome.css` and no PASS stamp exists — a Go-only,
+  test-only or docs-only diff passes with no stamp, because a test decides it.
+- The stamp names the commit **and** a fingerprint of the worktree (diff +
+  untracked files, `.gogogo/` excluded). An edit after the look invalidates it,
+  committed or not, so the operator's PASS can never bless different code.
+- A FAIL stamp also refuses, with the recorded reason, until a new look passes.
+
+The decision lives in one script (`bin/check-operator-look.sh`); the vocabulary
+of "judgment surface" is that script's glob, deliberately narrow. A gate that
+asked for every CSS tweak would train people to click without looking, which is
+the failure it exists to prevent. Contract test:
+`bash bin/check-operator-look_test.sh` (wired into `make check-ci-scripts`).
 
 ### Homolog light: staging without a server
 
@@ -427,17 +452,17 @@ the fix is a helper with the guarantee — `gotoBoard()` / `gotoNote()` navigate
 with `load` and then wait for the canvas / textarea explicitly — not a longer
 timeout.
 
-### A test may not import a trim-managed package from outside it
+### A test may not import a removable package from outside it
 
-`trim <unit>` deletes directories, so a test that imports one must live where
-the trim can take it too. A shared test that imported an optional unit's package
-made `TestTrimmedTreeStillBuilds` and the `minimal` preset stop **compiling**
-once that unit was trimmed.
+Deleting a unit deletes its directories, so a test that imports one must live
+where the deletion takes it too. A shared test that imported an optional unit's
+package made the removed-tree build gate stop **compiling** once that unit was
+removed.
 
 Rule of thumb: a cross-tree test belongs to the tree it asserts, or it reaches
 the optional thing through a registry and skips with a log line when it has been
-trimmed — a silent skip is coverage loss wearing the same clothes as a pass.
-Never import an optional unit's package from a package that survives the trim.
+removed — a silent skip is coverage loss wearing the same clothes as a pass.
+Never import an optional unit's package from a package that survives the removal.
 
 ### Tests run in parallel across packages
 

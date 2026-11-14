@@ -9473,17 +9473,11 @@
   .is-drawer-close\:hidden:where(.drawer-toggle:not(:checked) ~ .drawer-side, .drawer-toggle:not(:checked) ~ .drawer-side *) {
     display: none;
   }
-  .is-drawer-close\:w-18:where(.drawer-toggle:not(:checked) ~ .drawer-side, .drawer-toggle:not(:checked) ~ .drawer-side *) {
-    width: calc(var(--spacing) * 18);
-  }
   .is-drawer-close\:overflow-visible:where(.drawer-toggle:not(:checked) ~ .drawer-side, .drawer-toggle:not(:checked) ~ .drawer-side *) {
     overflow: visible;
   }
   .is-drawer-open\:hidden:where(.drawer-toggle:checked ~ .drawer-side, .drawer-toggle:checked ~ .drawer-side *) {
     display: none;
-  }
-  .is-drawer-open\:w-60:where(.drawer-toggle:checked ~ .drawer-side, .drawer-toggle:checked ~ .drawer-side *) {
-    width: calc(var(--spacing) * 60);
   }
   .animate-in {
     animation-duration: 150ms;

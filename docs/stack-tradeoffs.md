@@ -135,7 +135,7 @@ The model picks components from a fixed registry — `text_note`, `plan_cards`,
 `data_table`, `bar_chart`, `action_buttons`, `diagram` (Mermaid via vendored
 Pele, client-rendered SVG with source fallback), nestable `section`s — and the
 server renders them as Templ over SSE: no client framework, no JS bundle,
-trimmable like every feature.
+removable like every feature.
 
 - **Rejected:** OpenUI/A2UI/AG-UI/CopilotKit renderers (all React/JS with npm +
   SPA; none ships a Go/hypermedia renderer), *unsanitized* free-form model
@@ -175,7 +175,7 @@ Datastar collab demo (server-serialized, plain text only, no offline merge).
 
 Cost: every keystroke round-trips — no client-local editing — and the rich-text
 editor binding (cursor mapping, marks) is future work, as a `feature` package
-reusing `internal/collab`, never a new plugin.
+reusing `internal/collab`, never a new servant.
 
 ## age + `~/.secrets/` (and not Vault / KMS)
 
@@ -392,22 +392,22 @@ it:
   replaced it — roughly twenty of them for `notes` alone. A bare core has no
   contract to re-pin, so a change to a seam breaks wiring silently instead of
   failing a named test.
-- **The installer works on wiring that only exists in the demos.** `trim`
-  and `new` edit markers in real files — the call lines in `cmd/web/main.go`, the
-  route lines in `internal/server/chi.go`, the module registry entry, the unit
-  rows in `internal/capabilities`. With no demo in the tree, the recipes stay installed — there is nothing to strip
-  (the retired restore command has nothing to restore either), so "ship everything, delete what you
-  do not want" loses its input.
+- **The removal path works on wiring that only exists in the demos.** The
+  export bundle and `new` edit markers in real files — the call lines in
+  `cmd/web/main.go`, the route lines in `internal/server/chi.go`, the module
+  registry entry, the unit rows in `internal/capabilities`. With no demo in the
+  tree there is nothing to remove, so "ship everything, delete what you do not
+  want" loses its input.
 - **The gates walk units that exist.** `registry-conformance` and
   the RBAC coverage scan enumerate real units, so fewer units means less surface
   under a gate — which is how a route ships unguarded.
 
-Cost: scaffold weight and trim burden, and the weight is measurable. Trimming the
+Cost: scaffold weight and removal burden, and the weight is measurable. Removing the
 four demo features and their wiring removes 81 of the 736 code and docs files,
-about 15,000 lines. Trimming every unit the installer offers removes 218 of them,
+about 15,000 lines. Removing every unit the installer offers takes 218 of them,
 about 39,700 lines, near a third of the tree. Counted on a copy of the tree with
 generated bundles excluded. Each demo is a unit the installer
-offers to strip (`whiteboard`, `goakt`, `landing`, `config-view`, `credits`,
+offers to strip (`whiteboard`, `goakt`, `config-view`, `credits`,
 `sounds`, `review`, `genui`, `dagnats`) or a documented manual removal
 (`todo`, `notes`), and every demo rots if its pattern drifts from the core.
 Revisit per demo: anything nobody copies in real scaffolds is a deletion
@@ -430,7 +430,7 @@ auth, file storage, generic REST, realtime subscriptions — and it is rejected 
 a different axis: it is a framework SURFACE, not a database choice. Those
 surfaces are the seams this template owns (chi composition, argon2id sessions,
 data access, fan-out), so adopting it puts the app inside its lifecycle and its
-hooks, leaves no unit to trim and no line you own. Swapping the store keeps every
+hooks, leaves no unit to remove and no line you own. Swapping the store keeps every
 seam; adopting the framework deletes them.
 
 What refusing it costs is the list above: no admin UI, no generic REST, no file

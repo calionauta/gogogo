@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 )
 
 // FileState is what happened to one installed file since it was written.
@@ -44,6 +45,16 @@ type Upstream struct {
 	Path string `yaml:"path,omitempty"`
 }
 
+// Author is who gets the credit for a recipe. Structured rather than the single
+// "Name <email>" string shadcn's registry uses: a discovery view wants the name
+// to show and the address to link, and a review gate wants to check each shape.
+// Empty is valid on a local manifest (a draft may omit the address); a catalog
+// entry requires the name.
+type Author struct {
+	Name  string `yaml:"name"`
+	Email string `yaml:"email,omitempty"`
+}
+
 // Receipt is what install writes and every later operation reads. The whole
 // point of the three fields is that they answer questions no version string can:
 // where the pristine baseline lives, which exact bytes were installed, and what
@@ -53,8 +64,13 @@ type Receipt struct {
 	// Summary is what the recipe does, in the author's words. Without it
 	// discovery can only show the upstream repo path, which tells an agent
 	// where the code came from and nothing about whether to use it.
-	Summary  string   `yaml:"summary,omitempty"`
-	Version  string   `yaml:"version,omitempty"`
+	Summary string `yaml:"summary,omitempty"`
+	Version string `yaml:"version,omitempty"`
+	// Author and Released travel with the recipe: credit survives the copy, and
+	// a reader can tell which release of the slice they own without asking the
+	// upstream or the catalog.
+	Author   Author   `yaml:"author,omitempty"`
+	Released string   `yaml:"released,omitempty"`
 	Upstream Upstream `yaml:"upstream"`
 	// Files maps installed path → hex sha256 of the PRISTINE upstream content.
 	// This is the third leg of any three-way merge; without it "what did I
@@ -73,6 +89,45 @@ type Receipt struct {
 	// and the generated registration skips a removed recipe, so uninstalling
 	// never leaves an import of a package that is gone.
 	Removed string `yaml:"removed,omitempty"`
+}
+
+// State is a receipt's lifecycle position. It is derived from Removed rather
+// than stored twice: one truth, two readers (the YAML field and this enum).
+//
+//	installed ──uninstall──▶ removed ──install──▶ installed
+//
+// There is no third state. "Never installed" is the absence of a receipt, not a
+// state a receipt can be in, which is why every operation loads the file first
+// and reports `not installed` instead of inventing a value.
+type State string
+
+const (
+	StateInstalled State = "installed"
+	StateRemoved   State = "removed"
+)
+
+// State is the receipt's lifecycle position.
+func (r *Receipt) State() State {
+	if r.Removed != "" {
+		return StateRemoved
+	}
+	return StateInstalled
+}
+
+// MarkInstalled puts the receipt in `installed`, which is what a fresh install
+// and a reinstall after an uninstall both write. It is idempotent on purpose:
+// installing twice is an update, not an error.
+func (r *Receipt) MarkInstalled() { r.Removed = "" }
+
+// MarkRemoved is the only legal way into `removed`. It refuses a transition
+// that is already there: a second uninstall is a caller bug (or a race), and
+// silently rewriting the timestamp would hide which removal actually ran.
+func (r *Receipt) MarkRemoved(at time.Time) error {
+	if r.Removed != "" {
+		return fmt.Errorf("recipe %s: already removed at %s", r.ID, r.Removed)
+	}
+	r.Removed = at.UTC().Format(time.RFC3339)
+	return nil
 }
 
 // Declaration is what the code claims. The drift check compares it to the code.

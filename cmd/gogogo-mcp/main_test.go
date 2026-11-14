@@ -42,7 +42,7 @@ func TestToolsListCapabilities(t *testing.T) {
 }
 
 func TestTrimApplyRequiresConfirm(t *testing.T) {
-	_, _, err := handleTrimApply(context.Background(), nil, trimArgs{Name: "x", Dir: "/tmp"})
+	_, _, err := handleScaffoldApply(context.Background(), nil, scaffoldArgs{Name: "x", Dir: "/tmp"})
 	if err == nil || !strings.Contains(err.Error(), "confirm:true") {
 		t.Errorf("expected confirm:true refusal, got %v", err)
 	}
@@ -160,11 +160,11 @@ func TestTrimApplyEndToEnd(t *testing.T) {
 		[]byte("package main\n\nfunc main() {}\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	res, _, err := handleTrimApply(context.Background(), nil, trimArgs{
+	res, _, err := handleScaffoldApply(context.Background(), nil, scaffoldArgs{
 		Name: "mcp-app", Owner: "mcporg", Dir: dir, Confirm: true, Format: "json",
 	})
 	if err != nil {
-		t.Fatalf("trim_apply: %v", err)
+		t.Fatalf("scaffold_apply: %v", err)
 	}
 	var env struct {
 		BuildOk bool `json:"buildOk"`
@@ -176,7 +176,7 @@ func TestTrimApplyEndToEnd(t *testing.T) {
 		} `json:"next"`
 	}
 	if uerr := json.Unmarshal([]byte(toolText(t, res)), &env); uerr != nil {
-		t.Fatalf("trim_apply is not valid JSON: %v", uerr)
+		t.Fatalf("scaffold_apply is not valid JSON: %v", uerr)
 	}
 	if !env.BuildOk {
 		t.Error("buildOk must be true for the compilable fixture")

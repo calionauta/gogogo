@@ -99,6 +99,14 @@ func (r *Router) Claim(owner, method, pattern string) {
 	claimRoute(r.routes, owner, method, pattern)
 }
 
+// serves reports whether the composed tree answers method on pattern. It reads
+// the same claim table the duplicate guard uses, so "is this mounted" has one
+// answer and a trimmed build needs no second manifest.
+func (r *Router) serves(method, pattern string) bool {
+	_, ok := r.routes.owner[routeKey{method: method, pattern: pattern}]
+	return ok
+}
+
 // MountFeature registers every route h declares on the tree, keeping the
 // method, the pattern and the feature router's own middleware chain. owner
 // names the capability in a duplicate-registration panic. A nil router is a

@@ -20,7 +20,7 @@ func frag(title string) Fragment {
 func TestSlotPageRendersWithoutKnowingTheRecipe(t *testing.T) {
 	reg := NewSlotRegistry()
 	if err := reg.Add(Contribution{
-		Fragments: map[SlotID]Fragment{SlotSettingsSection: frag("Pomodoro")},
+		Fragments: map[SlotID]Fragment{SlotSettingsSection: frag("Timer")},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -35,10 +35,10 @@ func TestSlotPageRendersWithoutKnowingTheRecipe(t *testing.T) {
 		return "<section class=\"ui-card\">" + f.Render() + "</section>"
 	})
 
-	if !strings.Contains(out, "Pomodoro") || !strings.Contains(out, "Review queue") {
+	if !strings.Contains(out, "Timer") || !strings.Contains(out, "Review queue") {
 		t.Fatalf("both contributions must render, got %q", out)
 	}
-	if strings.Contains(out, "recipe") || strings.Contains(out, "pomodoro:") {
+	if strings.Contains(out, "recipe") || strings.Contains(out, "timer:") {
 		t.Fatalf("no recipe identifier may leak into the page's output: %q", out)
 	}
 	// The page supplied the container, the recipes supplied only content.
@@ -118,7 +118,7 @@ func TestRowActionsAreDataNotComponents(t *testing.T) {
 	reg := NewSlotRegistry()
 	if err := reg.Add(Contribution{
 		Actions: map[SlotID][]Action{SlotRecordRowActions: {
-			{Label: "Start timer", Href: "/pomodoro/start/{id}", Verb: "post", Confirm: "Start a timer for this task?"},
+			{Label: "Start timer", Href: "/timer/start/{id}", Verb: "post", Confirm: "Start a timer for this task?"},
 		}},
 	}); err != nil {
 		t.Fatal(err)
@@ -166,7 +166,7 @@ func TestEmptySlotRendersNothing(t *testing.T) {
 // serves. A scheme (`javascript:`), an absolute URL and a protocol-relative
 // `//host` are all refused, so a recipe cannot turn the sidebar into a redirect.
 func TestEntryMustBeARootRelativePath(t *testing.T) {
-	for _, href := range []string{"https://evil.example/x", "javascript:alert(1)", "//evil.example/x", "pomodoro"} {
+	for _, href := range []string{"https://evil.example/x", "javascript:alert(1)", "//evil.example/x", "timer"} {
 		reg := NewSlotRegistry()
 		err := reg.Add(Contribution{Entries: map[SlotID][]Entry{
 			SlotNavSidebar: {{Label: "Evil", Href: href}},
@@ -178,11 +178,11 @@ func TestEntryMustBeARootRelativePath(t *testing.T) {
 
 	reg := NewSlotRegistry()
 	if err := reg.Add(Contribution{Entries: map[SlotID][]Entry{
-		SlotNavSidebar: {{Label: "Pomodoro", Href: "/pomodoro"}},
+		SlotNavSidebar: {{Label: "Timer", Href: "/timer"}},
 	}}); err != nil {
 		t.Fatalf("a root-relative path must be accepted, got %v", err)
 	}
-	if got := reg.Entries(SlotNavSidebar); len(got) != 1 || got[0].Href != "/pomodoro" {
+	if got := reg.Entries(SlotNavSidebar); len(got) != 1 || got[0].Href != "/timer" {
 		t.Fatalf("entry did not reach the registry: %+v", got)
 	}
 }
@@ -208,7 +208,7 @@ func TestRowActionContract(t *testing.T) {
 	}
 
 	reg := NewSlotRegistry()
-	ok := Action{Label: "Send to pomodoro", Verb: "post", Href: "/api/pomodoro/from-todo/{id}", Confirm: "Send this row?"}
+	ok := Action{Label: "Send to timer", Verb: "post", Href: "/api/timer/from-todo/{id}", Confirm: "Send this row?"}
 	if err := reg.Add(Contribution{Actions: map[SlotID][]Action{SlotRecordRowActions: {ok}}}); err != nil {
 		t.Fatalf("a well-formed action must be accepted, got %v", err)
 	}

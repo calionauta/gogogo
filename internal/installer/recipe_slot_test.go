@@ -19,9 +19,9 @@ func TestRecipeInstallRefusesASlotNothingRenders(t *testing.T) {
 	root := newRecipeCheckout(t)
 	src := t.TempDir()
 	writeFile(t, filepath.Join(src, recipeManifestFile),
-		"id: pomodoro\n"+
+		"id: timer\n"+
 			"declaration:\n  slots: [not.real]\n")
-	writeFile(t, filepath.Join(src, "features/pomodoro/handlers/chi.go"), recipeHandlerV1)
+	writeFile(t, filepath.Join(src, "features/timer/handlers/chi.go"), recipeHandlerV1)
 
 	out, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes")
 	if err == nil {
@@ -30,7 +30,7 @@ func TestRecipeInstallRefusesASlotNothingRenders(t *testing.T) {
 	if !strings.Contains(err.Error(), "not offered") || !strings.Contains(err.Error(), "not.real") {
 		t.Fatalf("the refusal must name the slot and the reason, got: %v", err)
 	}
-	if _, statErr := os.Stat(filepath.Join(root, "features/pomodoro/handlers/chi.go")); statErr == nil {
+	if _, statErr := os.Stat(filepath.Join(root, "features/timer/handlers/chi.go")); statErr == nil {
 		t.Fatal("a refused install wrote a file")
 	}
 }

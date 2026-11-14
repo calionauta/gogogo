@@ -249,7 +249,7 @@ func reportWithoutTests(receipt recipe.Receipt, report RecipeCheckReport) Recipe
 	report.Suggestions = appendUnique(report.Suggestions,
 		"add a red-proofed contract test: mount the provider, assert the wire symptom "+
 			"(status, body, the row on the page), then mutate the code and watch it fail — "+
-			"_recipes/pomodoro ships the shape")
+			"features/kiosk is the worked example (declared outcome + metrics)")
 	return report
 }
 

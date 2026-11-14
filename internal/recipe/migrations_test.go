@@ -37,7 +37,7 @@ type schemaCase struct {
 // count, so an extra problem cannot hide behind a substring match.
 func runSchemaCase(t *testing.T, tc schemaCase) {
 	t.Helper()
-	err := ValidateSchema("pomodoro", Declaration{Tables: tc.tables}, mapFS(tc.files))
+	err := ValidateSchema("timer", Declaration{Tables: tc.tables}, mapFS(tc.files))
 	if len(tc.want) == 0 {
 		if err != nil {
 			t.Fatalf("schema must validate, got: %v", err)
@@ -62,36 +62,36 @@ func TestValidateSchema(t *testing.T) {
 	cases := []schemaCase{
 		{
 			name:   "matching declaration and create",
-			tables: []string{"ext_pomodoro_cards"},
+			tables: []string{"ext_timer_cards"},
 			files: map[string]string{
-				"0001_init.sql": "CREATE TABLE IF NOT EXISTS ext_pomodoro_cards (id TEXT PRIMARY KEY);",
+				"0001_init.sql": "CREATE TABLE IF NOT EXISTS ext_timer_cards (id TEXT PRIMARY KEY);",
 			},
 		},
 		{
 			name:   "declared without create",
-			tables: []string{"ext_pomodoro_cards"},
+			tables: []string{"ext_timer_cards"},
 			files: map[string]string{
 				"0001_init.sql": "SELECT 1;",
 			},
-			want: []string{`recipe "pomodoro" declares table ext_pomodoro_cards but no migration creates it`},
+			want: []string{`recipe "timer" declares table ext_timer_cards but no migration creates it`},
 		},
 		{
 			name:   "create without declaration",
 			tables: nil,
 			files: map[string]string{
-				"0001_init.sql": "CREATE TABLE ext_pomodoro_extra (id TEXT);",
+				"0001_init.sql": "CREATE TABLE ext_timer_extra (id TEXT);",
 			},
-			want: []string{`recipe "pomodoro" migration creates table ext_pomodoro_extra that the declaration does not list`},
+			want: []string{`recipe "timer" migration creates table ext_timer_extra that the declaration does not list`},
 		},
 		{
 			// The commented-out ghosts are documentation of a dropped idea; a
 			// scanner that counts them would pass a declaration nothing creates.
 			name:   "commented-out create is ignored",
-			tables: []string{"ext_pomodoro_cards"},
+			tables: []string{"ext_timer_cards"},
 			files: map[string]string{
-				"0001_init.sql": "-- CREATE TABLE ext_pomodoro_ghost (id TEXT);\n" +
-					"/*\nCREATE TABLE ext_pomodoro_also_ghost (id TEXT);\n*/\n" +
-					"CREATE TABLE ext_pomodoro_cards (id TEXT);",
+				"0001_init.sql": "-- CREATE TABLE ext_timer_ghost (id TEXT);\n" +
+					"/*\nCREATE TABLE ext_timer_also_ghost (id TEXT);\n*/\n" +
+					"CREATE TABLE ext_timer_cards (id TEXT);",
 			},
 		},
 		{
@@ -100,7 +100,7 @@ func TestValidateSchema(t *testing.T) {
 			files: map[string]string{
 				"0001_init.sql": "CREATE TABLE cards (id TEXT);",
 			},
-			want: []string{`recipe "pomodoro" migration creates table cards without the ext_pomodoro prefix`},
+			want: []string{`recipe "timer" migration creates table cards without the ext_timer prefix`},
 		},
 		{
 			name:   "core table is refused",
@@ -108,16 +108,16 @@ func TestValidateSchema(t *testing.T) {
 			files: map[string]string{
 				"0001_init.sql": "CREATE TABLE IF NOT EXISTS todos (id TEXT);",
 			},
-			want: []string{`recipe "pomodoro" migration creates core table todos`},
+			want: []string{`recipe "timer" migration creates core table todos`},
 		},
 		{
 			// Quoted identifiers and a subdirectory are the two shapes a real
 			// migration set uses; both must be read, not skipped.
 			name:   "quoted identifiers in a subdirectory",
-			tables: []string{"ext_pomodoro_notes", "ext_pomodoro_tags"},
+			tables: []string{"ext_timer_notes", "ext_timer_tags"},
 			files: map[string]string{
-				"migrations/0001_init.sql": `CREATE TABLE IF NOT EXISTS "ext_pomodoro_notes" (id TEXT);`,
-				"migrations/0002_tags.sql": "CREATE TABLE IF NOT EXISTS `ext_pomodoro_tags` (id TEXT);",
+				"migrations/0001_init.sql": `CREATE TABLE IF NOT EXISTS "ext_timer_notes" (id TEXT);`,
+				"migrations/0002_tags.sql": "CREATE TABLE IF NOT EXISTS `ext_timer_tags` (id TEXT);",
 			},
 		},
 	}
@@ -136,24 +136,24 @@ func TestValidateSchemaCoreTableBoundary(t *testing.T) {
 		{
 			name:  "altering a core table is refused",
 			files: map[string]string{"0001_init.sql": "ALTER TABLE todos ADD COLUMN done_at TEXT;"},
-			want:  []string{`recipe "pomodoro" migration alters core table todos — a recipe may not own a core object`},
+			want:  []string{`recipe "timer" migration alters core table todos — a recipe may not own a core object`},
 		},
 		{
 			name:  "dropping a core table is refused",
 			files: map[string]string{"0001_init.sql": "DROP TABLE IF EXISTS users;"},
-			want:  []string{`recipe "pomodoro" migration drops core table users — a recipe may not own a core object`},
+			want:  []string{`recipe "timer" migration drops core table users — a recipe may not own a core object`},
 		},
 		{
 			name:  "indexing a core table is refused",
 			files: map[string]string{"0001_init.sql": "CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions (token);"},
-			want:  []string{`recipe "pomodoro" migration indexes core table sessions — a recipe may not own a core object`},
+			want:  []string{`recipe "timer" migration indexes core table sessions — a recipe may not own a core object`},
 		},
 		{
 			name:  "writing core rows is refused",
 			files: map[string]string{"0001_init.sql": "UPDATE todos SET done = 1;\nDELETE FROM security_events;"},
 			want: []string{
-				`recipe "pomodoro" migration updates core table todos — a recipe may not own a core object`,
-				`recipe "pomodoro" migration deletes from core table security_events — a recipe may not own a core object`,
+				`recipe "timer" migration updates core table todos — a recipe may not own a core object`,
+				`recipe "timer" migration deletes from core table security_events — a recipe may not own a core object`,
 			},
 		},
 		{
@@ -161,7 +161,7 @@ func TestValidateSchemaCoreTableBoundary(t *testing.T) {
 			// of the CREATE, which is why the rule reads the ON clause.
 			name:  "a trigger on a core table is refused",
 			files: map[string]string{"0001_init.sql": "CREATE TRIGGER audit AFTER UPDATE ON todos BEGIN SELECT 1; END;"},
-			want: []string{`recipe "pomodoro" migration creates a trigger on core table todos ` +
+			want: []string{`recipe "timer" migration creates a trigger on core table todos ` +
 				`— a recipe may not own a core object`},
 		},
 		{
@@ -169,11 +169,11 @@ func TestValidateSchemaCoreTableBoundary(t *testing.T) {
 			// own table and reference a core one, because a foreign key is a
 			// dependency, not ownership.
 			name:   "own table alters and core foreign keys are allowed",
-			tables: []string{"ext_pomodoro_cards"},
+			tables: []string{"ext_timer_cards"},
 			files: map[string]string{
-				"0001_init.sql": "CREATE TABLE ext_pomodoro_cards (id TEXT, user_id TEXT REFERENCES users(id));\n" +
-					"ALTER TABLE ext_pomodoro_cards ADD COLUMN label TEXT;\n" +
-					"CREATE INDEX idx_cards_user ON ext_pomodoro_cards (user_id);",
+				"0001_init.sql": "CREATE TABLE ext_timer_cards (id TEXT, user_id TEXT REFERENCES users(id));\n" +
+					"ALTER TABLE ext_timer_cards ADD COLUMN label TEXT;\n" +
+					"CREATE INDEX idx_cards_user ON ext_timer_cards (user_id);",
 			},
 		},
 	}
@@ -186,14 +186,14 @@ func TestValidateSchemaCoreTableBoundary(t *testing.T) {
 // TestValidateSchemaProblemsAreSorted pins the stability claim: a report whose
 // order depends on map iteration is unreadable in CI and unstable in a diff.
 func TestValidateSchemaProblemsAreSorted(t *testing.T) {
-	err := ValidateSchema("pomodoro",
-		Declaration{Tables: []string{"ext_pomodoro_b", "ext_pomodoro_a"}},
+	err := ValidateSchema("timer",
+		Declaration{Tables: []string{"ext_timer_b", "ext_timer_a"}},
 		mapFS(map[string]string{"0001_init.sql": "SELECT 1;"}))
 	if err == nil {
 		t.Fatal("expected two missing tables")
 	}
 	lines := strings.Split(err.Error(), "\n")
-	if len(lines) != 2 || !strings.Contains(lines[0], "ext_pomodoro_a") || !strings.Contains(lines[1], "ext_pomodoro_b") {
+	if len(lines) != 2 || !strings.Contains(lines[0], "ext_timer_a") || !strings.Contains(lines[1], "ext_timer_b") {
 		t.Fatalf("problems must be sorted, got:\n%s", err.Error())
 	}
 }
@@ -227,7 +227,7 @@ func TestMigrationSetsOnlyForMigrators(t *testing.T) {
 func TestMigrationSetsReadAMigrationsSubdir(t *testing.T) {
 	reg := &Registry{}
 	nested := mapFS(map[string]string{"migrations/0001_init.sql": "SELECT 1;"})
-	reg.Add(migratingProvider{fakeProvider{id: "pomodoro"}, nested})
+	reg.Add(migratingProvider{fakeProvider{id: "timer"}, nested})
 
 	sets := reg.MigrationSets()
 	if len(sets) != 1 {

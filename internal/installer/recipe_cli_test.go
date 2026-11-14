@@ -15,10 +15,10 @@ import (
 	"github.com/calionauta/gogogo/internal/recipe"
 )
 
-const recipeHandlerV1 = "package handlers\n\nfunc routes(r router) { r.Get(\"/pomodoro\", nil) }\n"
+const recipeHandlerV1 = "package handlers\n\nfunc routes(r router) { r.Get(\"/timer\", nil) }\n"
 
 const recipeHandlerV2 = "package handlers\n\nfunc routes(r router) {" +
-	" r.Get(\"/pomodoro\", nil); r.Get(\"/pomodoro/today\", nil) }\n"
+	" r.Get(\"/timer\", nil); r.Get(\"/timer/today\", nil) }\n"
 
 // recipeHandlerTest is the fixture's test file. The checker counts test FILES
 // in the tree; it does not compile them (the fixture is a tree, not a module),
@@ -66,9 +66,9 @@ func newRecipeCheckout(t *testing.T) string {
 func newRecipeDir(t *testing.T, ref string, files map[string]string, register ...string) string {
 	t.Helper()
 	dir := t.TempDir()
-	manifest := "id: pomodoro\n" +
+	manifest := "id: timer\n" +
 		"upstream:\n  repo: example.com/recipes\n  ref: " + ref + "\n" +
-		"declaration:\n  routes:\n    - {method: GET, pattern: /pomodoro}\n"
+		"declaration:\n  routes:\n    - {method: GET, pattern: /timer}\n"
 	if len(register) > 0 && register[0] != "" {
 		manifest += "register: " + register[0] + "\n"
 	}
@@ -91,7 +91,7 @@ func runRecipeCLI(t *testing.T, args ...string) (string, error) {
 func TestRecipeInstallWithoutYesChangesNothing(t *testing.T) {
 	root := newRecipeCheckout(t)
 	src := newRecipeDir(t, "v1", map[string]string{
-		"features/pomodoro/handlers/chi.go": recipeHandlerV1,
+		"features/timer/handlers/chi.go": recipeHandlerV1,
 	})
 
 	out, err := runRecipeCLI(t, "install", src, "--dir", root)
@@ -101,10 +101,10 @@ func TestRecipeInstallWithoutYesChangesNothing(t *testing.T) {
 	if !strings.Contains(out, "nothing changed") {
 		t.Fatalf("expected the plan-only hint, got:\n%s", out)
 	}
-	if _, err := os.Stat(filepath.Join(root, "features/pomodoro/handlers/chi.go")); err == nil {
+	if _, err := os.Stat(filepath.Join(root, "features/timer/handlers/chi.go")); err == nil {
 		t.Fatal("plan-only install wrote a file")
 	}
-	if _, err := recipe.LoadReceipt(root, "pomodoro"); err == nil {
+	if _, err := recipe.LoadReceipt(root, "timer"); err == nil {
 		t.Fatal("plan-only install wrote a receipt")
 	}
 }
@@ -112,25 +112,25 @@ func TestRecipeInstallWithoutYesChangesNothing(t *testing.T) {
 func TestRecipeInstallWritesTreeAndReceipt(t *testing.T) {
 	root := newRecipeCheckout(t)
 	src := newRecipeDir(t, "v1", map[string]string{
-		"features/pomodoro/handlers/chi.go": recipeHandlerV1,
+		"features/timer/handlers/chi.go": recipeHandlerV1,
 	})
 
 	out, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes")
 	if err != nil {
 		t.Fatalf("install: %v\n%s", err, out)
 	}
-	got, rerr := os.ReadFile(filepath.Join(root, "features/pomodoro/handlers/chi.go"))
+	got, rerr := os.ReadFile(filepath.Join(root, "features/timer/handlers/chi.go"))
 	if rerr != nil || string(got) != recipeHandlerV1 {
 		t.Fatalf("installed file = %q, %v", got, rerr)
 	}
-	rec, lerr := recipe.LoadReceipt(root, "pomodoro")
+	rec, lerr := recipe.LoadReceipt(root, "timer")
 	if lerr != nil {
 		t.Fatalf("receipt: %v", lerr)
 	}
-	if rec.Files["features/pomodoro/handlers/chi.go"] != recipe.Hash([]byte(recipeHandlerV1)) {
+	if rec.Files["features/timer/handlers/chi.go"] != recipe.Hash([]byte(recipeHandlerV1)) {
 		t.Fatalf("receipt hash does not match the installed bytes: %v", rec.Files)
 	}
-	if len(rec.Declaration.Routes) != 1 || rec.Declaration.Routes[0].Pattern != "/pomodoro" {
+	if len(rec.Declaration.Routes) != 1 || rec.Declaration.Routes[0].Pattern != "/timer" {
 		t.Fatalf("receipt lost the declaration: %+v", rec.Declaration)
 	}
 	if !strings.Contains(out, "the code is yours") {
@@ -141,18 +141,18 @@ func TestRecipeInstallWritesTreeAndReceipt(t *testing.T) {
 func TestRecipeStatusReportsUserEdits(t *testing.T) {
 	root := newRecipeCheckout(t)
 	src := newRecipeDir(t, "v1", map[string]string{
-		"features/pomodoro/handlers/chi.go": recipeHandlerV1,
+		"features/timer/handlers/chi.go": recipeHandlerV1,
 	})
 	if _, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes"); err != nil {
 		t.Fatal(err)
 	}
-	writeFile(t, filepath.Join(root, "features/pomodoro/handlers/chi.go"), recipeHandlerV1+"// mine\n")
+	writeFile(t, filepath.Join(root, "features/timer/handlers/chi.go"), recipeHandlerV1+"// mine\n")
 
 	out, err := runRecipeCLI(t, "status", "--dir", root)
 	if err != nil {
 		t.Fatalf("status: %v", err)
 	}
-	if !strings.Contains(out, "1 modified") || !strings.Contains(out, "features/pomodoro/handlers/chi.go") {
+	if !strings.Contains(out, "1 modified") || !strings.Contains(out, "features/timer/handlers/chi.go") {
 		t.Fatalf("status must report the user's edit, got:\n%s", out)
 	}
 }
@@ -160,23 +160,23 @@ func TestRecipeStatusReportsUserEdits(t *testing.T) {
 func TestRecipeInstallFastForwardsPristineFiles(t *testing.T) {
 	root := newRecipeCheckout(t)
 	v1 := newRecipeDir(t, "v1", map[string]string{
-		"features/pomodoro/handlers/chi.go": recipeHandlerV1,
+		"features/timer/handlers/chi.go": recipeHandlerV1,
 	})
 	if _, err := runRecipeCLI(t, "install", v1, "--dir", root, "--yes"); err != nil {
 		t.Fatal(err)
 	}
 	v2 := newRecipeDir(t, "v2", map[string]string{
-		"features/pomodoro/handlers/chi.go": recipeHandlerV2,
+		"features/timer/handlers/chi.go": recipeHandlerV2,
 	})
 	if _, err := runRecipeCLI(t, "install", v2, "--dir", root, "--yes"); err != nil {
 		t.Fatalf("update: %v", err)
 	}
-	got, _ := os.ReadFile(filepath.Join(root, "features/pomodoro/handlers/chi.go"))
+	got, _ := os.ReadFile(filepath.Join(root, "features/timer/handlers/chi.go"))
 	if string(got) != recipeHandlerV2 {
 		t.Fatalf("pristine file was not fast-forwarded: %q", got)
 	}
-	rec, _ := recipe.LoadReceipt(root, "pomodoro")
-	if rec.Files["features/pomodoro/handlers/chi.go"] != recipe.Hash([]byte(recipeHandlerV2)) {
+	rec, _ := recipe.LoadReceipt(root, "timer")
+	if rec.Files["features/timer/handlers/chi.go"] != recipe.Hash([]byte(recipeHandlerV2)) {
 		t.Fatal("receipt baseline still points at the old bytes")
 	}
 	if rec.Upstream.Ref != "v2" {
@@ -187,26 +187,26 @@ func TestRecipeInstallFastForwardsPristineFiles(t *testing.T) {
 func TestRecipeInstallRefusesAConflictAndChangesNothing(t *testing.T) {
 	root := newRecipeCheckout(t)
 	v1 := newRecipeDir(t, "v1", map[string]string{
-		"features/pomodoro/handlers/chi.go": recipeHandlerV1,
+		"features/timer/handlers/chi.go": recipeHandlerV1,
 	})
 	if _, err := runRecipeCLI(t, "install", v1, "--dir", root, "--yes"); err != nil {
 		t.Fatal(err)
 	}
 	mine := "package handlers // mine\n"
-	writeFile(t, filepath.Join(root, "features/pomodoro/handlers/chi.go"), mine)
+	writeFile(t, filepath.Join(root, "features/timer/handlers/chi.go"), mine)
 	v2 := newRecipeDir(t, "v2", map[string]string{
-		"features/pomodoro/handlers/chi.go": recipeHandlerV2,
+		"features/timer/handlers/chi.go": recipeHandlerV2,
 	})
 
 	out, err := runRecipeCLI(t, "install", v2, "--dir", root, "--yes")
 	if err == nil {
 		t.Fatalf("a file edited by the user AND upstream must block, output:\n%s", out)
 	}
-	got, _ := os.ReadFile(filepath.Join(root, "features/pomodoro/handlers/chi.go"))
+	got, _ := os.ReadFile(filepath.Join(root, "features/timer/handlers/chi.go"))
 	if string(got) != mine {
 		t.Fatalf("the user's bytes were overwritten: %q", got)
 	}
-	rec, _ := recipe.LoadReceipt(root, "pomodoro")
+	rec, _ := recipe.LoadReceipt(root, "timer")
 	if rec.Upstream.Ref != "v1" {
 		t.Fatalf("a blocked update rewrote the receipt: ref=%q", rec.Upstream.Ref)
 	}
@@ -216,22 +216,22 @@ func TestRecipeInstallReportsADeclarationMismatch(t *testing.T) {
 	root := newRecipeCheckout(t)
 	src := t.TempDir()
 	writeFile(t, filepath.Join(src, recipeManifestFile),
-		"id: pomodoro\n"+
-			"declaration:\n  routes:\n    - {method: GET, pattern: /pomodoro}\n    - {method: GET, pattern: /pomodoro/today}\n")
-	writeFile(t, filepath.Join(src, "features/pomodoro/handlers/chi.go"), recipeHandlerV1)
+		"id: timer\n"+
+			"declaration:\n  routes:\n    - {method: GET, pattern: /timer}\n    - {method: GET, pattern: /timer/today}\n")
+	writeFile(t, filepath.Join(src, "features/timer/handlers/chi.go"), recipeHandlerV1)
 
 	out, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes")
 	if err == nil {
 		t.Fatalf("a declaration the code does not honour must be reported, output:\n%s", out)
 	}
-	if !strings.Contains(out, "/pomodoro/today") {
+	if !strings.Contains(out, "/timer/today") {
 		t.Fatalf("the mismatch must name the missing route, got:\n%s", out)
 	}
 }
 
 func TestRecipeInstallRefusesANonCheckout(t *testing.T) {
 	src := newRecipeDir(t, "v1", map[string]string{
-		"features/pomodoro/handlers/chi.go": recipeHandlerV1,
+		"features/timer/handlers/chi.go": recipeHandlerV1,
 	})
 	root := t.TempDir()
 	_, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes")
@@ -253,9 +253,9 @@ func readOrEmpty(t *testing.T, root, rel string) string {
 func recipeWithRegister(t *testing.T) string {
 	t.Helper()
 	return newRecipeDir(t, "v1", map[string]string{
-		"features/pomodoro/handlers/chi.go":      recipeHandlerV1,
-		"features/pomodoro/handlers/register.go": "package handlers\n\nfunc Register(reg any, d any) {}\n",
-	}, "features/pomodoro/handlers")
+		"features/timer/handlers/chi.go":      recipeHandlerV1,
+		"features/timer/handlers/register.go": "package handlers\n\nfunc Register(reg any, d any) {}\n",
+	}, "features/timer/handlers")
 }
 
 func TestRecipeInstallWritesRegistration(t *testing.T) {
@@ -266,10 +266,10 @@ func TestRecipeInstallWritesRegistration(t *testing.T) {
 		t.Fatalf("install: %v\n%s", err, out)
 	}
 	gen := readOrEmpty(t, root, recipeRegistrationFile)
-	if !strings.Contains(gen, `"example.com/app/features/pomodoro/handlers"`) {
+	if !strings.Contains(gen, `"example.com/app/features/timer/handlers"`) {
 		t.Fatalf("generated registration does not import the recipe under the tree's module:\n%s", gen)
 	}
-	if !strings.Contains(gen, "pomodoro.Register,") {
+	if !strings.Contains(gen, "timer.Register,") {
 		t.Fatalf("generated registration does not call the recipe:\n%s", gen)
 	}
 	if formatted, ferr := format.Source([]byte(gen)); ferr != nil || string(formatted) != gen {
@@ -284,14 +284,14 @@ func TestRecipeUninstallMarksRemovedAndUnregisters(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, err := runRecipeCLI(t, "uninstall", "pomodoro", "--dir", root, "--yes")
+	out, err := runRecipeCLI(t, "uninstall", "timer", "--dir", root, "--yes")
 	if err != nil {
 		t.Fatalf("uninstall: %v\n%s", err, out)
 	}
-	if _, serr := os.Stat(filepath.Join(root, "features/pomodoro/handlers/chi.go")); !os.IsNotExist(serr) {
+	if _, serr := os.Stat(filepath.Join(root, "features/timer/handlers/chi.go")); !os.IsNotExist(serr) {
 		t.Fatal("a pristine file survived uninstall")
 	}
-	rec, lerr := recipe.LoadReceipt(root, "pomodoro")
+	rec, lerr := recipe.LoadReceipt(root, "timer")
 	if lerr != nil {
 		t.Fatalf("receipt must stay after uninstall: %v", lerr)
 	}
@@ -299,7 +299,7 @@ func TestRecipeUninstallMarksRemovedAndUnregisters(t *testing.T) {
 		t.Fatal("receipt was not marked removed")
 	}
 	gen := readOrEmpty(t, root, recipeRegistrationFile)
-	if strings.Contains(gen, "pomodoro.Register") {
+	if strings.Contains(gen, "timer.Register") {
 		t.Fatalf("registration still imports a removed recipe:\n%s", gen)
 	}
 	if !strings.Contains(gen, "[]register.Func{}") {
@@ -314,12 +314,12 @@ func TestRecipeUninstallKeepsEditedFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 	mine := recipeHandlerV1 + "// mine\n"
-	writeFile(t, filepath.Join(root, "features/pomodoro/handlers/chi.go"), mine)
+	writeFile(t, filepath.Join(root, "features/timer/handlers/chi.go"), mine)
 
-	if out, err := runRecipeCLI(t, "uninstall", "pomodoro", "--dir", root, "--yes"); err != nil {
+	if out, err := runRecipeCLI(t, "uninstall", "timer", "--dir", root, "--yes"); err != nil {
 		t.Fatalf("uninstall: %v\n%s", err, out)
 	}
-	got, rerr := os.ReadFile(filepath.Join(root, "features/pomodoro/handlers/chi.go"))
+	got, rerr := os.ReadFile(filepath.Join(root, "features/timer/handlers/chi.go"))
 	if rerr != nil || string(got) != mine {
 		t.Fatalf("uninstall destroyed the user's bytes: %q, %v", got, rerr)
 	}
@@ -342,8 +342,8 @@ func TestRecipeInstallRejectsAnUnsafeRegisterPath(t *testing.T) {
 func TestRecipeInstallRejectsAMissingRegisterPackage(t *testing.T) {
 	root := newRecipeCheckout(t)
 	src := newRecipeDir(t, "v1", map[string]string{
-		"features/pomodoro/handlers/chi.go": recipeHandlerV1,
-	}, "features/pomodoro/other")
+		"features/timer/handlers/chi.go": recipeHandlerV1,
+	}, "features/timer/other")
 	_, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes")
 	if err == nil || !strings.Contains(err.Error(), "ships no files under it") {
 		t.Fatalf("expected the missing-package refusal, got %v", err)
@@ -356,7 +356,7 @@ func TestRecipeStatusShowsARemovedReceipt(t *testing.T) {
 	if _, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runRecipeCLI(t, "uninstall", "pomodoro", "--dir", root, "--yes"); err != nil {
+	if _, err := runRecipeCLI(t, "uninstall", "timer", "--dir", root, "--yes"); err != nil {
 		t.Fatal(err)
 	}
 	out, err := runRecipeCLI(t, "status", "--dir", root)
@@ -374,21 +374,21 @@ func TestRecipeReinstallRestoresFiles(t *testing.T) {
 	if _, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runRecipeCLI(t, "uninstall", "pomodoro", "--dir", root, "--yes"); err != nil {
+	if _, err := runRecipeCLI(t, "uninstall", "timer", "--dir", root, "--yes"); err != nil {
 		t.Fatal(err)
 	}
 	out, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes")
 	if err != nil {
 		t.Fatalf("reinstall: %v\n%s", err, out)
 	}
-	if _, serr := os.Stat(filepath.Join(root, "features/pomodoro/handlers/chi.go")); serr != nil {
+	if _, serr := os.Stat(filepath.Join(root, "features/timer/handlers/chi.go")); serr != nil {
 		t.Fatalf("reinstall did not restore the deleted file: %v", serr)
 	}
-	rec, lerr := recipe.LoadReceipt(root, "pomodoro")
+	rec, lerr := recipe.LoadReceipt(root, "timer")
 	if lerr != nil || rec.Removed != "" {
 		t.Fatalf("reinstall left the receipt removed: %+v, %v", rec, lerr)
 	}
-	if gen := readOrEmpty(t, root, recipeRegistrationFile); !strings.Contains(gen, "pomodoro.Register") {
+	if gen := readOrEmpty(t, root, recipeRegistrationFile); !strings.Contains(gen, "timer.Register") {
 		t.Fatalf("reinstall did not register the recipe again:\n%s", gen)
 	}
 }
@@ -426,7 +426,7 @@ func TestRecipeInstallJSON(t *testing.T) {
 	if uerr := json.Unmarshal([]byte(out), &rep); uerr != nil {
 		t.Fatalf("install --format json is not JSON: %v\n%s", uerr, out)
 	}
-	if rep.Applied || rep.Write != 2 || rep.ID != "pomodoro" {
+	if rep.Applied || rep.Write != 2 || rep.ID != "timer" {
 		t.Fatalf("unexpected report: %+v", rep)
 	}
 }
@@ -444,26 +444,26 @@ func TestRecipeInstallRebasesTheModulePath(t *testing.T) {
 	root := newRecipeCheckout(t)
 	src := t.TempDir()
 	writeFile(t, filepath.Join(src, recipeManifestFile),
-		"id: pomodoro\n"+
+		"id: timer\n"+
 			"module: github.com/calionauta/gogogo\n"+
-			"register: features/pomodoro/handlers\n"+
-			"declaration:\n  routes:\n    - {method: GET, pattern: /pomodoro}\n")
-	writeFile(t, filepath.Join(src, "features/pomodoro/handlers/register.go"),
+			"register: features/timer/handlers\n"+
+			"declaration:\n  routes:\n    - {method: GET, pattern: /timer}\n")
+	writeFile(t, filepath.Join(src, "features/timer/handlers/register.go"),
 		"package handlers\n\nimport \"github.com/calionauta/gogogo/internal/recipe/register\"\n\nvar _ register.Deps\n")
-	writeFile(t, filepath.Join(src, "features/pomodoro/handlers/chi.go"), recipeHandlerV1)
-	writeFile(t, filepath.Join(src, "features/pomodoro/README.md"), "upstream: github.com/calionauta/gogogo\n")
+	writeFile(t, filepath.Join(src, "features/timer/handlers/chi.go"), recipeHandlerV1)
+	writeFile(t, filepath.Join(src, "features/timer/README.md"), "upstream: github.com/calionauta/gogogo\n")
 
 	if out, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes"); err != nil {
 		t.Fatalf("install: %v\n%s", err, out)
 	}
-	code := readOrEmpty(t, root, "features/pomodoro/handlers/register.go")
+	code := readOrEmpty(t, root, "features/timer/handlers/register.go")
 	if !strings.Contains(code, `"example.com/app/internal/recipe/register"`) {
 		t.Fatalf("import was not rebased to the tree's module:\n%s", code)
 	}
 	if strings.Contains(code, "github.com/calionauta/gogogo/") {
 		t.Fatalf("the author's module survived in code:\n%s", code)
 	}
-	readme := readOrEmpty(t, root, "features/pomodoro/README.md")
+	readme := readOrEmpty(t, root, "features/timer/README.md")
 	if !strings.Contains(readme, "github.com/calionauta/gogogo") {
 		t.Fatalf("prose was rewritten (only imports should be):\n%s", readme)
 	}
@@ -472,7 +472,7 @@ func TestRecipeInstallRebasesTheModulePath(t *testing.T) {
 func TestRecipeInstallRefusesAFileAnotherRecipeOwns(t *testing.T) {
 	root := newRecipeCheckout(t)
 	first := newRecipeDir(t, "v1", map[string]string{
-		"features/pomodoro/handlers/chi.go": recipeHandlerV1,
+		"features/timer/handlers/chi.go": recipeHandlerV1,
 	})
 	if _, err := runRecipeCLI(t, "install", first, "--dir", root, "--yes"); err != nil {
 		t.Fatal(err)
@@ -480,18 +480,18 @@ func TestRecipeInstallRefusesAFileAnotherRecipeOwns(t *testing.T) {
 	// A second recipe, different id, shipping the same path.
 	second := t.TempDir()
 	writeFile(t, filepath.Join(second, recipeManifestFile),
-		"id: timer\ndeclaration:\n  routes:\n    - {method: GET, pattern: /pomodoro}\n")
-	writeFile(t, filepath.Join(second, "features/pomodoro/handlers/chi.go"), recipeHandlerV2)
+		"id: timer-two\ndeclaration:\n  routes:\n    - {method: GET, pattern: /timer-two}\n")
+	writeFile(t, filepath.Join(second, "features/timer/handlers/chi.go"), recipeHandlerV2)
 
 	out, err := runRecipeCLI(t, "install", second, "--dir", root, "--yes")
 	if err == nil || !strings.Contains(err.Error(), "already installed") {
 		t.Fatalf("a colliding file set must be refused, got %v\n%s", err, out)
 	}
-	got, _ := os.ReadFile(filepath.Join(root, "features/pomodoro/handlers/chi.go"))
+	got, _ := os.ReadFile(filepath.Join(root, "features/timer/handlers/chi.go"))
 	if string(got) != recipeHandlerV1 {
 		t.Fatalf("the refused install overwrote the first recipe's file: %q", got)
 	}
-	if _, serr := recipe.LoadReceipt(root, "timer"); serr == nil {
+	if _, serr := recipe.LoadReceipt(root, "timer-two"); serr == nil {
 		t.Fatal("the refused install wrote a receipt")
 	}
 }

@@ -489,6 +489,8 @@ func buildChiMux(
 	r.Claim("core", "POST", cspReportPath)
 	r.Post(cspReportPath, cspReportHandler)
 	mountExtInvoke(r)
+	// The root is core: a redirect to the app's home (or /login), not a page.
+	mountHome(r, a)
 	r.Claim("core", "GET", "/health")
 	r.Claim("core", "HEAD", "/health")
 	r.Get("/health", healthHandler(deps.Cfg))

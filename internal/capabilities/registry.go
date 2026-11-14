@@ -9,7 +9,7 @@ const idGenui = "genui" // the unit id kiosk depends on
 var baseUnits = []Capability{
 	{
 		ID:      "capabilities",
-		Kind:    KindPlugin,
+		Kind:    KindServant,
 		Summary: "capability registry + installer engine (CLI and MCP share it)",
 		Dirs:    []string{"internal/capabilities", "internal/installer", "internal/shape"},
 		Note: "Meta-capability: deleting it breaks cmd/gogogo, not the web binary. " +
@@ -31,7 +31,7 @@ var baseUnits = []Capability{
 		Dirs:    []string{"internal/queue"},
 		Note: "Core, and the Hub is the load-bearing half: every streaming " +
 			"handler (todo, genui, chat, notes, whiteboard, review, room) " +
-			"names *queue.SSEHub in its constructor, so no trimmed tree " +
+			"names *queue.SSEHub in its constructor, so no tree that removed it " +
 			"compiles without it — even with NATS off. The job queue shares " +
 			"the package because workers stream through the same hub.",
 	},
@@ -81,10 +81,10 @@ var baseUnits = []Capability{
 	},
 	{
 		ID:      "app",
-		Kind:    KindPlugin,
+		Kind:    KindServant,
 		Summary: "AppContext (dependency bundle for the native window)",
 		Dirs:    []string{"features/app"},
-		Note: "Plugin, not core: cmd/web never links it — handlers take " +
+		Note: "Servant, not core: cmd/web never links it — handlers take " +
 			"their deps directly, so only cmd/gui (the gogpu/ui proof) reads " +
 			"Context. Deleting the package drops that second frontend, never " +
 			"the web app.",
@@ -120,23 +120,23 @@ var baseUnits = []Capability{
 		Kind:    KindCore,
 		Summary: "todo CRUD wire protocol (subjects + payloads + publisher)",
 		Dirs:    []string{"internal/natswire"},
-		Note: "Core, not plugin: chi handlers name these types in signatures " +
-			"even with NATS off (nil publisher), so trimming would not compile. " +
-			"The engines behind it (internal/nats) stay a plugin.",
+		Note: "Core, not servant: chi handlers name these types in signatures " +
+			"even with NATS off (nil publisher), so removing it would not compile. " +
+			"The engines behind it (internal/nats) stay a servant.",
 	},
 	{
 		ID:      "hostgate",
 		Kind:    KindCore,
 		Summary: "host-capacity gate for heavy Go tests (skip on saturated boxes)",
 		Dirs:    []string{"internal/hostgate"},
-		Note: "Core test support: heavy suites (trim-build repo copies + " +
+		Note: "Core test support: heavy suites (removal-proof repo copies + " +
 			"forked vets) skip with reason off-CI when the box is constrained, " +
 			"instead of wedging a shared host. CI never skips. Customize " +
 			"thresholds via HOSTGATE_* env, never remove.",
 	},
 	{
 		ID:         "nats",
-		Kind:       KindPlugin,
+		Kind:       KindServant,
 		Summary:    "NATS JetStream: cross-instance broadcast + CRUD proxy + leaf nodes",
 		RuntimeOff: "NATS_ENABLED=false (in-memory fallback)",
 		Dirs:       []string{"internal/nats"},
@@ -144,13 +144,13 @@ var baseUnits = []Capability{
 	},
 	{
 		ID:         "dagnats",
-		Kind:       KindPlugin,
+		Kind:       KindServant,
 		Summary:    "durable workflows (DagNats over JetStream) + onboarding worker",
 		RuntimeOff: "DAGNATS_ENABLED=false",
 		UISignal:   "DagNatsEnabled",
 		Dirs:       []string{"internal/dagnats", "features/onboarding"},
 		Files: []string{
-			// Every file that imports internal/dagnats: trimming the unit
+			// Every file that imports internal/dagnats: removing the unit
 			// must remove them too — otherwise the proof build fails with a
 			// dangling import (`module .../internal/dagnats: not found`).
 			// The todo slice keeps only its wire constants and renderers,
@@ -159,7 +159,7 @@ var baseUnits = []Capability{
 			"cmd/web/dagnats.go",
 			"internal/server/mount_graph.go",
 			// The reminder worker's payload/port tests reference symbols the
-			// engine owns, so they go with it or the trimmed tree fails vet.
+			// engine owns, so they go with it or the tree fails vet after removal.
 			"cmd/web/dagnats_reminder_test.go",
 			"cmd/web/start_nats_test.go",
 		},
@@ -173,7 +173,7 @@ var baseUnits = []Capability{
 	},
 	{
 		ID:         "llm",
-		Kind:       KindPlugin,
+		Kind:       KindServant,
 		Summary:    "GoAI LLM client behind an injectable interface",
 		RuntimeOff: "Unset GOAI_API_KEY (suggest button hides)",
 		UISignal:   "LLMEnabled",
@@ -186,9 +186,9 @@ var baseUnits = []Capability{
 	},
 	{
 		ID:      "genkit",
-		Kind:    KindPlugin,
+		Kind:    KindServant,
 		Summary: "typed AI flows (Genkit Go): orchestration + traces above internal/llm",
-		Reason: "Single consumer (review): trimming the review unit plus " +
+		Reason: "Single consumer (review): removing the review unit plus " +
 			"`go mod tidy` drops github.com/firebase/genkit/go from the " +
 			"build. Generation reaches providers only through llm.Client, " +
 			"so no provider SDK rides along. Runtime-off needs no flag — " +
@@ -196,13 +196,13 @@ var baseUnits = []Capability{
 	},
 	{
 		ID:      "collab",
-		Kind:    KindPlugin,
+		Kind:    KindServant,
 		Summary: "Loro CRDT transport: DocStore, sync workers, presence",
 		Dirs:    []string{"internal/collab"},
 		// The presence wiring's test imports the seam type from this package,
 		// so a tree without internal/collab cannot compile it. Deleted with
 		// the transport; the goakt unit deletes it too (either removal alone
-		// breaks the file, and trim deletes are idempotent).
+		// breaks the file, and removal deletes are idempotent).
 		Files: []string{"internal/server/presence_test.go"},
 		Note: "Shared by whiteboard + notes on the flat stack (their chi " +
 			"slices wire the transport). Snapshot durability is runtime: " +
@@ -215,19 +215,19 @@ var baseUnits = []Capability{
 			"types (no-compile without it) and collab without whiteboard " +
 			"was dead until notes arrived as the second consumer " +
 			"(features/notes shares the transport on its own subject " +
-			"space). Split trigger met — see the notes entry: trimming " +
+			"space). Split trigger met — see the notes entry: removing " +
 			"the whiteboard bundle removes collab, which notes needs.",
 	},
 	{
 		ID:      "datastar",
-		Kind:    KindPlugin,
+		Kind:    KindServant,
 		Summary: "Datastar rendering helpers",
 		Dirs:    []string{"internal/datastar"},
 		Reason:  "Every .templ page renders through it; deletion is manual.",
 	},
 	{
 		ID:      idGenui,
-		Kind:    KindPlugin,
+		Kind:    KindServant,
 		Summary: "generative UI: the Chat demo renders LLM answers as Templ directives over the SSE hub",
 		Dirs:    []string{"features/genui"},
 		// Owned by no dir: the todo feature's half of the panel seam
@@ -251,7 +251,7 @@ var baseUnits = []Capability{
 			"features/todo/handlers/panel_action.go",
 			"features/todo/handlers/panel_action_test.go",
 			// The config page's answer-components section is wired from the
-			// catalog: its wiring test asserts a section the trimmed page
+			// catalog: its wiring test asserts a section the removed page
 			// does not render.
 			"features/config/components/safe_view_catalog_test.go",
 			"features/todo/panel.go",
@@ -261,14 +261,14 @@ var baseUnits = []Capability{
 			"features/todo/components/panel_delete_test.go",
 			// Diagram rendering is this unit's asset: the Pele bundle plus
 			// the mount helper serve only GenuiDiagram (Chat). A
-			// trimmed tree drops them so the binary does not carry 690KB
+			// removed tree drops them so the binary does not carry 690KB
 			// of unused JS.
 			"web/resources/static/pele.global.js",
 			"web/resources/static/diagram.js",
 		},
 		Warns: []string{
 			"ci-local smoke: export SMOKE_FEATURES without genui " +
-				"(e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the trimmed route.",
+				"(e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the removed route.",
 		},
 		Note: "Deletion removes the Chat demo (one bundle: chat " +
 			"imports genui components, so chat without genui does not " +
@@ -277,14 +277,14 @@ var baseUnits = []Capability{
 	},
 	{
 		ID:      "components",
-		Kind:    KindPlugin,
+		Kind:    KindServant,
 		Summary: "shared UI helpers (Toast + OfflineBanner)",
 		Dirs:    []string{"internal/components", "features/todo/components"},
 		Reason:  "Every page layout calls into it; deletion is manual.",
 	},
 	{
 		ID:         "credits",
-		Kind:       KindPlugin,
+		Kind:       KindServant,
 		Summary:    "AI credits + BYOK ledger (ai-credits)",
 		RuntimeOff: "CREDITS_ENABLED=false (already the default)",
 		Dirs:       []string{"features/credits"},
@@ -298,7 +298,7 @@ var baseUnits = []Capability{
 	},
 	{
 		ID:      depSounds,
-		Kind:    KindPlugin,
+		Kind:    KindServant,
 		Summary: "UI sound feedback (cuelume, vendored)",
 		Dirs:    []string{"features/sounds", "web/resources/static/cuelume"},
 		Files:   []string{"web/resources/static/cuelume.js"},
@@ -312,10 +312,10 @@ var baseUnits = []Capability{
 	},
 	{
 		ID:      "search",
-		Kind:    KindPlugin,
+		Kind:    KindServant,
 		Summary: "search layers (substring, fuzzy, BM25) behind one seam",
 		Dirs:    []string{"internal/search"},
-		// Every file that imports internal/search goes here, or trimming
+		// Every file that imports internal/search goes here, or removing
 		// leaves a dangling import: the consumer half of the seam, its test,
 		// the boot heal, and the composition-root wiring. The handler's search
 		// SLICE (features/todo/handlers/search.go) deliberately does NOT — it
@@ -341,7 +341,7 @@ var baseUnits = []Capability{
 	},
 	{
 		ID:         "offline-sync",
-		Kind:       KindPlugin,
+		Kind:       KindServant,
 		Summary:    "durable page outbox + app-shell cache (idempotent replay, NATS CRUD proxy)",
 		RuntimeOff: "OFFLINE_SYNC_ENABLED=false",
 		// The unit owns both halves: the outbox stores the intent before the
@@ -352,13 +352,12 @@ var baseUnits = []Capability{
 		Reason: "Spans a config struct field, the outbox, the worker, and templ registration; deletion is manual.",
 	},
 	{
-		ID:          "todo",
-		Kind:        KindFeature,
-		Recommended: true,
-		Summary:     "Todo MVC demo (reference implementation)",
-		Dirs:        []string{"features/todo"},
-		Register:    "features/todo/handlers",
-		Actions:     []string{"create", "toggle", "delete", "clear_completed"},
+		ID:       "todo",
+		Kind:     KindFeature,
+		Summary:  "Todo MVC demo (reference implementation)",
+		Dirs:     []string{"features/todo"},
+		Register: "features/todo/handlers",
+		Actions:  []string{"create", "toggle", "delete", "clear_completed"},
 		ActionParams: map[string][]string{
 			"create": {"title", "idem_key", "visibility"},
 		},
@@ -389,15 +388,15 @@ var baseUnits = []Capability{
 		Warns: []string{
 			"The Review sidebar entry is stripped automatically.",
 			"ci-local smoke: export SMOKE_FEATURES without review " +
-				"(e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the trimmed route.",
+				"(e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the removed route.",
 		},
 		Note: "No UISignal claim by design: the run UI gates on the " +
 			"todo.Signals ReviewEnabled field at runtime (keyless hides " +
 			"it), but the only .templ reader ships inside features/review " +
-			"— claiming it would fail the trimmed-tree conformance, the " +
-			"same reason SimulatedLLM is unclaimed. Trim removes the " +
+			"— claiming it would fail the removed-tree conformance, the " +
+			"same reason SimulatedLLM is unclaimed. Removal drops the " +
 			"sidebar entry, so no dead UI either way. " +
-			"DependsOn lists genkit only: llm is never trimmed " +
+			"DependsOn lists genkit only: llm is never removed " +
 			"(runtime-off is blessed), so declaring it would break " +
 			"a bundle restore (no unit provides the dep) " +
 			"for zero mechanical gain — the LLM requirement rides the " +
@@ -405,7 +404,7 @@ var baseUnits = []Capability{
 	},
 	{
 		ID:         "goakt",
-		Kind:       KindPlugin,
+		Kind:       KindServant,
 		Summary:    "entity actors (GoAkt: room lease + collaborative presence)",
 		RuntimeOff: "GOAKT_ENABLED=false",
 		Dirs:       []string{"internal/goakt", "features/room"},
@@ -463,7 +462,7 @@ var baseUnits = []Capability{
 		Warns: []string{
 			"The Whiteboard sidebar entry is removed by hand with the unit.",
 			"ci-local smoke: export SMOKE_FEATURES without whiteboard " +
-				"(e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the trimmed route.",
+				"(e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the removed route.",
 		},
 	},
 	{
@@ -480,21 +479,6 @@ var baseUnits = []Capability{
 			"Notes entry in internal/ui/modules.go.",
 		Warns: []string{
 			"The Notes sidebar entry is removed by hand with the unit.",
-		},
-	},
-	{
-		ID:      "landing",
-		Kind:    KindFeature,
-		Summary: "public entry page on GET / (inside the shared shell)",
-		DependsOn: []string{
-			depSounds,
-		},
-		Dirs:     []string{"features/landing"},
-		Register: "features/landing/handlers",
-		Reason:   "Delete the dir, its / route, and retarget the shell brand to /todo.",
-		Warns: []string{
-			"GET / will 404 (landing owned the only root route); " +
-				"the shell brand is retargeted to /todo, which is kept.",
 		},
 	},
 }

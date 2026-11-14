@@ -1,5 +1,7 @@
 id: todo
 version: v1.0.0
+released: "2026-11-08"
+author: {name: calionauta}
 upstream:
   repo: github.com/calionauta/gogogo
   ref: master

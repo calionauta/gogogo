@@ -82,7 +82,7 @@ closing a section does not navigate, morph, or flash.
 ## What a page owns
 
 A page contributes: its `<head>` extras (as a one-line `*Head()` wrapper that the
-trim rules can empty), its mute control (a one-line `*Sound()` wrapper, same
+removal rules can empty), its mute control (a one-line `*Sound()` wrapper, same
 reason — the shell renders it in the rail brand), optional header `actions`, its
 body, and — when it has one — its panel.
 
@@ -164,7 +164,7 @@ skill, so it tracks daisyUI instead of drifting.
 ### What a consumer of this template inherits — and may change
 
 - **`make check-classes` degrades instead of breaking.** If the vendored skill,
-  the registry or `chrome.css` is absent (you trimmed a unit, or swapped the UI
+  the registry or `chrome.css` is absent (you removed a unit, or swapped the UI
   library), the direction that needs it prints one line and the rest keeps
   running. The maintainer's own run passes `--strict`, which turns every absence
   into a failure — that is how *this* repo cannot silently lose its gate. Keep
@@ -224,9 +224,9 @@ reason, and `smoke.mjs` pins both rail states at their breakpoints.
 3. If it has a pipeline, a `*StatePanel` and `Panel:` in the shell data.
 4. If it needs its own head extras or mute control, the one-line `*Head()` /
    `*Sound()` wrappers (see "What a page owns") — never inline the call, or a
-   feature trim cannot drop just that line.
+   feature removal cannot drop just that line.
 
-Trim units drop the `[]Module` line, so a trimmed feature cannot leave a dead
+Removed units drop the `[]Module` line, so a removed feature cannot leave a dead
 link.
 
 ## Related

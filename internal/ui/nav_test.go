@@ -31,10 +31,10 @@ func renderShellRole(ctx context.Context, t *testing.T, role string) string {
 // destination reaches the rail with its own href, under its own heading, and
 // nothing in the markup names the recipe that contributed it.
 func TestRailRendersRecipeEntries(t *testing.T) {
-	ctx := WithNav(context.Background(), []NavEntry{{Label: "Pomodoro", Href: "/pomodoro"}})
+	ctx := WithNav(context.Background(), []NavEntry{{Label: "Timer", Href: "/timer"}})
 	html := renderShell(ctx, t)
 
-	for _, want := range []string{"Recipes", "Pomodoro", `href="/pomodoro"`} {
+	for _, want := range []string{"Recipes", "Timer", `href="/timer"`} {
 		if !strings.Contains(html, want) {
 			t.Errorf("rail missing %q", want)
 		}
@@ -59,14 +59,14 @@ func TestRailWithoutRecipesRendersNoGroup(t *testing.T) {
 // the built-in list.
 func TestRailHidesAdminOnlyExtension(t *testing.T) {
 	entries := []NavEntry{
-		{Label: "Pomodoro", Href: "/pomodoro"},
+		{Label: "Timer", Href: "/timer"},
 		{Label: "Operator tool", Href: "/ops", Admin: true},
 	}
 	ctx := WithNav(context.Background(), entries)
 
 	if html := renderShellRole(ctx, t, "user"); strings.Contains(html, "/ops") {
 		t.Error("a user rail rendered an admin-only extension destination")
-	} else if !strings.Contains(html, "/pomodoro") {
+	} else if !strings.Contains(html, "/timer") {
 		t.Error("a user rail dropped the public extension destination")
 	}
 

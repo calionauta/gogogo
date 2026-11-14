@@ -367,7 +367,7 @@ consumers who cannot edit it. That is the definition this repo designs against.
 |---|---|---|
 | upstream change | a list you read and apply (`gogogo migrate`), plus the gates that prove it | a version bump, taken or skipped |
 | what you may change | any line, auth and sessions included | only what the module exposes |
-| removing a unit | `trim` deletes paths and wiring; `go mod tidy` drops the dependency | the module's own opt-outs, if it has them |
+| removing a unit | delete the paths and the wiring call; `go mod tidy` drops the dependency | the module's own opt-outs, if it has them |
 | framework risk at runtime | none — `internal/capabilities` is imported by the installer and never by `cmd/web` | unavoidable, the contract is the framework |
 | who pays | the adopter, once per upgrade, deliberately | upstream and every consumer, continuously |
 
@@ -397,10 +397,10 @@ in would couple template releases to ledger releases with no consumer
 benefit. Same rule, both directions: shared-versioned code lives together,
 independently-consumed code lives apart.
 
-**Plugin is a removal class, not a hosting location.** Genkit, GoAkt, DagNats,
+**Servant is a removal class, not a hosting location.** Genkit, GoAkt, DagNats,
 NATS and the rest are third-party packages that the template *wires* — each is
-registered in `internal/capabilities` with `Kind: plugin` (site name: servant), so the installer can
-trim the unit and `go mod tidy` drops the dependency. A plugin is "removable
+registered in `internal/capabilities` with `Kind: servant`, so deleting the
+unit and running `go mod tidy` drops the dependency. A servant is "removable
 without touching core"; it says nothing about where the code is hosted. See
 [Scope taxonomy](scope-taxonomy.md).
 
@@ -477,7 +477,7 @@ hub](research/index.md#testing-and-host-capacity).
 The migration is complete. The flat stack is the only stack: auth, the
 todo slice (pages + data + realtime bridge, AI suggest, retry demo and the
 durable onboarding workflow), the queue, whiteboard, notes, room, chat,
-genui, credits, the config view, RBAC, the landing page, and the desktop shell
+genui, credits, the config view, RBAC, and the desktop shell
 all boot from `internal/server` on the same Turso + owned-auth data layer
 (the native GUI keeps its own standalone store in `cmd/gui`).
 

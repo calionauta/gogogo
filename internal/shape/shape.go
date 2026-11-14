@@ -51,6 +51,12 @@ var All = []Shape{Full, Web, API, Desktop, GUI, Mobile}
 // Path is the machine-read record, relative to the tree's root.
 const Path = ".gogogo/shape.yml"
 
+// File modes for the record: a normal tracked source file in its dir.
+const (
+	dirMode  = 0o755
+	fileMode = 0o644
+)
+
 // legalEntrypoints is the closed set a shape may declare. A shape never
 // invents a boot path: `api` is `cmd/web`, not `cmd/api`.
 var legalEntrypoints = map[Shape][]string{
@@ -233,3 +239,28 @@ func legalShapes(values []Shape) string {
 
 // legalPaths joins a closed entrypoint set for an error message.
 func legalPaths(values []string) string { return strings.Join(values, "|") }
+
+// Write records c at root, creating .gogogo/ when needed. The file is the
+// decision record the gate reads; callers pass the entrypoints/removed they
+// actually applied, so the record cannot describe a tree other than this one.
+func Write(root string, c Config) error {
+	if _, err := Parse(c); err != nil {
+		return err
+	}
+	dir := filepath.Join(root, filepath.Dir(filepath.FromSlash(Path)))
+	if err := os.MkdirAll(dir, dirMode); err != nil {
+		return fmt.Errorf("shape: write %s: %w", Path, err)
+	}
+	raw, err := yaml.Marshal(c)
+	if err != nil {
+		return fmt.Errorf("shape: marshal %s: %w", Path, err)
+	}
+	header := "# This tree's product shape. Written once at scaffold time; `make check-shape`\n" +
+		"# proves it still agrees with the tree. A checkout with no file is `full`.\n" +
+		"#\n# See docs/shape.md for the enum and what each value keeps.\n"
+	record := filepath.Join(root, filepath.FromSlash(Path))
+	if err := os.WriteFile(record, append([]byte(header), raw...), fileMode); err != nil {
+		return fmt.Errorf("shape: write %s: %w", Path, err)
+	}
+	return nil
+}

@@ -97,7 +97,7 @@ fence would answer: a workflow engine was started in this binary, the session is
 an admin, and the address is listed in `ADMIN_EMAILS`. The composition root
 resolves it once per page (`internal/server/operator.go` → `ui.WithOperator`),
 so an admin who is not an operator — a production demo account — is not offered
-a link that 403s, and a trimmed build without the engine offers no link at all
+a link that 403s, and a build without the engine offers no link at all
 (the console mount stays as the scaffold anchor, so a config-only gate would
 advertise a proxy with no upstream).
 

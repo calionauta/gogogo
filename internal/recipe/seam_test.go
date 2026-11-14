@@ -39,11 +39,11 @@ func newProvider(id string, decl Declaration, pattern string) fakeProvider {
 // the URL.
 func TestSeamMountsRecipeWithoutCoreEdit(t *testing.T) {
 	reg := &Registry{}
-	reg.Add(newProvider("pomodoro", Declaration{
-		Routes: []Route{{Method: "GET", Pattern: "/pomodoro"}},
-		Jobs:   []string{"ext:pomodoro:tick"},
-		Tables: []string{"ext_pomodoro_session"},
-	}, "/pomodoro"))
+	reg.Add(newProvider("timer", Declaration{
+		Routes: []Route{{Method: "GET", Pattern: "/timer"}},
+		Jobs:   []string{"ext:timer:tick"},
+		Tables: []string{"ext_timer_session"},
+	}, "/timer"))
 
 	root := chi.NewRouter()
 	if err := MountWith(reg, root); err != nil {
@@ -51,11 +51,11 @@ func TestSeamMountsRecipeWithoutCoreEdit(t *testing.T) {
 	}
 
 	rec := httptest.NewRecorder()
-	root.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/pomodoro", nil))
+	root.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/timer", nil))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected the recipe route to answer 200, got %d", rec.Code)
 	}
-	if rec.Body.String() != "pomodoro" {
+	if rec.Body.String() != "timer" {
 		t.Fatalf("expected the recipe's own handler to answer, got %q", rec.Body.String())
 	}
 }
@@ -90,15 +90,15 @@ func TestSeamIgnoresADisabledProvider(t *testing.T) {
 func TestSeamRejectsDuplicateRouteBeforeBuild(t *testing.T) {
 	reg := &Registry{}
 	decl := Declaration{Routes: []Route{{Method: "GET", Pattern: "/dashboard"}}}
-	reg.Add(newProvider("pomodoro", decl, "/dashboard"))
 	reg.Add(newProvider("timer", decl, "/dashboard"))
+	reg.Add(newProvider("timer-two", decl, "/dashboard"))
 
 	conflicts := reg.Validate()
 	if len(conflicts) == 0 {
 		t.Fatal("two recipes claiming GET /dashboard must conflict")
 	}
-	if !strings.Contains(conflicts[0].String(), "pomodoro") ||
-		!strings.Contains(conflicts[0].String(), "timer") {
+	if !strings.Contains(conflicts[0].String(), "timer") ||
+		!strings.Contains(conflicts[0].String(), "timer-two") {
 		t.Fatalf("the conflict must name both owners, got %q", conflicts[0].String())
 	}
 
@@ -113,10 +113,10 @@ func TestSeamRejectsDuplicateRouteBeforeBuild(t *testing.T) {
 // is refused at validation rather than discovered later.
 func TestSeamRejectsUnprefixedJob(t *testing.T) {
 	reg := &Registry{}
-	reg.Add(newProvider("pomodoro", Declaration{
-		Routes: []Route{{Method: "GET", Pattern: "/pomodoro"}},
+	reg.Add(newProvider("timer", Declaration{
+		Routes: []Route{{Method: "GET", Pattern: "/timer"}},
 		Jobs:   []string{"tick"},
-	}, "/pomodoro"))
+	}, "/timer"))
 
 	conflicts := reg.Validate()
 	if len(conflicts) == 0 {
@@ -131,10 +131,10 @@ func TestSeamRejectsUnprefixedJob(t *testing.T) {
 // enforced one step earlier: at validation, before anything is applied.
 func TestSeamRejectsRecipeOwningACoreTable(t *testing.T) {
 	reg := &Registry{}
-	reg.Add(newProvider("pomodoro", Declaration{
-		Routes: []Route{{Method: "GET", Pattern: "/pomodoro"}},
+	reg.Add(newProvider("timer", Declaration{
+		Routes: []Route{{Method: "GET", Pattern: "/timer"}},
 		Tables: []string{"todos"},
-	}, "/pomodoro"))
+	}, "/timer"))
 
 	conflicts := reg.Validate()
 	if len(conflicts) == 0 {
@@ -163,12 +163,12 @@ func TestSeamIsDeterministic(t *testing.T) {
 // rejection test above could be passing by rejecting everything.
 func TestSeamValidSetReportsNoConflict(t *testing.T) {
 	reg := &Registry{}
-	reg.Add(newProvider("pomodoro", Declaration{
-		Routes: []Route{{Method: "GET", Pattern: "/pomodoro"}},
-		Jobs:   []string{"ext:pomodoro:tick"},
-		Tables: []string{"ext_pomodoro_session"},
+	reg.Add(newProvider("timer", Declaration{
+		Routes: []Route{{Method: "GET", Pattern: "/timer"}},
+		Jobs:   []string{"ext:timer:tick"},
+		Tables: []string{"ext_timer_session"},
 		Slots:  []string{"dashboard.card"},
-	}, "/pomodoro"))
+	}, "/timer"))
 	reg.Add(newProvider("review", Declaration{
 		Routes: []Route{{Method: "GET", Pattern: "/review"}},
 		Tables: []string{"ext_review_item"},

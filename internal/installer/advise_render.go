@@ -26,7 +26,7 @@ func renderExceptionToGo(doc adviseDoc) string {
 	return b.String()
 }
 
-// renderStdlib is the go-standards-scope text: no capability table, no trim
+// renderStdlib is the go-standards-scope text: no capability table, no removal
 // mechanics, no presets — just the rules that survive without the template.
 //
 // It renders doc.Rules rather than a fixed list, because two different
@@ -39,7 +39,7 @@ func renderStdlib(doc adviseDoc) string {
 	switch doc.Reason {
 	case reasonNotCheckout:
 		b.WriteString("the path is not a gogogo checkout — the template does not apply here.\n" +
-			"No capability is installable into it: this tool trims and extends its own scaffold,\n" +
+			"No capability is installable into it: this tool scaffolds and extends its own tree,\n" +
 			"not an arbitrary project.\n\n")
 	default:
 		b.WriteString("dependency-constrained need — the gogogo template does not apply here.\n" +
@@ -54,7 +54,7 @@ func renderStdlib(doc adviseDoc) string {
 	return b.String()
 }
 
-// renderTemplate is the template-scope text: rules, keep/drop presets with
+// renderTemplate is the template-scope text: rules, use-case presets with
 // the no-match recovery hint, the full capability table, and the scaffold
 // first-run (withheld when a non-empty need matched nothing — a miss must
 // not invite scaffolding the wrong thing).
@@ -92,8 +92,8 @@ func renderPresets(b *strings.Builder, doc adviseDoc, need string) {
 	}
 	for _, p := range doc.Presets {
 		fmt.Fprintf(b, "  %s: keep [%s]", p.Name, strings.Join(p.Keep, ", "))
-		if len(p.Drop) > 0 {
-			fmt.Fprintf(b, " drop [%s]", strings.Join(p.Drop, ", "))
+		if len(p.Remove) > 0 {
+			fmt.Fprintf(b, " remove [%s]", strings.Join(p.Remove, ", "))
 		}
 		fmt.Fprintf(b, "\n    %s\n", p.Note)
 	}
@@ -140,12 +140,12 @@ func renderTemplate(doc adviseDoc, need string) string {
 		fmt.Fprintf(&b, "  - %s\n", r)
 	}
 	renderNext(&b, doc)
-	b.WriteString("\npresets (use-case → keep/drop):\n")
+	b.WriteString("\npresets (use-case → keep/copy):\n")
 	renderPresets(&b, doc, need)
-	b.WriteString("\ncapabilities (id, kind, how to switch each off):\n")
+	b.WriteString("\ncapabilities (id, kind, how to remove each):\n")
 	for _, c := range doc.Capabilities {
 		fmt.Fprintf(&b, "  %-14s %-7s %s\n", c.ID, c.Kind, c.Summary)
-		fmt.Fprintf(&b, "  %-14s         trim: %s", "", c.Trim)
+		fmt.Fprintf(&b, "  %-14s         remove: %s", "", c.Remove)
 		if c.RuntimeOff != "" {
 			fmt.Fprintf(&b, " | off: %s", c.RuntimeOff)
 		}

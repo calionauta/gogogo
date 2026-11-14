@@ -148,7 +148,7 @@ entries); discovery: `room-authority` advise preset.
   claims. Cross-process entities are out of scope for this unit.
 - **Presence is the exception to "standalone only", and it needs two wires.**
   A per-document grain owns the LOCAL roster (or `PeerSet` when the engine is
-  trimmed), and two NATS families make it cross-instance: `app.docbridge.<doc>`
+  removed), and two NATS families make it cross-instance: `app.docbridge.<doc>`
   for the frames and `app.roster.<doc>` for the roster union. Either alone
   produces a plausible bug — frames-only under-reports the count, roster-only
   never delivers a leave. Whiteboard and notes share ONE seam. Full contract,
@@ -241,12 +241,12 @@ Full rules: `references/datastar.md`.
   card in [`docs/unit-contracts.md`](../../docs/unit-contracts.md) first: it
   lists the routes and generated queries the unit already owns.
 - **A capability entry is data, not a scaffold choice.** Every entry in
-  `internal/capabilities` now ships in the tree: scaffold no longer offers
-  keep/drop lists or an opt-in prompt. Removal is manual and per-unit — the
-  registry `Reason` says what disappears with the unit. For a removable or
-  reinstallable extension, use the recipe path: `gogogo recipe install` on
-  the CLI, or `recipe_install` / `recipe_update` / `recipe_uninstall` /
-  `recipe_status` over MCP, all backed by the same engine declaration.
+  `internal/capabilities` ships in the tree: scaffold has no keep/drop list and
+  asks name and owner only. The row's `Kind` (`core`/`servant`/`feature`) says
+  what disappears with the unit; a `feature` goes through `gogogo recipe
+  uninstall <id>` (or `recipe_uninstall` over MCP) and a `servant` is deleted by
+  hand along with its wiring call. `recipe install` / `recipe_update` /
+  `recipe_status` and their MCP twins are the same engine.
 - **New feature code goes in `features/<feature>/handlers/`.** That package is
   the live surface: chi routes, owned auth, `dbgen` queries called directly, the
   same Templ components, the same SSE wire. The entry file is `chi.go` in every
@@ -257,7 +257,7 @@ Full rules: `references/datastar.md`.
 - **Never make a feature import another feature's domain for shared code.**
   `cmd/check-flatdeps` allows exactly three shared UI leaves —
   `features/authviews`, `features/sounds`, `features/genui/components` — and
-  fails the gate on anything else (so a trim never breaks a neighbour).
+  fails the gate on anything else (so a removal never breaks a neighbour).
   Shared *wire* code goes in a framework-free `internal/` package, or is copied
   feature-locally: the step vocabulary duplicated between
   `features/onboarding` and `features/todo/handlers` is that trade, made

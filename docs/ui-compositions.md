@@ -64,7 +64,7 @@ so a swatch declares its own theme) and a check on the active one.
 
 The sound mute is the one boolean that does not live here: it is the speaker
 icon in the rail brand, because a guest page has no panel to open and the
-landing ships sounds too. One control, one owner — do not add a second switch
+every page ships sounds too. One control, one owner — do not add a second switch
 to this panel.
 
 Markup: `internal/ui/preferences.templ`. The option carries

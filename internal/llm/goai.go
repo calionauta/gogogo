@@ -258,7 +258,7 @@ func (c *Client) ChatWithUsage(ctx context.Context, prompt string) (string, prov
 	// Removed our own c.retry.Do layer here so a single generation is one
 	// authorize + one settle, not N re-executions.
 	start := time.Now()
-	obsArgs := observability.WithComponent("llm.goai", "plugin")
+	obsArgs := observability.WithComponent("llm.goai", "servant")
 	observability.Debug(ctx, "llm: generate_text_start", obsArgs...)
 	var r *goai.TextResult
 	var genErr error
@@ -266,14 +266,14 @@ func (c *Client) ChatWithUsage(ctx context.Context, prompt string) (string, prov
 		goai.WithPrompt(prompt),
 		goai.WithMaxRetries(c.maxRetries),
 		goai.WithRetryObserver(func(attempt int, err error, delay time.Duration) {
-			retryArgs := append(observability.WithComponent("llm.goai", "plugin"),
+			retryArgs := append(observability.WithComponent("llm.goai", "servant"),
 				"attempt", attempt, "delay", delay, "error", err)
 			observability.Info(ctx, "llm: goai retry", retryArgs...)
 		}),
 	)
 	dur := time.Since(start)
 	if genErr != nil {
-		obsArgs = append(observability.WithComponent("llm.goai", "plugin"),
+		obsArgs = append(observability.WithComponent("llm.goai", "servant"),
 			"duration_ms", dur.Milliseconds())
 		observability.Error(ctx, "llm: generate_text_failed", obsArgs...)
 		if settle != nil {
@@ -281,7 +281,7 @@ func (c *Client) ChatWithUsage(ctx context.Context, prompt string) (string, prov
 		}
 		return "", provider.Usage{}, fmt.Errorf("llm: generate: %w", genErr)
 	}
-	obsArgs = append(observability.WithComponent("llm.goai", "plugin"),
+	obsArgs = append(observability.WithComponent("llm.goai", "servant"),
 		"duration_ms", dur.Milliseconds())
 	observability.Info(ctx, "llm: generate_text_success", obsArgs...)
 	if settle != nil {
@@ -355,12 +355,17 @@ func (c *Client) ChatSuggest(ctx context.Context, partial string) ([]string, err
 	// The instruction is a file (prompts/chat/suggest-todo.prompt); %q quoting is
 	// applied at the boundary so the model sees the same shape the Go constant
 	// produced, without prompt prose living in Go.
-	prompt, err := prompts.Render("chat/suggest-todo", map[string]string{
+	prompt, meta, err := prompts.RenderMeta("chat/suggest-todo", map[string]string{
 		"partial": strconv.Quote(partial),
 	})
 	if err != nil {
 		return nil, err
 	}
+	observability.Info(ctx, "llm: prompt",
+		append(observability.WithComponent("llm.goai", "servant"),
+			"prompt.parts", meta.ID,
+			"prompt.parts.versioned", fmt.Sprintf("%s@%d", meta.ID, meta.Version),
+		)...)
 	text, err := c.Chat(ctx, prompt)
 	if err != nil {
 		return nil, err
@@ -368,7 +373,7 @@ func (c *Client) ChatSuggest(ctx context.Context, partial string) ([]string, err
 	// The model is told to return a JSON array. Parse defensively.
 	out, parseErr := parseStringArray(text)
 	if parseErr != nil {
-		warnArgs := append(observability.WithComponent("llm.goai", "plugin"),
+		warnArgs := append(observability.WithComponent("llm.goai", "servant"),
 			"raw", text, "err", parseErr)
 		observability.Warn(ctx, "llm: suggest returned non-JSON; using raw", warnArgs...)
 		// Fall back to splitting on newlines so the UI still gets

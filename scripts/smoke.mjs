@@ -50,7 +50,7 @@ const ALL_FEATURES = ROUTES.map((r) => r.slice(1));
 const DERIVED_FEATURES = deriveFeatures(repoRoot, ALL_FEATURES);
 if (DERIVED_FEATURES.length === 0 && !process.env.SMOKE_FEATURES) {
   console.error(
-    "❌ no feature directory found under ./features or ./_recipes — " +
+    "❌ no feature directory found under ./features — " +
       "run from the repo root, or set SMOKE_FEATURES explicitly",
   );
   process.exit(1);

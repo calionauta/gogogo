@@ -67,9 +67,21 @@ func From(ctx context.Context) *slog.Logger {
 	return L()
 }
 
-// Component attrs to classify by gogogo layers: core/servant/recipe (Kind core/plugin/feature) + part
-func WithComponent(part, layer string) []any {
-	return []any{"component", part, "layer", layer}
+// Layer is a unit's removal class, spelled with the same three words the
+// registry stores (`capabilities.Kind`). It is a distinct type so a log line
+// cannot invent a fourth layer or bring back a retired name for one of these
+// three: the call site names a constant, and the literal lives here once.
+type Layer string
+
+const (
+	LayerCore    Layer = "core"
+	LayerServant Layer = "servant"
+	LayerFeature Layer = "feature"
+)
+
+// WithComponent tags a log line with the emitting part and its removal class.
+func WithComponent(part string, layer Layer) []any {
+	return []any{"component", part, "layer", string(layer)}
 }
 
 func Info(ctx context.Context, msg string, args ...any) {

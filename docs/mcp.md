@@ -65,8 +65,8 @@ JSON-config clients take the Claude Code block verbatim.
 | `build_prerequisites` | No | `platform?` | Read-only: how to build the desktop shell or the Android target on this host. |
 | `sync_prerequisites` | No | — | Read-only: what a desktop build needs to sync with a server (a reachable NATS leaf listener, NATS_TOKEN, CLOUD_SYNC_URL, account identity, a private overlay first). |
 | `version_status` | No | `dir?`, `format?` | Read-only version check: compares this tool AND the project's recorded template revision (the scaffolded-from: line in its AGENTS.md) against the latest release. |
-| `trim_plan` | No | `name`, `owner?`, `dir?`, `format?` | Preview scaffolding a checkout (validates name and owner, shows the plan envelope). |
-| `trim_apply` | Yes (`confirm:true`) | `name`, `owner?`, `dir?`, `format?`, `confirm: true` | Scaffold a checkout (rename, prove with build). |
+| `scaffold_plan` | No | `name`, `owner?`, `dir?`, `format?`, `shape?` | Preview scaffolding a checkout (validates name and owner, shows the plan envelope). |
+| `scaffold_apply` | Yes (`confirm:true`) | `name`, `owner?`, `dir?`, `format?`, `shape?`, `confirm: true` | Scaffold a checkout (rename, prove with build). |
 | `migrate_plan` | No | `from?`, `to?`, `dir?`, `changelog?`, `files?`, `format?` | Read-only migration list: every release between the project's recorded base revision (the scaffolded-from: line in its AGENTS.md) and the latest, plus the gates that prove a migrated tree conforms. |
 | `export_unit` | Only writes `to` | `unit`, `dir`, `to`, `module?`, `format?` | Read-only PORT BUNDLE for a tree that is not a gogogo checkout (a tree this build does not scaffold): copies the unit's owned files into the scratch `to` directory and writes PORTING.md with the measured wiring — routes it registers, imports to rewrite, what YOU must write by hand — plus the proof commands. |
 | `new_feature` | Yes (`confirm:true`) | `name`, `dir`, `confirm: true`, `dryRun?` | Scaffold one new feature inside a gogogo checkout: handler + page, composition-root wiring, capability unit, RBAC rows, then templ generate, generated docs, registry conformance, check-flatdeps and a build proof. |
@@ -96,7 +96,7 @@ carries the one-line `owns` boundary from its domain card, so an agent
 choosing a unit reads the slice's boundary instead of inferring it from the id.
 
 Read-only tools need nothing else. Mutating tools fail closed without
-`confirm:true` — preview with `trim_plan` (or `dryRun:true`) first, then
+`confirm:true` — preview with `scaffold_plan` (or `dryRun:true`) first, then
 apply. `export_unit` is the exception to the exception: it mutates only the
 scratch directory you name, never the checkout it reads, so it needs no
 confirm gate. Formats default to `json` on this transport.
@@ -109,7 +109,7 @@ the product. Keep the two roles apart even though they share an engine:
 | Surface | Binary / route | Who runs it | May mutate |
 |---|---|---|---|
 | Evolution CLI | `gogogo` | the developer | yes — the checkout |
-| Evolution MCP | `gogogo-mcp` (stdio) | the developer's agent | yes — the checkout, via `trim_apply`, `new_feature`, `recipe_install`, `recipe_update`, `recipe_uninstall` |
+| Evolution MCP | `gogogo-mcp` (stdio) | the developer's agent | yes — the checkout, via `scaffold_apply`, `new_feature`, `recipe_install`, `recipe_update`, `recipe_uninstall` |
 | Product HTTP API | `cmd/web` routes + `POST /api/ext/invoke` | the product's users and their agents | yes — the product's own data, under its session/RBAC |
 | Product client transport | `gogogo recipe invoke` / MCP `recipe_invoke` | the developer/operator, for testing | no local tree writes; it calls the running server |
 
@@ -212,8 +212,8 @@ the verdict into work, use the CLI's `gogogo migrate` — see
 
 1. `advise_stack` with the use-case in plain words (empty `need` returns
    the full map).
-2. `trim_plan` to preview the plan.
-3. `trim_apply` with `confirm:true` to execute.
+2. `scaffold_plan` to preview the plan.
+3. `scaffold_apply` with `confirm:true` to execute.
 4. For recipes: `recipe_status` first, then `recipe_install`, `recipe_update`, or `recipe_uninstall` with `confirm:true` (or `dryRun:true` for install/update).
 
 Full catalog with parameter shapes: [`cmd/gogogo-mcp`](https://github.com/calionauta/gogogo/tree/master/cmd/gogogo-mcp).

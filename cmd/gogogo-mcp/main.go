@@ -6,8 +6,8 @@
 //
 //	{"mcpServers": {"gogogo": {"command": "/path/to/gogogo-mcp"}}}
 //
-// Destructive tools (trim_apply, export_unit) respect confirm:true — the same
-// rule as --yes on the CLI. Preview with trim_plan / add dry-run first.
+// Destructive tools (scaffold_apply, export_unit) respect confirm:true — the same
+// rule as --yes on the CLI. Preview with scaffold_plan / add dry-run first.
 package main
 
 import (
@@ -84,12 +84,13 @@ type versionArgs struct {
 	Format string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
 }
 
-type trimArgs struct {
+type scaffoldArgs struct {
 	Name    string `json:"name,omitempty" jsonschema:"new project name, e.g. my-app (required)"`
 	Owner   string `json:"owner,omitempty" jsonschema:"GitHub owner for the module path (default calionauta)"`
 	Dir     string `json:"dir,omitempty" jsonschema:"target checkout directory (default ./<name>)"`
 	Format  string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
-	Confirm bool   `json:"confirm,omitempty" jsonschema:"trim_apply only: must be true (preview with trim_plan first)"`
+	Shape   string `json:"shape,omitempty" jsonschema:"product shape: full|web|api|desktop|gui|mobile (which entrypoints the tree ships; default full)"`
+	Confirm bool   `json:"confirm,omitempty" jsonschema:"scaffold_apply only: must be true (preview with scaffold_plan first)"`
 }
 
 type migrateArgs struct {
@@ -149,13 +150,16 @@ type adviseArgs struct {
 	Dir    string `json:"dir,omitempty" jsonschema:"optional: also check this path, so the answer can say it is not a gogogo checkout (omitted = the answer depends on need alone)"`
 }
 
-func trimCLIArgs(a trimArgs, extra ...string) []string {
+func scaffoldCLIArgs(a scaffoldArgs, extra ...string) []string {
 	args := []string{"--name", a.Name}
 	if a.Owner != "" {
 		args = append(args, "--owner", a.Owner)
 	}
 	if a.Dir != "" {
 		args = append(args, "--dir", a.Dir)
+	}
+	if a.Shape != "" {
+		args = append(args, "--shape", a.Shape)
 	}
 	format := a.Format
 	if format == "" {
@@ -165,22 +169,22 @@ func trimCLIArgs(a trimArgs, extra ...string) []string {
 	return append(args, extra...)
 }
 
-func handleTrimPlan(
-	ctx context.Context, _ *mcp.CallToolRequest, args trimArgs,
+func handleScaffoldPlan(
+	ctx context.Context, _ *mcp.CallToolRequest, args scaffoldArgs,
 ) (*mcp.CallToolResult, any, error) {
 	var buf bytes.Buffer
-	err := installer.Run(ctx, append(trimCLIArgs(args), "--dry-run"), strings.NewReader(""), &buf)
+	err := installer.Run(ctx, append(scaffoldCLIArgs(args), "--dry-run"), strings.NewReader(""), &buf)
 	return runResult(buf.String(), err)
 }
 
-func handleTrimApply(
-	ctx context.Context, _ *mcp.CallToolRequest, args trimArgs,
+func handleScaffoldApply(
+	ctx context.Context, _ *mcp.CallToolRequest, args scaffoldArgs,
 ) (*mcp.CallToolResult, any, error) {
 	if !args.Confirm {
-		return nil, nil, fmt.Errorf("refusing without confirm:true — preview with trim_plan first")
+		return nil, nil, fmt.Errorf("refusing without confirm:true — preview with scaffold_plan first")
 	}
 	var buf bytes.Buffer
-	err := installer.Run(ctx, append(trimCLIArgs(args), "--yes"), strings.NewReader(""), &buf)
+	err := installer.Run(ctx, append(scaffoldCLIArgs(args), "--yes"), strings.NewReader(""), &buf)
 	return runResult(buf.String(), err)
 }
 

@@ -22,7 +22,6 @@ const (
 	unitDagnats    = "dagnats"
 	unitGoAkt      = "goakt"
 	unitWhiteboard = "whiteboard"
-	unitLanding    = "landing"
 	unitConfigView = "config-view"
 	unitCredits    = "credits"
 	unitSounds     = "sounds"
@@ -37,7 +36,6 @@ var unitCaps = map[string][]string{
 	unitDagnats:    {"dagnats"},
 	unitGoAkt:      {"goakt", "room"},
 	unitWhiteboard: {"whiteboard", "collab", "notes"},
-	unitLanding:    {"landing"},
 	unitConfigView: {"config-view"},
 	unitCredits:    {"credits"},
 	unitSounds:     {"sounds"},
@@ -200,8 +198,8 @@ func soundsPageLines() []string {
 const soundsPanelControl = `sounds.SoundSwitch()` // the shell's mute control
 
 // modulesFile is the shell's navigation registry: one line per module, which
-// is what built-in units drop when they remove a destination. The brand lives in
-// shellTempl, and that is what the landing unit retargets.
+// is what built-in units drop when they remove a destination. The brand lives
+// in shellTempl and points at `/`, which is a core redirect in every build.
 const (
 	modulesFile = "internal/ui/modules.go"
 	shellTempl  = "internal/ui/shell.templ"
@@ -258,7 +256,7 @@ func buildBuiltinUnits() []builtinUnit {
 		byID[u.id] = u
 	}
 	order := []string{
-		unitDagnats, unitGoAkt, unitWhiteboard, unitLanding,
+		unitDagnats, unitGoAkt, unitWhiteboard,
 		unitConfigView, unitCredits, unitSounds,
 		unitGenUI, unitReview, unitSearch, unitPerf,
 	}
@@ -346,7 +344,6 @@ var baseBuiltinUnits = []builtinUnit{
 		extraDrops: []fileDrop{
 			{path: "features/todo/components/layout.templ", substrs: soundsPageLines()},
 			{path: "features/config/components/page.templ", substrs: soundsPageLines()},
-			{path: "features/landing/components/index.templ", substrs: soundsPageLines()},
 			{path: "features/whiteboard/components/board.templ", substrs: soundsPageLines()},
 			{path: "features/notes/components/notes.templ", substrs: soundsPageLines()},
 			{path: "features/chat/components/chat.templ", substrs: soundsPageLines()},

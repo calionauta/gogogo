@@ -62,5 +62,6 @@ func promptForm(stdin io.Reader, stdout io.Writer) formResult {
 	return res
 }
 
-// All keep/drop machinery is retired with the trim operation: scaffold
-// keeps every unit, and the interactive form asks name and owner only.
+// All keep/drop machinery is retired with the scaffold-time removal
+// operation: scaffold keeps every unit, and the interactive form asks name
+// and owner only.

@@ -4,10 +4,11 @@ package components
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/calionauta/gogogo/internal/llm"
-
+	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/prompts"
 )
 
@@ -33,19 +34,43 @@ type OwnerContext interface {
 }
 
 // dataContextBlock renders the prompt section describing the viewer's own
-// data. It is prefixed to BOTH legs' prompts when a summarizable panel is
-// installed, and it is deliberately CONDITIONAL: an unconditional "here are
-// the real rows, use them" makes the model weave the user's todos into every
-// answer, even a "hi" that has nothing to do with them (live report). The
-// block stays in the prompt -- the anti-fabrication rule needs something true
-// to point at -- but it orders the model to ignore the data unless the request
-// is about the user's own items.
-func dataContextBlock(ctx context.Context, owner string) string {
+// data. It is appended when a summarizable panel is installed, and it is
+// deliberately CONDITIONAL: an unconditional "here are the real rows, use them"
+// makes the model weave the user's todos into every answer, even a "hi" that
+// has nothing to do with them (live report). The block stays in the prompt --
+// the anti-fabrication rule needs something true to point at -- but it orders
+// the model to ignore the data unless the request is about the user's own items.
+//
+// The render goes through the caller's composer, so the trace names
+// `genui/data-context` when an answer may draw on real rows.
+func dataContextBlock(ctx context.Context, composed *prompts.Composer, owner string) string {
 	summary, err := DataContext(ctx, owner)
 	if err != nil || strings.TrimSpace(summary) == "" {
 		return ""
 	}
-	return prompts.MustRender("genui/data-context", map[string]string{"summary": summary})
+	return composed.MustRender("genui/data-context", map[string]string{"summary": summary})
+}
+
+// logPromptTrace records the prompt SET that produced a model response: file id
+// and version for every fragment that participated. That pair is the handle an
+// evaluation groups by (`gen_ai.prompt.name` / `.version` once an OTel export
+// path exists); the composed TEXT is never logged, because it can carry the
+// user's own data.
+func logPromptTrace(ctx context.Context, parts []prompts.Meta) {
+	if len(parts) == 0 {
+		return
+	}
+	ids := make([]string, 0, len(parts))
+	versions := make([]string, 0, len(parts))
+	for _, p := range parts {
+		ids = append(ids, p.ID)
+		versions = append(versions, fmt.Sprintf("%s@%d", p.ID, p.Version))
+	}
+	observability.Info(ctx, "genui: prompt",
+		append(observability.WithComponent("genui", "feature"),
+			"prompt.parts", strings.Join(ids, ","),
+			"prompt.parts.versioned", strings.Join(versions, ","),
+		)...)
 }
 
 // llmResponder asks a real model for Chat directives. The router, when one
@@ -59,7 +84,9 @@ type llmResponder struct {
 }
 
 func (r llmResponder) Respond(ctx context.Context, prompt string) (string, error) {
-	return r.client.Chat(ctx, r.composePrompt(ctx, prompt))
+	composed := r.compose(ctx, prompt)
+	logPromptTrace(ctx, composed.Parts())
+	return r.client.Chat(ctx, composed.String())
 }
 
 // composePrompt is the prompt this leg sends, as one named function.
@@ -69,7 +96,17 @@ func (r llmResponder) Respond(ctx context.Context, prompt string) (string, error
 // network (or assert on source text) would not catch it. Respond is now the
 // transport call and nothing else.
 func (r llmResponder) composePrompt(ctx context.Context, prompt string) string {
-	return ConversationPrompt(ctx, r.router, prompt, r.surfaces) + dataContextBlock(ctx, r.owner)
+	return r.compose(ctx, prompt).String()
+}
+
+// compose is composePrompt as a Composer, so the request that goes to the model
+// carries its own provenance. The owner's data block is a fragment like any
+// other: it participates, and `genui/data-context` is one of the files a trace
+// must name when an answer drew on the user's rows.
+func (r llmResponder) compose(ctx context.Context, prompt string) *prompts.Composer {
+	composed := ComposeConversation(ctx, r.router, prompt, r.surfaces)
+	dataContextBlock(ctx, composed, r.owner)
+	return composed
 }
 
 // WithOwner implements OwnerContext.

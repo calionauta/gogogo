@@ -12,28 +12,28 @@ import (
 	"github.com/calionauta/gogogo/internal/capabilities"
 )
 
-// advisePreset is one use-case → stack opinion. Keep/Drop name installer
-// unit ids (or core/runtime markers an LLM should not try to trim);
+// advisePreset is one use-case → stack opinion. Keep/Remove name installer
+// unit ids (or core/runtime markers an LLM should not try to remove);
 // Note carries the one line that saves a wrong decision. Idea is the
 // portable mechanism for non-Go codebases (same preset, pattern only).
 type advisePreset struct {
-	Name  string   `json:"name"`
-	Match []string `json:"-"`
-	Keep  []string `json:"keep"`
-	Drop  []string `json:"drop,omitempty"`
-	Note  string   `json:"note"`
-	Idea  string   `json:"idea"`
-	Copy  []string `json:"copy,omitempty"`
+	Name   string   `json:"name"`
+	Match  []string `json:"-"`
+	Keep   []string `json:"keep"`
+	Remove []string `json:"remove,omitempty"`
+	Note   string   `json:"note"`
+	Idea   string   `json:"idea"`
+	Copy   []string `json:"copy,omitempty"`
 }
 
-// adviseCap is one registry capability with its installer mapping resolved.
+// adviseCap is one registry capability with its removal path resolved.
 // Dirs/Files are the owned paths: what to copy when the target is a foreign
 // (non-scaffolded) codebase that `add` refuses.
 type adviseCap struct {
 	ID         string   `json:"id"`
 	Kind       string   `json:"kind"`
 	Summary    string   `json:"summary"`
-	Trim       string   `json:"trim"`
+	Remove     string   `json:"remove"`
 	RuntimeOff string   `json:"runtimeOff,omitempty"`
 	Note       string   `json:"note,omitempty"`
 	Dirs       []string `json:"dirs,omitempty"`
@@ -101,7 +101,7 @@ func wordHit(words []string, kw string) bool {
 
 // wantsZig reports whether the need names the repo's one documented native
 // exception. Checked before everything need-shaped: a Zig kernel gets the
-// gate, never trim mechanics and never a guessed foreign label.
+// gate, never removal mechanics and never a guessed foreign label.
 func wantsZig(need string) bool {
 	words := needWords(need)
 	for _, z := range zigSignals {
@@ -186,11 +186,6 @@ func buildAdvise(need string) adviseDoc {
 // which of the two produced the route, so a stated intent is distinguishable
 // from an inferred one.
 func buildAdviseIn(need, dir, intent string) adviseDoc {
-	owners := capUnit()
-	unitKind := map[string]capabilities.Kind{}
-	for _, u := range builtinUnits {
-		unitKind[u.id] = u.meta().kind
-	}
 	matched := matchPresets(need)
 	// Annotate copies, never the shared registry: matchPresets returns
 	// the global slice for empty needs.
@@ -215,13 +210,13 @@ func buildAdviseIn(need, dir, intent string) adviseDoc {
 	}
 	// The path outranks the need's wording: a tree that is not a gogogo
 	// checkout cannot install a unit, but it CAN take one — so the answer is
-	// the copy surface plus the route, never the trim mechanics.
+	// the copy surface plus the route, never the removal mechanics.
 	if tree == treeNotCheckout {
 		return adviseDoc{
 			Scope: scopeForeignTree, Reason: reasonNotCheckout,
 			Tree: tree, Presets: matched, Rules: notCheckoutRules,
 			Intent: route, IntentSource: source, Next: routeFor(route, tree, dir),
-			Capabilities: buildCaps(owners, unitKind),
+			Capabilities: buildCaps(),
 		}
 	}
 	// A need that constrains itself to the standard library cannot use
@@ -248,7 +243,7 @@ func buildAdviseIn(need, dir, intent string) adviseDoc {
 	if strings.TrimSpace(need) != "" && len(matched) == 0 {
 		doc.FirstRun = nil
 	}
-	doc.Capabilities = buildCaps(owners, unitKind)
+	doc.Capabilities = buildCaps()
 	doc.Presets = matched
 	return doc
 }
@@ -257,42 +252,32 @@ func buildAdviseIn(need, dir, intent string) adviseDoc {
 // capability, with the installer switch and (the part that matters on a
 // foreign tree) the owned paths — `Dirs`/`Files` are literally what to copy
 // when `add` refuses.
-func buildCaps(owners map[string]string, unitKind map[string]capabilities.Kind) []adviseCap {
+func buildCaps() []adviseCap {
 	out := make([]adviseCap, 0, len(capabilities.All))
 	for _, c := range capabilities.All {
 		out = append(out, adviseCap{
 			ID: c.ID, Kind: string(c.Kind), Summary: c.Summary,
 			RuntimeOff: c.RuntimeOff, Note: c.Note,
 			Dirs: c.Dirs, Files: c.Files,
-			Trim: adviseTrim(c, owners, unitKind),
+			Remove: adviseRemove(c),
 		})
 	}
 	return out
 }
 
-// adviseTrim names the installer switch that removes a capability, so a
-// reader of the advise output knows the exact flag. The two non-unit cases
-// are spelled out by reason (runtime switch vs core) rather than left as an
-// empty cell — "no unit owns it" has two different meanings for the caller
-// deciding what to trim.
-func adviseTrim(c capabilities.Capability, owners map[string]string, unitKind map[string]capabilities.Kind) string {
-	unit, ok := owners[c.ID]
-	if !ok {
-		if c.RuntimeOff != "" {
-			return "not an installer unit (runtime switch)"
-		}
-		if c.Kind != capabilities.KindCore {
-			// A manual-removal slice is not core: it can go, just not through
-			// the port engine. Saying "core" here would tell the reader the
-			// opposite of the unit's own contract.
-			return "not an installer unit (manual removal)"
-		}
-		return "not an installer unit (core — always in)"
+// adviseRemove names how a capability is removed, in the one vocabulary the
+// rest of the repo uses: a feature carries a receipt and goes through
+// `recipe uninstall`; a servant is a hand edit that also drops its wiring; a
+// core unit is never removed. Runtime-off is a mode, not a removal, so it is
+// reported separately rather than folded in here.
+func adviseRemove(c capabilities.Capability) string {
+	if c.Kind == capabilities.KindCore {
+		return "core — never removed"
 	}
-	if unitKind[unit] == capabilities.KindFeature {
-		return "--features " + unit
+	if c.Kind == capabilities.KindServant {
+		return "servant — delete the package + its wiring call"
 	}
-	return "--plugins " + unit
+	return "recipe uninstall " + c.ID
 }
 
 // matchPresets scores presets by keyword hits in need. Empty need returns

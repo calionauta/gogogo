@@ -12,8 +12,8 @@ of the file you are about to touch.
 
 ## Registry at a glance
 
-- **Units:** 50 — 17 core · 21 plugin · 12 feature
-- **Manual removal:** 33 (core units are never removed)
+- **Units:** 49 — 17 core · 21 servant · 11 feature
+- **Manual removal:** 32 (core units are never removed)
 - **Source of truth:** `internal/capabilities/registry.go`; this doc is
   regenerated from it, so the counts above cannot drift.
 
@@ -45,7 +45,7 @@ local cloud-connection settings (sync.json, 0600)
 todo CRUD wire protocol (subjects + payloads + publisher)
 
 - **Owned:** `internal/natswire`
-- **Note:** Core, not plugin: chi handlers name these types in signatures even with NATS off (nil publisher), so trimming would not compile. The engines behind it (internal/nats) stay a plugin.
+- **Note:** Core, not servant: chi handlers name these types in signatures even with NATS off (nil publisher), so removing it would not compile. The engines behind it (internal/nats) stay a servant.
 
 ## `database` — core
 
@@ -67,7 +67,7 @@ fresh-install demo account (one idempotent Signup)
 host-capacity gate for heavy Go tests (skip on saturated boxes)
 
 - **Owned:** `internal/hostgate`
-- **Note:** Core test support: heavy suites (trim-build repo copies + forked vets) skip with reason off-CI when the box is constrained, instead of wedging a shared host. CI never skips. Customize thresholds via HOSTGATE_* env, never remove.
+- **Note:** Core test support: heavy suites (removal-proof repo copies + forked vets) skip with reason off-CI when the box is constrained, instead of wedging a shared host. CI never skips. Customize thresholds via HOSTGATE_* env, never remove.
 
 ## `instance` — core
 
@@ -102,7 +102,7 @@ prompt library: .prompt files (Dotprompt shape) and their loader
 SSE Hub (realtime fan-out) + goqite jobs + workers + retry
 
 - **Owned:** `internal/queue`
-- **Note:** Core, and the Hub is the load-bearing half: every streaming handler (todo, genui, chat, notes, whiteboard, review, room) names *queue.SSEHub in its constructor, so no trimmed tree compiles without it — even with NATS off. The job queue shares the package because workers stream through the same hub.
+- **Note:** Core, and the Hub is the load-bearing half: every streaming handler (todo, genui, chat, notes, whiteboard, review, room) names *queue.SSEHub in its constructor, so no tree that removed it compiles without it — even with NATS off. The job queue shares the package because workers stream through the same hub.
 
 ## `rbac` — core
 
@@ -131,7 +131,7 @@ age-decrypted env loader
 flat backend boot (Turso + auth + handlers + queues + workers)
 
 - **Owned:** `internal/server`
-- **Routes:** `/_ui/demo`, `/api/ext/invoke`, `/health`, `/sw.js`
+- **Routes:** `/`, `/_ui/demo`, `/api/ext/invoke`, `/health`, `/sw.js`
 - **Store calls:** `dbgen.CountUnreadInApp`, `dbgen.CountUsers`, `dbgen.DeleteOpReceiptsBatchBefore`, `dbgen.DeleteSecurityEventsBatchBefore`, `dbgen.GetUserByEmail`, `dbgen.SetUserRole`
 - **Note:** Core: cmd/web and cmd/desktop both boot through BootChi/StartChi. attach JetStream, then serve.
 
@@ -143,37 +143,37 @@ one app shell (sidebar + module header + work area), the theme catalog, and the 
 - **Store calls:** `dbgen.DeleteMagicTokensForUser`, `dbgen.DeleteUserSessions`, `dbgen.GetUserByEmail`, `dbgen.SetEmailVerified`, `dbgen.SetUserRole`, `dbgen.UpdateUserPassword`
 - **Note:** Core: every module page renders a body inside ui.Shell, and the shell renders the DaisyUI asset block on every page. Visual variants are DaisyUI themes (docs/ui-themes.md), not bundles.
 
-## `app` — plugin
+## `app` — servant
 
 AppContext (dependency bundle for the native window)
 
 - **Owned:** `features/app`
-- **Note:** Plugin, not core: cmd/web never links it — handlers take their deps directly, so only cmd/gui (the gogpu/ui proof) reads Context. Deleting the package drops that second frontend, never the web app.
+- **Note:** Servant, not core: cmd/web never links it — handlers take their deps directly, so only cmd/gui (the gogpu/ui proof) reads Context. Deleting the package drops that second frontend, never the web app.
 
-## `capabilities` — plugin
+## `capabilities` — servant
 
 capability registry + installer engine (CLI and MCP share it)
 
 - **Owned:** `internal/capabilities`, `internal/installer`, `internal/shape`
 - **Note:** Meta-capability: deleting it breaks cmd/gogogo, not the web binary. internal/shape reads the shape record from the developer CLI, never cmd/web.
 
-## `collab` — plugin
+## `collab` — servant
 
 Loro CRDT transport: DocStore, sync workers, presence
 
 - **Owned:** `internal/collab`, `internal/server/presence_test.go`
 - **Store calls:** `dbgen.DeleteSnapshot`, `dbgen.GetSnapshot`, `dbgen.UpsertSnapshot`
-- **Why that class:** Bundled into the whiteboard unit: whiteboard embeds collab types (no-compile without it) and collab without whiteboard was dead until notes arrived as the second consumer (features/notes shares the transport on its own subject space). Split trigger met — see the notes entry: trimming the whiteboard bundle removes collab, which notes needs.
+- **Why that class:** Bundled into the whiteboard unit: whiteboard embeds collab types (no-compile without it) and collab without whiteboard was dead until notes arrived as the second consumer (features/notes shares the transport on its own subject space). Split trigger met — see the notes entry: removing the whiteboard bundle removes collab, which notes needs.
 - **Note:** Shared by whiteboard + notes on the flat stack (their chi slices wire the transport). Snapshot durability is runtime: COLLAB_SNAPSHOTS=memory keeps snapshots process-local (draw without Turso writes; docs start empty after a restart). Files is empty on purpose: the importers outside internal/collab are EDITED (line drops), never deleted — internal/server/chi.go is core.
 
-## `components` — plugin
+## `components` — servant
 
 shared UI helpers (Toast + OfflineBanner)
 
 - **Owned:** `internal/components`, `features/todo/components`
 - **Why that class:** Every page layout calls into it; deletion is manual.
 
-## `credits` — plugin
+## `credits` — servant
 
 AI credits + BYOK ledger (ai-credits)
 
@@ -183,7 +183,7 @@ AI credits + BYOK ledger (ai-credits)
 - **Note:** If Stripe top-ups were the only stripe-go user, `go mod tidy` drops stripe-go too.
 - **Warning:** Todo AI Suggest becomes unmetered (still works with GOAI_API_KEY, no ledger).
 
-## `dagnats` — plugin
+## `dagnats` — servant
 
 durable workflows (DagNats over JetStream) + onboarding worker
 
@@ -194,14 +194,14 @@ durable workflows (DagNats over JetStream) + onboarding worker
 - **Note:** Deletion removes the engine + onboarding worker. The workflow tab, button, and hints auto-hide via the dagnatsUIEnabled signal (registration truth, not config truth).
 - **Warning:** Runtime alternative (no deletion): DAGNATS_ENABLED=false.
 
-## `datastar` — plugin
+## `datastar` — servant
 
 Datastar rendering helpers
 
 - **Owned:** `internal/datastar`
 - **Why that class:** Every .templ page renders through it; deletion is manual.
 
-## `delivery` — plugin
+## `delivery` — servant
 
 delivery transport seam: channels (email today) carried by a provider (smtp or an external notify engine)
 
@@ -209,29 +209,29 @@ delivery transport seam: channels (email today) carried by a provider (smtp or a
 - **Runtime off:** `DELIVERY_TRANSPORT=off`
 - **Note:** Without it the inbox still works: the form drops the external channel checkbox, and a delivery that asked for one is recorded skipped/provider. The template ships in_app and email only; other channel values are data a provider may know, not a gogogo surface. in_app is never a sender, which keeps one owner for the inbox.
 
-## `desktopboot` — plugin
+## `desktopboot` — servant
 
 shared native-shell boot (migrations, auth+TOTP, demo, instance-id, webview URL)
 
 - **Owned:** `internal/desktopboot`
-- **Note:** Plugin, not core: only cmd/desktop (Wails) and cmd/gui (gogpu/ui) and future native shells read it — cmd/web boots through internal/server. Deleting it drops the shared boot, not the web app.
+- **Note:** Servant, not core: only cmd/desktop (Wails) and cmd/gui (gogpu/ui) and future native shells read it — cmd/web boots through internal/server. Deleting it drops the shared boot, not the web app.
 
-## `genkit` — plugin
+## `genkit` — servant
 
 typed AI flows (Genkit Go): orchestration + traces above internal/llm
 
-- **Why that class:** Single consumer (review): trimming the review unit plus `go mod tidy` drops github.com/firebase/genkit/go from the build. Generation reaches providers only through llm.Client, so no provider SDK rides along. Runtime-off needs no flag — without GOAI_API_KEY the flows 503 and the UI hides.
+- **Why that class:** Single consumer (review): removing the review unit plus `go mod tidy` drops github.com/firebase/genkit/go from the build. Generation reaches providers only through llm.Client, so no provider SDK rides along. Runtime-off needs no flag — without GOAI_API_KEY the flows 503 and the UI hides.
 
-## `genui` — plugin
+## `genui` — servant
 
 generative UI: the Chat demo renders LLM answers as Templ directives over the SSE hub
 
 - **Owned:** `features/genui`, `features/todo/handlers/genui_panel.go`, `features/todo/handlers/genui_panel_test.go`, `features/todo/handlers/genui_owner_test.go`, `features/todo/handlers/panel_action.go`, `features/todo/handlers/panel_action_test.go`, `features/config/components/safe_view_catalog_test.go`, `features/todo/panel.go`, `features/todo/panel_filter_test.go`, `features/todo/components/panel.templ`, `features/todo/components/panel_templ.go`, `features/todo/components/panel_delete_test.go`, `web/resources/static/pele.global.js`, `web/resources/static/diagram.js`
 - **Store calls:** `dbgen.ListTodosByOwner`
 - **Note:** Deletion removes the Chat demo (one bundle: chat imports genui components, so chat without genui does not compile — same honest shape as whiteboard+collab+notes). The Chat sidebar entry is stripped automatically.
-- **Warning:** ci-local smoke: export SMOKE_FEATURES without genui (e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the trimmed route.
+- **Warning:** ci-local smoke: export SMOKE_FEATURES without genui (e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the removed route.
 
-## `goakt` — plugin
+## `goakt` — servant
 
 entity actors (GoAkt: room lease + collaborative presence)
 
@@ -241,7 +241,7 @@ entity actors (GoAkt: room lease + collaborative presence)
 - **Note:** Deletion removes the engine + room demo; collaborative presence (whiteboard AND notes) falls back to the in-process PeerSet behind the same seam, so the cross-instance roster still works. The Room sidebar entry is stripped automatically; main.go boot lines go with the unit's mainStrips.
 - **Warning:** Runtime alternative (no deletion): GOAKT_ENABLED=false.
 
-## `graph` — plugin
+## `graph` — servant
 
 panorama graph (capabilities + recipes)
 
@@ -250,7 +250,7 @@ panorama graph (capabilities + recipes)
 - **Depends on:** sounds
 - **Why that class:** Delete dirs + MountFeature line.
 
-## `i18n` — plugin
+## `i18n` — servant
 
 localization seam (embedded catalogs, locale resolution, number/date formatting)
 
@@ -258,9 +258,9 @@ localization seam (embedded catalogs, locale resolution, number/date formatting)
 - **Runtime off:** `I18N_ENABLED=false (already the default)`
 - **Why that class:** Phase one owns lookup and formatting; CLDR depth is a documented revisit trigger, not an upfront dependency.
 - **Note:** Removable seam: delete internal/i18n plus this entry and the I18n config; the shell keeps rendering the English fallback. Runtime-off is the blessed path until a phase converts markup.
-- **Warning:** With the plugin off, markup stays on English fallbacks; no feature needs the locale context to render.
+- **Warning:** With the servant off, markup stays on English fallbacks; no feature needs the locale context to render.
 
-## `license-activation` — plugin
+## `license-activation` — servant
 
 standalone /activate page for a license or account token
 
@@ -269,7 +269,7 @@ standalone /activate page for a license or account token
 - **Store calls:** `dbgen.CreateUser`, `dbgen.GetUser`
 - **Why that class:** Activation page; the gate is runtime-off with LICENSE_MODE=none. Removal is manual (drop the route and the page).
 
-## `llm` — plugin
+## `llm` — servant
 
 GoAI LLM client behind an injectable interface
 
@@ -278,7 +278,7 @@ GoAI LLM client behind an injectable interface
 - **UI signal:** `todo.Signals.LLMEnabled`
 - **Why that class:** Load-bearing in core structs: features/app AppContext holds LLM *llm.Client (plus llm.Cfg/llm.Queue globals), TodoHandler calls llm methods directly, and credits implements llm.Biller (cascade). The goai dependency is shared with credits and internal/queue, so deletion saves source only, never deps. Runtime-off is the blessed path.
 
-## `nats` — plugin
+## `nats` — servant
 
 NATS JetStream: cross-instance broadcast + CRUD proxy + leaf nodes
 
@@ -286,7 +286,7 @@ NATS JetStream: cross-instance broadcast + CRUD proxy + leaf nodes
 - **Runtime off:** `NATS_ENABLED=false (in-memory fallback)`
 - **Why that class:** 15+ importers carry NATS types in signatures; deletion is a manual refactor, not line strips.
 
-## `offline-sync` — plugin
+## `offline-sync` — servant
 
 durable page outbox + app-shell cache (idempotent replay, NATS CRUD proxy)
 
@@ -294,7 +294,7 @@ durable page outbox + app-shell cache (idempotent replay, NATS CRUD proxy)
 - **Runtime off:** `OFFLINE_SYNC_ENABLED=false`
 - **Why that class:** Spans a config struct field, the outbox, the worker, and templ registration; deletion is manual.
 
-## `perf` — plugin
+## `perf` — servant
 
 opt-in operator diagnostics: statsviz dashboard + stdlib pprof
 
@@ -302,9 +302,9 @@ opt-in operator diagnostics: statsviz dashboard + stdlib pprof
 - **Routes:** `/debug/pprof`, `/debug/pprof/*`, `/debug/statsviz`, `/debug/statsviz/*`, `/debug/statsviz/ws`
 - **Runtime off:** `PERF_ENABLED=false (default off in production)`
 - **Note:** Fenced like /console: session + admin + an ADMIN_EMAILS match. statsviz is net/http only (no second HTTP stack); pprof is stdlib. The installer drops the dependency with the unit.
-- **Warning:** One-way trim: removal is a hand edit and re-adding is manual.
+- **Warning:** One-way removal: it is a hand edit and re-adding is manual.
 
-## `search` — plugin
+## `search` — servant
 
 search layers (substring, fuzzy, BM25) behind one seam
 
@@ -313,7 +313,7 @@ search layers (substring, fuzzy, BM25) behind one seam
 - **Note:** No external engine on purpose: this driver ships no FTS5 and no Turso native FTS (tursogo v0.8.2/v0.8.3/v0.9.0-pre.1), and a second index store would put a row's truth in two places.
 - **Warning:** A consumer that loses this keeps the SQL substring layer: it holds a search.Searcher and degrades (that is why it is swappable).
 
-## `sounds` — plugin
+## `sounds` — servant
 
 UI sound feedback (cuelume, vendored)
 
@@ -372,16 +372,6 @@ voice-first kiosk order demo (closed menu, on-device voice, one declared outcome
 - **Why that class:** Bundled like the other demos: the code lives in features/kiosk and the receipt in .recipes/kiosk.yml, so it mounts through the same seam and `recipe uninstall kiosk` removes it. Its chat panel renders through genui — remove it with genui.
 - **Note:** The declared outcome (orders that needed no repair over orders confirmed) is the worked example of a declared measurement — docs/scope-taxonomy.md.
 
-## `landing` — feature
-
-public entry page on GET / (inside the shared shell)
-
-- **Owned:** `features/landing`
-- **Routes:** `/`
-- **Depends on:** sounds
-- **Why that class:** Delete the dir, its / route, and retarget the shell brand to /todo.
-- **Warning:** GET / will 404 (landing owned the only root route); the shell brand is retargeted to /todo, which is kept.
-
 ## `notes` — feature
 
 shared plain-text notes (server-owned Loro Text + SSE)
@@ -401,7 +391,7 @@ inbox + durable reminders (DagNats sleep → delivery row)
 - **Routes:** `/api/notifications/badge`, `/api/notifications/read-all`, `/api/notifications/remind`, `/api/notifications/stream`, `/api/notifications/{id}/read`, `/api/notifications/{id}/unread`, `/notifications`
 - **Store calls:** `dbgen.CountNotificationsByChannelStatus`, `dbgen.CountUnreadInApp`, `dbgen.CreateNotification`, `dbgen.ListNotificationsForOwner`, `dbgen.MarkAllNotificationsRead`, `dbgen.MarkNotificationRead`, `dbgen.MarkNotificationUnread`, `dbgen.SetNotificationStatus`
 - **Depends on:** sounds
-- **Why that class:** Removal is manual: delete this unit, the sidebar entry in internal/ui/modules.go (Pinned), the rail count middleware and the session-stream feed in internal/server/inbox_badge.go plus their r.Use / SetSessionStreamExtras lines in internal/server/chi.go and internal/server/delivery.go, the operator middleware's engine argument in chi.go (the console link reads this handler's Wired), the badge refresh button in internal/ui/inbox.templ and its route in the handler, the reminder definition in internal/dagnats/reminder.go, the reminder-seed and notification-deliver workers plus the onboarding welcome call and the startDagNats argument in cmd/web/dagnats.go. Migration 0015 stays (migrations are append-only; drop the table with a new one if the data must go). The transport seam is the separate `delivery` plugin.
+- **Why that class:** Removal is manual: delete this unit, the sidebar entry in internal/ui/modules.go (Pinned), the rail count middleware and the session-stream feed in internal/server/inbox_badge.go plus their r.Use / SetSessionStreamExtras lines in internal/server/chi.go and internal/server/delivery.go, the operator middleware's engine argument in chi.go (the console link reads this handler's Wired), the badge refresh button in internal/ui/inbox.templ and its route in the handler, the reminder definition in internal/dagnats/reminder.go, the reminder-seed and notification-deliver workers plus the onboarding welcome call and the startDagNats argument in cmd/web/dagnats.go. Migration 0015 stays (migrations are append-only; drop the table with a new one if the data must go). The transport seam is the separate `delivery` servant.
 
 ## `review` — feature
 
@@ -410,9 +400,9 @@ review loop demo (writer → critic → classifier judge, streamed verdict)
 - **Owned:** `features/review`
 - **Routes:** `/api/review/run`, `/review`
 - **Depends on:** genkit
-- **Note:** No UISignal claim by design: the run UI gates on the todo.Signals ReviewEnabled field at runtime (keyless hides it), but the only .templ reader ships inside features/review — claiming it would fail the trimmed-tree conformance, the same reason SimulatedLLM is unclaimed. Trim removes the sidebar entry, so no dead UI either way. DependsOn lists genkit only: llm is never trimmed (runtime-off is blessed), so declaring it would break a bundle restore (no unit provides the dep) for zero mechanical gain — the LLM requirement rides the Summary and docs instead.
+- **Note:** No UISignal claim by design: the run UI gates on the todo.Signals ReviewEnabled field at runtime (keyless hides it), but the only .templ reader ships inside features/review — claiming it would fail the removed-tree conformance, the same reason SimulatedLLM is unclaimed. Removal drops the sidebar entry, so no dead UI either way. DependsOn lists genkit only: llm is never removed (runtime-off is blessed), so declaring it would break a bundle restore (no unit provides the dep) for zero mechanical gain — the LLM requirement rides the Summary and docs instead.
 - **Warning:** The Review sidebar entry is stripped automatically.
-- **Warning:** ci-local smoke: export SMOKE_FEATURES without review (e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the trimmed route.
+- **Warning:** ci-local smoke: export SMOKE_FEATURES without review (e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the removed route.
 
 ## `room` — feature
 
@@ -443,5 +433,5 @@ collaborative canvas (Loro + Rough.js + presence)
 - **Depends on:** collab, sounds
 - **Why that class:** Delete the dir plus internal/server/presence.go and the Whiteboard entry in internal/ui/modules.go (notes falls back to the in-process PeerSet presence seam).
 - **Warning:** The Whiteboard sidebar entry is removed by hand with the unit.
-- **Warning:** ci-local smoke: export SMOKE_FEATURES without whiteboard (e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the trimmed route.
+- **Warning:** ci-local smoke: export SMOKE_FEATURES without whiteboard (e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the removed route.
 

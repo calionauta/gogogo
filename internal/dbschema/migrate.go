@@ -58,7 +58,7 @@ func Migrate(sqlDB *sql.DB) error {
 }
 
 // MigrateWith applies the embedded core set and then every recipe set, each
-// under its own version namespace ("pomodoro/0001_init"). Order is core first,
+// under its own version namespace ("kiosk/0001_init"). Order is core first,
 // then sets sorted by ID: a boot is deterministic, and a recipe may reference a
 // core table.
 //

@@ -5,7 +5,7 @@ The AI Suggest and Queue/Retry demos are wired through
 environment, which in local development is populated by the age-encrypted
 secrets file (`~/.secrets/<project>.env.age` — see
 [Secrets setup](getting-started.md#secrets-setup)). The optional
-[`ai-credits`](https://github.com/calionauta/ai-credits) plugin adds billing on
+[`ai-credits`](https://github.com/calionauta/ai-credits) servant adds billing on
 top.
 
 ## Configuring the LLM
@@ -82,7 +82,7 @@ on the provider). If you do it anyway:
   third-party providers (check per-provider privacy switches), and proxying
   one key's free quota to all app users sits in a gray area of
   "reselling API access" terms. Never send user secrets through it.
-- **Prefer BYOK for real prod.** The `credits` plugin exists precisely so
+- **Prefer BYOK for real prod.** The `credits` servant exists precisely so
   users bring their own keys (metered, never charged to you). A shared key
   is a demo posture, not a production one — the default (no key, button
   hidden) is the safe posture.

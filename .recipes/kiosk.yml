@@ -1,6 +1,7 @@
 id: kiosk
 summary: A voice-first order demo over a closed menu, with one owner-scoped order table and a declared outcome.
 version: v0.1.0
+author: {name: calionauta}
 upstream:
     repo: github.com/calionauta/gogogo
     ref: master

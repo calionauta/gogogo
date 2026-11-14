@@ -45,7 +45,7 @@ import (
 type pageUnderTest struct {
 	name  string // digest file name
 	route string
-	anon  bool     // fetch without a session (landing, login)
+	anon  bool     // fetch without a session (login)
 	must  []string // substrings that must survive the revamp
 }
 
@@ -53,7 +53,6 @@ type pageUnderTest struct {
 // a caller depends on, not something a designer likes: a patch root, a signal
 // binding, an aria contract, or copy a render test already asserts.
 var pagesUnderTest = []pageUnderTest{
-	{name: "landing", route: "/", anon: true, must: []string{"Access demo site"}},
 	{name: "login", route: "/login", anon: true, must: []string{"Email", demo.Email}},
 	{name: "todo", route: "/todo", must: []string{
 		`id="todo-list"`,

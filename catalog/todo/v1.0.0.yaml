@@ -1,6 +1,8 @@
 id: todo
 summary: "Reference todo MVC: one page, one write, owner-scoped rows; the in-tree example every recipe derives from."
 version: v1.0.0
+author: {name: calionauta}
+released: "2026-11-08"
 source:
   repo: github.com/calionauta/gogogo
   ref: 2eec0d195f2574c8fc5edd1190cfec5d26b6c93d
@@ -8,7 +10,6 @@ files:
   features/todo/service/service.go: "71e5f45e1f6d90c5334f9d9ed78a2cd535b92e529e7c90ae67cb531d1fb62d69"
 license: MIT
 minCore: v0.62.0
-recommended: true
 register: features/todo/handlers
 slots:
   - dashboard.card

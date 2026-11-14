@@ -32,7 +32,7 @@ func (h *Handler) preview(w http.ResponseWriter, r *http.Request) {
 	sse := sdk.NewSSE(w, r)
 	if err := dshelpers.MergeSignals(sse, previewSignals(parsed)); err != nil {
 		observability.Warn(r.Context(), "kiosk: preview signals failed",
-			append(observability.WithComponent("kiosk", "handler"), "error", err)...)
+			append(observability.WithComponent("kiosk", observability.LayerFeature), "error", err)...)
 	}
 }
 

@@ -39,6 +39,28 @@ removed: [cmd/desktop, cmd/gui, cmd/mobile, features/whiteboard, features/notes]
 A tree with **no file is `full`**, so every checkout made before shapes existed
 keeps working and no gate invents a declaration for it.
 
+### Choosing the shape at scaffold time
+
+The shape is the first decision of a scaffold — it is not a unit decision, so it
+is not a recipe:
+
+```sh
+go run github.com/calionauta/gogogo/cmd/gogogo@latest \
+  --name my-app --owner myorg --shape web --yes
+```
+
+`--shape` prunes the entrypoint dirs the shape does not ship (`cmd/desktop`,
+`cmd/gui`, `cmd/mobile`) and writes `.gogogo/shape.yml` in the same step. It
+never deletes `features/`, `internal/` or a page: that is what `recipe
+uninstall` is for, and `api` is the one shape whose page removal needs the
+`server.PageRoutes` seam below. `--shape full` (the default) applies nothing —
+a template clone already ships every target, so writing a record would make
+every tree look like a decision was taken.
+
+The plan printed by `--dry-run` carries the same answer (`shape`,
+`shapeRemoves`), so an agent can read it without diffing the tree. The MCP
+tools `scaffold_plan` / `scaffold_apply` take the same `shape` argument.
+
 ## The gate
 
 `make check-shape` (and `gogogo shape check --dir .`) is text-only:
@@ -55,7 +77,7 @@ every commit.
 
 ## What a shape does not do (yet)
 
-- It does not trim capabilities for you. The removal mechanics (`recipe
+- It does not remove capabilities for you. The removal mechanics (`recipe
   uninstall`, the exporter, `removed-paths:`) already exist; a shape records the
   decision they apply.
 - It does not carry a per-unit shape label. `Capability.Shapes` is the next
@@ -63,7 +85,7 @@ every commit.
   same unit is a review question, not a gate verdict.
 - `api` is the only shape whose cost is real: it needs a `server.PageRoutes`
   seam so the page handlers and their RBAC rows can be dropped coherently. Until
-  that lands, declaring `api` means the pages are trimmed by hand.
+  that lands, declaring `api` means the pages are removed by hand.
 
 The proposal that led here — including the phase order above — is the
 "App shapes" research note under `docs/research/`.

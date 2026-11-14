@@ -61,6 +61,9 @@ p, anonymous, /activate, (GET|POST)
 # A signed-in user re-activates (renewal, account change) without logging out.
 p, user, /activate, (GET|POST)
 p, anonymous, /logout, (GET|POST)
+# The root redirects (see internal/server/home.go): anonymous to /login, a
+# session to its home. The signed-in rows are the core ones below, with the
+# rest of the user/viewer surface.
 p, anonymous, /, GET
 # Signed-out auth surface: only the endpoints a visitor without a session
 # must reach. The session-required TOTP enrollment endpoints are deliberately
@@ -196,10 +199,6 @@ p, user, /api/credits/stripe-webhook, .*
 # written by `gogogo recipe install`; `gogogo recipe uninstall` removes this block
 p, user, /dashboard, .*
 # end recipe:dashboard
-# recipe:landing
-# written by `gogogo recipe install`; `gogogo recipe uninstall` removes this block
-p, user, /, .*
-# end recipe:landing
 # recipe:notes
 # written by `gogogo recipe install`; `gogogo recipe uninstall` removes this block
 p, user, /api/notes/*/caret, .*

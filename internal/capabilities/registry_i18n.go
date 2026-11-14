@@ -4,12 +4,12 @@ package capabilities
 
 var i18nUnit = Capability{
 	ID:         "i18n",
-	Kind:       KindPlugin,
+	Kind:       KindServant,
 	Summary:    "localization seam (embedded catalogs, locale resolution, number/date formatting)",
 	RuntimeOff: "I18N_ENABLED=false (already the default)",
 	Dirs:       []string{"internal/i18n"},
 	Warns: []string{
-		"With the plugin off, markup stays on English fallbacks; " +
+		"With the servant off, markup stays on English fallbacks; " +
 			"no feature needs the locale context to render.",
 	},
 	Note: "Removable seam: delete internal/i18n plus this entry and the " +

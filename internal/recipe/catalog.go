@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -42,17 +43,18 @@ type CatalogEntry struct {
 	// Summary is the user-facing sentence discovery shows. The review
 	// requires it so `recipe list` never answers with a repo path where a
 	// human or agent expects to learn what the recipe allows.
-	Summary string            `yaml:"summary"`
-	Version string            `yaml:"version"`
-	Source  Upstream          `yaml:"source"`
-	Files   map[string]string `yaml:"files"`
-	License string            `yaml:"license"`
-	MinCore string            `yaml:"minCore"`
-	// Recommended marks this catalog recipe as advised at scaffold time.
-	// The installer recommends it in the plan/advise; installation still
-	// requires explicit acceptance. The catalog maintainer flips this over
-	// time without code changes.
-	Recommended bool `yaml:"recommended,omitempty"`
+	Summary string `yaml:"summary"`
+	Version string `yaml:"version"`
+	// Author and Released are the credit and the version's date. The name is
+	// required (an entry nobody owns is not reviewable); the address is
+	// optional. `released` is the date the version was published, distinct from
+	// `reviewedAt` (when this catalog reviewed it).
+	Author   Author            `yaml:"author"`
+	Released string            `yaml:"released"`
+	Source   Upstream          `yaml:"source"`
+	Files    map[string]string `yaml:"files"`
+	License  string            `yaml:"license"`
+	MinCore  string            `yaml:"minCore"`
 	// Register is the repo-relative package exporting `Register`, when the
 	// entry's code mounts through the seam. Empty is a data-only recipe.
 	Register string `yaml:"register,omitempty"`
@@ -135,6 +137,17 @@ func (e CatalogEntry) identityProblems() []string {
 	}
 	if strings.TrimSpace(e.Summary) == "" {
 		out = append(out, "summary is required: discovery shows it instead of the upstream repo")
+	}
+	if strings.TrimSpace(e.Author.Name) == "" {
+		out = append(out, "author.name is required: a recipe nobody owns is not reviewable")
+	}
+	if e.Author.Email != "" && !strings.Contains(e.Author.Email, "@") {
+		out = append(out, fmt.Sprintf("author.email %q is not an address", e.Author.Email))
+	}
+	if e.Released == "" {
+		out = append(out, "released is required: a version without a date is a version nobody can sequence")
+	} else if _, terr := time.Parse("2006-01-02", e.Released); terr != nil {
+		out = append(out, fmt.Sprintf("released %q must be YYYY-MM-DD", e.Released))
 	}
 	if e.Source.Repo == "" {
 		out = append(out, "source.repo is empty: the pristine baseline must be locatable")

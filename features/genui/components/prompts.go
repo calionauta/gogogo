@@ -63,8 +63,8 @@ func catalogFragment() string {
 
 // commonFragment is what every leg advertises regardless of surface toggles:
 // the catalog leaves and the one container. No html_block, no panels.
-func commonFragment() string {
-	return catalogFragment() + sectionFragment()
+func commonFragment(c *prompts.Composer) string {
+	return catalogFragment() + sectionFragment(c)
 }
 
 // bandFragments is the advertised component list, built band by band.
@@ -76,13 +76,13 @@ func commonFragment() string {
 //
 // section rides with the catalog band because nesting is a catalog affordance —
 // with no leaves to nest, a container is noise.
-func bandFragments(surfaces []Surface) string {
+func bandFragments(c *prompts.Composer, surfaces []Surface) string {
 	var b strings.Builder
 	if HasSurfaces(surfaces, SurfaceCustom) {
 		b.WriteString("html_block {html: markup you invent for this answer}, ")
 	}
 	if HasSurfaces(surfaces, SurfaceCatalog) {
-		b.WriteString(commonFragment())
+		b.WriteString(commonFragment(c))
 	}
 	return b.String()
 }
@@ -90,7 +90,7 @@ func bandFragments(surfaces []Surface) string {
 // customGuidance is the invented-markup instructions. Advertised only with the
 // custom surface, and led with on purpose where it is: at least one band must
 // lead, so the guidance names the one the model is most likely to under-use.
-func customGuidance(surfaces []Surface) string {
+func customGuidance(c *prompts.Composer, surfaces []Surface) string {
 	if !HasSurfaces(surfaces, SurfaceCustom) {
 		return ""
 	}
@@ -98,9 +98,9 @@ func customGuidance(surfaces []Surface) string {
 	if HasSurfaces(surfaces, SurfaceCatalog) {
 		// Trailing space keeps the sentence boundary when the note is spliced
 		// into the middle of the guidance file.
-		note = prompts.Text("genui/guidance-custom-catalog") + " "
+		note = c.Text("genui/guidance-custom-catalog") + " "
 	}
-	return prompts.MustRender("genui/guidance-custom", map[string]string{
+	return c.MustRender("genui/guidance-custom", map[string]string{
 		"vocabulary":   ModelHTMLVocabulary(),
 		"catalog_note": note,
 	})
@@ -109,18 +109,25 @@ func customGuidance(surfaces []Surface) string {
 // PromptForSurfaces is the entry point: the SURFACE SET decides the
 // vocabulary. Chat calls it with its configured set.
 func PromptForSurfaces(surfaces []Surface) string {
-	return promptForSurfaces(surfaces)
+	return promptForSurfaces(surfaces).String()
 }
 
 // PromptForCatalogLeadSurfaces is the router's variant: the catalog stays
 // fully advertised on purpose (see router.go), and the lead hint is dropped
 // when the pick is not in the enabled vocabulary.
 func PromptForCatalogLeadSurfaces(lead string, surfaces []Surface) string {
-	base := promptForSurfaces(surfaces)
+	return composeForCatalogLead(lead, surfaces).String()
+}
+
+// composeForCatalogLead is PromptForCatalogLeadSurfaces as a composer, so the
+// caller that traces the request can see the lead file participate too.
+func composeForCatalogLead(lead string, surfaces []Surface) *prompts.Composer {
+	composed := promptForSurfaces(surfaces)
 	if lead == "" || !Registered(lead) || !advertisedAs(lead, surfaces) {
-		return base
+		return composed
 	}
-	return base + " " + prompts.MustRender("genui/lead", map[string]string{"component": lead})
+	composed.MustRender("genui/lead", map[string]string{"component": lead})
+	return composed
 }
 
 // PromptForChat is Chat's default surface: the catalog plus the invented-visual
@@ -132,7 +139,7 @@ func PromptForCatalogLeadSurfaces(lead string, surfaces []Surface) string {
 // only where markup cannot act (a form posting to this app) or would render
 // a fact worse than the catalog already does.
 func PromptForChat() string {
-	return promptForSurfaces(DefaultSurfacesChat)
+	return promptForSurfaces(DefaultSurfacesChat).String()
 }
 
 // promptForSurfaces assembles one leg's instructions from the enabled surface
@@ -147,39 +154,24 @@ func PromptForChat() string {
 // NormalizeSurfaces runs here (and in CatalogComponentsFor) so a nil set
 // means the Chat default for every caller, including one that passes a raw
 // set — the invariant lives in the normalizer, not in each constant being right.
-func promptForSurfaces(surfaces []Surface) string {
+func promptForSurfaces(surfaces []Surface) *prompts.Composer {
 	surfaces = NormalizeSurfaces(surfaces)
+	c := &prompts.Composer{}
 	if len(surfaces) == 0 {
-		return prompts.Text("genui/answer-prose")
+		c.Text("genui/answer-prose")
+		return c
 	}
-	return joinFragments([]string{
-		prompts.MustRender("genui/envelope", map[string]string{"components": bandFragments(surfaces)}),
-		customGuidance(surfaces),
-		panelsFragment(surfaces),
-		panelsGuidance(surfaces),
-		smalltalkRule(surfaces),
-		actionsFragmentIfAllowed(surfaces),
-		dataRule(surfaces),
-		prompts.Text("genui/closing-rule"),
-	})
-}
-
-// joinFragments assembles the prompt from the fragments that apply, with one
-// space between them. The prompt text itself lives in .prompt files; this
-// function only decides which files' output participates, so an operator
-// toggling a surface cannot leave a dangling sentence behind.
-func joinFragments(parts []string) string {
-	var b strings.Builder
-	for _, part := range parts {
-		if part == "" {
-			continue
-		}
-		if b.Len() > 0 {
-			b.WriteByte(' ')
-		}
-		b.WriteString(part)
-	}
-	return b.String()
+	// The composer records WHICH files participate, in order, so a trace can
+	// name the prompt set (and each version) that produced an answer.
+	c.MustRender("genui/envelope", map[string]string{"components": bandFragments(c, surfaces)})
+	c.Add(customGuidance(c, surfaces))
+	c.Add(panelsFragment(c, surfaces))
+	c.Add(panelsGuidance(c, surfaces))
+	c.Add(smalltalkRule(c, surfaces))
+	c.Add(actionsFragmentIfAllowed(c, surfaces))
+	c.Add(dataRule(c, surfaces))
+	c.Text("genui/closing-rule")
+	return c
 }
 
 // smalltalkRule keeps greetings from becoming data answers. The model
@@ -188,11 +180,11 @@ func joinFragments(parts []string) string {
 // prompt states the negative explicitly, next to the panel guidance it
 // constrains. It names no component on purpose: the rule must hold for every
 // surface set, including ones where text_note itself is not advertised.
-func smalltalkRule(surfaces []Surface) string {
+func smalltalkRule(c *prompts.Composer, surfaces []Surface) string {
 	if !HasSurfaces(surfaces, SurfaceNative) || len(panelNames()) == 0 {
 		return ""
 	}
-	return prompts.Text("genui/rule-smalltalk")
+	return c.Text("genui/rule-smalltalk")
 }
 
 // advertisedAs reports whether a catalog name is inside the enabled vocabulary.
@@ -212,13 +204,13 @@ func advertisedAs(name string, surfaces []Surface) bool {
 
 // sectionFragment is the container's line: it is part of the catalog, not a
 // panel, so it is spelled out rather than registered.
-func sectionFragment() string {
-	return prompts.Text("genui/section")
+func sectionFragment(c *prompts.Composer) string {
+	return c.Text("genui/section")
 }
 
 // panelsFragment lists the registered system panels after the catalog. A build
 // with no panels wired, or with the native surface off, advertises none.
-func panelsFragment(surfaces []Surface) string {
+func panelsFragment(c *prompts.Composer, surfaces []Surface) string {
 	if !HasSurfaces(surfaces, SurfaceNative) {
 		return ""
 	}
@@ -226,7 +218,7 @@ func panelsFragment(surfaces []Surface) string {
 	if len(names) == 0 {
 		return ""
 	}
-	return prompts.MustRender("genui/panels-list", map[string]string{"panels": strings.Join(names, ", ")})
+	return c.MustRender("genui/panels-list", map[string]string{"panels": strings.Join(names, ", ")})
 }
 
 // panelsGuidance is where each panel says when to reach for it: the text
@@ -240,7 +232,7 @@ func panelsFragment(surfaces []Surface) string {
 // user's own data is the failure the panel exists to prevent, so the prompt
 // states the prohibition and the required answer shape, and each panel's own
 // line says what it shows.
-func panelsGuidance(surfaces []Surface) string {
+func panelsGuidance(c *prompts.Composer, surfaces []Surface) string {
 	if !HasSurfaces(surfaces, SurfaceNative) {
 		return ""
 	}
@@ -252,7 +244,7 @@ func panelsGuidance(surfaces []Surface) string {
 	for _, name := range names {
 		fragments = append(fragments, panelPrompt(name))
 	}
-	return prompts.MustRender("genui/guidance-panels", map[string]string{
+	return c.MustRender("genui/guidance-panels", map[string]string{
 		"panels": strings.Join(fragments, "; "),
 	})
 }
@@ -261,9 +253,9 @@ func panelsGuidance(surfaces []Surface) string {
 // promptForSurfaces so it lands immediately before the user's request. Split
 // out because placement is the point: mid-prompt guidance is exactly what a
 // long vocabulary beats into background.
-func dataRule(surfaces []Surface) string {
+func dataRule(c *prompts.Composer, surfaces []Surface) string {
 	if !HasSurfaces(surfaces, SurfaceNative) || len(panelNames()) == 0 {
 		return ""
 	}
-	return prompts.Text("genui/rule-data")
+	return c.Text("genui/rule-data")
 }

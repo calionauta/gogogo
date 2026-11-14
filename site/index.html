@@ -58,7 +58,7 @@
   <div class="hero-copy">
     <p class="kicker">Full-stack Go · one binary · nothing to operate</p>
     <h1>Your stack is ready.<br><em>Summon</em> your AI agent <span class="nowrap">to build.</span></h1>
-    <p class="hero-sub">Not a framework. One binary.</p>
+    <p class="hero-sub">A product structure your agent can evolve — not a framework. One binary, and a CLI/MCP the agent drives it with.</p>
     <div class="hero-ctas">
       <a class="btn primary" href="#install">Get started</a>
       <a class="btn" href="https://gogogo.calionauta.com/" rel="noopener">Try it live</a>
@@ -238,7 +238,7 @@
         <li>Receipt keeps it honest: <code>recipe status</code>, <code>update</code>, <code>uninstall</code>.</li>
         <li>Measured, not asserted: declared metrics and one outcome (success over total) count the rows the recipe already owns.</li>
       </ul>
-      <p class="chapter-lede">Reference: <code>features/todo</code>. Try: <code>gogogo recipe install ./_recipes/pomodoro --yes</code> · instrumentation example: <code>_recipes/coffee</code></p>
+      <p class="chapter-lede">Reference: <code>features/todo</code>. Try: <code>gogogo recipe install ./_recipes/pomodoro --yes</code> · instrumentation example: <code>features/kiosk</code></p>
 
       <div class="viz tiles">
         <!--FEATURES:START-->
@@ -300,12 +300,6 @@
           <span class="tile-note">durable · live</span>
         </a>
         <a class="tile" href="./docs/features/">
-          <span class="tile-top"><span class="tile-dot live"></span> Landing<span class="tile-arrow" aria-hidden="true">↗</span></span>
-          <span class="tile-ui generic-ui"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M7 6.5h.01M10 6.5h.01"/></svg></span>
-          <span class="tile-desc">public entry page on GET / (inside the shared shell)</span>
-          <span class="tile-note">this page is a recipe</span>
-        </a>
-        <a class="tile" href="./docs/features/">
           <span class="tile-top"><span class="tile-dot live"></span> Config<span class="tile-arrow" aria-hidden="true">↗</span></span>
           <span class="tile-ui generic-ui"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></span>
           <span class="tile-desc">admin-only /config view + user role/session actions</span>
@@ -343,7 +337,7 @@
         <!--WEIGHTS:END-->
 
       <div class="chapter-foot">
-        <p class="foot-line"><span class="label">Inside</span> recipes · <code>features/todo</code> <code>features/notes</code> <code>features/whiteboard</code> <code>features/chat</code> <code>features/review</code> <code>features/room</code> <code>features/landing</code> <code>features/config</code> <code>features/account</code> <code>features/dashboard</code></p>
+        <p class="foot-line"><span class="label">Inside</span> recipes · <code>features/todo</code> <code>features/notes</code> <code>features/whiteboard</code> <code>features/chat</code> <code>features/review</code> <code>features/room</code> <code>features/config</code> <code>features/account</code> <code>features/dashboard</code></p>
         <p class="foot-line"><span class="label">Proof</span> <code>gogogo recipe install</code> · <code>gogogo recipe status</code> (drift) · <code>gogogo recipe list</code></p>
         <p class="foot-line remove"><span class="label">Remove it</span> Uninstall unwires; receipt stays so data still has an owner. The route disappears; nothing below moves.</p>
         <p class="foot-line doc"><a href="./docs/features/">Feature catalog</a> · <a href="./docs/scope-taxonomy/">Scope taxonomy</a> · <a href="./docs/research/extensibility/">Extensibility</a> · <a href="./docs/unit-contracts/">Unit contracts</a></p>
@@ -357,7 +351,7 @@
       <ul class="chapter-points">
         <li>Turn one off: something stops, nothing disappears from the UI.</li>
         <li>Runtime switch per servant; the binary still builds.</li>
-        <li>Not installable — the catalog does not sell them.</li>
+        <li>Not installable — a servant is deleted by hand, not uninstalled.</li>
       </ul>
 
       <div class="viz trim" id="trim">
@@ -395,7 +389,7 @@
           <input type="checkbox" checked data-cap="collab">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">Collab</span><span class="plan-desc">Loro CRDT transport: DocStore, sync workers, presence</span></span>
-          <span class="plan-env">manual</span>
+          <span class="plan-env">manual removal</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="offline-sync">
@@ -407,26 +401,26 @@
           <input type="checkbox" checked data-cap="search">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">Search</span><span class="plan-desc">search layers (substring, fuzzy, BM25) behind one seam</span></span>
-          <span class="plan-env">manual</span>
+          <span class="plan-env">manual removal</span>
         </label>
         <p class="plan-group">The rest</p>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="app">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">App</span><span class="plan-desc">AppContext (dependency bundle for the native window)</span></span>
-          <span class="plan-env">manual</span>
+          <span class="plan-env">manual removal</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="capabilities">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">Capabilities</span><span class="plan-desc">capability registry + installer engine (CLI and MCP share it)</span></span>
-          <span class="plan-env">manual</span>
+          <span class="plan-env">manual removal</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="components">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">Components</span><span class="plan-desc">shared UI helpers (Toast + OfflineBanner)</span></span>
-          <span class="plan-env">manual</span>
+          <span class="plan-env">manual removal</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="credits">
@@ -438,7 +432,7 @@
           <input type="checkbox" checked data-cap="datastar">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">Datastar<span class="plan-tag">Go seam</span></span><span class="plan-desc">Datastar rendering helpers</span></span>
-          <span class="plan-env">manual</span>
+          <span class="plan-env">manual removal</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="delivery">
@@ -450,25 +444,25 @@
           <input type="checkbox" checked data-cap="desktopboot">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">desktopboot</span><span class="plan-desc">shared native-shell boot (migrations, auth+TOTP, demo, instance-id, webview URL)</span></span>
-          <span class="plan-env">manual</span>
+          <span class="plan-env">manual removal</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="genkit">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">Genkit</span><span class="plan-desc">typed AI flows (Genkit Go): orchestration + traces above internal/llm</span></span>
-          <span class="plan-env">manual</span>
+          <span class="plan-env">manual removal</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="genui">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">GenUI</span><span class="plan-desc">generative UI: the Chat demo renders LLM answers as Templ directives over the SSE hub</span></span>
-          <span class="plan-env">manual</span>
+          <span class="plan-env">manual removal</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="graph">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">graph</span><span class="plan-desc">panorama graph (capabilities + recipes)</span></span>
-          <span class="plan-env">manual</span>
+          <span class="plan-env">manual removal</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="i18n">
@@ -480,7 +474,7 @@
           <input type="checkbox" checked data-cap="license-activation">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">license-activation</span><span class="plan-desc">standalone /activate page for a license or account token</span></span>
-          <span class="plan-env">manual</span>
+          <span class="plan-env">manual removal</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="perf">
@@ -492,10 +486,10 @@
           <input type="checkbox" checked data-cap="sounds">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">Sounds</span><span class="plan-desc">UI sound feedback (cuelume, vendored)</span></span>
-          <span class="plan-env">manual</span>
+          <span class="plan-env">manual removal</span>
         </label>
         <p class="trim-summary" id="trim-summary" aria-live="polite">Every servant on. The binary still builds.</p>
-        <p class="trim-note">Every servant from the unit contracts (Kind plugin). A preview, not a live switch; the real switch is the env var. Servants are wired libraries, not installable recipes — see Recipes.</p>
+        <p class="trim-note">Every servant from the unit contracts (Kind servant). A preview, not a live switch; the real switch is the env var. Servants are wired libraries, not installable recipes — see Recipes.</p>
         <!--PLUGINS:END-->
       </div>
 
@@ -640,35 +634,37 @@
           <button class="gate" type="button" aria-describedby="gate-note" style="--i:8" data-note="a retired or typo'd DaisyUI class">daisyui-lint</button>
           <button class="gate" type="button" aria-describedby="gate-note" style="--i:9" data-note="a hook in .lefthook.yml">prompts</button>
           <button class="gate" type="button" aria-describedby="gate-note" style="--i:10" data-note="a dependency that breaks the flat stack">flatdeps-lint</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:11" data-note="a hook in .lefthook.yml">shape-domains</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:12" data-note="a test that cannot fail">test-value</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:13" data-note="a hand-written count or a dead path">docs-claims</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:14" data-note="a secret read outside the loader">secrets-env</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:15" data-note="a route with no user row in the policy">rbac-policy</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:16" data-note="a DagNats version outside the pin">dagnats-pin</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:17" data-note="a key in a commit">secrets-scan</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:18" data-note="a skill not registered for the hosts">skill-frontmatter</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:19" data-note="a Datastar attribute that does nothing">datastar-lint</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:20" data-note="a route missing from the generated inventory">api-routes</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:21" data-note="an MCP tool whose test stopped pinning it">mcp-tests</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:22" data-note="a unit that left the registry">registry-conformance</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:23" data-note="a committed _templ.go that drifted">generated-templ</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:24" data-note="a stale app.min.css">css-check</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:25" data-note="a template that slipped into JSX">no-jsx</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:26" data-note="unchecked errors, leaked contexts, template mistakes">golangci-lint</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:27" data-note="AGENTS.md drifted from the tree">agents-md-staleness</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:28" data-note="the vendored stelow skill drifted">stelow-drift</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:29" data-note="the vendored DaisyUI skill drifted">daisyui-drift</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:30" data-note="docs that did not move with the code">docs-staleness</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:11" data-note="a hook in .lefthook.yml">product-boundary</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:12" data-note="a hook in .lefthook.yml">shape-domains</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:13" data-note="a test that cannot fail">test-value</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:14" data-note="a hand-written count or a dead path">docs-claims</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:15" data-note="a secret read outside the loader">secrets-env</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:16" data-note="a route with no user row in the policy">rbac-policy</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:17" data-note="a DagNats version outside the pin">dagnats-pin</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:18" data-note="a key in a commit">secrets-scan</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:19" data-note="a skill not registered for the hosts">skill-frontmatter</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:20" data-note="a Datastar attribute that does nothing">datastar-lint</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:21" data-note="a route missing from the generated inventory">api-routes</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:22" data-note="an MCP tool whose test stopped pinning it">mcp-tests</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:23" data-note="a unit that left the registry">registry-conformance</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:24" data-note="a committed _templ.go that drifted">generated-templ</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:25" data-note="a stale app.min.css">css-check</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:26" data-note="a template that slipped into JSX">no-jsx</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:27" data-note="unchecked errors, leaked contexts, template mistakes">golangci-lint</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:28" data-note="AGENTS.md drifted from the tree">agents-md-staleness</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:29" data-note="the vendored stelow skill drifted">stelow-drift</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:30" data-note="the vendored DaisyUI skill drifted">daisyui-drift</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:31" data-note="docs that did not move with the code">docs-staleness</button>
         </div>
         <p class="gate-group">pre-push</p>
         <div class="gate-row">
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:31" data-note="a known CVE in a dependency">govulncheck</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:32" data-note="code no test or route reaches">deadcode</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:32" data-note="a known CVE in a dependency">govulncheck</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:33" data-note="code no test or route reaches">deadcode</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:34" data-note="a hook in .lefthook.yml">operator-look</button>
         </div>
         <p class="gate-group">post-merge</p>
         <div class="gate-row">
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:33" data-note="templ/css artifacts out of date">regen-assets</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:35" data-note="templ/css artifacts out of date">regen-assets</button>
           <span class="gate gate-merge">merge</span>
         </div>
 
@@ -753,7 +749,7 @@
     <p><strong>Writes go offline; reads stay server-owned.</strong> A mutation is stored in a durable outbox before it leaves the tab, and replayed on reconnect; the server dedupes by <code>idem_key</code>. Reads are queries — a view you never synced is refused, not answered from a stale replica. The desktop build is the exception: it has its own local database and loopback server, so reads work offline; the NATS leaf carries live CRUD, and offline replay is a follow-up.</p>
     <p class="offline-switch"><span class="label">Switch</span> <code>OFFLINE_SYNC_ENABLED=false</code> disables the Service Worker app-shell cache and the NATS CRUD proxy together. The outbox is never gated — losing a queued write is worse than the cache it protects.</p>
     <p class="offline-meta"><span class="label">Lives in</span> <a href="#layer-recipes">Features</a> <a href="#layer-servants">Plugins</a> <a href="#layer-core">Core</a> · <span class="label">Try it</span> disconnect, edit, reconnect.</p>
-    <p class="offline-unit">On the SCOPE axis, <a href="#layer-servants">offline-sync</a> is a plugin unit; on this async axis it is the mode above, not one of the seven.</p>
+    <p class="offline-unit">On the SCOPE axis, <a href="#layer-servants">offline-sync</a> is a servant unit; on this async axis it is the mode above, not one of the seven.</p>
   </aside>
 
   <p class="async-fine">One <code>make build</code>. No build tags, no stub files, no matrix.</p>
@@ -788,7 +784,7 @@
     <div class="principle">
       <span class="principle-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20.59 13.41 13.4 20.6a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82Z"/><circle cx="7" cy="7" r="1.2"/></svg></span>
       <h3>SCOPE on every file</h3>
-      <p>Core, Servant or Recipe — agents know what is safe to trim.</p>
+      <p>Core, Servant or Feature — agents know what is safe to remove.</p>
     </div>
     <div class="principle">
       <span class="principle-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg></span>

@@ -68,7 +68,7 @@ func TestRegistryIDsUniqueAndWellFormed(t *testing.T) {
 			t.Errorf("duplicate capability id %q", c.ID)
 		}
 		seen[c.ID] = true
-		if c.Kind != KindCore && c.Kind != KindPlugin && c.Kind != KindFeature {
+		if c.Kind != KindCore && c.Kind != KindServant && c.Kind != KindFeature {
 			t.Errorf("capability %q has kind %q", c.ID, c.Kind)
 		}
 		if c.Summary == "" {
@@ -253,26 +253,26 @@ func TestCapabilityUISignalsWired(t *testing.T) {
 }
 
 func TestKindsFollowServantPrinciple(t *testing.T) {
-	// Pins the taxonomy against casual relabeling: plugins serve other
+	// Pins the taxonomy against casual relabeling: servants serve other
 	// capabilities (dagnats→onboarding, credits→metering, sounds→
 	// pages, nats/llm/collab→their consumers); features are terminal
 	// user surfaces (pages/journeys). Directories do not decide:
-	// features/credits is a plugin, features/todo is a feature.
-	pluginIDs := []string{
+	// features/credits is a servant, features/todo is a feature.
+	servantIDs := []string{
 		"nats", "dagnats", "goakt", "llm", "genkit", "collab", "datastar", "components",
 		"credits", "sounds", "offline-sync",
 		"capabilities", "genui",
 	}
-	featureIDs := []string{"todo", "whiteboard", "landing", "config-view", "room", "review"}
+	featureIDs := []string{"todo", "whiteboard", "config-view", "room", "review"}
 	byID := ByID()
-	for _, id := range pluginIDs {
+	for _, id := range servantIDs {
 		c, ok := byID[id]
 		if !ok {
 			t.Errorf("capability %q missing from registry", id)
 			continue
 		}
-		if c.Kind != KindPlugin {
-			t.Errorf("capability %q is %q, want plugin (it serves other capabilities)", id, c.Kind)
+		if c.Kind != KindServant {
+			t.Errorf("capability %q is %q, want servant (it serves other capabilities)", id, c.Kind)
 		}
 	}
 	for _, id := range featureIDs {

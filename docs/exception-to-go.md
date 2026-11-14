@@ -34,8 +34,8 @@ and none should be added without a concrete use case that passes the
 
 ## What "native" means
 
-`native` is **not** a fourth SCOPE layer next to core / servant / recipe
-(`Kind` core / plugin / feature — site names Core / Servant / Recipe)
+`native` is **not** a fourth SCOPE layer next to core / servant / feature
+(`Kind` values, the same three words in code and prose)
 (see [Scope taxonomy](scope-taxonomy.md)). It is an **exceptional
 implementation boundary**: a small piece of functionality, owned by a normal
 Go package, whose inner kernel happens to be implemented in a systems
@@ -107,7 +107,7 @@ Do not turn gogogo into `Go → native abstraction framework → Zig
 framework → Zig libraries → functionality`. The Zig component should be
 boring: `Go application → small explicit boundary → Zig component → Zig
 stdlib / one justified native dependency`. Clever generic FFI
-infrastructure, native plugin systems, or framework scaffolding without a
+infrastructure, native extension systems, or framework scaffolding without a
 real use case are out of scope — see
 [Do not over-engineer](#do-not-over-engineer-the-preparation).
 
