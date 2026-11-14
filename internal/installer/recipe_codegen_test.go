@@ -12,10 +12,10 @@ import (
 // codegenRecipeFiles is the smallest recipe that needs both generators: a page
 // (templ) and a table plus a query (sqlc).
 var codegenRecipeFiles = map[string]string{
-	"features/pomodoro/handlers/chi.go":          policyRecipeHandler,
-	"features/pomodoro/components/page.templ":    "package components\n",
-	"features/pomodoro/migrations/0001_init.sql": "CREATE TABLE ext_pomodoro_sessions (id TEXT PRIMARY KEY);\n",
-	"internal/db/queries/pomodoro.sql":           "-- name: Probe :many\nSELECT id FROM ext_pomodoro_sessions;\n",
+	"features/timer/handlers/chi.go":          policyRecipeHandler,
+	"features/timer/components/page.templ":    "package components\n",
+	"features/timer/migrations/0001_init.sql": "CREATE TABLE ext_timer_sessions (id TEXT PRIMARY KEY);\n",
+	"internal/db/queries/timer.sql":           "-- name: Probe :many\nSELECT id FROM ext_timer_sessions;\n",
 }
 
 func TestRecipeInstallGeneratesItsPagesAndQueries(t *testing.T) {
@@ -62,14 +62,14 @@ func TestRecipeUninstallRemovesTheGeneratedOutput(t *testing.T) {
 	// What codegen would have written; the receipt cannot carry these (they did
 	// not exist when it was computed), so uninstall derives their names.
 	generated := []string{
-		"features/pomodoro/components/page_templ.go",
-		"internal/db/sqlcgen/pomodoro.sql.go",
+		"features/timer/components/page_templ.go",
+		"internal/db/sqlcgen/timer.sql.go",
 	}
 	for _, rel := range generated {
 		writeFile(t, filepath.Join(root, filepath.FromSlash(rel)), "// generated\n")
 	}
 
-	out, err := runRecipeCLI(t, "uninstall", "pomodoro", "--dir", root, "--yes")
+	out, err := runRecipeCLI(t, "uninstall", "timer", "--dir", root, "--yes")
 	if err != nil {
 		t.Fatalf("uninstall: %v\n%s", err, out)
 	}
@@ -93,12 +93,12 @@ func TestRecipeUninstallKeepsTheOutputOfAFileItKept(t *testing.T) {
 	if _, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes"); err != nil {
 		t.Fatal(err)
 	}
-	page := filepath.Join(root, "features/pomodoro/components/page.templ")
+	page := filepath.Join(root, "features/timer/components/page.templ")
 	writeFile(t, page, "package components\n// edited by the user\n")
-	generated := filepath.Join(root, "features/pomodoro/components/page_templ.go")
+	generated := filepath.Join(root, "features/timer/components/page_templ.go")
 	writeFile(t, generated, "// generated\n")
 
-	if _, err := runRecipeCLI(t, "uninstall", "pomodoro", "--dir", root, "--yes"); err != nil {
+	if _, err := runRecipeCLI(t, "uninstall", "timer", "--dir", root, "--yes"); err != nil {
 		t.Fatal(err)
 	}
 	if _, serr := os.Stat(generated); serr != nil {

@@ -12,6 +12,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/calionauta/gogogo/internal/capabilities"
 	"github.com/calionauta/gogogo/internal/prompts"
 	"github.com/calionauta/gogogo/internal/recipe"
 )
@@ -263,6 +264,45 @@ func TestNewScaffoldStartsHealthyWithoutMetrics(t *testing.T) {
 	}
 	if _, err := parser.ParseFile(token.NewFileSet(), "recipe.go", recipeSrc, parser.AllErrors); err != nil {
 		t.Fatalf("scaffolded declaration does not parse: %v\n%s", err, recipeSrc)
+	}
+}
+
+// TestNewScaffoldWritesABoundary pins the card the scaffold writes: it must
+// satisfy the gate that reads it (owns / does-not-own / language / invariants),
+// because a scaffold that leaves a heading behind produces a tree whose own
+// gate fails on the next commit.
+//
+// Red-proof: drop the `**Owns.**` line from newCardTemplate and this test
+// fails — the card parses with an empty boundary.
+func TestNewScaffoldWritesABoundary(t *testing.T) {
+	card := capabilities.ParseCard(newCardSource("reports"))
+	if card.Owns == "" {
+		t.Error("the scaffolded card has no owns line")
+	}
+	if !strings.Contains(card.Owns, "/reports") || !strings.Contains(card.Owns, "/api/reports/ping") {
+		t.Errorf("the scaffolded card must name the routes the scaffold registers: %q", card.Owns)
+	}
+	if card.DoesNotOwn == "" {
+		t.Error("the scaffolded card has no does-not-own line")
+	}
+	if len(card.Language) == 0 {
+		t.Error("the scaffolded card has no language row")
+	}
+	if len(card.Invariants) == 0 {
+		t.Error("the scaffolded card has no invariant")
+	}
+}
+
+// TestTheCardIsNotReceipted pins the ownership split: the card documents the
+// slice, so editing it must not read as drift in the code it describes. A
+// receipted card would make `recipe status` report the author's rewrite of the
+// boundary as a modified unit file.
+func TestTheCardIsNotReceipted(t *testing.T) {
+	receipt := newReceiptSource("reports", map[string]string{
+		"features/reports/handlers/chi.go": hashForTest(newHandlerSource("reports", "example.com/app")),
+	})
+	if strings.Contains(receipt, "docs/domain/") || strings.Contains(receipt, capabilities.CardDir) {
+		t.Errorf("the receipt must not pin the card (it is documentation, not unit code):\n%s", receipt)
 	}
 }
 

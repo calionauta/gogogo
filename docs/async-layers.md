@@ -519,7 +519,7 @@ service worker (app-shell cache) and the NATS CRUD proxy. The write path is not
 gated by the flag — the outbox runs on every page, and losing a queued write is
 worse than the cache it protects.
 
-The SCOPE unit `offline-sync` is a plugin (it can be trimmed); on this async
+The SCOPE unit `offline-sync` is a servant (it can be removed); on this async
 axis it is the mode above, not one of the seven layers.
 
 ## Related

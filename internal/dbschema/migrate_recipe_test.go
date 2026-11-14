@@ -17,9 +17,9 @@ import (
 // on whichever one the user installed second.
 func TestRecipeMigrationReachesLedger(t *testing.T) {
 	sqlDB := openTestDB(t)
-	pomodoro := fstest.MapFS{
+	counter := fstest.MapFS{
 		"0001_init.sql": &fstest.MapFile{
-			Data: []byte("CREATE TABLE ext_pomodoro_runs (id TEXT PRIMARY KEY);"),
+			Data: []byte("CREATE TABLE ext_counter_runs (id TEXT PRIMARY KEY);"),
 		},
 	}
 	timer := fstest.MapFS{
@@ -28,13 +28,13 @@ func TestRecipeMigrationReachesLedger(t *testing.T) {
 		},
 	}
 	sets := []MigrationSet{
-		{ID: "pomodoro", FS: pomodoro},
+		{ID: "counter", FS: counter},
 		{ID: "timer", FS: timer},
 	}
 	if err := MigrateWith(sqlDB, sets...); err != nil {
 		t.Fatalf("MigrateWith: %v", err)
 	}
-	for _, want := range []string{"pomodoro/0001_init", "timer/0001_init"} {
+	for _, want := range []string{"counter/0001_init", "timer/0001_init"} {
 		var got string
 		row := sqlDB.QueryRowContext(context.Background(),
 			`SELECT version FROM schema_migrations WHERE version = ?`, want)
@@ -42,7 +42,7 @@ func TestRecipeMigrationReachesLedger(t *testing.T) {
 			t.Errorf("recipe version %q missing from schema_migrations: %v", want, err)
 		}
 	}
-	for _, table := range []string{"ext_pomodoro_runs", "ext_timer_runs"} {
+	for _, table := range []string{"ext_counter_runs", "ext_timer_runs"} {
 		var name string
 		row := sqlDB.QueryRowContext(context.Background(),
 			`SELECT name FROM sqlite_master WHERE type='table' AND name = ?`, table)

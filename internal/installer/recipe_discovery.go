@@ -21,11 +21,18 @@ const (
 	extRecipeUpdate    = "recipe update"
 	extRecipeStatus    = "recipe status"
 	extRecipeUninstall = "recipe uninstall"
+
+	// originCapability and originRecipe are the two provenances a descriptor
+	// can have. Named here because descriptorState compares them.
+	originCapability = "capability"
+	originRecipe     = "recipe"
 )
 
 type recipeDescriptor struct {
 	ID               string              `json:"id"`
 	Version          string              `json:"version,omitempty"`
+	Author           recipe.Author       `json:"author,omitzero"`
+	Released         string              `json:"released,omitempty"`
 	Kind             string              `json:"kind"`
 	Summary          string              `json:"summary"`
 	Origin           string              `json:"origin"`
@@ -34,7 +41,7 @@ type recipeDescriptor struct {
 	Register         string              `json:"register,omitempty"`
 	DependsOn        []string            `json:"dependsOn,omitempty"`
 	Dependents       []string            `json:"dependents,omitempty"`
-	State            string              `json:"state"`
+	State            RecipeState         `json:"state"`
 	Routes           []string            `json:"routes,omitempty"`
 	Tables           []string            `json:"tables,omitempty"`
 	Jobs             []string            `json:"jobs,omitempty"`
@@ -76,26 +83,44 @@ type outcomeDescriptor struct {
 	Job            string   `json:"job"`
 	Beneficiary    string   `json:"beneficiary"`
 	Window         string   `json:"window,omitempty"`
-	CounterSignals []string `json:"counterSignals,omitempty"`
+	Counterbalance []string `json:"counterbalance,omitempty"`
 	SuccessLabel   string   `json:"successLabel"`
 	TotalLabel     string   `json:"totalLabel"`
 }
 
-func descriptorState(installed, removed bool, origin string) string {
-	if removed {
-		return "removed"
+// RecipeState is where a recipe sits in this tree. It is the JSON `state`
+// field, so the spellings are a wire contract: constants, never literals at
+// the comparison site.
+//
+//	A recipe receipt says installed or removed; a bundled unit that never
+//	needs a receipt says builtin; anything else is unknown (never a guess).
+type RecipeState string
+
+const (
+	StateInstalledRecipe RecipeState = "installed"
+	StateRemovedRecipe   RecipeState = "removed"
+	StateBuiltinRecipe   RecipeState = "builtin"
+	StateUnknownRecipe   RecipeState = "unknown"
+)
+
+// descriptorState derives the state from the three facts that decide it.
+func descriptorState(installed, removed bool, origin string) RecipeState {
+	switch {
+	case removed:
+		return StateRemovedRecipe
+	case installed:
+		return StateInstalledRecipe
+	case origin == originCapability:
+		return StateBuiltinRecipe
+	default:
+		return StateUnknownRecipe
 	}
-	if installed {
-		return "installed"
-	}
-	if origin == "capability" {
-		return "builtin"
-	}
-	return "unknown"
 }
 
 func applyReceiptSurface(desc *recipeDescriptor, r recipe.Receipt) {
 	desc.Version = r.Version
+	desc.Author = r.Author
+	desc.Released = r.Released
 	desc.Tables = append([]string(nil), r.Declaration.Tables...)
 	desc.Jobs = append([]string(nil), r.Declaration.Jobs...)
 	desc.Slots = append([]string(nil), r.Declaration.Slots...)
@@ -121,16 +146,26 @@ func applyReceiptSurface(desc *recipeDescriptor, r recipe.Receipt) {
 func applyReceiptInstrumentation(desc *recipeDescriptor, d recipe.Declaration) {
 	desc.Metrics = desc.Metrics[:0]
 	for _, m := range d.Metrics {
+		if m.ResolvedKind() != recipe.MetricActivity {
+			continue
+		}
 		desc.Metrics = append(desc.Metrics, metricDescriptor{Label: m.Label, Query: m.Query})
 	}
 	desc.Outcomes = desc.Outcomes[:0]
-	for _, o := range d.Outcomes {
+	for _, o := range d.Outcomes() {
+		if o.Success == nil || o.Total == nil {
+			continue
+		}
+		labels := make([]string, 0, len(o.Counterbalance))
+		for _, c := range o.Counterbalance {
+			labels = append(labels, c.Label)
+		}
 		desc.Outcomes = append(desc.Outcomes, outcomeDescriptor{
 			ID:             o.ID,
 			Job:            o.Job,
 			Beneficiary:    o.Beneficiary,
 			Window:         o.Window,
-			CounterSignals: append([]string(nil), o.CounterSignals...),
+			Counterbalance: labels,
 			SuccessLabel:   o.Success.Label,
 			TotalLabel:     o.Total.Label,
 		})
@@ -190,7 +225,7 @@ func recipeDescriptors(dir string) ([]recipeDescriptor, error) {
 		seen[cap.ID] = true
 		desc := recipeDescriptor{
 			ID: cap.ID, Kind: string(cap.Kind), Summary: cap.Summary,
-			Origin: "capability", Installed: receiptSet[cap.ID],
+			Origin: originCapability, Installed: receiptSet[cap.ID],
 			Register: cap.Register, DependsOn: append([]string(nil), cap.DependsOn...),
 			Dependents: append([]string(nil), dependents[cap.ID]...),
 			Invoke:     append([]string(nil), cap.Actions...),
@@ -230,7 +265,7 @@ func recipeDescriptors(dir string) ([]recipeDescriptor, error) {
 		}
 		desc := recipeDescriptor{
 			ID: id, Kind: extRecipeKindName, Summary: summary,
-			Origin: "recipe", Installed: true, Register: r.Register,
+			Origin: originRecipe, Installed: true, Register: r.Register,
 			Removed: r.Removed != "", Actions: []string{extRecipeInstall, extRecipeUpdate, extRecipeStatus, extRecipeUninstall},
 		}
 		applyReceiptSurface(&desc, r)
@@ -327,8 +362,8 @@ func printInstrumentation(stdout io.Writer, e recipeDescriptor) {
 		if o.Window != "" {
 			line += ", " + o.Window
 		}
-		if len(o.CounterSignals) > 0 {
-			line += "; counter: " + strings.Join(o.CounterSignals, ", ")
+		if len(o.Counterbalance) > 0 {
+			line += "; counterbalance: " + strings.Join(o.Counterbalance, ", ")
 		}
 		fmt.Fprintf(stdout, "%s)\n", line)
 	}
@@ -336,6 +371,22 @@ func printInstrumentation(stdout io.Writer, e recipeDescriptor) {
 
 // printDescribe renders one descriptor as text. Extracted so
 // runRecipeDescribe stays under the complexity gate and the nestif gate.
+// printCredit is the provenance half of describe: who wrote the slice and when
+// the version shipped. Split out because describe is already at the complexity
+// gate, and because discovery's other forms may want the same two lines.
+func printCredit(stdout io.Writer, e recipeDescriptor) {
+	if e.Author.Name != "" {
+		credit := e.Author.Name
+		if e.Author.Email != "" {
+			credit += " <" + e.Author.Email + ">"
+		}
+		fmt.Fprintf(stdout, "  author: %s\n", credit)
+	}
+	if e.Released != "" {
+		fmt.Fprintf(stdout, "  released: %s\n", e.Released)
+	}
+}
+
 func printDescribe(stdout io.Writer, e recipeDescriptor) {
 	fmt.Fprintf(stdout, "%s\n  kind: %s\n  origin: %s\n  state: %s\n",
 		e.ID, e.Kind, e.Origin, e.State)
@@ -343,6 +394,7 @@ func printDescribe(stdout io.Writer, e recipeDescriptor) {
 	if e.Version != "" {
 		fmt.Fprintf(stdout, "  version: %s\n", e.Version)
 	}
+	printCredit(stdout, e)
 	if e.Register != "" {
 		fmt.Fprintf(stdout, "  register: %s\n", e.Register)
 	}

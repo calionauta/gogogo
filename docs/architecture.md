@@ -44,7 +44,6 @@ internal/
 features/
   app/                            AppContext bundle (consumed by cmd/gui only)
   authviews/                      Login page + shell controls (theme, user menu, palette)
-  landing/                        Public entry page on GET / (inside the shared shell)
   config/                         Admin-only /config view + user actions
   todo/                           Todo MVC example
   whiteboard/                     Collaborative canvas
@@ -111,7 +110,8 @@ absolute patterns, and `MountFeature` flattens that table onto the root
   `Routes() chi.Router` with absolute patterns and the router decides the
   method. Static/asset handlers mount through `MountSubtree`, which leaves
   the request path unrewritten because those handlers trim their own prefix.
-  The landing router is the not-found handler.
+  `GET /` is a core redirect (`internal/server/home.go`): /login for a guest,
+  the signed-in home otherwise. There is no catch-all page.
 - Serve static assets through `web/resources.AssetHandler` (`/static/` plus
   root `/sw.js` with `Service-Worker-Allowed: /`).
 - The app cookie is `gogogo_auth` — the only cookie — see
@@ -151,7 +151,7 @@ compression middleware: both buffer or cut a response that never ends.
 - `docs/api-routes.md` and `docs/unit-contracts.md` are generated from the
   same source, so the inventory cannot drift from the router.
 - A duplicate claim names both owners at boot; a missing method answers 405 at
-  the router; an unknown path is the landing router's 404. There is no
+  the router; an unknown path is a 404 from the router. There is no
   hand-rolled `if r.Method !=` left in the auth surface.
 - The RBAC scan reads the same `r.Get/Post` lines, so a new endpoint is either
   covered or red on the first commit — including `internal/auth`, which the
@@ -254,7 +254,7 @@ Every removable-or-toggleable unit is one row in `internal/capabilities`, and
 the row declares its class and the dirs/files it owns:
 
 ```go
-{ID: "review", Kind: KindPlugin, Scaffold: ScaffoldDefault,
+{ID: "review", Kind: KindServant, Scaffold: ScaffoldDefault,
  Dirs: []string{"features/review"}, Register: "features/review/handlers"},
 ```
 

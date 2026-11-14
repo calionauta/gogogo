@@ -699,7 +699,7 @@ func configBody(data PageData) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				if row.Status == "in" {
+				if row.Status == UnitStatusIn {
 					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "<span class=\"badge badge-sm badge-soft badge-success\">in</span>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err

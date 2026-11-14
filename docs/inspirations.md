@@ -20,7 +20,7 @@ What carried over:
 
 What diverged: gogogo added Turso Database persistence, goqite
 background jobs, DagNats durable workflows, offline sync with Service
-Worker + IndexedDB outbox, installer/MCP/CLI, and a trim-by-deleting
+Worker + IndexedDB outbox, installer/MCP/CLI, and a remove-by-deleting
 template model. Northstar stays a minimal starter.
 
 ## The 2026 generative-UI standards (A2UI, OpenUI Lang, json-render, AG-UI)

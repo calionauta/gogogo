@@ -21,7 +21,7 @@ func TestAdviseJSONListsEveryCapability(t *testing.T) {
 		} `json:"presets"`
 		Capabilities []struct {
 			ID         string   `json:"id"`
-			Trim       string   `json:"trim"`
+			Remove     string   `json:"remove"`
 			RuntimeOff string   `json:"runtimeOff"`
 			Dirs       []string `json:"dirs"`
 		} `json:"capabilities"`
@@ -43,18 +43,19 @@ func TestAdviseJSONListsEveryCapability(t *testing.T) {
 	}
 	byID := map[string]string{}
 	for _, c := range doc.Capabilities {
-		byID[c.ID] = c.Trim
+		byID[c.ID] = c.Remove
 	}
-	// Spot-check the mapping contract: unit-owned caps name their flag,
-	// runtime caps refuse trim, core caps say so.
-	if trim := byID["whiteboard"]; !strings.Contains(trim, "--features whiteboard") {
-		t.Errorf("whiteboard trim = %q, want --features whiteboard", trim)
+	// Spot-check the ONE vocabulary: a feature names `recipe uninstall`, a
+	// servant names the hand edit, and core says it is never removed. A
+	// `--plugins`/`--features` flag must never appear — those never existed.
+	if got := byID["whiteboard"]; got != "recipe uninstall whiteboard" {
+		t.Errorf("whiteboard remove = %q, want recipe uninstall whiteboard", got)
 	}
-	if trim := byID["dagnats"]; !strings.Contains(trim, "--plugins dagnats") {
-		t.Errorf("dagnats trim = %q, want --plugins dagnats", trim)
+	if got := byID["dagnats"]; !strings.Contains(got, "servant") {
+		t.Errorf("dagnats remove = %q, want the servant removal path", got)
 	}
-	if trim := byID["llm"]; !strings.Contains(trim, "not an installer unit") {
-		t.Errorf("llm trim = %q, want the not-a-unit marker", trim)
+	if got := byID["auth"]; !strings.Contains(got, "core") {
+		t.Errorf("auth remove = %q, want the core marker", got)
 	}
 	found := false
 	wbDirs := false
@@ -91,7 +92,7 @@ func TestAdviseNeedMatchesOfflinePresetFirst(t *testing.T) {
 // TestAdviseTemplateVocabularyWinsOverStackWords pins the allowlist-only
 // rule: with no ecosystem detector left, template vocabulary decides. A
 // need that names a foreign stack AND a template use-case is answered with
-// the use-case (keep/drop you can act on), never with a stack label.
+// the use-case (keep/remove you can act on), never with a stack label.
 func TestAdviseEmptyNeedIsTemplate(t *testing.T) {
 	doc := buildAdvise("")
 	if doc.Scope != "template" || doc.FirstRun == nil {
@@ -125,7 +126,7 @@ func TestAdviseTextStatesGoFirstRule(t *testing.T) {
 		t.Fatalf("Advise: %v", err)
 	}
 	for _, want := range []string{
-		"Zig", "--features whiteboard",
+		"Zig", "recipe uninstall whiteboard",
 		"demo1@demo.app", "/dagnats/", "docs/use-cases",
 	} {
 		if !strings.Contains(out, want) {

@@ -45,7 +45,7 @@ import (
 type pageUnderTest struct {
 	name  string // digest file name
 	route string
-	anon  bool     // fetch without a session (landing, login)
+	anon  bool     // fetch without a session (login)
 	must  []string // substrings that must survive the revamp
 }
 
@@ -53,7 +53,6 @@ type pageUnderTest struct {
 // a caller depends on, not something a designer likes: a patch root, a signal
 // binding, an aria contract, or copy a render test already asserts.
 var pagesUnderTest = []pageUnderTest{
-	{name: "landing", route: "/", anon: true, must: []string{"Access demo site"}},
 	{name: "login", route: "/login", anon: true, must: []string{"Email", demo.Email}},
 	{name: "todo", route: "/todo", must: []string{
 		`id="todo-list"`,
@@ -70,15 +69,14 @@ var pagesUnderTest = []pageUnderTest{
 		`data-panel-mode="stack"`,
 	}},
 	{name: "chat", route: "/chat", must: []string{
-		`id="chat-composer"`,
-		`for="chat-prompt"`,
+		// Like review below, this boot has no GOAI_API_KEY, so the page renders
+		// the not-configured shape: the shared setup notice, the history, and NO
+		// composer. The configured composer (surfaces toggles included) is
+		// covered by features/chat tests, which call ChatIndex directly.
 		`id="chat-messages"`,
 		`aria-live="polite"`,
-		"Ask your app anything",
-		`name="surfaces"`,
-		`value="catalog"`,
-		`value="custom"`,
-		`value="native"`,
+		`needs a configured LLM`,
+		"GOAI_API_KEY",
 	}},
 	{name: "kiosk", route: "/kiosk", must: []string{
 		`id="kiosk-voice"`,

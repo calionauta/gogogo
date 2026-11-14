@@ -8,7 +8,7 @@ package capabilities
 
 // identityUnits are appended to All after the core table: the signed-in
 // account page and the admin-only config view. Both are user-facing and both
-// depend on the sounds plugin for the rail's mute control.
+// depend on the sounds servant for the rail's mute control.
 var identityUnits = []Capability{
 	{
 		ID:      "account",

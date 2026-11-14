@@ -10,7 +10,7 @@ func TestLineCountMatches(t *testing.T) {
 		text string
 		hit  bool
 	}{
-		{"`_recipes/pomodoro`, 281 lines, one table", true},
+		{"`features/kiosk`, 281 lines, one table", true},
 		{"`internal/auth` is roughly 300 lines", true},
 		{"~300 lines in `internal/auth`", true},
 		{"It saved 40 lines", true},
@@ -33,7 +33,7 @@ func TestNamesAPath(t *testing.T) {
 		text string
 		hit  bool
 	}{
-		{"Pomodoro (`_recipes/pomodoro`, 281 lines)", true},
+		{"Kiosk (`features/kiosk`, 281 lines)", true},
 		{"`internal/auth` holds 1200 lines", true},
 		{"`docs/scope-taxonomy.md` says 40 lines", true},
 		{"`golang.org/x/crypto` adds 40 lines", false},

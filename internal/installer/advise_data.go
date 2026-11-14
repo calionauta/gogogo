@@ -29,7 +29,7 @@ var advisePresets = []advisePreset{
 			"fanout", "fan-out", "pubsub", "pub-sub",
 			"server-sent", "sse", "polling", "eventsource",
 		},
-		Keep: []string{"(runtime switches — nothing to trim)"},
+		Keep: []string{"(runtime switches — nothing to remove)"},
 		Note: "No single transport switch exists on purpose (records need " +
 			"per-user scoping, ephemeral needs fan-out). Matrix: " +
 			"docs/async-layers.md (Transport matrix). NATS_ENABLED=false " +
@@ -47,7 +47,7 @@ var advisePresets = []advisePreset{
 			"remind",
 		},
 		Keep: []string{"queue (core — always in)"},
-		Note: "Nothing to trim: goqite + SSE hub are core. Write jobs like " +
+		Note: "Nothing to remove: goqite + SSE hub are core. Write jobs like " +
 			"the todo handlers; >50ms of work never runs inline.",
 	},
 	{
@@ -88,7 +88,7 @@ var advisePresets = []advisePreset{
 		Keep: []string{
 			"offline-sync (runtime — enabled by default)",
 		},
-		Note: "No trim involved: OFFLINE_SYNC_ENABLED=false is the off " +
+		Note: "No removal involved: OFFLINE_SYNC_ENABLED=false is the off " +
 			"switch.",
 	},
 	{
@@ -120,12 +120,12 @@ var advisePresets = []advisePreset{
 		Name: "marketing-site",
 		Idea: "static public pages, no auth, no app state",
 		Match: []string{
-			unitLanding, "marketing", "homepage", "site", "hero",
+			"marketing", "homepage", "site", "hero",
 			// "website" and "blog" are THE lay words for a public site and
 			// universal loanwords (EN/PT/ES/FR/DE).
 			"website", "blog",
 		},
-		Keep: []string{unitLanding},
+		Keep: []string{"(a landing page is yours to write — the template has none)"},
 		Note: "Public GET / with no auth. Brand lives here; /todo is the app behind it.",
 	},
 	{
@@ -137,20 +137,20 @@ var advisePresets = []advisePreset{
 			// model behind them, which is the CMS-shaped reading of the same word.
 			"blog", "post", "posts",
 		},
-		Keep: []string{"(core: auth, queue, router)", unitLanding},
-		Drop: []string{unitWhiteboard, unitGoAkt, unitSounds, unitGenUI},
+		Keep:   []string{"(core: auth, queue, router)"},
+		Remove: []string{unitWhiteboard, unitGoAkt, unitSounds, unitGenUI},
 		Note: "No CMS unit, on purpose: a content model is a vertical slice you own, " +
 			"not a dependency to install. `gogogo new feature articles` scaffolds " +
 			"handler + page + wiring + RBAC rows + proof; features/todo is the " +
 			"pattern to copy (DB, SSE stream, optimistic UI).",
 	},
 	{
-		Name:  "quiet-api",
-		Idea:  "delete the demo surfaces; keep auth, queue, router",
-		Match: []string{"api", "headless", "backend", presetMinimal, "embed", "library"},
-		Keep:  []string{"(core only — auth middleware, queue, router)"},
-		Drop:  []string{unitLanding, unitWhiteboard, unitSounds, unitGenUI},
-		Note:  "Todo stays as the reference implementation — delete features/todo/ manually when done reading it.",
+		Name:   "quiet-api",
+		Idea:   "delete the demo surfaces; keep auth, queue, router",
+		Match:  []string{"api", "headless", "backend", presetMinimal, "embed", "library"},
+		Keep:   []string{"(core only — auth middleware, queue, router)"},
+		Remove: []string{unitWhiteboard, unitSounds, unitGenUI},
+		Note:   "Todo stays as the reference implementation — delete features/todo/ manually when done reading it.",
 	},
 	{
 		Name: "room-authority",
@@ -173,15 +173,20 @@ var advisePresets = []advisePreset{
 }
 
 // adviseRules are the global opinions, printed before everything else.
-// They encode docs/exception-to-go.md and the runtime-vs-trim rule in one place
+// They encode docs/exception-to-go.md and the runtime-vs-removal rule in one place
 // so an LLM gets them without reading the whole site.
 var adviseRules = []string{
+	// The shape is the first decision and it is not a unit decision: a user
+	// picking "only an API" is picking entrypoints, not deleting features.
+	"Pick the shape first (`--shape full|web|api|desktop|gui|mobile`): it selects " +
+		"which entrypoints the tree ships. It does not remove pages — a recipe or " +
+		"`recipe uninstall` does that.",
 	"Go for everything; Zig only for a profiled hot kernel, codec, or OS " +
 		"integration (docs/exception-to-go.md). A speedup claim without a Go " +
 		"baseline benchmark is not a reason.",
-	"Prefer runtime switches over trim when unsure: NATS_ENABLED=false, " +
+	"Prefer runtime switches over removal when unsure: NATS_ENABLED=false, " +
 		"DAGNATS_ENABLED=false, OFFLINE_SYNC_ENABLED=false, unset " +
-		"GOAI_API_KEY. Trim deletes; " +
+		"GOAI_API_KEY. Removal deletes; " +
 		"switches flip back.",
 	"Never add a dependency before checking the registry below and " +
 		"https://calionauta.github.io/gogogo/llms.txt — todo is the " +
@@ -198,7 +203,7 @@ var adviseRules = []string{
 		"locally present skill. Audit new deps with `go mod why` + " +
 		"`govulncheck ./...` before adding.",
 	"Fitting units to a use-case: docs/use-cases.md maps every " +
-		"core/servant/recipe to business-language cases, decision pairs " +
+		"core/servant/feature to business-language cases, decision pairs " +
 		"(jobs vs workflows, sql rows vs crdt docs), and what has no unit yet " +
 		"(https://calionauta.github.io/gogogo/docs/use-cases/).",
 	"UI work reads the gogogo-ui skill first (skills/gogogo-ui/SKILL.md in " +
@@ -259,7 +264,7 @@ var stdlibRules = []string{
 // rather than about dependencies.
 var notCheckoutRules = []string{
 	"The path given with --dir is not a gogogo checkout (no cmd/web/main.go " +
-		"or internal/installer/run.go), so the capability table and the trim " +
+		"or internal/installer/run.go), so the capability table and the removal " +
 		"tooling do not apply to it. Nothing was installed and nothing changed.",
 	"To get the template: scaffold a project with this tool, or `npx skills " +
 		"add calionauta/gogogo` to read the Go standards " +
@@ -286,7 +291,7 @@ const (
 	// scopeExceptionToGo is the second answer shape: the need names Zig, the
 	// repo's one documented exception to the Go rule (docs/exception-to-go.md).
 	// Capabilities do not install under an exception, so the answer is the
-	// Exception-to-go gate plus the skill pointer — never trim mechanics, never a
+	// Exception-to-go gate plus the skill pointer — never removal mechanics, never a
 	// foreign label.
 	scopeExceptionToGo = "exception-to-go"
 	// scopeGoStdlib is the third answer shape: a need whose own constraint

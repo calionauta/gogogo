@@ -13,7 +13,7 @@ import (
 )
 
 func TestToolsListCapabilities(t *testing.T) {
-	res, _, err := handleCapabilitiesList(context.Background(), nil, struct{}{})
+	res, _, err := handleCapabilitiesList(context.Background(), nil, capabilitiesArgs{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +42,7 @@ func TestToolsListCapabilities(t *testing.T) {
 }
 
 func TestTrimApplyRequiresConfirm(t *testing.T) {
-	_, _, err := handleTrimApply(context.Background(), nil, trimArgs{Name: "x", Dir: "/tmp"})
+	_, _, err := handleScaffoldApply(context.Background(), nil, scaffoldArgs{Name: "x", Dir: "/tmp"})
 	if err == nil || !strings.Contains(err.Error(), "confirm:true") {
 		t.Errorf("expected confirm:true refusal, got %v", err)
 	}
@@ -160,11 +160,11 @@ func TestTrimApplyEndToEnd(t *testing.T) {
 		[]byte("package main\n\nfunc main() {}\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	res, _, err := handleTrimApply(context.Background(), nil, trimArgs{
+	res, _, err := handleScaffoldApply(context.Background(), nil, scaffoldArgs{
 		Name: "mcp-app", Owner: "mcporg", Dir: dir, Confirm: true, Format: "json",
 	})
 	if err != nil {
-		t.Fatalf("trim_apply: %v", err)
+		t.Fatalf("scaffold_apply: %v", err)
 	}
 	var env struct {
 		BuildOk bool `json:"buildOk"`
@@ -176,7 +176,7 @@ func TestTrimApplyEndToEnd(t *testing.T) {
 		} `json:"next"`
 	}
 	if uerr := json.Unmarshal([]byte(toolText(t, res)), &env); uerr != nil {
-		t.Fatalf("trim_apply is not valid JSON: %v", uerr)
+		t.Fatalf("scaffold_apply is not valid JSON: %v", uerr)
 	}
 	if !env.BuildOk {
 		t.Error("buildOk must be true for the compilable fixture")
@@ -395,10 +395,62 @@ func TestExportUnitWritesOnlyTheScratchDirectory(t *testing.T) {
 	}
 }
 
+// TestCapabilitiesListWithDirCarriesTheBoundary pins the half a client cannot
+// infer: with a checkout, each feature carries its card's one-line boundary, a
+// feature with no card omits the field rather than inventing one, and a dir
+// that holds no cards is reported instead of passing off the bare registry.
+func TestCapabilitiesListWithDirCarriesTheBoundary(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "docs", "domain"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	card := "# notes\n\n**Owns.** The shared notes: title, body, delete rights.\n" +
+		"**Does not own.** Presence and carets.\n\n## Language\n\n" +
+		"| term | means | not |\n|---|---|---|\n| note | a document | a message |\n\n" +
+		"## Invariants\n\n- Delete requires canDeleteDoc.\n"
+	if err := os.WriteFile(filepath.Join(root, "docs", "domain", "notes.md"), []byte(card), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	res, _, err := handleCapabilitiesList(context.Background(), nil, capabilitiesArgs{Dir: root})
+	if err != nil {
+		t.Fatalf("capabilities_list --dir: %v", err)
+	}
+	var caps []struct {
+		ID   string `json:"id"`
+		Owns string `json:"owns"`
+	}
+	if jerr := json.Unmarshal([]byte(toolText(t, res)), &caps); jerr != nil {
+		t.Fatalf("capabilities_list is not JSON: %v", jerr)
+	}
+	documented, silent := 0, 0
+	for _, c := range caps {
+		switch c.ID {
+		case "notes":
+			if c.Owns != "The shared notes: title, body, delete rights." {
+				t.Errorf("notes owns = %q, want the card's Owns line", c.Owns)
+			}
+			documented++
+		case "todo":
+			if c.Owns != "" {
+				t.Errorf("todo owns = %q; a feature with no card must not carry an invented boundary", c.Owns)
+			}
+			silent++
+		}
+	}
+	if documented != 1 || silent != 1 {
+		t.Fatalf("notes=%d todo=%d, want both units present", documented, silent)
+	}
+
+	if _, _, err := handleCapabilitiesList(context.Background(), nil, capabilitiesArgs{Dir: t.TempDir()}); err == nil {
+		t.Fatal("a dir with no cards must be reported, not answered with the bare registry")
+	}
+}
+
 // TestCapabilitiesListExposesScaffold pins the agent-facing schema: the class
 // replaces the old offered boolean, and every capability carries it.
 func TestCapabilitiesListExposesScaffold(t *testing.T) {
-	res, _, err := handleCapabilitiesList(context.Background(), nil, struct{}{})
+	res, _, err := handleCapabilitiesList(context.Background(), nil, capabilitiesArgs{})
 	if err != nil {
 		t.Fatalf("capabilities_list: %v", err)
 	}

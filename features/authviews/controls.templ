@@ -50,7 +50,7 @@ templ ThemeToggle() {
 // never happen through the framework. method/action stay as the no-JS
 // fallback (native POST -> 303 -> /login still works), which is why the test
 // pins `method="POST"` and `action="/logout"`.
-templ UserMenu(userEmail string, userRole string, prefs templ.Component, operator, perf bool) {
+templ UserMenu(userEmail string, userRole string, prefs templ.Component, lang templ.Component, operator, perf bool) {
 	if userEmail == "" {
 		<a
 			href="/login"
@@ -59,7 +59,17 @@ templ UserMenu(userEmail string, userRole string, prefs templ.Component, operato
 			Sign in
 		</a>
 	} else {
-		<details class="app-dropdown app-dropdown-up">
+		// click__outside closes the menu on any click that is not inside it.
+		// A bare <details> stays open until the summary is clicked again, which
+		// is not what a menu does: the reported bug was "it does not close when
+		// I click outside". Datastar owns the dismissal (outside + Escape); the
+		// native details element still supplies open/close and the no-JS
+		// fallback, and `open` is what the CSS paints from.
+		<details
+			class="app-dropdown app-dropdown-up"
+			data-on:click__outside="el.removeAttribute('open')"
+			data-on:keydown__window="evt.key === 'Escape' && el.hasAttribute('open') ? (evt.preventDefault(), el.removeAttribute('open')) : null"
+		>
 			<summary class="app-dropdown-trigger" title="Account" aria-haspopup="menu" aria-label={ "Account menu for " + userEmail }>
 				<div class="avatar avatar-placeholder app-account-avatar" aria-hidden="true">
 					<div>{ accountInitial(userEmail) }</div>
@@ -135,6 +145,9 @@ templ UserMenu(userEmail string, userRole string, prefs templ.Component, operato
 				<li class="app-menu-sep" role="separator"></li>
 				if prefs != nil {
 					@prefs
+				}
+				if lang != nil {
+					@lang
 					<li class="app-menu-sep" role="separator"></li>
 				}
 				<li>

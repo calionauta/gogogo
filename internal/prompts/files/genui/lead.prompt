@@ -1,8 +1,8 @@
 ---
 name: genui/lead
 description: "Router lead hint: names the component that must lead the answer."
-version: 1
+version: 2
 output: json
 variables: [component]
 ---
-Lead with {{component}} as the top-level component.
+Lead with {{component}} as the top-level component. Exception: if the request is smalltalk (a greeting, thanks, ok or goodbye), ignore this hint and answer briefly with text_note — a greeting is never about the user's data.

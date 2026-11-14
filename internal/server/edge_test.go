@@ -42,7 +42,7 @@ func TestSecurityHeadersOnEveryResponse(t *testing.T) {
 		"X-Frame-Options":              "SAMEORIGIN",
 		"Cross-Origin-Opener-Policy":   "same-origin",
 		"Cross-Origin-Resource-Policy": "same-origin",
-		"Permissions-Policy":           "camera=(), microphone=(), geolocation=()",
+		"Permissions-Policy":           "camera=(), microphone=(self), geolocation=()",
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -305,7 +305,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	handler = rateLimit(cfg.RateLimitRPM, shellMiddleware(cfg, a, queries, notificationsH, shellNav(slots), handler))
 	// Inside the edge wrappers (headers/log still apply) and outside the router: every route is gated.
 	handler = applyLicenseGate(cfg, licStore, handler)
-	handler = applyI18N(cfg, handler)
+	handler = applyI18N(cfg, mux.recipes.TranslationSets(), handler)
 	handler = edgeHandler(cfg, slog.Default(), handler)
 	return &ChiStack{
 		sqlDB:          sqlDB,
@@ -473,6 +473,7 @@ func buildChiMux(
 	// it sets a display preference, and the landing page has no panel to dock.
 	r.Claim("core", "GET", "/_ui/demo")
 	r.Get("/_ui/demo", demoModeHandler)
+	registerLocaleRoute(r, deps.Cfg)
 	r.Claim("core", "GET", "/sw.js")
 	r.Claim("core", "HEAD", "/sw.js")
 	r.Get("/sw.js", serviceWorkerHandler().ServeHTTP)
@@ -489,6 +490,8 @@ func buildChiMux(
 	r.Claim("core", "POST", cspReportPath)
 	r.Post(cspReportPath, cspReportHandler)
 	mountExtInvoke(r)
+	// The root is core: a redirect to the app's home (or /login), not a page.
+	mountHome(r, a)
 	r.Claim("core", "GET", "/health")
 	r.Claim("core", "HEAD", "/health")
 	r.Get("/health", healthHandler(deps.Cfg))

@@ -177,34 +177,47 @@ try {
   // ---- Chat leg -----------------------------------------------------
   console.log("→ Chat: sending a message on a 420px viewport…");
   await page.goto(BASE + "/chat", { waitUntil: "load", timeout: 20000 });
-  await page.waitForResponse((res) => res.url().includes("/api/chat/stream"), { timeout: 15000 });
-  const chatBefore = await page.evaluate(() => window.scrollY);
-  await fillAndSubmit(page, "#chat-prompt", "plan my week");
-  // The answer is a REAL round-trip (queue → worker → SSE append), so wait
-  // for it to be in the DOM before judging the scroll: the anchor rides
-  // that same patch.
-  await page.waitForFunction(
-    () => document.querySelectorAll("#chat-messages .chat-start").length > 0,
-    null,
-    { timeout: 25000 },
-  );
-  const chatAfter = await scrolledFrom(page, chatBefore, "chat answer");
-  console.log(`  ✓ chat scrolled to the answer (scrollY ${chatBefore} → ${chatAfter})`);
+  // Chat needs a REAL model: with no GOAI_API_KEY the page renders the setup
+  // notice and NO composer, which is the correct product behaviour (a canned
+  // answer that ignored the prompt was worse than an honest refusal). The leg
+  // therefore asserts that state instead of typing into a field that is not
+  // there — the scroll behaviour below only exists where the composer does.
+  const composer = await page.$("#chat-prompt");
+  if (!composer) {
+    const notice = await page.evaluate(() =>
+      document.body.textContent.includes("needs a configured LLM"));
+    if (!notice) fail("no chat composer and no setup notice: the page is neither configured nor honest");
+    console.log("  ✓ chat without a model shows the setup notice and hides the composer");
+  } else {
+    await page.waitForResponse((res) => res.url().includes("/api/chat/stream"), { timeout: 15000 });
+    const chatBefore = await page.evaluate(() => window.scrollY);
+    await fillAndSubmit(page, "#chat-prompt", "plan my week");
+    // The answer is a REAL round-trip (queue → worker → SSE append), so wait
+    // for it to be in the DOM before judging the scroll: the anchor rides
+    // that same patch.
+    await page.waitForFunction(
+      () => document.querySelectorAll("#chat-messages .chat-start").length > 0,
+      null,
+      { timeout: 25000 },
+    );
+    const chatAfter = await scrolledFrom(page, chatBefore, "chat answer");
+    console.log(`  ✓ chat scrolled to the answer (scrollY ${chatBefore} → ${chatAfter})`);
 
-  // ---- Chat second turn (history kept, scroll follows) ----------------
-  // The thread persists per owner: a follow-up appends a second answer and
-  // the scroll anchor rides that patch. (Mermaid-fence → diagram rendering
-  // is pinned in Go by TestParseChatAnswerRendersMermaidFences plus the
-  // vendored Pele mount; the simulated demo answer carries no fence.)
-  console.log("\u2192 Chat: follow-up on the same viewport\u2026");
-  await fillAndSubmit(page, "#chat-prompt", "and tomorrow?");
-  await page.waitForFunction(
-    () => document.querySelectorAll("#chat-messages .chat-start").length >= 2,
-    null,
-    { timeout: 25000 }
-  );
-  const chatAfter2 = await scrolledFrom(page, chatAfter, "second chat answer");
-  console.log(`  \u2713 chat kept history and scrolled to the follow-up (scrollY ${chatAfter} → ${chatAfter2})`);
+    // ---- Chat second turn (history kept, scroll follows) ----------------
+    // The thread persists per owner: a follow-up appends a second answer and
+    // the scroll anchor rides that patch. (Mermaid-fence → diagram rendering
+    // is pinned in Go by TestParseChatAnswerRendersMermaidFences plus the
+    // vendored Pele mount; the simulated demo answer carries no fence.)
+    console.log("\u2192 Chat: follow-up on the same viewport\u2026");
+    await fillAndSubmit(page, "#chat-prompt", "and tomorrow?");
+    await page.waitForFunction(
+      () => document.querySelectorAll("#chat-messages .chat-start").length >= 2,
+      null,
+      { timeout: 25000 }
+    );
+    const chatAfter2 = await scrolledFrom(page, chatAfter, "second chat answer");
+    console.log(`  \u2713 chat kept history and scrolled to the follow-up (scrollY ${chatAfter} → ${chatAfter2})`);
+  }
 
   if (pageErrors.length > 0) fail(`uncaught JS errors: ${pageErrors.join(" | ")}`);
   else console.log("  ✓ zero uncaught JS errors");

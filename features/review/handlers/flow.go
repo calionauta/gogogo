@@ -96,6 +96,18 @@ func (r *Runner) DefineReviewFlow() *core.Flow[ReviewInput, Verdict, string] {
 		})
 }
 
+// logPromptPair records which prompt files (and versions) drive the run. The
+// TEXT is never logged: it is prose the model reads, and the answer it produces
+// may quote the user's input.
+func logPromptPair(ctx context.Context, tab string, maker, critic promptPair) {
+	ids := maker.meta.ID + "," + critic.meta.ID
+	versioned := fmt.Sprintf("%s@%d,%s@%d",
+		maker.meta.ID, maker.meta.Version, critic.meta.ID, critic.meta.Version)
+	observability.Info(ctx, "review: prompt",
+		append(observability.WithComponent("review", "feature"),
+			"tab", tab, "prompt.parts", ids, "prompt.parts.versioned", versioned)...)
+}
+
 // rolePrompts returns the (maker, critic) system prompts for a tab.
 //
 // The APPROVE contract carries one obligation beyond "looks fine": the
@@ -106,11 +118,27 @@ func (r *Runner) DefineReviewFlow() *core.Flow[ReviewInput, Verdict, string] {
 // A critic that reports APPROVE now has to say the proposal is an
 // improvement over the original, and a maker has to state when nothing
 // needed changing rather than returning the input unchanged in silence.
-func rolePrompts(tab string) (maker, critic string) {
+func rolePrompts(tab string) (maker, critic promptPair) {
 	if tab == TabCode {
-		return prompts.Text("review/maker-code"), prompts.Text("review/critic-code")
+		return loadPrompt("review/maker-code"), loadPrompt("review/critic-code")
 	}
-	return prompts.Text("review/maker-text"), prompts.Text("review/critic-text")
+	return loadPrompt("review/maker-text"), loadPrompt("review/critic-text")
+}
+
+// promptPair is a prompt plus its address, so the trace names the file and the
+// version that produced the pair — the same two fields the Chat leg records.
+type promptPair struct {
+	text string
+	meta prompts.Meta
+}
+
+// loadPrompt renders a pure-prose review prompt and keeps its address.
+func loadPrompt(id string) promptPair {
+	text, meta, err := prompts.RenderMeta(id, nil)
+	if err != nil {
+		panic(err)
+	}
+	return promptPair{text: text, meta: meta}
 }
 
 // noChangeNeeded is the maker's escape hatch: it reports that the input
@@ -178,6 +206,7 @@ func (r *Runner) run(ctx context.Context, in ReviewInput, send core.StreamCallba
 	}
 	content = truncateRunes(content, MaxContentRunes)
 	makerPrompt, criticPrompt := rolePrompts(tab)
+	logPromptPair(ctx, tab, makerPrompt, criticPrompt)
 
 	emit := func(s string) {
 		if send == nil {
@@ -187,7 +216,7 @@ func (r *Runner) run(ctx context.Context, in ReviewInput, send core.StreamCallba
 	}
 
 	proposal, critique, criticVerdict, rounds, declined, err := r.editLoop(
-		ctx, content, makerPrompt, criticPrompt, emit)
+		ctx, content, makerPrompt.text, criticPrompt.text, emit)
 	if err != nil {
 		return Verdict{}, err
 	}

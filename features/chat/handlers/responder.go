@@ -17,8 +17,8 @@ import (
 // only line-drops, never a block strip.
 //
 // router and surfaces ride the Chat configuration (nil = off/defaults).
-func ResponderFromLLM(real, simulated *llm.Client, router comp.Router, surfaces []comp.Surface) store.Responder {
-	return responderAdapter{inner: comp.NewResponder(real, simulated, router, surfaces)}
+func ResponderFromLLM(real *llm.Client, router comp.Router, surfaces []comp.Surface) store.Responder {
+	return responderAdapter{inner: comp.NewResponder(real, router, surfaces)}
 }
 
 // responderAdapter adapts comp.Responder to the chat store seam.
@@ -45,10 +45,10 @@ func (ad responderAdapter) WithOwner(owner string) store.Responder {
 // never call SetModelLeg, so a missing leg keeps the stub — canned answers
 // ignore surfaces, which is exactly what a stub is for.
 func (h *Handler) responderFor(surfaces []comp.Surface) store.Responder {
-	if h.realLLM == nil && h.simLLM == nil {
+	if h.realLLM == nil {
 		return h.responder
 	}
-	return ResponderFromLLM(h.realLLM, h.simLLM, h.router, surfaces)
+	return ResponderFromLLM(h.realLLM, h.router, surfaces)
 }
 
 // proseOffFallback is the honest line when the model answered only with

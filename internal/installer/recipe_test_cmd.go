@@ -165,17 +165,31 @@ func hasGoFiles(dir string) bool {
 type recipeTestPlan struct {
 	pkgs     []string
 	testless []string
+	// skipped names the receipts whose uninstall already removed the code:
+	// reported when the caller named them, silent otherwise.
+	skipped []string
 }
 
 // planRecipeTests resolves the scope for every requested recipe. It is split
 // from runRecipeTest so the CLI's control flow stays readable: resolve, report,
 // then either print or execute.
-func planRecipeTests(root string, ids []string, stdout io.Writer) (recipeTestPlan, error) {
+func planRecipeTests(root string, ids []string, explicitID bool, stdout io.Writer) (recipeTestPlan, error) {
 	var plan recipeTestPlan
 	for _, id := range ids {
 		receipt, lerr := recipe.LoadReceipt(root, id)
 		if lerr != nil {
 			return plan, &ExitError{code: 1, msg: "recipe test: " + lerr.Error()}
+		}
+		// A removed receipt marks an uninstall. Its files are gone by design,
+		// so testing it would fail on an absence the user asked for — the
+		// reason `recipe check` and `recipe status` skip it too. An explicit
+		// id still surfaces the state instead of silently doing nothing.
+		if receipt.Removed != "" {
+			if explicitID {
+				fmt.Fprintf(stdout, "recipe %s: uninstalled (%s) — nothing to test\n", id, receipt.Removed)
+			}
+			plan.skipped = append(plan.skipped, id)
+			continue
 		}
 		scope := recipeTestScope(root, receipt)
 		fmt.Fprintf(stdout, "recipe %s: %d test file(s) in %d package(s)\n",
@@ -218,7 +232,7 @@ func runRecipeTest(ctx context.Context, args []string, stdout, stderr io.Writer)
 		return nil
 	}
 
-	plan, perr := planRecipeTests(root, ids, stdout)
+	plan, perr := planRecipeTests(root, ids, opt.id != "", stdout)
 	if perr != nil {
 		return perr
 	}

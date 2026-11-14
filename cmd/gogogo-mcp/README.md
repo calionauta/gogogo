@@ -28,12 +28,12 @@ Claude Code (`~/.claude.json`) / Cursor (`~/.cursor/mcp.json`) / BB:
 <!-- MCP:TOOLS:START -->
 | Tool | Params | Effect |
 |---|---|---|
-| `capabilities_list` | — | No |
+| `capabilities_list` | `dir?` | No |
 | `build_prerequisites` | `platform?` | No |
 | `sync_prerequisites` | — | No |
 | `version_status` | `dir?`, `format?` | No |
-| `trim_plan` | `name`, `owner?`, `dir?`, `format?` | No |
-| `trim_apply` | `name`, `owner?`, `dir?`, `format?`, `confirm: true` | Yes (`confirm:true`) |
+| `scaffold_plan` | `name`, `owner?`, `dir?`, `format?`, `shape?` | No |
+| `scaffold_apply` | `name`, `owner?`, `dir?`, `format?`, `shape?`, `confirm: true` | Yes (`confirm:true`) |
 | `migrate_plan` | `from?`, `to?`, `dir?`, `changelog?`, `files?`, `format?` | No |
 | `export_unit` | `unit`, `dir`, `to`, `module?`, `format?` | Only writes `to` |
 | `new_feature` | `name`, `dir`, `confirm: true`, `dryRun?` | Yes (`confirm:true`) |
@@ -65,7 +65,7 @@ Generated code follows `skills/gogogo-coding-standards/SKILL.md`
 ## Installer surface, not product surface
 
 This server is for the developer evolving a checkout. Some tools rewrite the
-tree (`trim_apply`, `new_feature`, `recipe_install|update|uninstall`). Never
+tree (`scaffold_apply`, `new_feature`, `recipe_install|update|uninstall`). Never
 ship it to a product's users or their agents. A product's client surface is
 the running server's API, including `POST /api/ext/invoke`, under its own
 session/RBAC. `recipe_invoke` is a client of that API, not a second product

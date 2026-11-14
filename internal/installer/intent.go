@@ -191,17 +191,18 @@ func routeFor(intent, tree, dir string) []adviseStep {
 	case intentScaffold:
 		return []adviseStep{
 			{
-				Run: "gogogo advise --need \"<your need>\" --format json",
-				Why: "the unit list this answer already gives you, machine-readable",
-			},
-			{
-				Run: "gogogo --name my-app --plugins <ids> --features <ids> " +
-					"--no-tui --dry-run --format json --dir ./my-app",
-				Why: "preview the trim plan with every consequence; nothing is written",
+				Run: "gogogo --name my-app --no-tui --dry-run --format json --dir ./my-app",
+				Why: "preview the plan: every capability the scaffold ships, with its " +
+					"removal class; nothing is written",
 			},
 			{
 				Run: "gogogo --name my-app --no-tui --yes --dir ./my-app",
-				Why: "apply: clone, trim, rename, tidy, build proof",
+				Why: "apply: clone, rename, tidy, build proof",
+			},
+			{
+				Run: "gogogo recipe uninstall <id> --dir ./my-app --yes",
+				Why: "remove a feature you do not want, once the tree exists — the " +
+					"receipt decides what is safe to delete",
 			},
 		}
 	}

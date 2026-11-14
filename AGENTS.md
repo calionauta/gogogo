@@ -37,12 +37,13 @@ Read the SKILL.md by name before the first matching edit (symlinks in `.agents/s
 | `make templ` / `make datastar-lint` / `make css` / `make css-check` | Templ gen / lint / bundle / verify |
 | `make test` | Race tests (prefer scoped locally) |
 | `make check-generated` / `check-ci-scripts` | Templ-drift gate / CI-script contracts |
+| `make check-shape` / `check-domains` | App-shape record / one card per feature slice |
 | `make ci-local-fast` | Cheap gate, scoped to changed pkgs |
-| `make verify-local` / `make verify-local-share` | Boot the real binary on a fresh data dir: URL + account + the routes the diff touched — the operator's 60 s click, after `ci-local-fast` |
+| `make verify-local` / `make verify-local-share` | Boot the real binary on a fresh data dir: URL + account + the routes the diff touched — the operator's 60 s click, after `ci-local-fast`. Records PASS/FAIL as the stamp `make signoff` requires |
 | `make test-recipe R=<id>` | Run the tests ONE recipe owns (package scope derived from its receipt) |
 | `make lint-safe` | Host-aware lint (over whole-repo lint on shared host) |
 | `make ci-local` | Single gate (= CI). If green, push. |
-| `make signoff` | `ci-local` + stamp before push |
+| `make signoff` | `check-operator-look` + `ci-local` + stamp before push — refuses a page/CSS diff with no recorded operator PASS |
 | `make setup` / `make go-bump` | Hooks (`core.hooksPath=.githooks`) / Go patch bump (minor is human-only) |
 | `go run ./cmd/gogogo new feature <name>` | Scaffold + gates + build proof |
 
@@ -69,12 +70,13 @@ Normative: `docs/exception-to-go.md`. Go ~95-99%, zero Zig in tree. Bans: "Zig i
 - Thin seams, direct calls, explicit DI: small 1-3-method interfaces only when 2+ impls exist; no containers, no pass-throughs, no `GenericRepo[T]`. Fail fast.
 - **Driver by target:** tursogo (`turso`) web/desktop, ncruces (`sqlite3`) gui/mobile; one schema (`docs/stack-layers.md`).
 - **Service layer:** `features/<name>/service/` owns writes (`List/Create/Delete`, `canDeleteRow`); handlers/native shells call it. Vertical slices first; duplicate > wrong abstraction.
+- **A slice's written boundary** is `docs/domain/<feature>.md` — owns / does-not-own / language / invariants, gated by `make check-domains`. Read it before editing the slice; update it in the same commit as a behaviour change.
 - **Native panels render the page's components, never a copy** (`genui_panel.go` reuses `features/todo/components/panel.templ` pattern or it's drift).
 - Removal class is `Capability.Kind` only (`docs/scope-taxonomy.md`); `internal/` is the import boundary, not the class.
 
 ## Hooks
 
-lefthook pre-commit (fmt, `govulncheck`, `datastar-lint`, `css-check`, `api-routes`, `registry-conformance`, skill-frontmatter, advisory drifts); pre-push `govulncheck`+`deadcode` (host-gated, may skip). Details `docs/local-ci.md`: T1 format → T2 lint → T3 tests → T3.5 `ci-local-fast` → T3.6 `verify-local` (the operator's click) → T4 `ci-local` → T5 `signoff`.
+lefthook pre-commit (fmt, `govulncheck`, `datastar-lint`, `css-check`, `api-routes`, `registry-conformance`, skill-frontmatter, advisory drifts); pre-push `govulncheck`+`deadcode` (host-gated, may skip) + `operator-look` (refuses a page/CSS diff with no recorded PASS). Details `docs/local-ci.md`: T1 format → T2 lint → T3 tests → T3.5 `ci-local-fast` → T3.6 `verify-local` (the operator's click) → T4 `ci-local` → T5 `signoff`.
 
 ## Gotchas
 

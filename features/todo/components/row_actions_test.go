@@ -25,13 +25,13 @@ func renderRow(t *testing.T, item todo.Todo, extras []todo.RowAction) string {
 func TestRowRendersRecipeActionWithItsOwnID(t *testing.T) {
 	item := todo.Todo{ID: "01abc", Title: "Write the plan"}
 	html := renderRow(t, item, []todo.RowAction{
-		{Label: "Send to pomodoro", Href: "/api/pomodoro/from-todo/{id}", Verb: "post", Confirm: "Send this row?"},
+		{Label: "Send to timer", Href: "/api/timer/from-todo/{id}", Verb: "post", Confirm: "Send this row?"},
 	})
 
-	if !strings.Contains(html, "Send to pomodoro") {
+	if !strings.Contains(html, "Send to timer") {
 		t.Fatalf("the action did not render:\n%s", html)
 	}
-	if !strings.Contains(html, "/api/pomodoro/from-todo/01abc") {
+	if !strings.Contains(html, "/api/timer/from-todo/01abc") {
 		t.Errorf("the row id was not substituted into the action href:\n%s", html)
 	}
 	if strings.Contains(html, todo.RowIDPlaceholder) {
@@ -46,7 +46,7 @@ func TestRowRendersRecipeActionWithItsOwnID(t *testing.T) {
 // with no installed recipe renders the row it always rendered.
 func TestRowWithoutRecipeActionsIsUnchanged(t *testing.T) {
 	html := renderRow(t, todo.Todo{ID: "01abc", Title: "Plain"}, nil)
-	if strings.Contains(html, "@post(") && strings.Contains(html, "/api/pomodoro") {
+	if strings.Contains(html, "@post(") && strings.Contains(html, "/api/timer") {
 		t.Errorf("a row with no contribution rendered a recipe action:\n%s", html)
 	}
 }
@@ -55,9 +55,9 @@ func TestRowWithoutRecipeActionsIsUnchanged(t *testing.T) {
 // anchor (middle-click, open in new tab), and only a mutating one is a button.
 func TestGetActionRendersALink(t *testing.T) {
 	html := renderRow(t, todo.Todo{ID: "01abc", Title: "x"}, []todo.RowAction{
-		{Label: "Open in pomodoro", Href: "/pomodoro/{id}", Verb: "get"},
+		{Label: "Open in timer", Href: "/timer/{id}", Verb: "get"},
 	})
-	if !strings.Contains(html, `href="/pomodoro/01abc"`) {
+	if !strings.Contains(html, `href="/timer/01abc"`) {
 		t.Errorf("a get action must render as an anchor with the row id:\n%s", html)
 	}
 	if strings.Contains(html, "@post(") {

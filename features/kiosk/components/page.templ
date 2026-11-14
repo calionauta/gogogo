@@ -20,6 +20,7 @@ import (
 	"strconv"
 
 	"github.com/calionauta/gogogo/features/sounds"
+	"github.com/calionauta/gogogo/internal/i18n"
 	"github.com/calionauta/gogogo/internal/ui"
 )
 
@@ -45,9 +46,10 @@ type PageData struct {
 	BuildCommit string
 	// Phrases is the JSON array the recognizer uses as contextual bias. It is
 	// rendered from the menu, so the vocabulary has one source.
-	Phrases  string
-	MenuLine string
-	Orders   []Order
+	Phrases   string
+	MenuLine  string
+	Catalogue Catalogue
+	Orders    []Order
 }
 
 // seedSignals is the page's initial signal set. Text is deliberately absent:
@@ -72,7 +74,7 @@ func seedSignals() Seeds {
 templ Page(data PageData) {
 	@ui.Shell(ui.Data{
 		Title:       "Kiosk — gogogo",
-		Heading:     "Kiosk",
+		Heading:     i18n.T(ctx, "kiosk.title", nil),
 		Context:     "demo · ext_kiosk_orders",
 		Email:       data.Email,
 		Role:        data.Role,
@@ -91,10 +93,15 @@ templ kioskSound() {
 // kioskHead carries the voice wiring. The recognizer only fills the input and
 // dispatches `input`: the request itself belongs to the markup, next to the
 // debounce, so there is one place that decides when the server is asked.
+//
+// The wiring runs on DOMContentLoaded, not where the tag sits: this component is
+// rendered into <head>, so at parse time the body does not exist yet and every
+// getElementById would return null — the button rendered, did nothing, and said
+// nothing (the report "no option to turn the microphone on").
 templ kioskHead() {
 	@sounds.SoundAssets()
 	<script nonce={ templ.GetNonce(ctx) }>
-		(function () {
+		function initKioskVoice() {
 			var root = document.getElementById("kiosk-voice");
 			var input = document.getElementById("kiosk-text");
 			var status = document.getElementById("kiosk-voice-status");
@@ -102,6 +109,13 @@ templ kioskHead() {
 			if (!root || !input || !status || !mic) return;
 
 			var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+			// No recognizer at all: the button cannot ever work, so it leaves
+			// instead of sitting there inviting a click that does nothing.
+			if (!SR) {
+				mic.hidden = true;
+				status.textContent = "This browser has no speech recognition — type the order.";
+				return;
+			}
 			var lang = document.documentElement.lang || "en-US";
 			var recognition = null;
 			var listening = false;
@@ -111,7 +125,8 @@ templ kioskHead() {
 			function say(text) { status.textContent = text; }
 			function idle() {
 				listening = false;
-				mic.setAttribute("aria-pressed", "false");						mic.textContent = "Microphone";
+				mic.setAttribute("aria-pressed", "false");
+				mic.textContent = mic.getAttribute("data-label-idle") || "Microphone";
 			}
 
 			function stop() {
@@ -144,6 +159,22 @@ templ kioskHead() {
 					}
 					input.value = text.trim();
 					input.dispatchEvent(new Event("input", { bubbles: true }));
+					// A finished utterance is exactly when the decision engine
+					// earns its round trip: the menu has had its chance, and a
+					// person is waiting for the order to settle. Typing keeps the
+					// parser-only path (see the input's debounce).
+					if (event.results[event.results.length - 1].isFinal) {
+						var said = text.trim().toLowerCase();
+						var wantsReset = resetPhrases.some(function (p) { return said.indexOf(p) !== -1; });
+						if (wantsReset) {
+							// Dispatch, so ONE definition of "clear" serves the
+							// button and the voice command.
+							input.dispatchEvent(new CustomEvent("kiosk-clear", { bubbles: true }));
+							say("Order cleared — say or type a new one.");
+							return;
+						}
+						input.dispatchEvent(new CustomEvent("kiosk-decide", { bubbles: true }));
+					}
 				};
 				recognition.onerror = function (event) {
 					say("Microphone: " + (event.error || "error") + " — type the order.");
@@ -175,49 +206,133 @@ templ kioskHead() {
 				}
 			}
 
+			// installTimeout bounds the language-pack download. Chrome's install()
+			// can stay pending for minutes on a slow link and never reject, which
+			// left the page saying "Downloading…" forever with no way back — the
+			// button still worked, but nothing said so. A timeout turns that into
+			// an instruction (type, or ask again) instead of a stuck label.
+			var installTimeout = 20000;
+
+			function availableWithTimeout(options) {
+				return Promise.race([
+					SR.available(options),
+					new Promise(function (resolve) { setTimeout(function () { resolve("unknown"); }, 5000); })
+				]);
+			}
+
+			function installWithTimeout(options) {
+				return Promise.race([
+					SR.install(options),
+					new Promise(function (resolve) { setTimeout(function () { resolve(false); }, installTimeout); })
+				]);
+			}
+
+			// askMicrophone asks the browser for microphone permission.
+			//
+			// SpeechRecognition.start() does NOT trigger the permission prompt on
+			// its own: the recognizer is handed an already-granted stream, so with
+			// no grant it fails immediately with `not-allowed` and the page says
+			// "type the order" — the reported bug ("it never asked me"). Calling
+			// getUserMedia IS what shows the prompt. The tracks are stopped right
+			// away: recognition opens its own capture, and holding a second
+			// stream would light the microphone indicator for no reason.
+			function askMicrophone() {
+				if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+					// No getUserMedia at all (insecure origin): the recognizer may
+					// still work on a granted permission, so do not block here.
+					return Promise.resolve(true);
+				}
+				return navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+					stream.getTracks().forEach(function (t) { t.stop(); });
+					return true;
+				}).catch(function () {
+					return false;
+				});
+			}
+
 			function start() {
 				if (!localSupport()) {
 					say("This browser offers no on-device recognition — type the order.");
 					return;
 				}
 				var options = { langs: [lang], processLocally: true };
-				SR.available(options).then(function (state) {
-					if (state === "available") return true;
-					say("Downloading the language pack once…");
-					return SR.install(options);
-				}).then(function (ready) {
-					if (!ready) {
-						say("No local language pack — type the order.");
+				// Permission FIRST. The recognizer needs an already-granted stream,
+				// and a language-pack download is slow and can hang: asking after
+				// it meant the user clicked, waited, and never saw the prompt —
+				// which is exactly what was reported ("it never asked me").
+				askMicrophone().then(function (granted) {
+					if (!granted) {
+						say("Microphone permission was denied — allow it in the browser, or type the order.");
+						return null;
+					}
+					return availableWithTimeout(options).then(function (state) {
+						if (state === "available") return "ready";
+						// `downloading` means an install is already running: waiting on
+						// another one would stack downloads, so ask the user to retry.
+						if (state === "downloading") {
+							say("The language pack is still downloading — tap the microphone again in a moment.");
+							return "pending";
+						}
+						say("Downloading the language pack once…");
+						return installWithTimeout(options).then(function (ok) {
+							return ok ? "ready" : "pending";
+						});
+					});
+				}).then(function (outcome) {
+					if (outcome !== "ready") {
+						// null: permission refused (the message is already shown).
+						// pending: the install is still running in the background and
+						// the label already says what to do.
 						return;
 					}
-					prepare(function (rec) {
-						listening = true;
-						mic.setAttribute("aria-pressed", "true");
-						mic.textContent = "Stop";
-						say("Listening on device…");
-						lastResultAt = Date.now();
-						rec.start();
-						// A known browser bug (Chromium 579050368) detects speech and
-						// never fires a result. Silence must become an instruction,
-						// not a spinner that never ends.
-						watchdog = setTimeout(function () {
-							if (listening && Date.now() - lastResultAt > 4000) {
-								say("I did not catch that — type the order.");
-								stop();
-							}
-						}, 4500);
-					});
+					startRecognition();
 				}).catch(function () {
 					say("On-device recognition unavailable — type the order.");
 				});
 			}
 
-			mic.addEventListener("click", function () {
-				if (listening) stop(); else start();
-			});
+			// startRecognition begins a listening session, assuming the language
+			// pack is present and the microphone is allowed.
+			function startRecognition() {
+				prepare(function (rec) {
+					listening = true;
+					mic.setAttribute("aria-pressed", "true");
+					mic.textContent = mic.getAttribute("data-label-live") || "Stop";
+					say("Listening on device…");
+					lastResultAt = Date.now();
+					rec.start();
+					// A known browser bug (Chromium 579050368) detects speech and
+					// never fires a result. Silence must become an instruction,
+					// not a spinner that never ends.
+					watchdog = setTimeout(function () {
+						if (listening && Date.now() - lastResultAt > 4000) {
+							say("I did not catch that — type the order.");
+							stop();
+						}
+					}, 4500);
+				});
+			}
 
+			// A spoken "start over" clears the order the same way the button does.
+			// The recognizer only fills the input, so the phrase is checked here
+			// rather than parsed server-side: it is a command, not an order.
+			var resetPhrases = ["start over", "start again", "clear", "cancel order", "recomeçar", "limpar", "cancelar"];
+
+			// ONE handler: the markup's data-on:click calls __kioskVoice.toggle.
+			// An addEventListener here would fire on the same click as well, so
+			// the two toggles cancelled out — the button flipped to Stop and
+			// straight back to Microphone, and recognition never stayed on.
 			window.__kioskVoice = { toggle: function () { if (listening) stop(); else start(); } };
-		})();
+		}
+
+		// The body is not parsed yet when this script runs (it is in <head>), so
+		// the wiring waits for the DOM. `readyState` covers the case where a
+		// later include has already fired the event.
+		if (document.readyState === "loading") {
+			document.addEventListener("DOMContentLoaded", initKioskVoice);
+		} else {
+			initKioskVoice();
+		}
 	</script>
 }
 
@@ -225,30 +340,44 @@ templ kioskBody(data PageData) {
 	<div class="ui-page ui-page-narrow ui-stack" data-signals={ MarshalSignals(seedSignals()) }>
 		<section class="ui-card" id="kiosk-voice" data-phrases={ data.Phrases }>
 			<div class="ui-card-body ui-stack">
-				<h2 class="ui-title">Say the order</h2>
-				<p class="ui-meta">
-					The microphone uses the device's own recognition. Without support,
-					permission or the language pack, type it: the path is the same.
-				</p>
+				<h2 class="ui-title">{ i18n.T(ctx, "kiosk.sayOrder", nil) }</h2>
+				<p class="ui-meta">{ i18n.T(ctx, "kiosk.sayOrderHelp", nil) }</p>
 				<form
 					id="kiosk-form"
 					class="ui-row"
 					data-on:submit__prevent="@post('/api/kiosk/preview', {contentType: 'form'})"
+					data-on:kiosk-clear="var i = document.getElementById('kiosk-text'); i.value = ''; $kioskText = ''; $kioskDrink = ''; $kioskSize = ''; $kioskMilk = ''; $kioskExtras = ''; $kioskPrice = ''; $kioskNeed = ''; $kioskPreview = ''; $kioskNotice = ''; i.focus()"
 				>
 					<input
 						id="kiosk-text"
 						name="text"
 						class="input input-sm grow"
 						autocomplete="off"
-						placeholder="a large latte with oat milk"
-						aria-label="Order"
+						placeholder={ i18n.T(ctx, "kiosk.orderPlaceholder", nil) }
+						aria-label={ i18n.T(ctx, "kiosk.orderLabel", nil) }
 						maxlength="240"
 						data-bind="kioskText"
-						data-on:input__debounce.250ms="!$kioskBusy ? ($kioskBusy = true, @post('/api/kiosk/preview', {contentType: 'form'}).finally(() => { $kioskBusy = false; if ($kioskQueued) { $kioskQueued = false; el.dispatchEvent(new CustomEvent('kiosk-retry', { bubbles: true })) } })) : ($kioskQueued = true)"
+						data-on:input__debounce.350ms="!$kioskBusy ? ($kioskBusy = true, @post('/api/kiosk/preview', {contentType: 'form'}).finally(() => { $kioskBusy = false; if ($kioskQueued) { $kioskQueued = false; el.dispatchEvent(new CustomEvent('kiosk-retry', { bubbles: true })) } })) : ($kioskQueued = true)"
 						data-on:kiosk-retry="!$kioskBusy ? ($kioskBusy = true, @post('/api/kiosk/preview', {contentType: 'form'}).finally(() => { $kioskBusy = false; })) : null"
 					/>
 					<input type="hidden" name="previewed" data-attr:value="$kioskPreview"/>
-					<button type="submit" class="btn btn-sm">Interpret</button>
+					{{/* No "Interpret" button: the field IS interpreted. The debounce
+					     posts what was typed or spoken, the server parses it, and the
+					     decision engine runs only when the menu could not settle it —
+					     the customer never has to tell the page to understand them.
+					     Reset is the counter's "customer changed their mind". It is
+					     disabled while a request is in flight, because clearing
+					     mid-answer would let the late patch land on a cleared form. */}}
+					<button
+						type="button"
+						id="kiosk-clear"
+						class="btn btn-ghost btn-sm"
+						title={ i18n.T(ctx, "kiosk.resetHint", nil) }
+						data-attr:disabled="!!$kioskBusy"
+						data-on:click="el.dispatchEvent(new CustomEvent('kiosk-clear', { bubbles: true }))"
+					>
+						{ i18n.T(ctx, "kiosk.reset", nil) }
+					</button>
 				</form>
 				<div class="ui-row">
 					<button
@@ -256,44 +385,53 @@ templ kioskBody(data PageData) {
 						id="kiosk-mic"
 						class="btn btn-sm"
 						aria-pressed="false"
+						data-label-idle={ i18n.T(ctx, "kiosk.microphone", nil) }
+						data-label-live={ i18n.T(ctx, "kiosk.stop", nil) }
 						data-on:click="window.__kioskVoice && window.__kioskVoice.toggle()"
 					>
-						Microphone
+						{ i18n.T(ctx, "kiosk.microphone", nil) }
 					</button>
 					<span id="kiosk-voice-status" class="ui-meta" role="status">
-						Typing always works — the microphone is optional.
+						{ i18n.T(ctx, "kiosk.micOptional", nil) }
 					</span>
 				</div>
-				<p class="ui-meta">{ data.MenuLine }</p>
 			</div>
 		</section>
 
-		<section class="ui-card">
+		// The receipt is STICKY: it is the thing the customer is buying, and it
+		// must stay readable while they scroll the menu or the order list. It
+		// sits directly under the field, so saying an order and seeing its price
+		// never needs a scroll.
+		<section class="ui-card app-kiosk-receipt shadow-sm" id="kiosk-receipt">
 			<div class="ui-card-body ui-stack">
-				<h2 class="ui-title">Preview</h2>
-				<p class="ui-meta">
-					Provisional. Nothing is submitted until you confirm.
-				</p>
-				<dl class="ui-stack">
-					<div class="ui-row justify-between">
-						<dt class="ui-meta">Drink</dt>
-						<dd data-text="$kioskDrink || '—'"></dd>
+				<div class="flex items-baseline justify-between gap-3">
+					<h2 class="ui-title">{ i18n.T(ctx, "kiosk.preview", nil) }</h2>
+					<span class="ui-meta" data-show="!!$kioskBusy">{ i18n.T(ctx, "kiosk.pricing", nil) }</span>
+				</div>
+				{{/* The preview is a receipt, not a form: what the customer is
+				     about to buy, read top to bottom, with the total set apart —
+				     the same shape a paper ticket has, so it is understood at a
+				     glance from the counter side. */}}
+				<dl class="divide-y divide-base-300/60">
+					<div class="flex items-baseline justify-between gap-3 py-1.5">
+						<dt class="ui-meta">{ i18n.T(ctx, "kiosk.drink", nil) }</dt>
+						<dd class="font-medium" data-text="$kioskDrink || '—'"></dd>
 					</div>
-					<div class="ui-row justify-between">
-						<dt class="ui-meta">Size</dt>
-						<dd data-text="$kioskSize || '—'"></dd>
+					<div class="flex items-baseline justify-between gap-3 py-1.5">
+						<dt class="ui-meta">{ i18n.T(ctx, "kiosk.size", nil) }</dt>
+						<dd class="font-medium" data-text="$kioskSize || '—'"></dd>
 					</div>
-					<div class="ui-row justify-between">
-						<dt class="ui-meta">Milk</dt>
-						<dd data-text="$kioskMilk || '—'"></dd>
+					<div class="flex items-baseline justify-between gap-3 py-1.5">
+						<dt class="ui-meta">{ i18n.T(ctx, "kiosk.milk", nil) }</dt>
+						<dd class="font-medium" data-text="$kioskMilk || '—'"></dd>
 					</div>
-					<div class="ui-row justify-between">
-						<dt class="ui-meta">Extras</dt>
-						<dd data-text="$kioskExtras || '—'"></dd>
+					<div class="flex items-baseline justify-between gap-3 py-1.5">
+						<dt class="ui-meta">{ i18n.T(ctx, "kiosk.extras", nil) }</dt>
+						<dd class="font-medium text-right" data-text="$kioskExtras || '—'"></dd>
 					</div>
-					<div class="ui-row justify-between">
-						<dt class="ui-meta">Price</dt>
-						<dd data-text="$kioskPrice || '—'"></dd>
+					<div class="flex items-baseline justify-between gap-3 pt-3 mt-1 border-t-2 border-base-300">
+						<dt class="text-sm font-semibold">{ i18n.T(ctx, "kiosk.price", nil) }</dt>
+						<dd class="text-2xl font-bold tabular-nums" data-text="$kioskPrice || '—'"></dd>
 					</div>
 				</dl>
 				<p class="ui-meta" data-show="!!$kioskNeed" data-text="$kioskNeed"></p>
@@ -303,11 +441,29 @@ templ kioskBody(data PageData) {
 					data-attr:disabled="!!($kioskBusy || !$kioskDrink || $kioskNeed)"
 					data-on:click="$kioskBusy = true; @post('/api/kiosk/confirm', {contentType: 'form'}).finally(() => { $kioskBusy = false; })"
 				>
-					Confirm
+					{ i18n.T(ctx, "kiosk.confirm", nil) }
 				</button>
 				<p class="ui-meta" data-show="!!$kioskNotice" data-text="$kioskNotice"></p>
 			</div>
 		</section>
+
+		// The menu is PROGRESSIVE DISCLOSURE, not a permanent block: a customer
+		// who knows what they want never needs it, and a screen of buttons
+		// between the field and the receipt buries the thing they are buying.
+		// The summary states the menu line, so the prices are readable without
+		// opening it.
+		<details class="ui-card" id="kiosk-menu">
+			<summary class="ui-card-body cursor-pointer">
+				<div class="ui-row justify-between gap-3">
+					<h2 class="ui-title">{ i18n.T(ctx, "kiosk.menu", nil) }</h2>
+					<span class="ui-meta">{ i18n.T(ctx, "kiosk.menuOpenHint", nil) }</span>
+				</div>
+				<p class="ui-meta">{ data.MenuLine }</p>
+			</summary>
+			<div class="ui-card-body ui-stack pt-0">
+				@MenuCatalogue(data.Catalogue)
+			</div>
+		</details>
 
 		<section class="ui-card">
 			<div class="ui-card-body">
@@ -322,15 +478,14 @@ templ kioskBody(data PageData) {
 // records).
 templ OrdersList(orders []Order) {
 	<div class="ui-row justify-between">
-		<h2 class="ui-title">Orders</h2>
+		<h2 class="ui-title">{ i18n.T(ctx, "kiosk.orders", nil) }</h2>
 		<span class="ui-meta">{ strconv.Itoa(len(orders)) }</span>
 	</div>
 	if len(orders) == 0 {
 		<div class="ui-empty">
-			<p class="ui-empty-title">No orders yet</p>
+			<p class="ui-empty-title">{ i18n.T(ctx, "kiosk.noOrdersTitle", nil) }</p>
 			<p class="ui-empty-body">
-				Say or type an order and confirm it. Orders are per account: the list is
-				scoped in SQL, not filtered in the template.
+				{ i18n.T(ctx, "kiosk.noOrdersBody", nil) }
 			</p>
 		</div>
 	} else {
@@ -346,7 +501,7 @@ templ OrdersList(orders []Order) {
 							· { o.Extras }
 						}
 						if o.Corrected {
-							<span class="badge badge-warning badge-sm">corrected</span>
+							<span class="badge badge-warning badge-sm">{ i18n.T(ctx, "kiosk.corrected", nil) }</span>
 						}
 					</span>
 					<span class="ui-meta">{ o.Price } · { o.When }</span>

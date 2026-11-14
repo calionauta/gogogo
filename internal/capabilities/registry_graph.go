@@ -6,7 +6,7 @@ package capabilities
 var graphUnits = []Capability{
 	{
 		ID:      "graph",
-		Kind:    KindPlugin,
+		Kind:    KindServant,
 		Summary: "panorama graph (capabilities + recipes)",
 		DependsOn: []string{
 			depSounds,

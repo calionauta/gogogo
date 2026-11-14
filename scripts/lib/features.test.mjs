@@ -31,10 +31,10 @@ test("a unit's own directory is what makes it present", () => {
   rmSync(root, { recursive: true, force: true });
 });
 
-test("a recipe installed under _recipes/ counts as present", () => {
+test("a recipe installed under features/ counts as present", () => {
   const root = tree();
-  mkdirSync(join(root, "_recipes", "pomodoro"), { recursive: true });
-  assert.equal(featurePresent(root, "pomodoro"), true);
+  mkdirSync(join(root, "features", "timer"), { recursive: true });
+  assert.equal(featurePresent(root, "timer"), true);
   rmSync(root, { recursive: true, force: true });
 });
 

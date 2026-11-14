@@ -434,17 +434,11 @@ func TestResponderForPrefersModelLegOverStub(t *testing.T) {
 		t.Fatalf("no leg: got %q err %v, want the stub answer", got, err)
 	}
 
-	sim := llm.NewSimulatedWithDelay(time.Millisecond)
-	defer sim.Close()
-	h.SetModelLeg(nil, sim, nil, comp.DefaultSurfacesChat)
-	got, err := h.responderFor(comp.DefaultSurfacesChat).Respond(ctx, "x")
-	if err != nil {
-		t.Fatalf("model leg: %v", err)
-	}
-	if !strings.Contains(got, "html_block") {
-		t.Fatalf("model leg answered %q, want the demo responder (html_block), not the stub", got)
-	}
-	if strings.Contains(got, "stub answer") {
-		t.Fatalf("model leg leaked the stub answer: %q", got)
+	// A model leg with NO key is not a model leg: it must fail closed instead of
+	// falling back to the stub, or a user would get canned text they never asked
+	// for and nothing would say so.
+	h.SetModelLeg(llm.New(""), nil, comp.DefaultSurfacesChat)
+	if _, err := h.responderFor(comp.DefaultSurfacesChat).Respond(ctx, "x"); err == nil {
+		t.Fatal("an unconfigured model leg answered; it must fail closed")
 	}
 }

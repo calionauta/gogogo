@@ -25,7 +25,9 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -33,6 +35,44 @@ import (
 
 	"gopkg.in/yaml.v3"
 )
+
+// OverrideDirEnv names the directory whose files shadow the embedded library.
+//
+// It is the seam an optimizer needs: a candidate prompt tree on disk, the same
+// binary, no rebuild. A file missing there falls back to the embedded copy, so
+// an override tree may hold only the prompts it changes. Unset (the default)
+// reads the embedded tree alone.
+const OverrideDirEnv = "GOGOGO_PROMPTS_DIR"
+
+// readOverride reads one prompt from the override directory. The second return
+// value says whether an override file was found at all.
+//
+// The read goes through os.Root so an id can never name a file above the
+// override directory: `../` is refused by the kernel-level root, not by string
+// trimming that a future edit could weaken.
+func readOverride(id string) (Prompt, bool, error) {
+	dir := os.Getenv(OverrideDirEnv)
+	if dir == "" {
+		return Prompt{}, false, nil
+	}
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return Prompt{}, false, fmt.Errorf("prompts: %s: override %s: %w", id, dir, err)
+	}
+	defer func() { _ = root.Close() }()
+	raw, err := root.ReadFile(filepath.FromSlash(id + ".prompt"))
+	if errors.Is(err, fs.ErrNotExist) {
+		return Prompt{}, false, nil
+	}
+	if err != nil {
+		return Prompt{}, false, fmt.Errorf("prompts: %s: override %s: %w", id, dir, err)
+	}
+	pr, err := Parse(id, raw)
+	if err != nil {
+		return Prompt{}, false, err
+	}
+	return pr, true, nil
+}
 
 // Dir is the prompt library's path inside a tree, so a caller that writes a
 // prompt (the scaffolder) and a caller that reads one (the loader) agree on
@@ -93,6 +133,14 @@ var cache sync.Map // id -> Prompt
 
 // Get loads and validates one prompt by id.
 func Get(id string) (Prompt, error) {
+	// An override directory shadows the embedded copy: a file there is what the
+	// caller asked for, so it is read fresh every time (a candidate tree
+	// changes between runs, and the cache would hide that). With no override
+	// the function reads the env var once per call and then the cache — cheap
+	// enough that the override needs no init-time global to test.
+	if pr, ok, err := readOverride(id); ok || err != nil {
+		return pr, err
+	}
 	if cached, ok := cache.Load(id); ok {
 		if pr, isPrompt := cached.(Prompt); isPrompt {
 			return pr, nil
@@ -247,6 +295,20 @@ func RenderPrompt(p Prompt, vars map[string]string) (string, error) {
 	return out, nil
 }
 
+// RenderMeta is Render plus the prompt's address, for a call site that reports
+// which revision produced a model request.
+func RenderMeta(id string, vars map[string]string) (string, Meta, error) {
+	p, err := Get(id)
+	if err != nil {
+		return "", Meta{}, err
+	}
+	out, err := RenderPrompt(p, vars)
+	if err != nil {
+		return "", Meta{}, err
+	}
+	return out, Meta{ID: p.ID, Version: p.Version}, nil
+}
+
 // MustRender is Render for call sites whose prompt id and variables are fixed
 // at compile time and whose files are embedded: a failure means the tree is
 // broken, and tests plus `make check-prompts` are what catch it.
@@ -260,6 +322,100 @@ func MustRender(id string, vars map[string]string) string {
 
 // Text is MustRender with no variables, for a prompt that is pure prose.
 func Text(id string) string { return MustRender(id, nil) }
+
+// Meta is a rendered prompt's address: the file id and the version it declared.
+// It is the two fields an evaluation or a trace needs to group results by
+// prompt revision — without them a score cannot be attributed to a file.
+type Meta struct {
+	ID      string
+	Version int
+}
+
+// Composer assembles one model request out of prompt files and records WHICH
+// files (and which versions) participated. A composed prompt is several files:
+// the Chat answer, for example, is the envelope plus whichever guidance bands
+// the surface set enabled. Logging a bare digest would say "something changed";
+// the parts say what the model was actually told.
+//
+// It is not safe for concurrent use: one composition belongs to one request.
+type Composer struct {
+	parts []string
+	metas []Meta
+	// raw holds the indexes of parts appended with Append (no separator).
+	raw []int
+}
+
+// Text appends a pure-prose prompt.
+func (c *Composer) Text(id string) string { return c.MustRender(id, nil) }
+
+// MustRender appends a rendered prompt. A malformed embedded file panics, like
+// the package-level helper: the tests and `make check-prompts` catch it.
+func (c *Composer) MustRender(id string, vars map[string]string) string {
+	p, err := Get(id)
+	if err != nil {
+		panic(err)
+	}
+	out, err := RenderPrompt(p, vars)
+	if err != nil {
+		panic(err)
+	}
+	c.parts = append(c.parts, out)
+	c.metas = append(c.metas, Meta{ID: p.ID, Version: p.Version})
+	return out
+}
+
+// Add appends already-rendered text without recording a file: used for
+// fragments a unit contributes (a panel's own prompt line) whose id is not in
+// this library.
+func (c *Composer) Add(text string) {
+	if text == "" {
+		return
+	}
+	c.parts = append(c.parts, text)
+}
+
+// Append joins text with NO separator, for a tail that already carries its own
+// leading newline (the user request). Keeping it separate from Add is what lets
+// String join the instruction fragments with a space without also inserting one
+// before that newline.
+func (c *Composer) Append(text string) {
+	if text == "" {
+		return
+	}
+	c.parts = append(c.parts, text)
+	c.raw = append(c.raw, len(c.parts)-1)
+}
+
+// String joins the parts with one space, except the raw tail, which follows
+// the previous part directly. That is the shape every leg has always used:
+// sentences that belong together stay adjacent, a disabled surface removes its
+// sentence, and the request starts on its own line.
+func (c *Composer) String() string {
+	raw := make(map[int]bool, len(c.raw))
+	for _, i := range c.raw {
+		raw[i] = true
+	}
+	var b strings.Builder
+	first := true
+	for i, p := range c.parts {
+		if strings.TrimSpace(p) == "" {
+			continue
+		}
+		if !first && !raw[i] {
+			b.WriteByte(' ')
+		}
+		b.WriteString(p)
+		first = false
+	}
+	return b.String()
+}
+
+// Parts returns the prompts that participated, in composition order.
+func (c *Composer) Parts() []Meta {
+	out := make([]Meta, len(c.metas))
+	copy(out, c.metas)
+	return out
+}
 
 // splitFrontmatter returns (body, yaml) for a file whose first line is `---`.
 func splitFrontmatter(text string) (body, header string, err error) {

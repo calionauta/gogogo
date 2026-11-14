@@ -43,9 +43,12 @@ type newOptions struct {
 }
 
 // newPaths are the files the scaffold touches, relative to the project root.
+// card is written but never receipted: it is the slice's documentation, and
+// editing a boundary must not read as drift in the code it describes.
 type newPaths struct {
 	handler  string
 	page     string
+	card     string
 	prompt   string
 	chi      string
 	registry string
@@ -56,6 +59,7 @@ func newProjectPaths(name string) newPaths {
 	return newPaths{
 		handler:  filepath.ToSlash(filepath.Join("features", name, "handlers", "chi.go")),
 		page:     filepath.ToSlash(filepath.Join("features", name, "components", "page.templ")),
+		card:     filepath.ToSlash(filepath.Join(capabilities.CardDir, name+".md")),
 		prompt:   filepath.ToSlash(filepath.Join(prompts.Dir, "panels", name+".prompt")),
 		chi:      "internal/server/chi.go",
 		registry: "internal/capabilities/registry.go",
@@ -123,7 +127,7 @@ func printNewEnvelope(w io.Writer, opt newOptions, plan newPlan, applyErr error)
 	env := newEnvelope{
 		Name:    opt.name,
 		Dir:     opt.dir,
-		Created: []string{plan.paths.handler, plan.paths.page},
+		Created: []string{plan.paths.handler, plan.paths.page, plan.paths.card},
 		Edits:   []string{plan.paths.chi, plan.paths.registry, plan.paths.policy},
 		BuildOk: applyErr == nil,
 		Next:    newNextSteps(opt.name),
@@ -307,6 +311,7 @@ func printNewPlan(w io.Writer, opt newOptions, plan newPlan) error {
 		"features/" + opt.name + "/handlers/recipe.go",
 		"features/" + opt.name + "/handlers/genui_panel.go",
 		".recipes/" + opt.name + ".yml",
+		capabilities.CardDir + "/" + opt.name + ".md",
 		prompts.Dir + "/panels/" + opt.name + ".prompt",
 	}
 	if opt.format == planFormatJSON {
@@ -320,7 +325,7 @@ func printNewPlan(w io.Writer, opt newOptions, plan newPlan) error {
 			"edits":   []string{plan.paths.chi, plan.paths.registry, plan.paths.policy},
 			"proof": []string{
 				"templ generate", "generated docs", "registry conformance",
-				"check-flatdeps", "check-prompts", "go build ./cmd/web", "recipe check",
+				"check-flatdeps", "check-domains", "check-prompts", "go build ./cmd/web", "recipe check",
 			},
 			"next": newNextSteps(opt.name),
 		})
@@ -331,7 +336,7 @@ func printNewPlan(w io.Writer, opt newOptions, plan newPlan) error {
 	fmt.Fprintf(w, "  edits   %s (one feature unit)\n", plan.paths.registry)
 	fmt.Fprintf(w, "  edits   %s (two user rows)\n", plan.paths.policy)
 	fmt.Fprintln(w, "  proof   templ generate, generated docs, registry conformance,")
-	fmt.Fprintln(w, "  proof   check-flatdeps, check-prompts, go build ./cmd/web, recipe check")
+	fmt.Fprintln(w, "  proof   check-flatdeps, check-domains, check-prompts, go build ./cmd/web, recipe check")
 	return nil
 }
 
@@ -376,6 +381,16 @@ func applyNew(ctx context.Context, opt newOptions, plan newPlan, stdout io.Write
 		if err := os.WriteFile(full, []byte(src), scaffoldFileMode); err != nil {
 			return &ExitError{code: 1, msg: "write " + rel + ": " + err.Error()}
 		}
+	}
+	// The card is written before the proof runs, and outside the receipt: it is
+	// the slice's written boundary, not pristine unit code, so an author who
+	// edits the boundary has not edited the unit.
+	cardFull := filepath.Join(root, filepath.FromSlash(plan.paths.card))
+	if err := os.MkdirAll(filepath.Dir(cardFull), dirMode); err != nil {
+		return &ExitError{code: 1, msg: "mkdir " + filepath.Dir(plan.paths.card) + ": " + err.Error()}
+	}
+	if err := os.WriteFile(cardFull, []byte(newCardSource(opt.name)), scaffoldFileMode); err != nil {
+		return &ExitError{code: 1, msg: "write " + plan.paths.card + ": " + err.Error()}
 	}
 	// The receipt pins the pristine hashes of the files just written, so
 	// recipe check can compare declaration vs code from the first boot.
@@ -434,6 +449,16 @@ func proveNewFeature(ctx context.Context, root, name string, stdout io.Writer) e
 		if out, err := runIn(ctx, root, "go", "run", gate.pkg); err != nil {
 			return &ExitError{code: 2, msg: fmt.Sprintf("%s failed:\n%s", gate.label,
 				tailLines(string(out), proofBuildTailLines))}
+		}
+	}
+	// The card gate is only available on a tree that carries it; an older
+	// checkout still scaffolds, with the proof step skipped instead of failing
+	// on a command it does not have.
+	if _, statErr := os.Stat(filepath.Join(root, "cmd", "check-domains")); statErr == nil {
+		fmt.Fprintln(stdout, "gogogo: prove: check-domains …")
+		if out, err := runIn(ctx, root, "go", "run", "./cmd/check-domains"); err != nil {
+			return &ExitError{code: 2, msg: "check-domains failed — the scaffolded card is not a boundary:\n" +
+				tailLines(string(out), proofBuildTailLines)}
 		}
 	}
 	// The prompt gate runs only on a tree that carries it: an older

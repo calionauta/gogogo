@@ -1,6 +1,6 @@
 // Installer engine: the feature built-in units (data only)
 //
-// Whiteboard, landing, config-view, credits and genui: each is a
+// Whiteboard, config-view, credits and genui: each is a
 // self-mounting bundled unit (Capability.Register, registry-driven).
 // Trimming one deletes its directory (via the capability Dirs), drops
 // its nav entry and 404-pins its routes in the mux test; the generated
@@ -110,29 +110,6 @@ var featureBuiltinUnits = []builtinUnit{
 						endMarker:   "\tpresence *collab.FederatedPresence",
 					},
 				},
-			},
-		},
-	},
-	{
-		id: unitLanding,
-		replaces: []fileReplace{
-			{
-				path:        shellTempl,
-				matchSubstr: `class="app-rail-brand-link"`,
-				old:         `href="/"`,
-				newStr:      `href="/todo"`,
-			},
-			{
-				path:        chiTestFile,
-				matchSubstr: "landingRec.Code != http.StatusOK",
-				old:         "http.StatusOK",
-				newStr:      muxGoneStatus,
-			},
-			{
-				path:        chiTestFile,
-				matchSubstr: "mux GET / status = %d, want 200",
-				old:         "want 200",
-				newStr:      muxWant404,
 			},
 		},
 	},

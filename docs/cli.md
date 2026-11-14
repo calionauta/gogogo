@@ -25,18 +25,19 @@ curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh
 | `gogogo --yes` | Yes | Scaffold: clone when missing, rename, prove the build |
 | `gogogo export <unit> --dir <pristine> --to <scratch>` | No | Port bundle for a tree that is NOT a gogogo checkout: copies the unit's owned files into `<scratch>` and writes `PORTING.md` (routes it registers, imports to rewrite, what you write by hand, the proof). Nothing in `--dir` changes, nothing outside `--to` |
 | `gogogo recipe list [--dir <proj>] [--format json]` | No | Discover recipes: built-in capabilities plus user-installed recipes, with origin, kind, summary, installed/removed state, dependencies, declared surface, invocable verbs, and the available lifecycle verbs |
-| `gogogo recipe describe <id> [--dir <proj>] [--format json]` | No | Describe one recipe by id: kind, origin, summary, registration surface, dependencies, declared surface, invocable verbs with a description, path/body params and per-param help, why mutating routes are omitted, the metrics and outcomes it already declares (job, beneficiary, window, counter signals), and available lifecycle verbs |
+| `gogogo recipe describe <id> [--dir <proj>] [--format json]` | No | Describe one recipe by id: kind, origin, summary, version, author and release date, registration surface, dependencies, declared surface, invocable verbs with a description, path/body params and per-param help, why mutating routes are omitted, the metrics it already declares (activity counts and outcomes with their job, beneficiary, window and counterbalance readings), and available lifecycle verbs |
 | `gogogo recipe invoke <id> <verb> [--dir <proj>] [--server <loopback-url>] [--session <token>] [--param k=v] [--format json]` | Yes (mutating verbs) | Invoke one declared verb (read or mutating) against a running server (loopback only): the verb runs through the server's own session and policy stack under the operator session token (`GOGOGO_SESSION`). Unknown id/verb fails before any dial; a declared `{id}` verb takes `--param id=<uuid>` and validates it before building the URL; the token comes from a real login or `auth.OpenSession` |
+| `gogogo shape check [--dir <proj>] [--quiet]` | No | Prove the app-shape record (`.gogogo/shape.yml`) agrees with the tree: a known shape, every kept entrypoint a `package main` that exists, every removed path gone. Text-only; CI builds the declared entrypoints. Same rules as `make check-shape` — see [App shape](shape.md) |
 | `gogogo doctor [--json] [--only id]` | No | Read-only preflight for agents/CI: go version, toolchain pin, ripwire/sem/cymbal/xerj/lefthook/sqlc/docker (zig warn opt-in), desktop/sdk (xcode/GTK warn-only), mobile.sdk (skip unless `ANDROID_HOME`), `secrets.age`, `host.capacity`, `registry.fresh`, `generate.drift` (skip → `generate --check`). Exit 0 ok / 4 fail. |
 | `gogogo generate [--check] [--json] [--only templ,sqlc,css,docs]` | Yes (`--check` is dry) | Deterministic codegen idempotente: templ + sqlc + css + docs regen. `--check` is the CI gate (exit 1 on `git diff`). No LLM in the path. |
-| `gogogo recipe install <dir> --dir <proj> [--yes] [--entry <catalog.yml>]` | Yes (`--yes`) | Install a packaged recipe into a gogogo checkout (copy, receipt, generated registration, schema/policy/codegen and proof). Without `--yes` prints the plan and changes nothing |
+| `gogogo recipe install <dir> --dir <proj> [--yes] [--entry <catalog.yml>]` | Yes (`--yes`) | Install a packaged recipe into a gogogo checkout (copy, receipt, generated registration, schema/policy/codegen and proof). `--entry` takes the reviewed catalog entry plus the directory holding the bytes at its pinned `source.ref`; `<dir>` alone is an authoring bundle. Without `--yes` prints the plan and changes nothing |
 | `gogogo recipe update <dir> --dir <proj> [--yes] [--entry <catalog.yml>]` | Yes (`--yes`) | Update one installed recipe from a directory or a catalog entry. Without `--yes` prints the plan and changes nothing |
 | `gogogo recipe status [--dir <proj>] [id] [--catalog <dir>]` | No | Read-only recipe drift report: pristine vs edited files, generated/schema/policy state, plus the version verdict against the catalog (one id or all installed) |
 | `gogogo recipe check [id] [--dir <proj>] [--format text\|json]` | No | Read-only recipe evaluator for humans and LLMs: healthy flag, score, errors, warnings, suggestions, complexity, declared metrics/panel cross-check, the derived test inventory (files and packages, read from the receipt — tests are never declared), and headless-surface warnings (mutating route with no action or declared omission, verb without a description, installed recipe without a summary). A recipe that mounts routes but ships **no test files is blocked**, not warned: nothing pins its behavior. A data-only recipe (tables/metrics, no routes) only warns. An omission with a reason is shown as information, not a warning. Exit 1 when a recipe is blocked (errors, not warnings) |
 | `gogogo recipe test [id] [--dir <proj>] [--race=false] [--run <re>] [--list]` | No (runs tests) | Run the tests ONE recipe owns, with the package scope derived from the receipt (`Files` + `Register`), through the module's own `go test -race`: `recipe test todo`. `--list` prints the derived packages instead of running them; `--race=false` is the fast TDD loop. A recipe with no `_test.go` fails the run, which is `recipe check`'s verdict arriving exactly when you asked for the tests. `make test-recipe R=<id>` wraps it |
 | `gogogo recipe outdated [--dir <proj>] [id] [--catalog <dir>]` | No | Is an installed recipe behind the latest reviewed catalog version (`catalog/<id>/<version>.yaml`, default `<dir>/catalog`)? Examines every receipt or one id. Exit `3` means an outdated recipe exists; receipts without a recorded version report `unknown` |
 | `gogogo recipe uninstall <id> --dir <proj> [--yes]` | Yes (`--yes`) | Remove one installed recipe by id. Removes only pristine files, keeps edited files, marks the receipt removed, and updates registration/policy/schema surfaces |
-| `gogogo new feature <name> --dir <proj>` | Yes (`--yes`) | Scaffold one feature: handler + page, composition-root wiring, capability unit, RBAC rows, then templ generate + generated docs + registry conformance + flatdeps + build (`--dry-run` previews) |
+| `gogogo new feature <name> --dir <proj>` | Yes (`--yes`) | Scaffold one feature: handler + page, composition-root wiring, capability unit, RBAC rows, the domain card (`docs/domain/<name>.md`), then templ generate + generated docs + registry conformance + flatdeps + check-domains + build (`--dry-run` previews) |
 | `gogogo --check-update --dir <proj>` | No | Compares the **binary** and the project's recorded base against the latest release. Exit `3` means an update exists; exit `0` covers "nothing to do" and "could not check" |
 | `gogogo migrate --dir <proj>` | No | Every release between the recorded base and the latest, plus the gates that prove a migrated tree. Flags: `--from`, `--to`, `--files`, `--changelog`, `--notes`, `--format`. `--files` adds the per-file impact, labelled by capability and by whether this tree kept the owning unit |
 | `gogogo --run` | Takes the terminal | After a successful proof, `make dev` replaces this process (Ctrl-C stops dev; humans only) |
@@ -54,7 +55,7 @@ the summary and invocable verbs.
 - `recipe describe <id>` prints the declaration plus each verb's description,
 its `{id}`/body params and `paramHelp`, which is what lets an LLM choose a verb
 without reading the handler. It also prints the mutating routes the author
-omitted and the reason, and the metrics/outcomes the recipe already declares —
+omitted and the reason, and the metrics the recipe already declares —
 the first place an agent should look before proposing a second definition of
 "how often this worked" (procedure: `skills/gogogo-recipe-authoring/references/
 outcomes.md`).
@@ -95,7 +96,7 @@ with the same flags (always tracks the latest commit; releases pin a version).
 - Every mutating command refuses a toolchain that cannot build the tree.
   `go.mod`'s `go` directive is enforced at patch level, so a pinned
   `GOTOOLCHAIN` (`local` or `goX.Y.Z`) older than it fails fast — before the
-  clone is trimmed or a feature is written. `GOTOOLCHAIN=auto` fetches the
+  clone is written or a feature is added. `GOTOOLCHAIN=auto` fetches the
   version the tree asks for instead, and the run says so.
 - Generated code follows [`skills/gogogo-coding-standards`](https://github.com/calionauta/gogogo/tree/master/skills/gogogo-coding-standards)
   (Go rules; `advise` output cites it).
@@ -115,7 +116,7 @@ with the same flags (always tracks the latest commit; releases pin a version).
   cannot use is worse than not answering. `go-standards` withholds the table
   because the spec forbids every dependency it would name; `foreign-tree`
   inverts it — nothing installs, so the same rows become a shopping list of
-  owned paths instead of trim switches.
+  owned paths instead of removal switches.
 
 ## Build targets (not subcommands)
 
@@ -130,6 +131,6 @@ with the same flags (always tracks the latest commit; releases pin a version).
 The MCP `build_prerequisites` tool returns the same desktop/mobile text, so an
 agent asked to build either target does not have to guess.
 
-Engine internals (alternatives analysis, trim tables, flag matrix):
+Engine internals (alternatives analysis, removal tables, flag matrix):
 [`cmd/gogogo`](https://github.com/calionauta/gogogo/tree/master/cmd/gogogo).
 MCP equivalent: [mcp](mcp.md). Guided tour: [getting-started](getting-started.md#0b-opinions-before-changes-advise).

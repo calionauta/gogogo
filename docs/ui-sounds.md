@@ -6,9 +6,9 @@ sound palette ([cuelume](https://github.com/Danilaa1/cuelume), MIT),
 `package.json` entry, no `go.mod` entry, no network fetch at build or runtime.
 Sounds are synthesized live with the Web Audio API — there are no audio files.
 
-## It's a plugin, not baked into the app
+## It's a servant, not baked into the app
 
-The plugin (`features/sounds/`) owns its whole surface:
+The servant (`features/sounds/`) owns its whole surface:
 
 - the script loader (`@sounds.SoundAssets()` in each page's `<head>`),
 - the mute control in the rail's brand row (each page passes it as a one-line

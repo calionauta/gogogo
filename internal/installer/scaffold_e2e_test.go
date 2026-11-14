@@ -109,7 +109,7 @@ func TestScaffoldRelativeDir(t *testing.T) {
 	t.Chdir(base)
 	dir := "gggtest"
 	writeScaffoldFixture(t, dir, fixtureMainOK)
-	writeFile(t, filepath.Join(dir, "features", "landing", "components", "index.templ"),
+	writeFile(t, filepath.Join(dir, "features", "notes", "components", "notes.templ"),
 		"package components\n")
 
 	out := captureStdout(t, func(w *os.File) {
@@ -124,8 +124,8 @@ func TestScaffoldRelativeDir(t *testing.T) {
 	if !strings.Contains(out, "build OK") {
 		t.Errorf("proof did not report build OK:\n%s", out)
 	}
-	if _, err := os.Stat(filepath.Join(dir, "features", "landing")); err != nil {
-		t.Errorf("the template keeps every unit now: landing missing after scaffold: %v", err)
+	if _, err := os.Stat(filepath.Join(dir, "features", "notes")); err != nil {
+		t.Errorf("the template keeps every unit now: notes missing after scaffold: %v", err)
 	}
 	// writeAgents goes through the same confined treeFS, so a relative root
 	// that only half-works would leave this file missing.
@@ -154,7 +154,7 @@ func TestScaffoldRefusesToolchainMismatch(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "go.mod"), "module github.com/calionauta/gogogo\n\ngo 1.27.3\n")
 	writeFile(t, filepath.Join(dir, "cmd", "web", "main.go"), fixtureMainOK)
-	writeFile(t, filepath.Join(dir, "features", "landing", "components", "index.templ"),
+	writeFile(t, filepath.Join(dir, "features", "notes", "components", "notes.templ"),
 		"package components\n")
 	stubToolchain(t, "go1.27.2", "go1.27.2")
 
@@ -169,7 +169,7 @@ func TestScaffoldRefusesToolchainMismatch(t *testing.T) {
 		t.Errorf("refusal does not name the requirement:\n%v", err)
 	}
 	// The decisive assertion: the refusal came BEFORE the rename half.
-	if _, statErr := os.Stat(filepath.Join(dir, "features", "landing")); statErr != nil {
+	if _, statErr := os.Stat(filepath.Join(dir, "features", "notes")); statErr != nil {
 		t.Error("a refused apply must leave the tree untouched")
 	}
 	gomod, readErr := os.ReadFile(filepath.Join(dir, "go.mod"))

@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // writeTree lays down a small installed recipe and returns its root.
@@ -31,21 +32,21 @@ func writeTree(t *testing.T, files map[string]string) string {
 
 // receiptFor builds a receipt whose hashes match the given pristine content.
 func receiptFor(files map[string]string, decl Declaration) Receipt {
-	r := Receipt{ID: "pomodoro", Files: map[string]string{}, Declaration: decl}
+	r := Receipt{ID: "timer", Files: map[string]string{}, Declaration: decl}
 	r.Upstream.Repo = "github.com/calionauta/gogogo"
 	r.Upstream.Ref = "v0.56.0"
-	r.Upstream.Path = "features/pomodoro"
+	r.Upstream.Path = "features/timer"
 	for p, body := range files {
 		r.Files[p] = Hash([]byte(body))
 	}
 	return r
 }
 
-const pageSrc = `package pomodoro
+const pageSrc = `package timer
 
 func Routes() {
-	handle("GET", "/pomodoro", page)
-	registerJob("ext:pomodoro:tick")
+	handle("GET", "/timer", page)
+	registerJob("ext:timer:tick")
 }
 `
 
@@ -55,22 +56,22 @@ func Routes() {
 // useless.
 func TestDriftFourFileStates(t *testing.T) {
 	files := map[string]string{
-		"features/pomodoro/page.go":   pageSrc,
-		"features/pomodoro/domain.go": "package pomodoro\n\nfunc Timer() {}\n",
-		"features/pomodoro/dead.go":   "package pomodoro\n\nfunc Dead() {}\n",
+		"features/timer/page.go":   pageSrc,
+		"features/timer/domain.go": "package timer\n\nfunc Timer() {}\n",
+		"features/timer/dead.go":   "package timer\n\nfunc Dead() {}\n",
 	}
 	root := writeTree(t, files)
 	r := receiptFor(files, Declaration{
-		Routes: []Route{{Method: "GET", Pattern: "/pomodoro"}},
-		Jobs:   []string{"ext:pomodoro:tick"},
+		Routes: []Route{{Method: "GET", Pattern: "/timer"}},
+		Jobs:   []string{"ext:timer:tick"},
 	})
 
 	// The user edits one file and deletes another.
-	edited := "package pomodoro\n\nfunc Timer() { /* mine now */ }\n"
-	if err := os.WriteFile(filepath.Join(root, "features/pomodoro/domain.go"), []byte(edited), filePerm); err != nil {
+	edited := "package timer\n\nfunc Timer() { /* mine now */ }\n"
+	if err := os.WriteFile(filepath.Join(root, "features/timer/domain.go"), []byte(edited), filePerm); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Remove(filepath.Join(root, "features/pomodoro/dead.go")); err != nil {
+	if err := os.Remove(filepath.Join(root, "features/timer/dead.go")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -83,9 +84,9 @@ func TestDriftFourFileStates(t *testing.T) {
 		got[f.Path] = f.State
 	}
 	want := map[string]FileState{
-		"features/pomodoro/page.go":   StatePristine,
-		"features/pomodoro/domain.go": StateModified,
-		"features/pomodoro/dead.go":   StateDeleted,
+		"features/timer/page.go":   StatePristine,
+		"features/timer/domain.go": StateModified,
+		"features/timer/dead.go":   StateDeleted,
 	}
 	for p, w := range want {
 		if got[p] != w {
@@ -101,7 +102,7 @@ func TestDriftFourFileStates(t *testing.T) {
 // model inexpensive in the common case: a user who changed nothing gets a
 // straight fast-forward, no merge, no prompts.
 func TestDriftUntouchedTreeIsFastForwardable(t *testing.T) {
-	files := map[string]string{"features/pomodoro/page.go": pageSrc}
+	files := map[string]string{"features/timer/page.go": pageSrc}
 	root := writeTree(t, files)
 	d, err := Check(root, receiptFor(files, Declaration{}))
 	if err != nil {
@@ -116,10 +117,10 @@ func TestDriftUntouchedTreeIsFastForwardable(t *testing.T) {
 // string cannot do: the declaration claims a route the code never registers.
 // This is the drift that ships a broken nav entry.
 func TestDriftCatchesDeclaredRouteWithNoCode(t *testing.T) {
-	files := map[string]string{"features/pomodoro/page.go": pageSrc}
+	files := map[string]string{"features/timer/page.go": pageSrc}
 	root := writeTree(t, files)
 	d, err := Check(root, receiptFor(files, Declaration{
-		Routes: []Route{{Method: "GET", Pattern: "/pomodoro/settings"}},
+		Routes: []Route{{Method: "GET", Pattern: "/timer/settings"}},
 	}))
 	if err != nil {
 		t.Fatal(err)
@@ -127,7 +128,7 @@ func TestDriftCatchesDeclaredRouteWithNoCode(t *testing.T) {
 	if len(d.Problems) == 0 {
 		t.Fatal("a declared route absent from the code must be reported")
 	}
-	if !strings.Contains(d.Problems[0], "/pomodoro/settings") {
+	if !strings.Contains(d.Problems[0], "/timer/settings") {
 		t.Errorf("problem must name the route: %v", d.Problems)
 	}
 }
@@ -136,10 +137,10 @@ func TestDriftCatchesDeclaredRouteWithNoCode(t *testing.T) {
 // background job, which is the case where a silent drift burns CPU forever
 // instead of breaking a page.
 func TestDriftCatchesDeclaredJobWithNoRegistration(t *testing.T) {
-	files := map[string]string{"features/pomodoro/page.go": pageSrc}
+	files := map[string]string{"features/timer/page.go": pageSrc}
 	root := writeTree(t, files)
 	d, err := Check(root, receiptFor(files, Declaration{
-		Jobs: []string{"ext:pomodoro:remind"},
+		Jobs: []string{"ext:timer:remind"},
 	}))
 	if err != nil {
 		t.Fatal(err)
@@ -157,8 +158,8 @@ func TestDriftRefusesRecipeOwningACoreTable(t *testing.T) {
 	// would be satisfied. The boundary must still fire — that is the difference
 	// between a rule and a coincidence.
 	files := map[string]string{
-		"features/pomodoro/page.go":    pageSrc,
-		"features/pomodoro/schema.sql": "SELECT * FROM todos;\nINSERT INTO users VALUES (1);\n",
+		"features/timer/page.go":    pageSrc,
+		"features/timer/schema.sql": "SELECT * FROM todos;\nINSERT INTO users VALUES (1);\n",
 	}
 	root := writeTree(t, files)
 	for _, core := range []string{"todos", "users", "sessions"} {
@@ -180,14 +181,14 @@ func TestDriftRefusesRecipeOwningACoreTable(t *testing.T) {
 // every check above could be passing by rejecting everything.
 func TestDriftAcceptsAMatchingDeclaration(t *testing.T) {
 	files := map[string]string{
-		"features/pomodoro/page.go":    pageSrc,
-		"features/pomodoro/schema.sql": "CREATE TABLE ext_pomodoro_session (id TEXT);\n",
+		"features/timer/page.go":    pageSrc,
+		"features/timer/schema.sql": "CREATE TABLE ext_timer_session (id TEXT);\n",
 	}
 	root := writeTree(t, files)
 	d, err := Check(root, receiptFor(files, Declaration{
-		Routes: []Route{{Method: "GET", Pattern: "/pomodoro"}},
-		Jobs:   []string{"ext:pomodoro:tick"},
-		Tables: []string{"ext_pomodoro_session"},
+		Routes: []Route{{Method: "GET", Pattern: "/timer"}},
+		Jobs:   []string{"ext:timer:tick"},
+		Tables: []string{"ext_timer_session"},
 	}))
 	if err != nil {
 		t.Fatal(err)
@@ -203,7 +204,7 @@ func TestDriftAcceptsAMatchingDeclaration(t *testing.T) {
 // no recipe uses.
 func TestDriftAcceptsADeclaredSlotTheCodeContributes(t *testing.T) {
 	files := map[string]string{
-		"features/pomodoro/register.go": "package pomodoro\n\nvar slot = recipe.SlotSettingsSection\n",
+		"features/timer/register.go": "package timer\n\nvar slot = recipe.SlotSettingsSection\n",
 	}
 	root := writeTree(t, files)
 	d, err := Check(root, receiptFor(files, Declaration{Slots: []string{"settings.section"}}))
@@ -219,7 +220,7 @@ func TestDriftAcceptsADeclaredSlotTheCodeContributes(t *testing.T) {
 // can answer: the tree can be byte-pristine and the declaration still claim
 // content that no code contributes.
 func TestDriftReportsADeclaredSlotNothingContributes(t *testing.T) {
-	files := map[string]string{"features/pomodoro/register.go": "package pomodoro\n"}
+	files := map[string]string{"features/timer/register.go": "package timer\n"}
 	root := writeTree(t, files)
 	d, err := Check(root, receiptFor(files, Declaration{Slots: []string{"settings.section"}}))
 	if err != nil {
@@ -237,7 +238,7 @@ func TestDriftReportsADeclaredSlotNothingContributes(t *testing.T) {
 // an unknown slot name below.
 func TestDriftAcceptsAHostedDashboardCard(t *testing.T) {
 	files := map[string]string{
-		"features/pomodoro/register.go": "package pomodoro\n\nvar slot = recipe.SlotDashboardCard\n",
+		"features/timer/register.go": "package timer\n\nvar slot = recipe.SlotDashboardCard\n",
 	}
 	root := writeTree(t, files)
 	d, err := Check(root, receiptFor(files, Declaration{Slots: []string{"dashboard.card"}}))
@@ -262,5 +263,43 @@ func TestReceiptHashIsContentAddressed(t *testing.T) {
 	}
 	if len(a) != 64 {
 		t.Fatalf("expected a hex sha256, got %d chars", len(a))
+	}
+}
+
+// TestReceiptStateRefusesDoubleRemove is the FSM's one refusal: a second
+// uninstall would overwrite the timestamp that says when the files left, so
+// the transition is rejected rather than made idempotent by accident.
+func TestReceiptStateRefusesDoubleRemove(t *testing.T) {
+	r := Receipt{ID: "todo"}
+	if r.State() != StateInstalled {
+		t.Fatalf("fresh receipt state = %s, want installed", r.State())
+	}
+	at := time.Date(2026, 11, 13, 10, 0, 0, 0, time.UTC)
+	if err := r.MarkRemoved(at); err != nil {
+		t.Fatalf("MarkRemoved: %v", err)
+	}
+	if r.State() != StateRemoved {
+		t.Fatalf("state after remove = %s, want removed", r.State())
+	}
+	if r.Removed != at.Format(time.RFC3339) {
+		t.Fatalf("Removed = %q, want %s", r.Removed, at.Format(time.RFC3339))
+	}
+	err := r.MarkRemoved(at.Add(time.Hour))
+	if err == nil {
+		t.Fatal("second MarkRemoved succeeded; the timestamp is now a lie")
+	}
+	if !strings.Contains(err.Error(), "already removed") {
+		t.Errorf("error = %q, want it to say already removed", err)
+	}
+	if r.Removed != at.Format(time.RFC3339) {
+		t.Errorf("refused transition rewrote the timestamp: %q", r.Removed)
+	}
+
+	r.MarkInstalled()
+	if r.State() != StateInstalled {
+		t.Fatalf("state after reinstall = %s, want installed", r.State())
+	}
+	if err := r.MarkRemoved(at.Add(2 * time.Hour)); err != nil {
+		t.Fatalf("remove after reinstall: %v", err)
 	}
 }

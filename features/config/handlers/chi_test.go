@@ -355,7 +355,7 @@ func TestConfigPageRendersRecipeSettingsSlot(t *testing.T) {
 	slots := recipe.NewSlotRegistry()
 	if aerr := slots.Add(recipe.Contribution{Fragments: map[recipe.SlotID]recipe.Fragment{
 		recipe.SlotSettingsSection: {
-			Title:  "Pomodoro settings",
+			Title:  "Timer settings",
 			Render: func() string { return `<p data-slot-proof="yes">25:00 default</p>` },
 		},
 	}}); aerr != nil {
@@ -386,7 +386,7 @@ func TestConfigPageRendersRecipeSettingsSlot(t *testing.T) {
 		t.Fatalf("admin /config status = %d, want 200", rec.Code)
 	}
 	body := rec.Body.String()
-	for _, want := range []string{"data-slot-proof=\"yes\"", "Pomodoro settings", "25:00 default"} {
+	for _, want := range []string{"data-slot-proof=\"yes\"", "Timer settings", "25:00 default"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("page does not render the slot fragment (%q missing)", want)
 		}

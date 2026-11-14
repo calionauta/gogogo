@@ -6,6 +6,7 @@ import (
 
 	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/internal/components"
+	"github.com/calionauta/gogogo/internal/i18n"
 	"github.com/calionauta/gogogo/internal/ui"
 )
 
@@ -70,6 +71,14 @@ func reviewStack() []components.TechItem {
 // reviewBody is the work area: the composer and the result region.
 templ reviewBody(signals Signals) {
 	<div class="ui-page ui-page-narrow ui-stack">
+		// The page introduces itself BEFORE any state banner: a visitor who
+		// lands on a server with no model must still learn what this page does.
+		// Chat's hero is the same shape, and the report was that Review dropped
+		// the reader straight into the setup warning.
+		<div class="ui-empty">
+			<p class="ui-empty-title">{ i18n.T(ctx, "review.heroTitle", nil) }</p>
+			<p class="ui-empty-body">{ i18n.T(ctx, "review.heroBody", nil) }</p>
+		</div>
 
 				if signals.ReviewEnabled {
 					<form
@@ -79,14 +88,14 @@ templ reviewBody(signals Signals) {
 						data-cuelume="send"
 					>
 						<div class="mb-3">
-							<label for="review-tab" class="label mb-1">What to review</label>
+							<label for="review-tab" class="label mb-1">{ i18n.T(ctx, "review.whatToReview", nil) }</label>
 							<select id="review-tab" name="tab" class="select select-sm max-w-xs">
 								<option value="text">Text — email, post, announcement</option>
 								<option value="code">Code — diff or snippet</option>
 							</select>
 						</div>
 						<label for="review-content" class="flex flex-col gap-1 w-full">
-							<span class="label mb-1">Content to review</span>
+							<span class="label mb-1">{ i18n.T(ctx, "review.contentToReview", nil) }</span>
 							<textarea
 								id="review-content"
 								name="content"
@@ -100,17 +109,15 @@ templ reviewBody(signals Signals) {
 						</label>
 						<div class="mt-3 flex items-center gap-3">
 							<button type="submit" class="btn btn-primary" data-attr:disabled="!!$review_pending">
-								<span data-show="!$review_pending">Run review</span>
+								<span data-show="!$review_pending">{ i18n.T(ctx, "review.runReview", nil) }</span>
 								<span style="display:none" data-show="$review_pending" class="loading loading-spinner loading-sm" aria-hidden="true"></span>
-								<span style="display:none" data-show="$review_pending">Reviewing…</span>
+								<span style="display:none" data-show="$review_pending">{ i18n.T(ctx, "review.reviewing", nil) }</span>
 							</button>
 							<span style="display:none" data-show="$review_pending" class="text-sm text-base-content/60">Phase: <span data-text="$review_phase"></span></span>
 						</div>
 					</form>
 				} else {
-					<div class="alert alert-warning" role="status">
-						<span>Review needs a configured LLM. Set GOAI_API_KEY on the server, then reload.</span>
-					</div>
+					@components.LLMRequired("Review")
 				}
 				<div class="mt-2 text-sm text-error" style="display:none" data-show="$review_error !== ''" data-text="$review_error" role="alert"></div>
 				<div class="mt-6" id="review-result"></div>

@@ -2,8 +2,7 @@
 
 Every capability is always compiled. The headline is the **feature**; the
 second column names the **technology** that powers it. The removal class of
-whatever sits behind a row (`Kind` core / plugin / feature — site names
-Core / Servant / Recipe) lives in
+whatever sits behind a row (`Kind` core / servant / feature) lives in
 [Scope taxonomy](scope-taxonomy.md) — the registry is the source of truth, and
 a bracketed `(servant)` marks a technology that serves a recipe rather than
 being one.
@@ -16,14 +15,14 @@ being one.
 | **Todo app + realtime** | SSE Hub record-sync + ephemeral signals | — |
 | **Background jobs + retry** | `goqite` + `retry-go` | — |
 | **AI Suggest** | GoAI | `GOAI_API_KEY` unset |
-| **Chat (conversation)** | Invented visuals (sanitized) + catalog + diagrams + persisted history + the app's own panels | `GOAI_API_KEY` unset (`SIMULATE_LLM` demo answers keyless); delete genui for a smaller tree (its registry Reason walks the delete) |
+| **Chat (conversation)** | Invented visuals (sanitized) + catalog + diagrams + persisted history + the app's own panels | `GOAI_API_KEY` unset (the page shows the setup notice and hides the composer — it never answers with canned text); delete genui for a smaller tree (its registry Reason walks the delete) |
 | **Review loop** | Genkit flows (servant) + GoAI + jev classifier judge | `GOAI_API_KEY` unset (real-LLM only; page shows a setup hint); delete review by hand (its registry Reason walks the delete) |
 | **AI credits + BYOK** | [ai-credits](https://github.com/calionauta/ai-credits) | `CREDITS_ENABLED=false` |
 | **Search (one seam, three layers)** | Own layers — no external engine | delete search by hand (its registry Reason) |
 | **Localization (servant)** | `internal/i18n` seam + `golang.org/x/text` | `I18N_ENABLED=false` (already the default — markup stays on English fallbacks) |
 | **Collaborative whiteboard** | Loro CRDT + Rough.js + NATS | delete by hand (bundle with notes + collab transport; see its registry Reason), or `COLLAB_SNAPSHOTS=memory` for snapshot-free local mode |
 | **Shared notes** | Loro Text (server-owned) + SSE Hub | delete by hand (bundle with whiteboard + collab transport) |
-| **Kiosk orders (voice)** | Own closed-menu parser + on-device Web Speech + jev fallback | delete by hand (bundle with genui: its chat panel renders through genui) |
+| **Kiosk orders (voice)** | Closed-menu parser (fast path) + jev-like classifier (decides what the menu cannot) + on-device Web Speech | `KIOSK_CLASSIFIER_ENABLED` unset (parser only); delete by hand (bundle with genui: its chat panel renders through genui) |
 | **Durable workflows** | DagNats over JetStream | `DAGNATS_ENABLED=false` |
 | **Inbox + reminders** | DagNats `sleep` → owner-scoped delivery row | `DAGNATS_ENABLED=false` hides the form; the inbox stays |
 | **Entity actors** | GoAkt grains (room lease + whiteboard presence) | `GOAKT_ENABLED=false` (whiteboard falls back to `PeerSet`) |
@@ -45,7 +44,7 @@ being one.
 - **AI Suggest** — LLM call from the todo UI; button hidden when no key. Stepper signals `aiStep` / `aiPhase`. Proves the queue+retry path against a real provider, including Biller metering when wired.
 - **Chat (conversation)** — The AI demo. Conversation where the answer is invented for the request: the model composes Tailwind/DaisyUI markup (`html_block`, advertised first in the prompt), sanitized server-side through a closed allowlist, and limited to a safelisted class vocabulary (anything outside it renders unstyled, so the prompt names the exact list), with the catalog kept for what markup cannot do — including `diagram` (Mermaid via vendored [Pele](https://pele.run); a ```mermaid fence anywhere in the answer renders as a diagram even when the JSON envelope failed); and `todo_list {filter}` for questions about the user's OWN todos, whose rows the worker hydrates from the store (the model picks the slice, never the content, and gets a bounded digest of the REAL rows in its prompt so a question about them is answered instead of invented; the slice defaults to `open` when the model omits it, because a todo question is about what is left and an omitted filter used to answer "my open todos" with completed rows mixed in; hydrated rows survive the queue/SSE JSON hop, so the live bubble shows them without a reload; a panel that cannot be hydrated is replaced by an honest "couldn't load this" placeholder with a link, never dropped and never shown empty); panels are interactive — the panel renders the SAME `TodoItem` rows and the SAME `deleteConfirmModal` as `/todo`, with only the two write expressions scoped to the panel (slot id `_target` + slice), so the shared badge, author, age, delete gate and confirmation copy cannot drift between surfaces; its Open/All/Done tabs ask the list route with the slot id, so a wrong model pick is one click from the right rows; actions are answered in place by re-rendering that panel, so acting never leaves a stale list, and adding stays on the Todos page. A reload re-fills panels from the store, so a mutation from another tab shows up then. Prompts persist per owner and history is server-rendered on load, answers render inline as text plus components patched into the live column; a payload that fails validation degrades to the prose around it, never to raw JSON in the bubble; dedicated SSE hub (`/chat`). Proves persisted per-owner history with invented-but-safe visuals.
 - **Review loop** — Writer → critic (bounded) → classifier judge, streamed verdict, discarded. Zero server-side artifacts (billing ledger only). Any jev-compatible judge via `JEV_*` env — see [Review loop](review.md). Proves a typed multi-role loop with a classifier judge, per-role cost attribution, and a confidence cascade to human approval.
-- **AI credits + BYOK** — Optional plugin: meter Todo AI Suggest with reserve/settle, expose balances/top-ups, and proxy a user's encrypted provider key through an OpenAI-compatible BYOK relay.
+- **AI credits + BYOK** — Optional servant: meter Todo AI Suggest with reserve/settle, expose balances/top-ups, and proxy a user's encrypted provider key through an OpenAI-compatible BYOK relay.
 - **Search (one seam, three layers)** — One `Searcher` seam, three layers **selectable at runtime** from the search box (`Match`: exact / typo-tolerant / relevance) with `SEARCH_MODE` choosing the default a tab starts on: `substring` (default; SQL `LIKE` over the rows, no index, no extra write), `fuzzy` (in-memory tiers, typo tolerant: 1.00 verbatim → 0.95 all-tokens → 0.90 prefix → 0.80 one-edit → 0.75 subsequence), and `bm25` (an inverted index in the same DB, scored in Go: a rare term outranks a common one and a short doc outranks a long one repeating the term; always available, and a boot-time heal re-indexes rows that predate the index so enabling it never answers "no results" for data you can see). Search only ever NARROWS the caller's visible set — a hit whose row is not visible is dropped, never resurrected. In `bm25` the postings ride the row's own transaction, so no row exists without its index entry. No external engine because this driver ships no FTS5 (verified across tursogo v0.8.2/v0.8.3/v0.9.0-pre.1) and a second index store would put a row's truth in two places. Each layer's cost, contract and degrade path: [Search](search.md).
 - **Localization (servant)** — One `Translator` seam over embedded JSON catalogs. Request locale resolves query `lang` → cookie → `Accept-Language` → default; lookup and plural sit behind the seam so no feature imports a translation library. Localized numbers/dates come from the text printer. Off by default (`I18N_ENABLED=false` — markup stays English); the Todo slice is the reference conversion. CLDR depth is a documented revisit trigger, not an upfront dependency. See [Internationalization](research/i18n-2026-11.md) and [Configuration](configuration.md).
 - **Collaborative whiteboard** — Canvas, SSE + NATS broadcast, **live in-progress drawing** (the shape under the pointer is relayed on the volatile presence channel so peers watch it grow, then committed by the `add` op on release), offline-capable outbox replay, Turso-persisted snapshots, server-stamped cursor identity (roster and cursors kept in separate maps; idle cursors expire on an 8 s TTL). Boards are **shared**: the index lists every board with its author, every signed-in user opens and draws on any of them, and deleting is author-or-admin (`canDeleteDoc`). Presence is actor-backed when GoAkt runs (one grain per doc; `PeerSet` fallback when `GOAKT_ENABLED=false`).
@@ -95,8 +94,8 @@ The [Todo feature](todo-example.md) is the full reference implementation.
 | Dashboard | `/dashboard` | Auth-gated. One card per destination that reports data; the counts match what each page shows; a recipe that declares an outcome also shows its success/total ratio, with the counter signal beside it |
 | Todo demo | `/todo` | Auth-gated. Seeded demo account |
 | Account security | `/account` | Auth-gated. Email verification, password change, TOTP enrollment/recovery, session list/revoke |
-| Chat demo | `/chat` | Auth-gated. The one AI demo: conversation + catalog + diagrams + persisted history; keyless demo answers, live model with `GOAI_API_KEY` |
-| Review loop | `/review` | Auth-gated. Writer → critic → classifier judge, streamed verdict, discarded. Runs on the `genkit` plugin |
+| Chat demo | `/chat` | Auth-gated. Conversation + catalog + diagrams + persisted history; needs `GOAI_API_KEY` — without it the page explains the knob and keeps your history |
+| Review loop | `/review` | Auth-gated. Writer → critic → classifier judge, streamed verdict, discarded. Runs on the `genkit` servant |
 | Whiteboard | `/whiteboard` | Auth-gated |
 | Kiosk | `/kiosk` | Auth-gated. Voice order over a closed menu; the chat panel is `kiosk_orders` |
 | Room demo | `/room` | Auth-gated. Heartbeat roster + presenter lock owned by a GoAkt grain |
@@ -219,7 +218,7 @@ measures every file a row names and refuses a number that disagrees, and
 `make docs-index` rewrites it. A row that lists several files sums them
 before rounding up, so the number is what the page fetches, not what one
 file weighs. Gzip is Go's `compress/gzip` (not byte-identical to GNU `gzip`,
-which is why one implementation owns the number). The landing quotes this
+which is why one implementation owns the number). The site landing quotes this
 table through `data-weight` spans and never re-types it. CSS is one shared
 bundle and is not attributed per feature.
 
@@ -251,7 +250,7 @@ whiteboard list, notes index — every one of those pages loads
 op batching stay vanilla JS (no declarative equivalent, and the offline
 outbox needs exact control). Shared chrome counts as UI state: the
 shell's user menu carries `data-on` handlers, so every shell page loads
-the Datastar runtime too (board, notes doc, room, config, landing, login)
+the Datastar runtime too (board, notes doc, room, config, login)
 — a `data-on`/`data-bind` attribute on a page without the
 runtime is dead markup, and here it would silently skip the logout
 service-worker cleanup.
@@ -283,7 +282,7 @@ Method: `for f in <files>; do wc -c < $f; gzip -nc $f | wc -c; done`.
 `datastar.js` is 34 KB raw / ~13 KB gzip — that is the "~12 KiB client"
 in the README (wire size). Icons are inline SVG vendored into the page HTML
 (`internal/icon`, zero separate requests); sounds (`cuelume.js`, 10 KB) only
-with the sounds plugin.
+with the sounds servant.
 
 ## Related
 

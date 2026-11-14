@@ -3,19 +3,46 @@
 // cmd/gogogo, docs, and --help).
 package capabilities
 
-// Kind follows the servant principle, not the directory: a plugin serves
-// other capabilities (nothing user-facing disappears, but something stops
-// working — jobs, metering, sounds); a feature is a terminal user
-// surface (a page or journey disappears — todo, whiteboard, landing,
-// config). Directories do not decide kinds (features/credits is a plugin:
-// it serves todo metering, not users directly).
+// Kind is the removal class: it answers "what disappears if I delete this".
+// The three words are the only names for the three answers, in code, docs, JSON
+// and UI alike — one concept per level, so a reader never has to translate.
+//
+//   - core    — the web binary or its gates stop working.
+//   - servant — the binary works but a capability stops (a wired library that
+//     serves other capabilities: jobs, metering, sounds).
+//   - feature — a terminal user surface disappears (a page or journey).
+//
+// The directory does not decide the kind (`features/credits` is a servant: it
+// serves todo metering, not users directly). "Recipe" is deliberately NOT a
+// kind: it names how code is distributed and owned (receipt + copy), which is
+// orthogonal to what disappears.
 type Kind string
 
 const (
 	KindCore    Kind = "core"
-	KindPlugin  Kind = "plugin"
+	KindServant Kind = "servant"
 	KindFeature Kind = "feature"
 )
+
+// Kinds is the class order every reader renders in (core → servant → feature):
+// inner to outer, always-in to removable. One list, so a UI, a plan and a doc
+// cannot disagree about the order.
+var Kinds = []Kind{KindCore, KindServant, KindFeature}
+
+// KindGroupLabel is the plural display label for a class in an inventory
+// (the Units tab, the graph legend). It derives from the Kind value instead of
+// spelling a second name for the same level.
+func KindGroupLabel(k Kind) string {
+	switch k {
+	case KindCore:
+		return "Core"
+	case KindServant:
+		return "Servants"
+	case KindFeature:
+		return "Features"
+	}
+	return string(k)
+}
 
 // Capability is one removable-or-toggleable unit of the template.
 // Dirs and Files are repo-relative paths owned by the capability; the
@@ -28,13 +55,6 @@ type Capability struct {
 	RuntimeOff string   `json:"runtimeOff,omitempty"`
 	Reason     string   `json:"reason,omitempty"`
 	DependsOn  []string `json:"dependsOn,omitempty"`
-	// Recommended marks this recipe as advised at scaffold time. The
-	// installer recommends it in the plan and in `advise`; installation
-	// still requires explicit acceptance (--install-recommended or --install).
-	// The catalog maintainer flips this over time; bundled recipes are
-	// always shipped in the default set (they are the template), so
-	// Recommended is an advisory, not a packaging switch.
-	Recommended bool `json:"recommended,omitempty"`
 	// Actions lists the invocable verb names the unit's Provider declares
 	// (recipe.Declaration.Actions). Why it is data here: discovery is a
 	// checkout-level read (installer + MCP) that must not link feature

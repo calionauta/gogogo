@@ -42,7 +42,7 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `I18N_ENABLED` | `false` | Master switch for the localization plugin. `false` keeps English markup; `true` enables locale resolution (query `lang`, locale cookie, then `Accept-Language`) and translated strings where a phase has converted them. |
+| `I18N_ENABLED` | `true` | Master switch for the localization servant. `true` resolves the request locale (query `lang`, the `gogogo_locale` cookie, then `Accept-Language`) and renders the translated strings in the account panel's language picker; `false` keeps English markup and hides the picker. |
 | `SUPPORTED_LOCALES` | `en,pt-BR` | Comma-separated locale tags the catalog loader must find. Invalid entries are skipped; the fallback must be in this list or it resets to `en`. |
 | `DEFAULT_LOCALE` | `en` | Fallback locale when no preference matches. Must be one of `SUPPORTED_LOCALES`. |
 
@@ -93,10 +93,13 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 | `JEV_CONFIDENCE_THRESHOLD` | `0.7` | Below this the verdict escalates to a human; recalibrate per backend (see [Review loop](review.md)) |
 | `JEV_ROUTER_ENABLED` | `false` | Let the same jev-compatible endpoint choose which component a Chat answer leads with. Off = byte-identical prompt to the router-less one |
 | `JEV_ROUTER_CONFIDENCE_THRESHOLD` | `0.7` | Below this the pick is ignored and the whole catalog is offered |
+| `KIOSK_CLASSIFIER_ENABLED` | `true` | Let the same jev-compatible chain decide an order the closed menu could not settle. The parser stays the fast path; the classifier chooses only among the menu's own IDs, so it can invent no item, size or price. `false` = parser only (an offline counter) |
+| `KIOSK_CLASSIFIER_CONFIDENCE_THRESHOLD` | `0.7` | Below this the classifier's choice is ignored and the parser's "missing" stands (the counter re-asks) |
 | `GENUI_CHAT_SURFACES` | `catalog,custom,native` | Chat's answer surfaces: CSV of `catalog,custom,native` (every band toggles independently). `custom` is `html_block` (model-invented, sanitized markup). `native` is the app's own panels (real rows from the store). `none` is prose-only: the model answers in plain prose and the page still works. `catalog` alone is the strict showcase (unknown types fail closed). The tab toggles the same names per request from the composer. |
 
-The router (`JEV_ROUTER_*`) is opt-in and reuses the primary→fallback
-chain above — one chain serves the judge and the router, for BOTH AI legs.
+The router (`JEV_ROUTER_*`) and the kiosk's decision engine
+(`KIOSK_CLASSIFIER_*`) are opt-in and reuse the primary→fallback chain
+above — one chain serves the judge, the router and the order classifier.
 Turning it on adds a leading hint to the prompt; it never removes a
 component from what the model may emit, and every failure (endpoint down,
 low confidence, a label
@@ -109,7 +112,7 @@ All dormant unless `CREDITS_ENABLED=true`.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `CREDITS_ENABLED` | `false` | Master switch for the ai-credits plugin |
+| `CREDITS_ENABLED` | `false` | Master switch for the ai-credits servant |
 | `CREDITS_MONTHLY_CREDITS` | `0` | Monthly entitlement per user |
 | `CREDITS_DEFAULT_MODE` | `explicit` | Billing mode applied when a request does not name one |
 | `CREDITS_ENC_KEY` | unset | 64 hex chars (`openssl rand -hex 32`). Encrypts user BYOK keys at rest. Anything else fails closed at BYOK configuration. |
@@ -148,7 +151,7 @@ server-side and records upstream JSON/SSE token usage with
 | `AUTH_OPEN_ALLOW_REMOTE` | `false` | Explicit opt-in to serve `AUTH_MODE=open` beyond loopback. Without it, open mode only binds `127.0.0.1`/`::1`: a no-login app reachable from the network is an unauthenticated instance for anyone who can reach the port. |
 | `AUTH_ENC_KEY` | auto-created `totp_seal.key` | 64 hex chars (`openssl rand -hex 32`). Seals TOTP secrets at rest (XChaCha20-Poly1305). Unset auto-creates a 0600 key file in the data dir (no operator action; backups must handle it like any secret). Set-but-malformed fails the boot. |
 | `ADMIN_UNLOCK_TOKEN` | unset | Master-password token for the "Clear all" form. When present (in the age-encrypted secrets file), the todo UI shows the form; the handler compares constant-time. |
-| `RBAC_ENABLED` | `true` in production, `false` in development | Enforce the embedded Casbin policy on every request (deny = login bounce for an anonymous page, 401 for an anonymous data request, 403 once signed in, each with a warn log). `false` is pass-through with identical wiring; production defaults to enforcing, so a deploy that wants the open single-tenant mode must opt out explicitly. When on: anonymous reaches only the public surface (landing, login, auth endpoints, static, health); users reach everything except the operator surfaces (`/config`, `/console`, `/dagnats`, `/debug/statsviz`, `/debug/pprof`); admins reach all, but the console and the diagnostics still need an `ADMIN_EMAILS` match. |
+| `RBAC_ENABLED` | `true` in production, `false` in development | Enforce the embedded Casbin policy on every request (deny = login bounce for an anonymous page, 401 for an anonymous data request, 403 once signed in, each with a warn log). `false` is pass-through with identical wiring; production defaults to enforcing, so a deploy that wants the open single-tenant mode must opt out explicitly. When on: anonymous reaches only the public surface (login, auth endpoints, static, health, `/` which redirects); users reach everything except the operator surfaces (`/config`, `/console`, `/dagnats`, `/debug/statsviz`, `/debug/pprof`); admins reach all, but the console and the diagnostics still need an `ADMIN_EMAILS` match. |
 | `RBAC_PERMISSIVE` | `false` | Audit-before-enforce rollout: would-be denies are warn-logged (`permissive=1`) and the request proceeds. Set for one deploy after adding a feature's paths, then turn off. Only meaningful with `RBAC_ENABLED=true`. See [RBAC](rbac.md). |
 | `RBAC_POLICY_SOURCE` | `embedded` | Where the Casbin rules come from: `embedded` reads the compiled-in `policy.csv`; `db` loads the `casbin_rule` table (seeded from the embedded policy on first boot, then editable at runtime). Any other value falls back to `embedded`. |
 | `ADMIN_EMAILS` | unset | Comma-separated addresses promoted to `admin` at boot (existing rows only — never provisions; keep public signup closed while set, anyone can claim an unowned address). Required to reach `/config` with `RBAC_ENABLED=true`, and the **operator allowlist** for `/console/`, `/dagnats/`, `/debug/statsviz` and `/debug/pprof`: those routes stay closed when the list is empty, even if `RBAC_ENABLED=false` and the account is an admin. In **development** with `DEMO_ACCOUNTS_ENABLED=true`, `demo1@demo.app` is appended automatically so the demo can show the console/stats menus; a production demo does not add it. |

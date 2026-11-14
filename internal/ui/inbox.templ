@@ -107,10 +107,10 @@ templ railItem(m Module, active bool, unread int) {
 		href={ templ.SafeURL(m.URL) }
 		class={ templ.Classes("app-rail-item", map[string]bool{"is-active": active}) }
 		aria-current={ activeCurrent(active) }
-		title={ m.Title }
+		title={ ModuleLabel(ctx, m) }
 		data-cuelume-hover="tick"
 		data-cuelume-press="toggle">
-		<span class="sr-only is-drawer-open:hidden">{ m.Title }</span>
+		<span class="sr-only is-drawer-open:hidden">{ ModuleLabel(ctx, m) }</span>
 		if m.ID == ModuleInbox {
 			// Two indicator containers: the dot rides the icon (collapsed rail
 			// has no label to hang the number off), the count rides the row's
@@ -119,13 +119,13 @@ templ railItem(m Module, active bool, unread int) {
 				@icon.Icon(m.Icon, "app-rail-icon")
 				@RailInboxDot(unread)
 			</span>
-			<span class="app-rail-label is-drawer-close:hidden">{ m.Title }</span>
+			<span class="app-rail-label is-drawer-close:hidden">{ ModuleLabel(ctx, m) }</span>
 			<span class="indicator shrink-0 is-drawer-close:hidden">
 				@RailInboxBadge(unread)
 			</span>
 		} else {
 			@icon.Icon(m.Icon, "app-rail-icon")
-			<span class="app-rail-label is-drawer-close:hidden">{ m.Title }</span>
+			<span class="app-rail-label is-drawer-close:hidden">{ ModuleLabel(ctx, m) }</span>
 		}
 	</a>
 }

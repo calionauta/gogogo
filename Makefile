@@ -17,7 +17,7 @@ SMOKE_BIN ?= $(OS_TMPDIR)/gogogo-ci-local-web
 # build does not use the wails3 CLI at all — it is a plain `go build` — so no
 # copy of the version belongs here to drift from the module graph.
 
-.PHONY: all build desktop desktop-smoke desktop-sync-smoke mobile run-desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean templ fmt css css-install datastar-lint test test-recipe verify-local verify-local-share lint check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui gui-build gui-test run-gui lint-gui mygo mygo-build mygo-test run-mygo mygo-smoke check-generated install-sh-guard check-classes check-ci-scripts daisyui-lint vocabulary check-docs docs-index check-mcp site site-check check-prompts
+.PHONY: check-typed-states check-product-boundary check-operator-look operator-look-pass operator-look-fail all build desktop desktop-smoke desktop-sync-smoke mobile run-desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean templ fmt css css-install datastar-lint test test-recipe verify-local verify-local-share lint check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui gui-build gui-test run-gui lint-gui mygo mygo-build mygo-test run-mygo mygo-smoke check-generated install-sh-guard check-classes check-ci-scripts daisyui-lint vocabulary check-docs docs-index check-mcp site site-check check-shape check-domains check-prompts
 
 all: build
 
@@ -143,7 +143,7 @@ test-fast:
 # one pays for the whole suite to check one slice:
 #
 #   make test-recipe R=todo
-#   make test-recipe R=pomodoro DIR=/path/to/other/checkout
+#   make test-recipe R=todo DIR=/path/to/other/checkout
 #
 # Why derived and not declared in the recipe: the receipt already hashes every
 # installed file (tests included), and a second list would be a second truth.
@@ -152,6 +152,20 @@ test-fast:
 test-recipe:
 	@test -n "$(R)" || { echo "usage: make test-recipe R=<recipe-id> [DIR=<checkout>]"; exit 2; }
 	@go run ./cmd/gogogo recipe test $(R) --dir $(or $(DIR),.)
+
+# check-operator-look refuses a signoff when the diff touches a page the gates
+# cannot judge and the operator never said PASS. The stamp it reads is written
+# by operator-look-pass|fail; the rules (when to ask) are docs/local-ci.md.
+check-operator-look:
+	@bash bin/check-operator-look.sh
+
+# operator-look-pass records the operator's verdict for HEAD. Agents run it
+# ONLY after the human answered about the build `make verify-local` booted.
+operator-look-pass:
+	@bash scripts/operator-look.sh pass
+
+operator-look-fail:
+	@bash scripts/operator-look.sh fail
 
 # verify-local boots the REAL binary on a fresh data dir and prints a URL plus
 # the routes the diff touched, so the operator can click for a minute. Use it at
@@ -276,6 +290,7 @@ check-ci-scripts:
 	@bash bin/install-browser_test.sh > /dev/null
 	@bash bin/check-deploy-release_test.sh > /dev/null
 	@bash bin/check-workflow-shell_test.sh > /dev/null
+	@bash bin/check-operator-look_test.sh > /dev/null
 	@node --test scripts/lib/features.test.mjs > /dev/null
 	@echo "✅ CI script contracts hold"
 
@@ -348,10 +363,46 @@ check-naps:
 # (shared UI leaves excepted), sql.Open only in owner packages. Same
 # implementation the pre-commit flatdeps-lint job runs — not a parallel
 # bash reimplementation.
+# check-shape proves .gogogo/shape.yml agrees with the tree: the shape is one of
+# the closed enum, every entrypoint it keeps is a `package main` that exists, and
+# every path it says it dropped is gone. A tree with no file is `full`, so a
+# checkout that never declared one still passes. The build proof (CI builds the
+# declared entrypoints) stays out: a gate that compiles cannot run per commit.
+check-shape:
+	@echo "→ check-shape (the app-shape record matches the tree)..."
+	@go run ./cmd/check-shape -dir . -quiet
+	@echo "✅ the shape record matches the tree"
+
+# check-domains proves every feature slice carries its written boundary: what it
+# owns, what it does not, the words it uses and the rules its code keeps. Text
+# only — the gate checks that the parts exist and are non-empty; review judges
+# the prose, because a gate that guessed at meaning would be a second truth.
+check-domains:
+	@echo "→ check-domains (every feature has its card)..."
+	@go run ./cmd/check-domains -dir . -quiet
+	@echo "✅ feature cards present and complete"
+
 check-flatdeps:
 	@echo "→ check-flatdeps (flat-stack dependency guard)..."
 	@go run ./cmd/check-flatdeps
 	@echo "✅ flat-stack dependencies within bounds"
+
+# check-product-boundary proves gogogo stays a scaffold, not a framework: the
+# product binary (cmd/web) must build after the evolution tools are deleted, so
+# it may not import them, and the installer reads the tree instead of linking
+# the server. It is the executable form of the "we are not a framework" claim.
+check-product-boundary:
+	@echo "→ check-product-boundary (product ⟂ evolution tools)..."
+	@go run ./cmd/check-product-boundary -dir .
+	@echo "✅ product binary is free of the evolution tools"
+
+# check-typed-states makes "one spelling per state" executable: a named string
+# type compared against a literal (`if d.State == "removed"`) compiles and falls
+# through silently, so the compiler cannot catch it. Type-aware, ~1.5s.
+check-typed-states:
+	@echo "→ check-typed-states (states are compared through their constants)..."
+	@go run ./cmd/check-typed-states -dir .
+	@echo "✅ no state is compared against a string literal"
 
 # check-secrets-env proves secret env plumbing stays on the rails without
 # booting anything: os.Getenv/LookupEnv/Setenv with secret-shaped names
@@ -529,7 +580,7 @@ check-recipes:
 	@go run ./cmd/gogogo recipe check --dir . --format json >/dev/null
 	@echo "  ✓ recipes pass gogogo recipe check"
 
-ci-local: check-host-capacity reap-stale check-browser-cleanup check-generated check-recipes check-sizes datastar-lint css-check check-no-jsx check-ci-scripts check-classes daisyui-lint check-prompts check-flatdeps check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
+ci-local: check-host-capacity reap-stale check-browser-cleanup check-generated check-shape check-recipes check-sizes datastar-lint css-check check-no-jsx check-ci-scripts check-classes daisyui-lint check-flatdeps check-product-boundary check-typed-states check-domains check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard check-prompts
 	@echo "→ lint (golangci-lint, same as CI)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/web-packages.sh); golangci-lint run $$PKGS; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 	@echo "→ build (single build, reused by the smoke tests)"
@@ -566,7 +617,7 @@ check-no-jsx:
 # so a CSS or installer tweak would otherwise pay for the whole suite. This
 # narrows on the changed packages, falling back to all packages when a shared
 # file (go.mod, config/, db/) changed.
-ci-local-fast: check-fast-capacity reap-stale check-generated check-recipes check-sizes datastar-lint css-check check-no-jsx check-ci-scripts check-classes daisyui-lint check-prompts check-flatdeps check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
+ci-local-fast: check-fast-capacity reap-stale check-generated check-shape check-recipes check-sizes datastar-lint css-check check-no-jsx check-ci-scripts check-classes daisyui-lint check-flatdeps check-product-boundary check-typed-states check-domains check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard check-prompts
 # Pre-flight: check-fast-capacity refuses a wedged box (use CI instead).
 # Budget: more than $FAST_MAX_PARALLEL_PKGS (default 8) changed packages
 # runs serially (-p 1) to bound shared-host load.
@@ -618,7 +669,7 @@ smoke-clean:
 # here — we deliberately do NOT run `gh signoff install` (which would
 # require the status for PR merge and is meaningless for push-to-deploy).
 # If/when we move to a PR-based flow, enable `gh signoff install` too.
-signoff: ci-local
+signoff: check-operator-look ci-local
 	@echo "→ stamping commit green via gh signoff..."
 	@gh signoff -f
 	@echo "✅ signed off — safe to push"

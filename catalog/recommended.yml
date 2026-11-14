@@ -1,0 +1,15 @@
+# Which recipes this template recommends at install time.
+#
+# ONE list, in ONE place. The scaffold reads it and prints `recommend:`; nothing
+# installs until the operator accepts (`--install-recommended` or `--install
+# <id>`). There is no second copy of this advice: the registry row carries the
+# removal class, the receipt carries ownership, and the catalog entry carries
+# the reviewed bytes — recommendation is a project decision, not a property of
+# any of them.
+#
+# Over time this file is the dial: an id here is advised, an id absent is not.
+# Adding or removing one is a review, not a code change, and it never changes
+# what ships by default.
+recipes:
+  - id: todo
+    why: "the reference slice every recipe derives from"

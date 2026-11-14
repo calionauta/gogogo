@@ -57,8 +57,8 @@ func TestRenderedDisabledAttrsAreBoolean(t *testing.T) {
 	signals := todoSignalsForRender()
 
 	// Only trees THIS package owns: importing another package's tree would
-	// make this package's tests unbuildable (lived: TestTrimmedTreeStillBuilds
-	// failed for exactly that shape).
+	// make this package's tests unbuildable once that unit is removed from a
+	// product tree.
 	html := renderOrFail(t, TodoStatePanel(signals))
 	matches := disabledAttrRE.FindAllStringSubmatch(html, -1)
 	if len(matches) == 0 {

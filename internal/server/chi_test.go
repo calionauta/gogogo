@@ -247,10 +247,15 @@ func TestBuildChiMux(t *testing.T) {
 	if anonRec.Code != http.StatusSeeOther {
 		t.Fatalf("mux anon /todo status = %d, want 303", anonRec.Code)
 	}
-	landingRec := httptest.NewRecorder()
-	mux.ServeHTTP(landingRec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil))
-	if landingRec.Code != http.StatusOK {
-		t.Fatalf("mux GET / status = %d, want 200", landingRec.Code)
+	// The root is a redirect now: a guest is sent to the login page, which is
+	// the only public entry a tree without a marketing page has.
+	rootRec := httptest.NewRecorder()
+	mux.ServeHTTP(rootRec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil))
+	if rootRec.Code != http.StatusSeeOther {
+		t.Fatalf("mux GET / status = %d, want 303", rootRec.Code)
+	}
+	if loc := rootRec.Header().Get("Location"); loc != "/login" {
+		t.Fatalf("mux GET / Location = %q, want /login", loc)
 	}
 	configRec := httptest.NewRecorder()
 	mux.ServeHTTP(configRec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/config", nil))

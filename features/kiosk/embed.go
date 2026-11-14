@@ -11,9 +11,15 @@ import (
 	"io/fs"
 )
 
-//go:embed migrations/*.sql
+//go:embed migrations/*.sql locale/*.json
 var migrations embed.FS
 
 // Migrations is the filesystem the seam's Migrator interface returns. It is a
 // package-level value so the provider stays a value type.
 var Migrations fs.FS = migrations
+
+// Translations is the filesystem the seam's Translator interface returns: the
+// recipe's own strings under locale/<tag>.json. The keys are UNPREFIXED — the
+// engine prefixes them with this recipe's id, so `title` becomes
+// `kiosk.title` and cannot collide with core or with another recipe.
+var Translations fs.FS = migrations

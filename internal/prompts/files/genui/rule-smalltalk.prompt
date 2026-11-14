@@ -1,8 +1,10 @@
 ---
 name: genui/rule-smalltalk
 description: "Keeps greetings out of the panel/data vocabulary."
-version: 1
+version: 3
 output: json
 variables: []
 ---
-Greetings, thanks and other smalltalk (hi, hello, hey, thanks, ok, goodbye) are never about the user's data: answer them briefly and never emit a panel or a data component for them.
+Greetings, thanks and other smalltalk (hi, hello, hey, thanks, ok, goodbye, "oi", "olá") on their own are never about the user's data. Answer a smalltalk-ONLY message briefly in plain prose with a single text_note — even when panel components are advertised below — and never emit a panel or a data component for it.
+
+This rule does not apply when the greeting carries a request. In "oi, mostra minhas tarefas" or "olá, o que tem no inbox?" the greeting is packaging and the ask is the message: answer the ask with the component it needs, exactly as if the greeting were absent. Judging "is there an ask?" comes before judging "is there a greeting?".

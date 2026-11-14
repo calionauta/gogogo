@@ -14,7 +14,7 @@
 
 ---
 
-> **Removal class in the registry.** Every removable-or-toggleable unit is one row in `internal/capabilities`, and the row declares its class on a **single axis**: `Kind` = `core` | `plugin` | `feature`. The class says what happens if you delete it (binary breaks, binary loses capability, or pure demo). The **directory is the layer** — `internal/` is infrastructure, `features/` is product — so there is no separate `layer` axis to keep in sync. See `docs/scope-taxonomy.md` (normative); the registry is the only place the class is written.
+> **Removal class in the registry.** Every removable-or-toggleable unit is one row in `internal/capabilities`, and the row declares its class on a **single axis**: `Kind` = `core` | `servant` | `feature` — the same three words everywhere (code, JSON, docs, UI). The class says what happens if you delete it (binary breaks, binary loses capability, or pure demo). The **directory is the layer** — `internal/` is infrastructure, `features/` is product — so there is no separate `layer` axis to keep in sync. See `docs/scope-taxonomy.md` (normative); the registry is the only place the class is written.
 
 > The registry's coverage test walks `internal/` and `features/` and fails when a package no row owns, when a row's `Dirs`/`Files` do not exist, and when a self-mounting unit (`Capability.Register`) is also imported by the composition root. A per-file removal-class header coming back fails the no-legacy guard.
 
@@ -29,7 +29,7 @@ Every component belongs to one of three removal classes, declared by its capabil
 | Class | Meaning | You would… |
 |:------|:--------|:-----------|
 | **Core** 🔴 `Kind: core` | Binary does not work without it. | Customize, never remove. |
-| **Plugin** 🟡 `Kind: plugin` | Binary works but loses capability if removed. The row names what goes with it. | Swap for an equivalent, or delete + remove wiring call. |
+| **Servant** 🟡 `Kind: servant` | Binary works but loses capability if removed. The row names what goes with it. | Swap for an equivalent, or delete + remove wiring call. |
 | **Feature** 🟢 `Kind: feature` | A demo/add-on. Depends on other packages (listed on the row). | Delete the package + dependent packages + remove wiring call. |
 
 ---
@@ -41,14 +41,13 @@ These are **product-level demos** — what the end user sees. All are Feature la
 | Feature | Package | SCOPE | Router wiring | Remove by |
 |---------|---------|:-----:|---------------|-----------|
 | **Auth** | `internal/auth/` + `features/authviews/` | 🟢/🔴 | `a.Handler()` mounted at `/api/auth/` in `buildChiMux` | Delete the login UI package; the middleware stays |
-| **Landing page** | `features/landing/` | 🟢 FEATURE | Mounted at `/` in `buildChiMux` | Delete package + remove call. The todo demo is at `/todo`; root becomes 404 or your replacement. |
 | **Config + admin users + audit** | `features/config/` | 🟢 FEATURE | Mounted at `/config` in `buildChiMux` | Delete package + remove call. Page is auth-gated; secrets are masked via `mask.go`; user roles, session revocation and the `security_events` panel/CSV are admin-only. |
 | **Todo** | `features/todo/` | 🟢 FEATURE | `todoH` mounted at `/todo` + `/api/todos` in `buildChiMux` | Delete package + remove block |
-| **Whiteboard** | `features/whiteboard/` + `internal/collab/` | 🟢 FEATURE | `wbH` mounted at `/whiteboard` + `/api/whiteboard/` in `buildChiMux` (one argument per line, so a trim drops exactly its lines) | Delete both dirs + remove call |
+| **Whiteboard** | `features/whiteboard/` + `internal/collab/` | 🟢 FEATURE | `wbH` mounted at `/whiteboard` + `/api/whiteboard/` in `buildChiMux` (one argument per line, so a removal drops exactly its lines) | Delete both dirs + remove call |
 | **Notes** | `features/notes/` (shares `internal/collab/`) | 🟢 FEATURE | `notesH` mounted at `/notes` + `/api/notes` in `buildChiMux` | Delete dir + remove call (+ sidebar entry in `internal/ui/modules.go`, seed, capability entry) |
-| **Onboarding** | `features/onboarding/` + `internal/dagnats/` | 🟡 PLUGIN (bundle) | `mountOnboarding` after the composition (no-op when `DAGNATS_ENABLED=false`) | Delete both + remove call (the registry's `dagnats` unit owns both) |
+| **Onboarding** | `features/onboarding/` + `internal/dagnats/` | 🟡 SERVANT (bundle) | `mountOnboarding` after the composition (no-op when `DAGNATS_ENABLED=false`) | Delete both + remove call (the registry's `dagnats` unit owns both) |
 | **Room demo** | `features/room/` + `internal/goakt/` | 🟢 FEATURE | `roomH` mounted at `/room` in `buildChiMux` (nil-able; no-op when `GOAKT_ENABLED=false`) | Delete both dirs + remove call |
-| **Chat demo** | `features/genui/` (catalog) + `features/chat/` (conversation) | 🟡 PLUGIN (bundle) | `chatH` mounted at `/chat` + `/api/chat/` in `buildChiMux` (one argument per line) | the `genui` installer unit (dropped by the `minimal`/`no-ai` presets) — or delete both dirs + remove calls + the `chat` entry in `internal/ui/modules.go` + mux-table elements + `genui_stubs_test.go`) |
+| **Chat demo** | `features/genui/` (catalog) + `features/chat/` (conversation) | 🟡 SERVANT (bundle) | `chatH` mounted at `/chat` + `/api/chat/` in `buildChiMux` (one argument per line) | the `genui` installer unit (dropped by the `minimal`/`no-ai` presets) — or delete both dirs + remove calls + the `chat` entry in `internal/ui/modules.go` + mux-table elements + `genui_stubs_test.go`) |
 | **Persistence (single store)** | `internal/db/` (migrations + sqlc queries) | 🔴 CORE | `db.Open(cfg)` in `BootChi` | Core data layer; customize, never remove |
 
 > **⚠️ Auth is a mixed package.** The **login UI** (login page, shell controls) is 🟢 FEATURE — replace with OAuth, SSO, etc. The **auth middleware** (`LoadAuthFromCookie`) is 🔴 CORE — the app's security model depends on it. They live in the same package for cohesion; if you replace the UI, keep the middleware functions.
@@ -64,17 +63,17 @@ These are the **plumbing layers**. Each is independently replaceable.
 | **Database + Auth** (Turso/SQLite + owned sessions) | `internal/db/` + `internal/auth/` | 🔴 CORE | `db.Open(cfg)` + `auth.New(...)` in `BootChi` | Replace with your own DB + auth stack |
 | **Config** | `config/` | 🔴 CORE | `config.Load()` in `main.go` | Add/remove env vars |
 | **Queue + SSE Hub** (goqite) | `internal/queue/` | 🔴 CORE | Built in `BootChi` (chi queue + workers) | Replace goqite with Redis; SSE Hub is in `ssehub.go` |
-| **Event bus: NATS JetStream** | `internal/nats/` | 🟡 PLUGIN | `startNATS(cfg)` in `main.go` | Remove `startNATS` call; falls back to in-memory fan-out via SSE Hub |
-| **CRUD proxy (offline sync)** | `internal/nats/` + `internal/natswire/` | 🟡 PLUGIN | Installed by `AttachJetStream` (publisher + consumer) | Detach call; toggle via `OFFLINE_SYNC_ENABLED=false` (default on) |
-| **DagNats** (workflows) | `internal/dagnats/` | 🟡 PLUGIN | `startDagNats(cfg, ...)` in `main.go` | Remove call + delete package |
-| **CRDT + Sync** (Loro) | `internal/collab/` | 🟡 PLUGIN | Wired in `BootChi` (persister + DocStore shared by whiteboard/notes) | Delete with the whiteboard unit (whiteboard+collab+notes) |
-| **SSE helpers** (Datastar) | `internal/datastar/` | 🟡 PLUGIN | Imported by handlers | Replace with your own SSE rendering |
+| **Event bus: NATS JetStream** | `internal/nats/` | 🟡 SERVANT | `startNATS(cfg)` in `main.go` | Remove `startNATS` call; falls back to in-memory fan-out via SSE Hub |
+| **CRUD proxy (offline sync)** | `internal/nats/` + `internal/natswire/` | 🟡 SERVANT | Installed by `AttachJetStream` (publisher + consumer) | Detach call; toggle via `OFFLINE_SYNC_ENABLED=false` (default on) |
+| **DagNats** (workflows) | `internal/dagnats/` | 🟡 SERVANT | `startDagNats(cfg, ...)` in `main.go` | Remove call + delete package |
+| **CRDT + Sync** (Loro) | `internal/collab/` | 🟡 SERVANT | Wired in `BootChi` (persister + DocStore shared by whiteboard/notes) | Delete with the whiteboard unit (whiteboard+collab+notes) |
+| **SSE helpers** (Datastar) | `internal/datastar/` | 🟡 SERVANT | Imported by handlers | Replace with your own SSE rendering |
 | **Secrets** (age) | `internal/secrets/` | 🔴 CORE | `secrets.Load(appName)` in `config.Load()` | Remove call; env vars work without it |
-| **LLM client** (GoAI) | `internal/llm/` | 🟡 PLUGIN | Built in `BootChi` | Remove env var; UI auto-hides the Suggest button. *The package stays if you add your own AI feature — only the demo Suggest route is removable.* |
-| **UI shell + assets** | `internal/ui/` (one shell), `internal/components/assets.templ` | ✅ CORE | Every page renders the one DaisyUI asset block; visual variety is DaisyUI themes | Trim the theme picker from the shell footer to drop theme switching. See [UI themes](docs/ui-themes.md). |
+| **LLM client** (GoAI) | `internal/llm/` | 🟡 SERVANT | Built in `BootChi` | Remove env var; UI auto-hides the Suggest button. *The package stays if you add your own AI feature — only the demo Suggest route is removable.* |
+| **UI shell + assets** | `internal/ui/` (one shell), `internal/components/assets.templ` | ✅ CORE | Every page renders the one DaisyUI asset block; visual variety is DaisyUI themes | Remove the theme picker from the shell footer to drop theme switching. See [UI themes](docs/ui-themes.md). |
 
 > **🔴 CORE** = keep or replace the whole stack.  
-> **🟡 PLUGIN** = you could remove it and still serve pages, but lose cross-instance broadcast, async jobs, etc.  
+> **🟡 SERVANT** = you could remove it and still serve pages, but lose cross-instance broadcast, async jobs, etc.  
 > **🟢 FEATURE** = pure demo. Delete the package, remove the wiring call, nothing breaks.
 
 ## Offline strategy for record features (todo, CRUD rows)
@@ -141,7 +140,7 @@ The **whiteboard already uses Loro CRDT**. For the **todo feature**, SW + Backgr
                           ▼            ▼
               ┌──────────────────┐  ┌───────────────────┐
               │    SSE Hub       │  │  DagNats workflows│
-              │ (in-process fan) │  │  (Plugin 🟡, :8090)  │
+              │ (in-process fan) │  │  (Servant 🟡, :8090)  │
               └────────┬─────────┘  └────────┬──────────┘
                        │                     │
                        ▼                     ▼
@@ -151,7 +150,7 @@ The **whiteboard already uses Loro CRDT**. For the **todo feature**, SW + Backgr
               └──────────────────────────────────┘
 
               ┌──────────────────────────────────┐
-              │   NATS JetStream                 │  ← Plugin 🟡: cross-instance event bus
+              │   NATS JetStream                 │  ← Servant 🟡: cross-instance event bus
               │                                   │
               │  ▲ WebSyncWorker publishes ops    │
               │  ▲ DagNats persists workflow      │
@@ -161,14 +160,14 @@ The **whiteboard already uses Loro CRDT**. For the **todo feature**, SW + Backgr
 
 - **goqite** (Core 🔴): every feature's async work. Worker pool streams progress via SSE Hub.
 - **SSE Hub** (Core 🔴, in `internal/queue/ssehub.go`): in-process fan-out to browser tabs via Go channels. Per-client channels, replay buffer, backpressure. **Does not cross the NATS boundary** — it is purely in-process.
-- **NATS JetStream** (Plugin 🟡): cross-instance event bus. Used by:
+- **NATS JetStream** (Servant 🟡): cross-instance event bus. Used by:
   - Whiteboard sync — shapes published directly via `WebSyncWorker.nc.Publish()` to subject `app.sync.<docID>` (bypasses SSE Hub entirely)
   - DagNats — workflow engine uses JetStream for durable state
   - Ephemeral hub signals — `SSEHub.AttachEphemeral` bridges `Send`/`Broadcast` (chat answers, progress, toasts) on `app.ephemeral` (core NATS, best-effort); record and doc fan-out stay on their own wires
   - Desktop Leaf Node — optional edge sync
   - Todos — one fact published through `features/todo/bus.go`: the SSE hub locally and the APP_CRUD stream for other instances (one durable per instance, origin-tagged so an instance ignores its own echo).
-- **DagNats** (Plugin 🟡): durable multi-step workflows as declarative JSON. Uses NATS JetStream for state.
-- **GoAkt** (Plugin 🟡): entity actors (one grain per room: roster + presenter lock, supervised). Standalone, no network.
+- **DagNats** (Servant 🟡): durable multi-step workflows as declarative JSON. Uses NATS JetStream for state.
+- **GoAkt** (Servant 🟡): entity actors (one grain per room: roster + presenter lock, supervised). Standalone, no network.
 
 ---
 
@@ -192,16 +191,16 @@ templates.
 main.go
   ├─ config.Load()              ← 🔴 Core: reads env vars + age secrets
   ├─ server composition (BootChi) ← 🔴 Core: Turso + queue + mux
-  │   └─ buildChiMux(...)         # flattens one router per capability; landing answers not-found
+  │   └─ buildChiMux(...)         # flattens one router per capability; GET / redirects (home.go)
   │       ├─ static files         🔴 Core
   │       ├─ auth routes          🟢 FEATURE UI + 🔴 CORE middleware
   │       ├─ todo routes          🟢 FEATURE
   │       ├─ onboarding mount     🟢 FEATURE (after the composition)
   │       ├─ whiteboard routes    🟢 FEATURE (shares DocStore + persister)
   │       └─ notes/room/chat/credits routes (room nil-able)
-  ├─ startDagNats(cfg, ...) ← 🟡 PLUGIN: boots engine (NATS on :4222)
-  ├─ startGoAkt(cfg)            ← 🟡 PLUGIN: boots room actors (standalone, no network)
-  ├─ startNATS(cfg)             ← 🟡 PLUGIN: connects or starts embedded NATS
+  ├─ startDagNats(cfg, ...) ← 🟡 SERVANT: boots engine (NATS on :4222)
+  ├─ startGoAkt(cfg)            ← 🟡 SERVANT: boots room actors (standalone, no network)
+  ├─ startNATS(cfg)             ← 🟡 SERVANT: connects or starts embedded NATS
   └─ Serve(addr)                ← 🔴 Core: serves HTTP
 ```
 
@@ -224,19 +223,19 @@ main.go
    `dbgen.*` directly and streaming through the SSE Hub.
 2. A feature never imports another feature's domain: only `features/authviews`,
    `features/sounds` and `features/genui/components` are shared leaves — the rest
-   fails `cmd/check-flatdeps` (so a trim never breaks a neighbour).
+   fails `cmd/check-flatdeps` (so a removal never breaks a neighbour).
 3. Add the unit's row in `internal/capabilities` (`Kind`, `Dirs`/`Files`, and
    `Register` when it mounts itself) — `TestRegistryCoversPackages` fails a
    package no row owns.
 4. Add the RBAC row for each route in `internal/rbac/casbin/policy.csv`; the
    coverage lint walks the real handlers and fails a route with no `user` row.
 5. Add a row to the Features table above and, if the unit is offered to the
-   installer, a trim unit with its strips.
+   installer, a removable unit with its strips.
 
 New infra goes in `internal/<name>/`. Same pattern: create the package, wire it
 in `main.go` or `chi.go`, add the `SCOPE` line + registry unit, and state in the
-unit whether it is core, plugin, or feature — `internal/` alone does not answer
-that (about half of it is plugin).
+unit whether it is core, servant, or feature — `internal/` alone does not answer
+that (about half of it is servant).
 
 ---
 
@@ -249,8 +248,7 @@ config/config.go           Env-based config (incl. BUILD_LABEL/COMMIT)
 internal/db/               Turso open + migrate + sqlc queries
 features/                  Demo features (🟢 FEATURE, except auth middleware 🔴)
   authviews/                 Login page + shell controls (theme, user menu, palette; middleware in internal/auth 🔴)
-  app/                       AppContext bundle for cmd/gui only (🟡 PLUGIN — cmd/web never links it)
-  landing/                   Public entry page on GET / (inside the shared shell) (🟢 FEATURE)
+  app/                       AppContext bundle for cmd/gui only (🟡 SERVANT — cmd/web never links it)
   config/                    Admin-only /config: masked env, user roles/sessions, audit panel/CSV (🟢 FEATURE)
   todo/                      Todo MVC (the reference implementation)
     handlers/                  HTTP routes + SSE stream + onboarding
@@ -275,4 +273,4 @@ web/
 - **One router, flattened feature tables.** Each capability exposes `Routes() chi.Router` with absolute patterns; `MountFeature` (`internal/server/route.go`) flattens it onto the root. A duplicate method+pattern panics at boot naming both owners, and a known path with an unknown method answers 405.
 - **`MountSubtree` keeps the full request path** (`/api/auth`, `/static`, `/static/wb`, `/static/notes`): those handlers trim their own prefix, so chi must not rewrite it.
 - **Feature assets stay on their own subtree** (`/static/wb/`, `/static/notes/`): each feature embeds and serves its own bundle, and the core `/static` mount never carries it.
-- **The landing router is the not-found handler.** Register a page route inside its feature's `Routes()`, never at the composition site — a route mounted anywhere else is invisible to the duplicate guard and the route inventory.
+- **No catch-all page.** An unmatched URL is a 404 from the router — register a page route inside its feature's `Routes()`, never at the composition site, or it is invisible to the duplicate guard and the route inventory. `/` is a core redirect (`internal/server/home.go`), not a page.

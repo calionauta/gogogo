@@ -6,6 +6,22 @@ import (
 	"io"
 )
 
+// nextSteps is the printed + machine-readable handoff after a successful
+// scaffold. Without --run the installer ends with the exact commands: it
+// runs from an ephemeral `go run @latest` module and a child process
+// cannot cd its parent, so `cd <dir> && make dev` is printed, not run.
+// PORT is the scaffolded app's default; the binary reads it at boot.
+type nextSteps struct {
+	Dir   string `json:"dir"`
+	Email string `json:"email"`
+	Dev   string `json:"dev"`
+	App   string `json:"app"`
+	Todo  string `json:"todo"`
+	Login string `json:"login"`
+	Admin string `json:"admin"`
+	Flows string `json:"workflows"`
+}
+
 // buildNextSteps describes what to do after a successful scaffold. dropped
 // decides which destinations are real: advertising the DagNats console on a
 // checkout whose dagnats unit was just trimmed sends the user to a route that

@@ -342,6 +342,16 @@ jobs:
         # flatdeps-lint job: no banned framework in the closure, no
         # cross-feature domain imports, sql.Open only in owner packages.
         run: go run ./cmd/check-flatdeps
+      - name: Check-product-boundary (product ⟂ evolution tools)
+        # The executable form of "not a framework": cmd/web must build after
+        # cmd/gogogo and internal/installer are deleted, so it may not import
+        # them; the installer reads the tree instead of linking the server.
+        run: go run ./cmd/check-product-boundary -dir .
+      - name: Check-typed-states (one spelling per state)
+        # A named string type compared with a literal compiles and silently
+        # falls through to the default. Type-aware, so it sees what the
+        # compiler cannot.
+        run: go run ./cmd/check-typed-states -dir .
       - name: Check-docs (prose claims)
         # Same gate as `make check-docs` and the pre-commit docs-claims job:
         # no hand-written capability/slice/unit counts, every concrete repo

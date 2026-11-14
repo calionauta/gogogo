@@ -16,7 +16,7 @@ import (
 
 func TestUserMenuLogoutActuallyPosts(t *testing.T) {
 	var buf bytes.Buffer
-	if err := authviews.UserMenu("demo1@demo.app", "admin", nil, false, false).
+	if err := authviews.UserMenu("demo1@demo.app", "admin", nil, nil, false, false).
 		Render(context.Background(), &buf); err != nil {
 		t.Fatalf("render user menu: %v", err)
 	}
@@ -63,7 +63,7 @@ func TestUserMenuCarriesDashboardAndGraph(t *testing.T) {
 	render := func(role string) string {
 		t.Helper()
 		var buf bytes.Buffer
-		if err := authviews.UserMenu("demo1@demo.app", role, nil, false, false).
+		if err := authviews.UserMenu("demo1@demo.app", role, nil, nil, false, false).
 			Render(context.Background(), &buf); err != nil {
 			t.Fatalf("render user menu (%s): %v", role, err)
 		}
@@ -92,7 +92,7 @@ func TestUserMenuCarriesConfigOnlyForAdmins(t *testing.T) {
 	render := func(role string) string {
 		t.Helper()
 		var buf bytes.Buffer
-		if err := authviews.UserMenu("demo1@demo.app", role, nil, false, false).
+		if err := authviews.UserMenu("demo1@demo.app", role, nil, nil, false, false).
 			Render(context.Background(), &buf); err != nil {
 			t.Fatalf("render user menu (%s): %v", role, err)
 		}
@@ -119,7 +119,7 @@ func TestUserMenuCarriesDagNatsConsoleOnlyForOperators(t *testing.T) {
 	render := func(operator bool) string {
 		t.Helper()
 		var buf bytes.Buffer
-		if err := authviews.UserMenu("demo1@demo.app", "admin", nil, operator, false).
+		if err := authviews.UserMenu("demo1@demo.app", "admin", nil, nil, operator, false).
 			Render(context.Background(), &buf); err != nil {
 			t.Fatalf("render user menu (operator=%v): %v", operator, err)
 		}
@@ -141,7 +141,7 @@ func TestUserMenuCarriesRuntimeOnlyForOperatorWithPerf(t *testing.T) {
 	render := func(operator, perf bool) string {
 		t.Helper()
 		var buf bytes.Buffer
-		if err := authviews.UserMenu("demo1@demo.app", "admin", nil, operator, perf).
+		if err := authviews.UserMenu("demo1@demo.app", "admin", nil, nil, operator, perf).
 			Render(context.Background(), &buf); err != nil {
 			t.Fatalf("render user menu (operator=%v perf=%v): %v", operator, perf, err)
 		}
@@ -171,5 +171,27 @@ func TestUserMenuCarriesRuntimeOnlyForOperatorWithPerf(t *testing.T) {
 				t.Errorf("%s is offered %s (the fence answers 403 or the route 404s)", name, href)
 			}
 		}
+	}
+}
+
+// TestUserMenuClosesOnOutsideClick is the reported bug: the account menu is a
+// <details>, which only closes when its summary is clicked again — so a click
+// anywhere else left it open over the page. Datastar owns the dismissal.
+func TestUserMenuClosesOnOutsideClick(t *testing.T) {
+	var buf bytes.Buffer
+	if err := authviews.UserMenu("demo1@demo.app", "user", nil, nil, false, false).
+		Render(context.Background(), &buf); err != nil {
+		t.Fatalf("render user menu: %v", err)
+	}
+	html := buf.String()
+	if !strings.Contains(html, "click__outside") {
+		t.Error("the account menu has no outside-click dismissal; a bare <details> stays open")
+	}
+	if !strings.Contains(html, "removeAttribute('open')") {
+		t.Error("the dismissal does not close the details element")
+	}
+	// Escape is the keyboard half of the same affordance.
+	if !strings.Contains(html, "Escape") {
+		t.Error("the menu cannot be dismissed from the keyboard")
 	}
 }

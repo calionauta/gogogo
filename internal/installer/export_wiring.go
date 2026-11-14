@@ -166,12 +166,6 @@ func portFollowUps(u builtinUnit) []string {
 				"@sounds.SoundAssets() to each page's head wrapper and "+
 				"@sounds.SoundSwitch() to its *Sound() wrapper, then `make templ` "+
 				"(checklist in features/sounds/sounds.go).")
-	case unitLanding:
-		out = append(out,
-			"navbar brand still points at /todo: point it back at / "+
-				"if the landing page is the front door again.",
-			"TestBuildChiMux still pins GET / as 404: re-assert 200 in "+
-				"internal/server/chi_test.go now the route is back.")
 	case unitConfigView:
 		out = append(out,
 			"TestBuildChiMux still pins /config as 404: re-assert the 403 "+
@@ -194,7 +188,7 @@ func portFollowUps(u builtinUnit) []string {
 }
 
 // portClosure orders unit + its transitive deps (deps first), so the port
-// bundle carries a unit's soft dependencies (landing needs sounds' package).
+// bundle carries a unit's soft dependencies (whiteboard needs sounds' package).
 func portClosure(unitID string) ([]builtinUnit, error) {
 	byUnit := map[string]builtinUnit{}
 	for _, u := range builtinUnits {

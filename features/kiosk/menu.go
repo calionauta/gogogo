@@ -11,10 +11,12 @@
 //  1. The menu is Go data, not model output and not a second list in JS. The
 //     page renders the same aliases into the recognizer's contextual-bias
 //     phrases, so there is one vocabulary and it cannot drift.
-//  2. Parsing is a deterministic function over that closed set. A closed menu
-//     does not need an LLM: it needs aliases, a unit test, and zero latency. The
-//     Jev seam stays available for utterances this cannot settle, but it is
-//     opt-in and measured first — see docs/research/recipe-outcomes-2026-11.md.
+//  2. Parsing is a deterministic function over that closed set, and it is the
+//     FAST PATH of two. A phrase the menu already matches costs no network and
+//     no tokens; an utterance the menu cannot settle ("something cold with oat
+//     milk", a mixed language, slang) is decided by the classifier in
+//     classifier.go, which chooses among these same IDs and can invent none of
+//     them. KIOSK_CLASSIFIER_ENABLED turns it on; off is the keyless path.
 package kiosk
 
 import (
@@ -72,6 +74,11 @@ var (
 		{ID: "medium", Label: "Medium", Aliases: []string{"medium", "regular"}, DeltaCents: 0},
 		{ID: "large", Label: "Large", Aliases: []string{"large", "big", "tall"}, DeltaCents: 60},
 	}
+	// Milks are the ALTERNATIVES to the default. A bare "milk" is not one of
+	// them: every drink already comes with milk, so "with milk" asks for nothing
+	// to change, and matching it to "whole" silently recorded a choice the
+	// customer never made. Only a word that names a milk selects one; plain
+	// "milk" is understood and ignored.
 	Milks = []Milk{
 		{ID: "oat", Label: "Oat", Aliases: []string{"oat", "oat milk"}},
 		{ID: "soy", Label: "Soy", Aliases: []string{"soy", "soy milk"}},
@@ -391,4 +398,53 @@ func normalize(s string) string {
 // isWordRune keeps what the closed vocabulary and its aliases are spelled with.
 func isWordRune(r rune) bool {
 	return r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '_'
+}
+
+// Choices is what the catalogue sends: the IDs a customer tapped. Empty means
+// "not chosen here", not "clear it" — the text may still have settled it.
+type Choices struct {
+	Drink  string
+	Size   string
+	Milks  []string
+	Extras []string
+}
+
+// ApplyChoices merges tapped IDs into a parsed order.
+//
+// An explicit tap WINS over what the text implied: the customer pointed at a
+// value, so a stale value from an earlier sentence must not survive. An empty
+// field is left alone — "did not tap" is not "clear it", and clearing would
+// delete what dictation already understood.
+//
+// Every ID is validated against the menu, so a hand-built form cannot inject one
+// the counter does not sell.
+func ApplyChoices(parsed ParseResult, c Choices) ParseResult {
+	if o, ok := LookupDrink(c.Drink); ok {
+		parsed.Order.Drink = o.ID
+	}
+	if s, ok := LookupSize(c.Size); ok {
+		parsed.Order.Size = s.ID
+	}
+	// One milk: the last valid tap is the choice, because the order model holds
+	// a single milk (see the Milks comment).
+	for _, id := range c.Milks {
+		if m, ok := LookupMilk(id); ok {
+			parsed.Order.Milk = m.ID
+		}
+	}
+	if len(c.Extras) > 0 {
+		next := make([]string, 0, len(c.Extras))
+		seen := map[string]bool{}
+		for _, id := range c.Extras {
+			e, ok := LookupExtra(id)
+			if !ok || seen[e.ID] {
+				continue
+			}
+			seen[e.ID] = true
+			next = append(next, e.ID)
+		}
+		parsed.Order.Extras = next
+	}
+	parsed.Missing = missingFields(parsed.Order)
+	return parsed
 }

@@ -57,7 +57,12 @@ var historyDocs = []string{"docs/architecture-decision.md"}
 // from upgrading/cli rather than published on the docs site. The list is closed
 // on purpose — a new directory is either published or declared here with its
 // reason, never silently absent from both.
-var unpublishedDirs = []string{"docs/migrations/"}
+//
+// docs/domain/ is the same kind of page for a different reason: one card per
+// feature slice, read while editing that slice and gated by check-domains. The
+// contract that explains them (docs/domain-cards.md) is published; the cards
+// themselves are working notes, not chapters of the manual.
+var unpublishedDirs = []string{"docs/migrations/", "docs/domain/"}
 
 // unpublishedDir reports a page that is exempt from the publication rule.
 func unpublishedDir(rel string) bool {
@@ -99,15 +104,25 @@ func countHint(match string) string {
 var tickRE = regexp.MustCompile("`([^`\n]+)`")
 
 // repoRoots are the top-level directories a concrete path can start with.
-var repoRoots = []string{"features", "internal", "cmd", "web", "config", "scripts", "bin", "deploy", "site", "docs"}
+// `catalog` and `skills` are here because a name under them is an address
+// (`catalog/todo/v1.0.0.yaml`), not a phrase — the difference between a dead
+// reference and prose is whether the root is an address space.
+var repoRoots = []string{
+	"features", "internal", "cmd", "web", "config", "scripts", "bin", "deploy",
+	"site", "docs", "catalog", "skills",
+}
 
 // pathSegmentRE is one directory segment (a dot means package.Symbol
 // notation, e.g. internal/datastar.RenderAndPatch, not a path).
 var pathSegmentRE = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 
+// trackedFileExts is the extension set a path may end with to count as a claim
+// about a file this repo tracks (a hypothetical app.min.css.map is not one).
+const trackedFileExts = `go|md|sh|sql|templ|js|css|json|ya?ml|toml`
+
 // fileSegmentRE is a last segment that may be a file, but only of a type this
-// repo actually tracks (a hypothetical app.min.css.map is not a claim).
-var fileSegmentRE = regexp.MustCompile(`^[A-Za-z0-9_-]+\.(go|md|sh|sql|templ|js|css|json|ya?ml|toml)$`)
+// repo actually tracks.
+var fileSegmentRE = regexp.MustCompile(`^[A-Za-z0-9_-]+\.(?:` + trackedFileExts + `)$`)
 
 // generatedPath reports paths that exist only after a build (site output is
 // gitignored), so a clean checkout does not have them and docs may still
@@ -184,7 +199,9 @@ func run() error {
 	problems := checkCounts(root, files)
 	problems = append(problems, checkLineCounts(root, files)...)
 	problems = append(problems, checkRetiredTerms(root, files)...)
-	problems = append(problems, checkPaths(root, files, trimmedPaths(root))...)
+	trimmed := trimmedPaths(root)
+	problems = append(problems, checkPaths(root, files, trimmed)...)
+	problems = append(problems, checkBarePaths(root, files, trimmed)...)
 	problems = append(problems, checkCommands(root, files, subs)...)
 	problems = append(problems, checkCLIVerbs(root, subs, recipeVerbsList)...)
 	problems = append(problems, checkMCPTools(root)...)

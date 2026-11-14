@@ -1,0 +1,24 @@
+package components
+
+// LLMRequired is the ONE setup notice for a surface whose feature needs a model.
+//
+// WHY IN A SHARED LEAF. A feature that needs an LLM (review, chat, and any
+// recipe that asks the model something) must be able to say so without
+// importing the feature that happened to write the sentence first. Recipes may
+// not import each other (cmd/check-flatdeps enforces it), and this package is
+// the trim-proof layer every page layout already calls into — the same reason
+// ActionResult lives here.
+//
+// WHY NOT A BOOLEAN. `LLMRequired(configured bool)` would make one component
+// render either a notice or nothing, which hides the branch from the caller. The
+// caller already knows whether it has a model; it renders the notice in the
+// branch that lacks one and the real UI in the other. One sentence, one source,
+// the decision where the knowledge is.
+//
+// The sentence names the knob, because "LLM not configured" without the fix is
+// the kind of error that costs a support round trip.
+templ LLMRequired(surface string) {
+	<div class="alert alert-warning" role="status">
+		<span>{ surface } needs a configured LLM. Set GOAI_API_KEY on the server, then reload.</span>
+	</div>
+}

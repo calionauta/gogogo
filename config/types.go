@@ -260,6 +260,11 @@ type Config struct {
 	// See config/chat_router.go and docs/configuration.md.
 	ChatRouter ChatRouterConfig
 
+	// KioskClassifier settles the order fields the closed-menu parser could
+	// not, using the same jev-like endpoint chain (KIOSK_CLASSIFIER_* env,
+	// off by default). See config/kiosk_classifier.go.
+	KioskClassifier KioskClassifierConfig
+
 	// GenUI holds the per-leg AI answer surfaces (GENUI_*_SURFACES env).
 	// See config/genui.go.
 	GenUI GenUIConfig

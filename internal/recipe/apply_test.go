@@ -25,8 +25,8 @@ func readOrEmpty(t *testing.T, root, rel string) string {
 func TestInstallWritesTreeAndReceiptOnly(t *testing.T) {
 	root := t.TempDir()
 	up := map[string]string{
-		"features/pomodoro/page.go":   pageSrc,
-		"features/pomodoro/domain.go": "package pomodoro\n\nfunc Timer() {}\n",
+		"features/timer/page.go":   pageSrc,
+		"features/timer/domain.go": "package timer\n\nfunc Timer() {}\n",
 	}
 	plan := Plan(Receipt{Files: map[string]string{}}, up, func(string) (string, bool) { return "", false })
 	res, err := Apply(root, plan)
@@ -41,8 +41,8 @@ func TestInstallWritesTreeAndReceiptOnly(t *testing.T) {
 	for _, p := range res.Written {
 		written[p] = up[p]
 	}
-	rec := NewReceipt("pomodoro", Upstream{Repo: "github.com/calionauta/gogogo", Ref: "v0.56.0"},
-		Declaration{Routes: []Route{{Method: "GET", Pattern: "/pomodoro"}}}, written)
+	rec := NewReceipt("timer", Upstream{Repo: "github.com/calionauta/gogogo", Ref: "v0.56.0"},
+		Declaration{Routes: []Route{{Method: "GET", Pattern: "/timer"}}}, written)
 	if serr := SaveReceipt(root, rec); serr != nil {
 		t.Fatal(serr)
 	}
@@ -51,7 +51,7 @@ func TestInstallWritesTreeAndReceiptOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 1 || got[0] != "pomodoro" {
+	if len(got) != 1 || got[0] != "timer" {
 		t.Fatalf("expected the recipe to be enumerable, got %v", got)
 	}
 
@@ -71,21 +71,21 @@ func TestInstallWritesTreeAndReceiptOnly(t *testing.T) {
 func TestRemoveDeletesOnlyPristineFiles(t *testing.T) {
 	root := t.TempDir()
 	up := map[string]string{
-		"features/pomodoro/page.go":   pageSrc,
-		"features/pomodoro/domain.go": "package pomodoro\n\nfunc Timer() {}\n",
+		"features/timer/page.go":   pageSrc,
+		"features/timer/domain.go": "package timer\n\nfunc Timer() {}\n",
 	}
 	plan := Plan(Receipt{Files: map[string]string{}}, up, func(string) (string, bool) { return "", false })
 	if _, err := Apply(root, plan); err != nil {
 		t.Fatal(err)
 	}
-	rec := NewReceipt("pomodoro", Upstream{}, Declaration{}, up)
+	rec := NewReceipt("timer", Upstream{}, Declaration{}, up)
 	if err := SaveReceipt(root, rec); err != nil {
 		t.Fatal(err)
 	}
 
 	// The user rewrites one file.
-	mine := "package pomodoro\n\nfunc Timer() { /* mine, keep it */ }\n"
-	if err := os.WriteFile(filepath.Join(root, "features/pomodoro/domain.go"), []byte(mine), filePerm); err != nil {
+	mine := "package timer\n\nfunc Timer() { /* mine, keep it */ }\n"
+	if err := os.WriteFile(filepath.Join(root, "features/timer/domain.go"), []byte(mine), filePerm); err != nil {
 		t.Fatal(err)
 	}
 
@@ -93,10 +93,10 @@ func TestRemoveDeletesOnlyPristineFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := readOrEmpty(t, root, "features/pomodoro/domain.go"); got != mine {
+	if got := readOrEmpty(t, root, "features/timer/domain.go"); got != mine {
 		t.Fatalf("a modified file must survive uninstall, got %q", got)
 	}
-	if got := readOrEmpty(t, root, "features/pomodoro/page.go"); got != "" {
+	if got := readOrEmpty(t, root, "features/timer/page.go"); got != "" {
 		t.Fatal("a pristine file must be removed")
 	}
 	if len(res.Skipped) != 1 {
@@ -108,16 +108,16 @@ func TestRemoveDeletesOnlyPristineFiles(t *testing.T) {
 // with a conflict is applied as nothing at all, never partially.
 func TestApplyRefusesABlockedPlan(t *testing.T) {
 	root := t.TempDir()
-	const path = "features/pomodoro/domain.go"
-	mine := "package pomodoro\n\nfunc Timer() { /* mine */ }\n"
-	if err := os.MkdirAll(filepath.Join(root, "features/pomodoro"), 0o755); err != nil {
+	const path = "features/timer/domain.go"
+	mine := "package timer\n\nfunc Timer() { /* mine */ }\n"
+	if err := os.MkdirAll(filepath.Join(root, "features/timer"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(root, path), []byte(mine), filePerm); err != nil {
 		t.Fatal(err)
 	}
 
-	rec := Receipt{ID: "pomodoro", Files: map[string]string{path: Hash([]byte("original\n"))}}
+	rec := Receipt{ID: "timer", Files: map[string]string{path: Hash([]byte("original\n"))}}
 	plan := Plan(rec, map[string]string{path: "upstream-new\n"}, func(p string) (string, bool) {
 		return mine, p == path
 	})
@@ -137,30 +137,30 @@ func TestApplyRefusesABlockedPlan(t *testing.T) {
 // nothing.
 func TestReceiptRoundTripsThroughYAML(t *testing.T) {
 	root := t.TempDir()
-	orig := NewReceipt("pomodoro",
-		Upstream{Repo: "github.com/x/y", Ref: "v1.2.0", Path: "features/pomodoro"},
+	orig := NewReceipt("timer",
+		Upstream{Repo: "github.com/x/y", Ref: "v1.2.0", Path: "features/timer"},
 		Declaration{
-			Routes: []Route{{Method: "GET", Pattern: "/pomodoro"}},
-			Jobs:   []string{"ext:pomodoro:tick"},
-			Tables: []string{"ext_pomodoro_session"},
+			Routes: []Route{{Method: "GET", Pattern: "/timer"}},
+			Jobs:   []string{"ext:timer:tick"},
+			Tables: []string{"ext_timer_session"},
 			Slots:  []string{"dashboard.card"},
 		},
-		map[string]string{"features/pomodoro/page.go": pageSrc})
+		map[string]string{"features/timer/page.go": pageSrc})
 
 	if err := SaveReceipt(root, orig); err != nil {
 		t.Fatal(err)
 	}
-	back, err := LoadReceipt(root, "pomodoro")
+	back, err := LoadReceipt(root, "timer")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if back.ID != orig.ID || back.Upstream != orig.Upstream {
 		t.Fatalf("receipt lost identity: %+v", back)
 	}
-	if back.Files["features/pomodoro/page.go"] != orig.Files["features/pomodoro/page.go"] {
+	if back.Files["features/timer/page.go"] != orig.Files["features/timer/page.go"] {
 		t.Fatal("receipt lost a file hash — the whole update story depends on this")
 	}
-	if len(back.Declaration.Routes) != 1 || back.Declaration.Routes[0].Pattern != "/pomodoro" {
+	if len(back.Declaration.Routes) != 1 || back.Declaration.Routes[0].Pattern != "/timer" {
 		t.Fatalf("receipt lost the declaration: %+v", back.Declaration)
 	}
 	if len(back.Declaration.Tables) != 1 || len(back.Declaration.Jobs) != 1 {
@@ -172,7 +172,7 @@ func TestReceiptRoundTripsThroughYAML(t *testing.T) {
 // replace another's, which is how a rename splits ownership of the same files.
 func TestSaveReceiptRefusesToHijackAnotherRecipe(t *testing.T) {
 	root := t.TempDir()
-	first := Receipt{ID: "pomodoro", Files: map[string]string{"a.go": Hash([]byte("a"))}}
+	first := Receipt{ID: "timer", Files: map[string]string{"a.go": Hash([]byte("a"))}}
 	if err := SaveReceipt(root, first); err != nil {
 		t.Fatal(err)
 	}
@@ -181,12 +181,12 @@ func TestSaveReceiptRefusesToHijackAnotherRecipe(t *testing.T) {
 	if err := SaveReceipt(root, hijack); err != nil {
 		t.Fatal(err)
 	}
-	// The pomodoro receipt must still be pomodoro.
-	back, err := LoadReceipt(root, "pomodoro")
+	// The timer receipt must still be timer.
+	back, err := LoadReceipt(root, "timer")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if back.ID != "pomodoro" {
+	if back.ID != "timer" {
 		t.Fatalf("receipt was hijacked: %q", back.ID)
 	}
 }
@@ -208,19 +208,19 @@ func TestListReceiptsOnEmptyTreeIsEmpty(t *testing.T) {
 // files is how an operator recovers data ownership after a mistaken uninstall.
 func TestRemoveDoesNotDeleteTheReceipt(t *testing.T) {
 	root := t.TempDir()
-	up := map[string]string{"features/pomodoro/page.go": pageSrc}
+	up := map[string]string{"features/timer/page.go": pageSrc}
 	plan := Plan(Receipt{Files: map[string]string{}}, up, func(string) (string, bool) { return "", false })
 	if _, err := Apply(root, plan); err != nil {
 		t.Fatal(err)
 	}
-	rec := NewReceipt("pomodoro", Upstream{}, Declaration{}, up)
+	rec := NewReceipt("timer", Upstream{}, Declaration{}, up)
 	if err := SaveReceipt(root, rec); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Remove(root, rec); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(readOrEmpty(t, root, ReceiptPath("pomodoro")), "pomodoro") {
+	if !strings.Contains(readOrEmpty(t, root, ReceiptPath("timer")), "timer") {
 		t.Fatal("uninstall must leave the receipt so the data still has an owner")
 	}
 }
@@ -231,7 +231,7 @@ func TestRemoveDoesNotDeleteTheReceipt(t *testing.T) {
 // plan's writes alone would forget every file the update did not touch.
 func TestReceiptAfterKeepsUntouchedBaselines(t *testing.T) {
 	prev := Receipt{
-		ID: "pomodoro",
+		ID: "timer",
 		Files: map[string]string{
 			"a.go": Hash([]byte("a1")),
 			"b.go": Hash([]byte("b1")),
@@ -253,7 +253,7 @@ func TestReceiptAfterKeepsUntouchedBaselines(t *testing.T) {
 	if _, ok := got.Files["c.go"]; ok {
 		t.Fatalf("obsolete file still recorded: %v", got.Files)
 	}
-	if got.ID != "pomodoro" {
+	if got.ID != "timer" {
 		t.Fatalf("receipt identity lost: %q", got.ID)
 	}
 }

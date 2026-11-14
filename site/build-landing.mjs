@@ -21,9 +21,9 @@ function parseUnits(md) {
   const units = [];
   let cur = null;
   for (const line of md.split("\n")) {
-    const h = line.match(/^## `([^`]+)` — (core|plugin|feature)\s*$/);
+    const h = line.match(/^## `([^`]+)` — (core|servant|feature)\s*$/);
     if (h) {
-      cur = { id: h[1], kind: h[2], summary: "", owned: [], runtimeOff: "", trim: "", scaffold: "" };
+      cur = { id: h[1], kind: h[2], summary: "", owned: [], runtimeOff: "" };
       units.push(cur);
       continue;
     }
@@ -39,10 +39,6 @@ function parseUnits(md) {
       cur.owned = [...f[2].matchAll(/`([^`]+)`/g)].map((m) => m[1]);
     } else if (key === "runtime off") {
       cur.runtimeOff = f[2].replace(/`/g, "").trim();
-    } else if (key === "trim") {
-      cur.trim = f[2].replace(/`/g, "").replace(/\s+/g, " ").trim();
-    } else if (key === "scaffold") {
-      cur.scaffold = f[2].replace(/`/g, "").trim();
     }
   }
   return units;
@@ -84,7 +80,7 @@ const display = {
   credits: "Credits", dagnats: "DagNats", datastar: "Datastar", genkit: "Genkit",
   genui: "GenUI", goakt: "GoAkt", llm: "LLM", nats: "NATS", "offline-sync": "Offline sync",
   search: "Search", sounds: "Sounds",
-  account: "Account", chat: "Chat", "config-view": "Config", landing: "Landing",
+  account: "Account", chat: "Chat", "config-view": "Config",
   notes: "Notes", notifications: "Inbox", review: "Review", room: "Room", todo: "Todo",
   whiteboard: "Whiteboard",
 };
@@ -92,7 +88,7 @@ const nameOf = (u) => display[u.id] || u.id;
 
 // ---------- features: ten units, four with a hand-built mini-UI ----------
 
-const featureOrder = ["todo", "notes", "whiteboard", "chat", "review", "room", "notifications", "landing", "config-view", "account"];
+const featureOrder = ["todo", "notes", "whiteboard", "chat", "review", "room", "notifications", "config-view", "account"];
 const featureLinks = {
   todo: "./docs/todo-example/",
   notes: "./docs/features/#what-each-capability-does",
@@ -101,7 +97,6 @@ const featureLinks = {
   review: "./docs/review/",
   room: "./docs/features/#what-each-capability-does",
   notifications: "./docs/notifications/",
-  landing: "./docs/features/",
   "config-view": "./docs/features/",
   account: "./docs/security/",
 };
@@ -113,7 +108,6 @@ const featureNotes = {
   review: "writer · critic · judge",
   room: "roster · presenter lock",
   notifications: "durable · live",
-  landing: "this page is a recipe",
   "config-view": "operator surface",
   account: "security page",
 };
@@ -121,7 +115,6 @@ const featureIcons = {
   review: '<svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v5h-5"/><path d="m9 12 2 2 4-4"/></svg>',
   room: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17.5" cy="10" r="2.5"/><path d="M15 20a5 5 0 0 1 6.5-3.4"/></svg>',
   notifications: '<svg viewBox="0 0 24 24"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 18a2 2 0 0 0 4 0"/></svg>',
-  landing: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M7 6.5h.01M10 6.5h.01"/></svg>',
   "config-view": '<svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>',
   account: '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>',
 };
@@ -171,18 +164,17 @@ const weights = `<div class="weights">
         <p class="weight zero"><span>Todo · Room · Landing · Config · Account</span><span>0 KB extra</span></p>
       </div>`;
 
-// ---------- plugins: all fifteen, grouped by the common opt-outs ----------
-// Kind stays core/plugin/feature in the registry (removal taxonomy); the
-// landing presents it as Core / Servants / Recipes. Filtering below still
-// reads Kind — presentation vocabulary differs, source does not.
+// ---------- servants: all of them, grouped by the common opt-outs ----------
+// The class has ONE name: `servant` in the registry, in the JSON and here.
+// There is no second presentation vocabulary to translate.
 
 const commonPlugins = ["nats", "dagnats", "goakt", "llm", "collab", "offline-sync", "search"];
-const pluginOrder = [...commonPlugins, ...units.filter((u) => u.kind === "plugin" && !commonPlugins.includes(u.id)).map((u) => u.id)];
+const servantOrder = [...commonPlugins, ...units.filter((u) => u.kind === "servant" && !commonPlugins.includes(u.id)).map((u) => u.id)];
 
 function planRow(id) {
   const u = unit(id);
-  const env = u.runtimeOff || (u.trim && u.trim.startsWith("offered") ? "installer" : "manual");
-  const tag = u.scaffold === "opt-in" ? '<span class="plan-tag">opt-in</span>' : id === "offline-sync" ? '<span class="plan-tag">async mode</span>' : id === "datastar" ? '<span class="plan-tag">Go seam</span>' : "";
+  const env = u.runtimeOff || "manual removal";
+  const tag = id === "offline-sync" ? '<span class="plan-tag">async mode</span>' : id === "datastar" ? '<span class="plan-tag">Go seam</span>' : "";
   return `<label class="plan-row">
           <input type="checkbox" checked data-cap="${esc(u.id)}">
           <span class="plan-box" aria-hidden="true"></span>
@@ -192,18 +184,18 @@ function planRow(id) {
 }
 
 const planCommon = commonPlugins.map(planRow).join("\n        ");
-const planRest = pluginOrder.filter((id) => !commonPlugins.includes(id)).map(planRow).join("\n        ");
+const planRest = servantOrder.filter((id) => !commonPlugins.includes(id)).map(planRow).join("\n        ");
 
-const plugins = `<div class="trim-head">
+const servants = `<div class="trim-head">
           <span class="trim-title">Switches — runtime opt-outs</span>
-          <span class="trim-count" id="trim-count" aria-live="polite">${pluginOrder.length} of ${pluginOrder.length} kept</span>
+          <span class="trim-count" id="trim-count" aria-live="polite">${servantOrder.length} of ${servantOrder.length} kept</span>
         </div>
         <p class="plan-group">Common opt-outs</p>
         ${planCommon}
         <p class="plan-group">The rest</p>
         ${planRest}
         <p class="trim-summary" id="trim-summary" aria-live="polite">Every servant on. The binary still builds.</p>
-        <p class="trim-note">Every servant from the unit contracts (Kind plugin). A preview, not a live switch; the real switch is the env var. Servants are wired libraries, not installable recipes — see Recipes.</p>`;
+        <p class="trim-note">Every servant from the unit contracts (Kind servant). A preview, not a live switch; the real switch is the env var. Servants are wired libraries, not installable recipes — see Recipes.</p>`;
 
 // ---------- core: four anchors + nine bricks ----------
 
@@ -321,7 +313,7 @@ function between(source, start, end, body) {
 let out = page;
 out = between(out, "<!--FEATURES:START-->", "<!--FEATURES:END-->", features);
 out = between(out, "<!--WEIGHTS:START-->", "<!--WEIGHTS:END-->", weights);
-out = between(out, "<!--PLUGINS:START-->", "<!--PLUGINS:END-->", plugins);
+out = between(out, "<!--PLUGINS:START-->", "<!--PLUGINS:END-->", servants);
 out = between(out, "<!--CORE:START-->", "<!--CORE:END-->", core);
 out = between(out, "<!--GATES:START-->", "<!--GATES:END-->", gates);
 
@@ -336,5 +328,5 @@ if (check) {
   writeFileSync(pageURL, out);
   console.log("wrote site/index.html");
 }
-console.log(`units ${units.length} (core ${units.filter((u) => u.kind === "core").length}, plugin ${units.filter((u) => u.kind === "plugin").length}, feature ${units.filter((u) => u.kind === "feature").length})`);
+console.log(`units ${units.length} (core ${units.filter((u) => u.kind === "core").length}, servant ${units.filter((u) => u.kind === "servant").length}, feature ${units.filter((u) => u.kind === "feature").length})`);
 console.log(`gates ${hooks["pre-commit"].length + hooks["pre-push"].length + hooks["post-merge"].length}`);

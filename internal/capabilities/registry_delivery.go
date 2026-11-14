@@ -30,12 +30,12 @@ var deliveryUnits = []Capability{
 			"workers plus the onboarding welcome call and the startDagNats argument in " +
 			"cmd/web/dagnats.go. Migration 0015 stays (migrations are append-only; " +
 			"drop the table with a new one if the data must go). The transport seam " +
-			"is the separate `delivery` plugin.",
+			"is the separate `delivery` servant.",
 		Files: []string{"internal/server/inbox_badge.go"},
 	},
 	{
 		ID:   "delivery",
-		Kind: KindPlugin,
+		Kind: KindServant,
 		Summary: "delivery transport seam: channels (email today) carried by a " +
 			"provider (smtp or an external notify engine)",
 		RuntimeOff: "DELIVERY_TRANSPORT=off",

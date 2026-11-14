@@ -26,7 +26,7 @@ func TestEveryCoreTableIsRefused(t *testing.T) {
 		t.Error("a table prefixed with a core name must stay core")
 	}
 	// The negative control: without it, "everything is core" would pass too.
-	for _, table := range []string{"ext_pomodoro_sessions", "ext_notes", "session_log"} {
+	for _, table := range []string{"ext_timer_sessions", "ext_notes", "session_log"} {
 		if IsCoreTable(table) {
 			t.Errorf("%q is not a core table; refusing it would make the boundary a blanket ban", table)
 		}

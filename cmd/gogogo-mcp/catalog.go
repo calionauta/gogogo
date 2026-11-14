@@ -15,10 +15,12 @@ import "github.com/modelcontextprotocol/go-sdk/mcp"
 var toolCatalog = []toolDef{
 	{
 		name: "capabilities_list",
-		desc: "Raw registry JSON: every template capability with id, kind, summary, and off-switch. Registry " +
-			"only — takes no path, so it answers from any directory. Use it to look up an id or off-switch; " +
-			"use advise_stack to decide WHICH ones apply.",
-		params: "—",
+		desc: "Registry JSON: every template capability with id, kind, summary, and off-switch. Without `dir` " +
+			"it is the registry only, so it answers from anywhere. Pass `dir` (a gogogo checkout) and each " +
+			"feature also carries `owns` — the one-line boundary from its docs/domain card, so a client " +
+			"choosing a unit sees what the slice is for, not just its id. Use it to look up an id or " +
+			"off-switch; use advise_stack to decide WHICH ones apply.",
+		params: "`dir?`",
 		effect: "No",
 		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleCapabilitiesList) },
 	},
@@ -57,24 +59,25 @@ var toolCatalog = []toolDef{
 		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleVersionStatus) },
 	},
 	{
-		name: "trim_plan",
+		name: "scaffold_plan",
 		desc: "Preview scaffolding a checkout (validates name and owner, shows the " +
-			"plan envelope). The scaffold ships the whole template — no keep/drop " +
-			"list exists — and changes nothing. Requires a gogogo checkout at `dir` unless it " +
+			"plan envelope). The scaffold ships the whole template — there is no " +
+			"keep/drop list — and changes nothing. Requires a gogogo checkout at `dir` unless it " +
 			"does not exist yet (then it previews the clone) — on an unrelated project " +
-			"it cannot preview anything, so call advise_stack for guidance instead.",
-		params: "`name`, `owner?`, `dir?`, `format?`",
+			"it cannot preview anything, so call advise_stack for guidance instead. " +
+			"`shape` prunes entrypoints (web/api/desktop/gui/mobile); `full` keeps every target.",
+		params: "`name`, `owner?`, `dir?`, `format?`, `shape?`",
 		effect: "No",
-		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleTrimPlan) },
+		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleScaffoldPlan) },
 	},
 	{
-		name: "trim_apply",
+		name: "scaffold_apply",
 		desc: "Scaffold a checkout (rename, prove with build). Requires " +
 			"confirm:true. Mutates the target tree; only for a gogogo checkout or a " +
 			"path to scaffold into.",
-		params: "`name`, `owner?`, `dir?`, `format?`, `confirm: true`",
+		params: "`name`, `owner?`, `dir?`, `format?`, `shape?`, `confirm: true`",
 		effect: "Yes (`confirm:true`)",
-		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleTrimApply) },
+		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleScaffoldApply) },
 	},
 	{
 		name: "migrate_plan",

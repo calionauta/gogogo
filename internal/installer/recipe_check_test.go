@@ -11,33 +11,33 @@ import (
 func TestRecipeCheckHealthyConfiguration(t *testing.T) {
 	root := newRecipeCheckout(t)
 	src := newRecipeDir(t, "v1", map[string]string{
-		"features/pomodoro/handlers/chi.go":         recipeHandlerV1,
-		"features/pomodoro/handlers/register.go":    "package handlers\n\nfunc Register(reg any, d any) {}\n",
-		"features/pomodoro/handlers/genui_panel.go": "package handlers\n\nconst x = \"pomodoro_list\"\n",
-		"features/pomodoro/handlers/chi_test.go":    recipeHandlerTest,
-	}, "features/pomodoro/handlers")
+		"features/timer/handlers/chi.go":         recipeHandlerV1,
+		"features/timer/handlers/register.go":    "package handlers\n\nfunc Register(reg any, d any) {}\n",
+		"features/timer/handlers/genui_panel.go": "package handlers\n\nconst x = \"timer_list\"\n",
+		"features/timer/handlers/chi_test.go":    recipeHandlerTest,
+	}, "features/timer/handlers")
 	// The fixture manifest carries one metric and a panel spec.
-	manifest := `id: pomodoro
+	manifest := `id: timer
 upstream:
   repo: example.com/recipes
   ref: v1
 declaration:
   routes:
-  - {method: GET, pattern: /pomodoro}
+  - {method: GET, pattern: /timer}
   metrics:
-  - {label: Items, query: "SELECT COUNT(*) FROM pomodoro_items WHERE owner = ?"}
+  - {label: Items, query: "SELECT COUNT(*) FROM timer_items WHERE owner = ?"}
   panel:
-    component: "pomodoro_list"
-    prompt: "pomodoro_list {scope: all|mine} whenever the user asks"
+    component: "timer_list"
+    prompt: "timer_list {scope: all|mine} whenever the user asks"
     writable: [scope]
-register: features/pomodoro/handlers
+register: features/timer/handlers
 `
 	writeFile(t, filepath.Join(src, recipeManifestFile), manifest)
 	if _, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes"); err != nil {
 		t.Fatal(err)
 	}
 
-	report := checkOneRecipe(root, "pomodoro")
+	report := checkOneRecipe(root, "timer")
 	if !report.Healthy {
 		t.Fatalf("healthy fixture must pass, errors=%v warnings=%v output=%+v", report.Errors, report.Warnings, report)
 	}
@@ -48,19 +48,19 @@ register: features/pomodoro/handlers
 
 func TestRecipeCheckFlagsMissingPanel(t *testing.T) {
 	root := newRecipeCheckout(t)
-	manifest := `id: pomodoro
+	manifest := `id: timer
 upstream:
   repo: example.com/recipes
   ref: v1
 declaration:
   routes:
-  - {method: GET, pattern: /pomodoro}
-register: features/pomodoro/handlers
+  - {method: GET, pattern: /timer}
+register: features/timer/handlers
 `
-	writeFile(t, filepath.Join(root, "features", "pomodoro", "handlers", "chi.go"), recipeHandlerV1)
-	writeFile(t, filepath.Join(root, "features", "pomodoro", "handlers", "register.go"), "package handlers\n")
-	writeFile(t, filepath.Join(root, ".recipes", "pomodoro.yml"), manifest)
-	report := checkOneRecipe(root, "pomodoro")
+	writeFile(t, filepath.Join(root, "features", "timer", "handlers", "chi.go"), recipeHandlerV1)
+	writeFile(t, filepath.Join(root, "features", "timer", "handlers", "register.go"), "package handlers\n")
+	writeFile(t, filepath.Join(root, ".recipes", "timer.yml"), manifest)
+	report := checkOneRecipe(root, "timer")
 	if report.Healthy {
 		t.Fatalf("fixture without panel or metrics must need work: %+v", report)
 	}
@@ -77,41 +77,41 @@ register: features/pomodoro/handlers
 func TestRecipeCheckFlagsInvisibleMutationsAndMissingActionDocs(t *testing.T) {
 	root := newRecipeCheckout(t)
 	code := "package handlers\n\nfunc routes(r router) { " +
-		"r.Get(\"/pomodoro\", nil); r.Post(\"/pomodoro\", nil); " +
-		"r.Post(\"/pomodoro/{id}/toggle\", nil) }\n"
+		"r.Get(\"/timer\", nil); r.Post(\"/timer\", nil); " +
+		"r.Post(\"/timer/{id}/toggle\", nil) }\n"
 	src := newRecipeDir(t, "v1", map[string]string{
-		"features/pomodoro/handlers/chi.go":      code,
-		"features/pomodoro/handlers/register.go": "package handlers\n\nfunc Register(reg any, d any) {}\n",
-		"features/pomodoro/handlers/chi_test.go": recipeHandlerTest,
-	}, "features/pomodoro/handlers")
-	manifest := `id: pomodoro
+		"features/timer/handlers/chi.go":      code,
+		"features/timer/handlers/register.go": "package handlers\n\nfunc Register(reg any, d any) {}\n",
+		"features/timer/handlers/chi_test.go": recipeHandlerTest,
+	}, "features/timer/handlers")
+	manifest := `id: timer
 upstream:
   repo: example.com/recipes
   ref: v1
 declaration:
   routes:
-  - {method: GET, pattern: /pomodoro}
-  - {method: POST, pattern: /pomodoro}
-  - {method: POST, pattern: "/pomodoro/{id}/toggle"}
+  - {method: GET, pattern: /timer}
+  - {method: POST, pattern: /timer}
+  - {method: POST, pattern: "/timer/{id}/toggle"}
   actions:
   - verb: show
-    route: {method: GET, pattern: /pomodoro}
-register: features/pomodoro/handlers
+    route: {method: GET, pattern: /timer}
+register: features/timer/handlers
 `
 	writeFile(t, filepath.Join(src, recipeManifestFile), manifest)
 	if out, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes"); err != nil {
 		t.Fatalf("install: %v\n%s", err, out)
 	}
 
-	report := checkOneRecipe(root, "pomodoro")
+	report := checkOneRecipe(root, "timer")
 	if !report.Healthy {
 		t.Fatalf("the gaps must be warnings, not blockers: %+v", report.Errors)
 	}
 	joined := strings.Join(report.Warnings, "\n")
 	for _, want := range []string{
 		"mutating routes with no headless action",
-		"POST /pomodoro",
-		"POST /pomodoro/{id}/toggle",
+		"POST /timer",
+		"POST /timer/{id}/toggle",
 		"has no description",
 		"no summary",
 	} {
@@ -128,28 +128,28 @@ register: features/pomodoro/handlers
 // the signal for a genuinely forgotten action is lost.
 func TestRecipeCheckHonorsDeclaredOmissions(t *testing.T) {
 	root := newRecipeCheckout(t)
-	manifest := `id: pomodoro
+	manifest := `id: timer
 upstream:
   repo: example.com/recipes
   ref: v1
 declaration:
   routes:
-  - {method: GET, pattern: /pomodoro}
-  - {method: POST, pattern: /pomodoro/suggest}
+  - {method: GET, pattern: /timer}
+  - {method: POST, pattern: /timer/suggest}
   actions:
   - verb: show
-    description: Show the pomodoro page.
-    route: {method: GET, pattern: /pomodoro}
+    description: Show the timer page.
+    route: {method: GET, pattern: /timer}
   omitted:
-  - route: {method: POST, pattern: /pomodoro/suggest}
+  - route: {method: POST, pattern: /timer/suggest}
     reason: asynchronous job; the result arrives through the stream
-register: features/pomodoro/handlers
+register: features/timer/handlers
 `
-	writeFile(t, filepath.Join(root, "features", "pomodoro", "handlers", "chi.go"), recipeHandlerV1)
-	writeFile(t, filepath.Join(root, "features", "pomodoro", "handlers", "register.go"), "package handlers\n")
-	writeFile(t, filepath.Join(root, "features", "pomodoro", "handlers", "chi_test.go"), recipeHandlerTest)
-	writeFile(t, filepath.Join(root, ".recipes", "pomodoro.yml"), manifest)
-	report := checkOneRecipe(root, "pomodoro")
+	writeFile(t, filepath.Join(root, "features", "timer", "handlers", "chi.go"), recipeHandlerV1)
+	writeFile(t, filepath.Join(root, "features", "timer", "handlers", "register.go"), "package handlers\n")
+	writeFile(t, filepath.Join(root, "features", "timer", "handlers", "chi_test.go"), recipeHandlerTest)
+	writeFile(t, filepath.Join(root, ".recipes", "timer.yml"), manifest)
+	report := checkOneRecipe(root, "timer")
 	joined := strings.Join(report.Warnings, "\n")
 	if strings.Contains(joined, "mutating routes with no headless action") {
 		t.Fatalf("an explained omission must not be reported as invisible: %v", report.Warnings)
@@ -205,8 +205,8 @@ func TestRecipeCheckMetricsAndPanelRedProof(t *testing.T) {
 			name: "non-count query is an error",
 			declare: `
   metrics:
-  - {label: Items, query: "SELECT id FROM pomodoro_items WHERE owner = ?"}
-  panel: {component: "pomodoro_list", prompt: "when", writable: [scope]}
+  - {label: Items, query: "SELECT id FROM timer_items WHERE owner = ?"}
+  panel: {component: "timer_list", prompt: "when", writable: [scope]}
 `,
 			wantErrors: "must select count",
 		},
@@ -214,8 +214,8 @@ func TestRecipeCheckMetricsAndPanelRedProof(t *testing.T) {
 			name: "non-snake-case component is an error",
 			declare: `
   metrics:
-  - {label: Items, query: "SELECT COUNT(*) FROM pomodoro_items WHERE owner = ?"}
-  panel: {component: "PomodoroList", prompt: "when", writable: [scope]}
+  - {label: Items, query: "SELECT COUNT(*) FROM timer_items WHERE owner = ?"}
+  panel: {component: "TimerList", prompt: "when", writable: [scope]}
 `,
 			wantErrors: "must be snake_case",
 		},
@@ -223,33 +223,33 @@ func TestRecipeCheckMetricsAndPanelRedProof(t *testing.T) {
 			name: "duplicate metric labels are a warning",
 			declare: `
   metrics:
-  - {label: Items, query: "SELECT COUNT(*) FROM pomodoro_items WHERE owner = ?"}
-  - {label: Items, query: "SELECT COUNT(*) FROM pomodoro_items WHERE owner = ?"}
-  panel: {component: "pomodoro_list", prompt: "when", writable: [scope]}
+  - {label: Items, query: "SELECT COUNT(*) FROM timer_items WHERE owner = ?"}
+  - {label: Items, query: "SELECT COUNT(*) FROM timer_items WHERE owner = ?"}
+  panel: {component: "timer_list", prompt: "when", writable: [scope]}
 `,
 			wantWarns: "metric label",
 		},
 	} {
 		t.Run(mutate.name, func(t *testing.T) {
 			root := newRecipeCheckout(t)
-			manifest := `id: pomodoro
+			manifest := `id: timer
 upstream:
   repo: example.com/recipes
   ref: v1
 declaration:
   routes:
-  - {method: GET, pattern: /pomodoro}
-` + mutate.declare + `register: features/pomodoro/handlers
+  - {method: GET, pattern: /timer}
+` + mutate.declare + `register: features/timer/handlers
 `
-			writeFile(t, filepath.Join(root, "features", "pomodoro", "handlers", "chi.go"), recipeHandlerV1)
-			writeFile(t, filepath.Join(root, "features", "pomodoro", "handlers", "register.go"),
+			writeFile(t, filepath.Join(root, "features", "timer", "handlers", "chi.go"), recipeHandlerV1)
+			writeFile(t, filepath.Join(root, "features", "timer", "handlers", "register.go"),
 				"package handlers\n\nfunc Register(reg any, d any) {}\n")
-			writeFile(t, filepath.Join(root, "features", "pomodoro", "handlers", "genui_panel.go"),
-				"package handlers\n\nconst x = \"pomodoro_list\"\n")
-			writeFile(t, filepath.Join(root, "features", "pomodoro", "handlers", "chi_test.go"),
+			writeFile(t, filepath.Join(root, "features", "timer", "handlers", "genui_panel.go"),
+				"package handlers\n\nconst x = \"timer_list\"\n")
+			writeFile(t, filepath.Join(root, "features", "timer", "handlers", "chi_test.go"),
 				recipeHandlerTest)
-			writeFile(t, filepath.Join(root, ".recipes", "pomodoro.yml"), manifest)
-			report := checkOneRecipe(root, "pomodoro")
+			writeFile(t, filepath.Join(root, ".recipes", "timer.yml"), manifest)
+			report := checkOneRecipe(root, "timer")
 			joined := strings.Join(report.Errors, "\n") + "\n" +
 				strings.Join(report.Warnings, "\n")
 			if mutate.wantErrors != "" && !strings.Contains(joined, mutate.wantErrors) {
@@ -279,27 +279,31 @@ declaration:
 // why this gate is here. RED/GREEN/PROVE: the same fixture passes once the code
 // mentions the token.
 func TestRecipeCheckBlocksAnUnrecordedCounterSignal(t *testing.T) {
-	const manifest = `id: pomodoro
+	const manifest = `id: timer
 upstream:
   repo: example.com/recipes
   ref: v1
 files:
-  features/pomodoro/migrations/0001_init.sql: 00
+  features/timer/migrations/0001_init.sql: 00
 declaration:
   tables:
-  - ext_pomodoro_sessions
-  outcomes:
-  - id: session_without_extension
+  - ext_timer_sessions
+  metrics:
+  - kind: outcome
+    id: session_without_extension
     job: Finish a focus session without extending it
     beneficiary: user
-    success: {label: Sessions kept, query: "SELECT COUNT(*) FROM ext_pomodoro_sessions` +
+    success: {label: Sessions kept, query: "SELECT COUNT(*) FROM ext_timer_sessions` +
 		` WHERE owner = ? AND extended = 0"}
-    total: {label: Sessions, query: "SELECT COUNT(*) FROM ext_pomodoro_sessions WHERE owner = ?"}
-    counterSignals: [extended]
+    total: {label: Sessions, query: "SELECT COUNT(*) FROM ext_timer_sessions WHERE owner = ?"}
+    counterbalance:
+    - label: Sessions extended
+      query: "SELECT COUNT(*) FROM ext_timer_sessions` +
+		` WHERE owner = ? AND extended = 1"
     window: session
 `
-	declared := `CREATE TABLE ext_pomodoro_sessions (id TEXT PRIMARY KEY);` + "\n"
-	recorded := `CREATE TABLE ext_pomodoro_sessions (
+	declared := `CREATE TABLE ext_timer_sessions (id TEXT PRIMARY KEY);` + "\n"
+	recorded := `CREATE TABLE ext_timer_sessions (
     id TEXT PRIMARY KEY,
     extended INTEGER NOT NULL DEFAULT 0
 );` + "\n"
@@ -313,12 +317,12 @@ declaration:
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			root := newRecipeCheckout(t)
-			writeFile(t, filepath.Join(root, ".recipes", "pomodoro.yml"), manifest)
-			writeFile(t, filepath.Join(root, "features", "pomodoro", "migrations", "0001_init.sql"), tc.migration)
+			writeFile(t, filepath.Join(root, ".recipes", "timer.yml"), manifest)
+			writeFile(t, filepath.Join(root, "features", "timer", "migrations", "0001_init.sql"), tc.migration)
 
-			report := checkOneRecipe(root, "pomodoro")
+			report := checkOneRecipe(root, "timer")
 			joined := strings.Join(report.Errors, "\n")
-			blocked := strings.Contains(joined, `declares counter signal "extended"`)
+			blocked := strings.Contains(joined, `declares counterbalance "extended"`)
 			if blocked != tc.wantErrors {
 				t.Fatalf("counter-signal verdict = %v, want %v: errors=%v warnings=%v",
 					blocked, tc.wantErrors, report.Errors, report.Warnings)
@@ -344,20 +348,20 @@ declaration:
 func TestRecipeCheckBlocksARouteOwnerWithoutTests(t *testing.T) {
 	t.Run("routes and no tests blocks", func(t *testing.T) {
 		root := newRecipeCheckout(t)
-		manifest := `id: pomodoro
+		manifest := `id: timer
 upstream:
   repo: example.com/recipes
   ref: v1
 declaration:
   routes:
-  - {method: GET, pattern: /pomodoro}
-register: features/pomodoro/handlers
+  - {method: GET, pattern: /timer}
+register: features/timer/handlers
 `
-		writeFile(t, filepath.Join(root, "features", "pomodoro", "handlers", "chi.go"), recipeHandlerV1)
-		writeFile(t, filepath.Join(root, "features", "pomodoro", "handlers", "register.go"), "package handlers\n")
-		writeFile(t, filepath.Join(root, ".recipes", "pomodoro.yml"), manifest)
+		writeFile(t, filepath.Join(root, "features", "timer", "handlers", "chi.go"), recipeHandlerV1)
+		writeFile(t, filepath.Join(root, "features", "timer", "handlers", "register.go"), "package handlers\n")
+		writeFile(t, filepath.Join(root, ".recipes", "timer.yml"), manifest)
 
-		report := checkOneRecipe(root, "pomodoro")
+		report := checkOneRecipe(root, "timer")
 		if report.Healthy {
 			t.Fatalf("a route-owning recipe with no tests must be blocked, got %+v", report.Warnings)
 		}
@@ -368,21 +372,21 @@ register: features/pomodoro/handlers
 
 	t.Run("data-only warns", func(t *testing.T) {
 		root := newRecipeCheckout(t)
-		manifest := `id: pomodoro
+		manifest := `id: timer
 upstream:
   repo: example.com/recipes
   ref: v1
 files:
-  features/pomodoro/migrations/0001_init.sql: 00
+  features/timer/migrations/0001_init.sql: 00
 declaration:
   tables:
-  - ext_pomodoro_sessions
+  - ext_timer_sessions
 `
-		writeFile(t, filepath.Join(root, "features", "pomodoro", "migrations", "0001_init.sql"),
-			"CREATE TABLE ext_pomodoro_sessions (id TEXT PRIMARY KEY);\n")
-		writeFile(t, filepath.Join(root, ".recipes", "pomodoro.yml"), manifest)
+		writeFile(t, filepath.Join(root, "features", "timer", "migrations", "0001_init.sql"),
+			"CREATE TABLE ext_timer_sessions (id TEXT PRIMARY KEY);\n")
+		writeFile(t, filepath.Join(root, ".recipes", "timer.yml"), manifest)
 
-		report := checkOneRecipe(root, "pomodoro")
+		report := checkOneRecipe(root, "timer")
 		if !report.Healthy {
 			t.Fatalf("a data-only recipe must stay healthy, got errors=%v", report.Errors)
 		}

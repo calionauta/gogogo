@@ -40,7 +40,7 @@
 //	SEARCH_MODE          (default: "substring") — todo search layer:
 //	                       "substring" | "fuzzy" | "bm25"; unknown values
 //	                       fall back to substring (see config/search.go)
-//	I18N_ENABLED         (default: false) — localization plugin master switch;
+//	I18N_ENABLED         (default: true) — localization plugin master switch;
 //	                       false keeps English markup, true enables locale
 //	                       resolution (see config/i18n.go)
 //	SUPPORTED_LOCALES    (default: "en,pt-BR") — tags the catalog loads
@@ -190,6 +190,7 @@ func Load() *Config {
 	cfg.loadStorageEnv()
 	cfg.loadReviewEnv()
 	cfg.loadChatRouterEnv()
+	cfg.loadKioskClassifierEnv()
 	cfg.loadGenUIEnv()
 
 	cfg.Credits.Enabled = envBool("CREDITS_ENABLED", false)

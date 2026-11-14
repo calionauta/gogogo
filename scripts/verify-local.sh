@@ -178,8 +178,22 @@ echo "  change added  3) say PASS or FAIL with one sentence of what you saw."
 echo "────────────────────────────────────────────────────────────"
 
 if [ -t 0 ]; then
-	printf 'Press Enter when done (Ctrl-C anytime)… '
-	read -r _ || true
+	# The verdict is the point of the exercise, so it is captured here and
+	# written as the stamp `make signoff` reads. Leaving it as "press Enter"
+	# is what let a look be skipped while the gate stayed green.
+	printf 'Verdict — PASS / FAIL / later (Enter = later): '
+	read -r verdict || true
+	case "${verdict:-}" in
+	[Pp]ass | [Pp])
+		bash scripts/operator-look.sh pass "operator PASS via verify-local"
+		;;
+	[Ff]ail | [Ff])
+		bash scripts/operator-look.sh fail "operator FAIL via verify-local"
+		;;
+	*)
+		echo "  no verdict recorded — run make operator-look-pass when the operator answers"
+		;;
+	esac
 else
 	echo "  (no TTY: stopping automatically after ${ttl_min} min, or Ctrl-C)"
 	deadline=$((SECONDS + ttl_min * 60))

@@ -21,6 +21,7 @@ import (
 
 	comp "github.com/calionauta/gogogo/features/genui/components"
 	"github.com/calionauta/gogogo/features/kiosk/components"
+	"github.com/calionauta/gogogo/internal/prompts"
 )
 
 const (
@@ -40,7 +41,7 @@ type panel struct {
 func (h *Handler) Panel() comp.PanelProvider {
 	return panel{comp.NewSlicePanel(
 		"kiosk_orders",
-		"kiosk_orders {scope: recent|all} whenever the user asks about their orders",
+		prompts.Text("panels/kiosk-orders"),
 		"scope",
 		[]string{scopeRecent, scopeAll},
 		h.panelRows,

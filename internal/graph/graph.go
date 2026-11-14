@@ -168,12 +168,12 @@ func LoadInstalledRecipes(root string) ([]Recipe, error) {
 	return out, nil
 }
 
-// layout places nodes on three concentric rings by kind (core inner, plugin
+// layout places nodes on three concentric rings by kind (core inner, servant
 // middle, feature outer; recipes mid). Deterministic: same input, same
 // positions — so the canvas never needs a physics step.
 func layout(doc *Document) {
 	rings := map[string]float64{
-		"core": 1.0, "plugin": 2.0, "feature": 3.0, RecipeKind: 1.6,
+		"core": 1.0, "servant": 2.0, "feature": 3.0, RecipeKind: 1.6,
 		"table": 2.4, "dagnats": 2.5, "run": 1.2,
 	}
 	counters := map[string]int{}

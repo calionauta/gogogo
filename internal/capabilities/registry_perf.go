@@ -8,7 +8,7 @@ var perfUnits = []Capability{
 	// operator fence. This comment is the installer strip's start marker.
 	{
 		ID:         "perf",
-		Kind:       KindPlugin,
+		Kind:       KindServant,
 		Summary:    "opt-in operator diagnostics: statsviz dashboard + stdlib pprof",
 		RuntimeOff: "PERF_ENABLED=false (default off in production)",
 		Dirs:       []string{"internal/perf"},
@@ -21,7 +21,7 @@ var perfUnits = []Capability{
 			"match. statsviz is net/http only (no second HTTP stack); pprof is " +
 			"stdlib. The installer drops the dependency with the unit.",
 		Warns: []string{
-			"One-way trim: removal is a hand edit and re-adding is manual.",
+			"One-way removal: it is a hand edit and re-adding is manual.",
 		},
 	},
 }

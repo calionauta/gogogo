@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	v1 = "package pomodoro\n\nfunc Timer() {}\n"
-	v2 = "package pomodoro\n\nfunc Timer() { /* upstream fix */ }\n"
+	v1 = "package timer\n\nfunc Timer() {}\n"
+	v2 = "package timer\n\nfunc Timer() { /* upstream fix */ }\n"
 )
 
 // tree answers current() from a map, so the planner is exercised without touching
@@ -36,7 +36,7 @@ func opsByPath(p PlanResult) map[string]Op {
 // receipt mean every upstream file is new. This is what makes install a special
 // case of update rather than a separate mechanism.
 func TestPlanFreshInstallIsAllWrites(t *testing.T) {
-	up := map[string]string{"features/pomodoro/page.go": v1, "features/pomodoro/domain.go": v1}
+	up := map[string]string{"features/timer/page.go": v1, "features/timer/domain.go": v1}
 	p := Plan(Receipt{Files: map[string]string{}}, up, tree(nil))
 	if p.Blocked() {
 		t.Fatal("a fresh install cannot conflict with itself")
@@ -50,7 +50,7 @@ func TestPlanFreshInstallIsAllWrites(t *testing.T) {
 // TestPlanUntouchedFileFastForwards is the cheap common case: the user changed
 // nothing, upstream moved, so the file is replaced with no human involvement.
 func TestPlanUntouchedFileFastForwards(t *testing.T) {
-	const path = "features/pomodoro/domain.go"
+	const path = "features/timer/domain.go"
 	r := Receipt{Files: map[string]string{path: Hash([]byte(v1))}}
 	p := Plan(r, map[string]string{path: v2}, tree(map[string]string{path: v1}))
 
@@ -67,8 +67,8 @@ func TestPlanUntouchedFileFastForwards(t *testing.T) {
 // guessed: the user owns those bytes AND upstream changed them. The planner names
 // the file and refuses to apply.
 func TestPlanModifiedAndUpstreamMovedIsAConflict(t *testing.T) {
-	const path = "features/pomodoro/domain.go"
-	mine := "package pomodoro\n\nfunc Timer() { /* my thing */ }\n"
+	const path = "features/timer/domain.go"
+	mine := "package timer\n\nfunc Timer() { /* my thing */ }\n"
 	r := Receipt{Files: map[string]string{path: Hash([]byte(v1))}}
 	p := Plan(r, map[string]string{path: v2}, tree(map[string]string{path: mine}))
 
@@ -85,8 +85,8 @@ func TestPlanModifiedAndUpstreamMovedIsAConflict(t *testing.T) {
 // non-destructive property: a file the user edited and upstream did not touch is
 // left completely alone. If this ever regresses, the model becomes destructive.
 func TestPlanModifiedButUpstreamUnchangedKeepsUserBytes(t *testing.T) {
-	const path = "features/pomodoro/domain.go"
-	mine := "package pomodoro\n\nfunc Timer() { /* my thing */ }\n"
+	const path = "features/timer/domain.go"
+	mine := "package timer\n\nfunc Timer() { /* my thing */ }\n"
 	r := Receipt{Files: map[string]string{path: Hash([]byte(v1))}}
 	p := Plan(r, map[string]string{path: v1}, tree(map[string]string{path: mine}))
 
@@ -102,7 +102,7 @@ func TestPlanModifiedButUpstreamUnchangedKeepsUserBytes(t *testing.T) {
 // TestPlanUpstreamDropOfUntouchedFileIsObsolete asserts cleanup is possible
 // without risking user work: upstream removed a file the user never touched.
 func TestPlanUpstreamDropOfUntouchedFileIsObsolete(t *testing.T) {
-	const path = "features/pomodoro/old.go"
+	const path = "features/timer/old.go"
 	r := Receipt{Files: map[string]string{path: Hash([]byte(v1))}}
 	p := Plan(r, map[string]string{}, tree(map[string]string{path: v1}))
 
@@ -114,8 +114,8 @@ func TestPlanUpstreamDropOfUntouchedFileIsObsolete(t *testing.T) {
 // TestPlanUpstreamDropOfModifiedFileKeepsIt is the same rule applied to a file the
 // user edited: upstream dropping it must not delete their work.
 func TestPlanUpstreamDropOfModifiedFileKeepsIt(t *testing.T) {
-	const path = "features/pomodoro/old.go"
-	mine := "package pomodoro\n\nfunc Old() { /* mine */ }\n"
+	const path = "features/timer/old.go"
+	mine := "package timer\n\nfunc Old() { /* mine */ }\n"
 	r := Receipt{Files: map[string]string{path: Hash([]byte(v1))}}
 	p := Plan(r, map[string]string{}, tree(map[string]string{path: mine}))
 
@@ -130,7 +130,7 @@ func TestPlanUpstreamDropOfModifiedFileKeepsIt(t *testing.T) {
 // TestPlanUserDeletedFileIsNotResurrected asserts that a deliberate removal is
 // respected: the planner reports it as gone rather than writing the file back.
 func TestPlanUserDeletedFileIsNotResurrected(t *testing.T) {
-	const path = "features/pomodoro/domain.go"
+	const path = "features/timer/domain.go"
 	r := Receipt{Files: map[string]string{path: Hash([]byte(v1))}}
 	p := Plan(r, map[string]string{path: v2}, tree(nil))
 
@@ -161,8 +161,8 @@ func TestPlanIsDeterministic(t *testing.T) {
 // as a problem. Language matters here: a report that calls a modified file an
 // issue trains people to overwrite it.
 func TestPlanRenderNamesOwnership(t *testing.T) {
-	const path = "features/pomodoro/domain.go"
-	mine := "package pomodoro\n\nfunc Timer() { /* mine */ }\n"
+	const path = "features/timer/domain.go"
+	mine := "package timer\n\nfunc Timer() { /* mine */ }\n"
 	r := Receipt{Files: map[string]string{path: Hash([]byte(v1))}}
 	p := Plan(r, map[string]string{path: v1}, tree(map[string]string{path: mine}))
 

@@ -1,0 +1,61 @@
+package ui
+
+import "github.com/calionauta/gogogo/internal/i18n"
+
+// Language renders the account panel's language row: one option per catalog the
+// build ships, the active one marked.
+//
+// The options are plain links. Picking one navigates to /_ui/locale, which sets
+// the cookie and redirects back to the page the user was on (Referer, restricted
+// to a same-origin path) — the next render resolves the new locale server-side.
+// See locale_options.go for why this is a link and not a Datastar action:
+// translating strings already in the DOM is not what Datastar can do without a
+// second dictionary.
+//
+// Rendered as <li> items because it composes into the account menu's list, the
+// same slot rule Preferences follows.
+//
+// The two helpers exist because templ evaluates `{ }` expressions inside
+// attributes but not a ternary with braces: keeping the strings out of the
+// markup keeps them readable and testable.
+
+// currentAttr is the aria-current value for an option. It reuses boolLiteral:
+// one spelling of a boolean for markup, so a third copy cannot drift.
+func currentAttr(active bool) string {
+	if active {
+		return boolLiteral(true)
+	}
+	return boolLiteral(false)
+}
+
+// activeClass is the Datastar class expression marking the active option.
+func activeClass(active bool) string {
+	if active {
+		return "{'is-active': true}"
+	}
+	return "{'is-active': false}"
+}
+templ Language(cat *i18n.Catalog) {
+	if opts := LocaleOptions(cat, i18n.Locale(ctx)); len(opts) > 0 {
+		<li class="app-pref">
+			<p class="app-pref-head" id="app-pref-lang">{ i18n.T(ctx, "prefs.language", nil) }</p>
+			<ul class="app-pref-list" aria-labelledby="app-pref-lang">
+				for _, opt := range opts {
+					<li>
+						<a
+							class="app-pref-option"
+							href={ opt.Href() }
+							hreflang={ opt.Tag }
+							lang={ opt.Tag }
+							data-attr:aria-current={ currentAttr(opt.Active) }
+							data-class={ activeClass(opt.Active) }
+							data-on:click="$loading = true">
+							<span class="app-pref-label">{ opt.Label }</span>
+							<span class="app-pref-check" aria-hidden="true"></span>
+						</a>
+					</li>
+				}
+			</ul>
+		</li>
+	}
+}

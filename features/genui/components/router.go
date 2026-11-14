@@ -8,6 +8,7 @@ import (
 	"context"
 
 	"github.com/calionauta/gogogo/internal/observability"
+	"github.com/calionauta/gogogo/internal/prompts"
 )
 
 // Router decides which component an answer should lead with. The production
@@ -32,12 +33,19 @@ type Router interface {
 // single place the router's pick can reach the model, which is what makes
 // "the router changes nothing when off" provable instead of asserted.
 func ConversationPrompt(ctx context.Context, router Router, request string, surfaces []Surface) string {
+	return ComposeConversation(ctx, router, request, surfaces).String()
+}
+
+// ComposeConversation is ConversationPrompt as a Composer: the caller that
+// sends the request records which prompt files (and versions) it carried.
+func ComposeConversation(ctx context.Context, router Router, request string, surfaces []Surface) *prompts.Composer {
 	surfaces = NormalizeSurfaces(surfaces)
-	base := PromptForSurfaces(surfaces)
+	composed := promptForSurfaces(surfaces)
 	if name, ok := routerPick(ctx, router, surfaces, request); ok {
-		base = PromptForCatalogLeadSurfaces(name, surfaces)
+		composed = composeForCatalogLead(name, surfaces)
 	}
-	return promptForRequest(base, request)
+	composed.Append(promptForRequest("", request))
+	return composed
 }
 
 // routerPick asks the router for a lead component and reports whether the

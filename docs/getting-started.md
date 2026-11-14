@@ -2,9 +2,9 @@
 
 This repository is a **GitHub template**. The recommended path is the guided
 installer — it asks for a project name, clones the template and renames it.
-(The old keep/drop trim menus are retired: scaffold now ships the whole
-template; to share a smaller tree, delete the units by hand guided by the
-registry's per-unit `Reason`.)
+(The old keep/drop menus are retired: scaffold now ships the whole template; to
+share a smaller tree, remove features with `recipe uninstall <id>` and servants
+by hand, guided by the registry's per-unit `Reason`.)
 Manual `gh repo create` + `make rename` still works and is documented below
 as the fallback.
 
@@ -43,7 +43,7 @@ when the tree carries it, and prints the exact next commands
 (`cd <name> && make dev` — a child process cannot `cd` its parent, which
 is why every scaffolder from `create-vite` to `create-t3-app` prints the
 `cd` instead of doing it).
-Trim details: [Scope taxonomy](scope-taxonomy.md#removing-a-component).
+Removal details: [Scope taxonomy](scope-taxonomy.md#removing-a-component).
 
 Non-interactive (CI/scripted) — preview first, then pin `--yes`:
 
@@ -64,7 +64,7 @@ deletes on an assumption. Exit codes: 0 ok/plan-only, 1 usage error,
 
 TUI tech: the installer is stdlib-only today so `go run` needs nothing else.
 The interactive form is structured so it can move to Charm `Huh` + `Bubbletea`
-(a 2026-standard, performative Go TUI stack) without changing the trim engine —
+(a 2026-standard, performative Go TUI stack) without changing the removal engine —
 see `cmd/gogogo/README.md`.
 
 On success the installer prints the exact next commands — it cannot run
@@ -103,7 +103,7 @@ No `--yes`, nothing written: it reads the capability
 registry and prints use-case presets (the units each case exercises), every
 capability with its removal note or runtime off-switch, and the three global
 rules (Go-first with the profiled-kernel Zig exception, runtime switches
-before trim, upstream-first).
+before removal, upstream-first).
 
 Two optional flags turn the opinion into a route. `--intent
 update|port|new-feature|scaffold` prints the ordered commands for that
@@ -114,7 +114,7 @@ the [`export`](porting-into-an-existing-app.md) route — instead of a table you
 cannot install.
 
 The MCP server exposes the same document as `advise_stack` — agents deciding
-what to use start there, not at `trim_plan`.
+what to use start there, not at `scaffold_plan`.
 
 Strategy for LLMs: empty `--need` returns the full map (cheapest correct
 first call — the document is small). A filtered call that matches nothing
@@ -124,14 +124,14 @@ withheld until something matches, so a miss never invites scaffolding the
 wrong thing. This tool only knows the Go template plus its Zig exception:
 an unmatched need gets the full map plus the preset names to retry with,
 never a stack label. A Zig-shaped need gets the exception-to-go gate instead
-of trim mechanics. Keyword matching is deliberately dumb (exact hits, stem
+of removal mechanics. Keyword matching is deliberately dumb (exact hits, stem
 prefixes, 5+ letter abbreviations — short words never prefix-match) —
 phrase the need with template vocabulary (`whiteboard`, `dagnats`,
 `offline`, `credits`) when a first attempt misses. Matching is English
 plus international loanwords (`site`, `blog`, `email`, `chat`, `wifi`,
 `internet` fire in PT/ES/FR/DE too); anything else falls back to the full
 map, unfiltered but complete. Then preview
-with `trim_plan --dry-run` before any `trim_apply`.
+with `scaffold_plan --dry-run` before any `scaffold_apply`.
 
 ## 0c. Adding to an existing project
 
@@ -145,7 +145,7 @@ that does not exist yet is built by `new`, below.
 **A feature that does not exist yet.** `new` scaffolds one from the todo
 skeleton: handler + page, composition-root wiring, capability unit, RBAC rows,
 then templ generate, generated docs, registry conformance, `check-flatdeps` and a
-build proof. It works on trimmed trees too (the anchors it edits are core):
+build proof. It works on a tree that already removed units too (the anchors it edits are core):
 
 ```bash
 go run ./cmd/gogogo new feature reports --dir ./my-app --dry-run
@@ -213,8 +213,8 @@ make site                          # rewrites site/docs/, llms.txt, sitemap.xml
 make dev
 ```
 
-Open `http://localhost:8080` for the landing page, then
-`http://localhost:8080/todo` for the demo — sign in with a seeded account
+Open `http://localhost:8080` — a guest is sent to the login page, a session to
+its home — then `http://localhost:8080/todo` for the demo. Sign in with a seeded account
 (`demo1@demo.app` / `demo1234456`; `demo2@demo.app` takes the same password).
 
 > The default port is `8080` (override with `PORT`). The default branch is
@@ -252,7 +252,7 @@ everything — the unified build era means you never pass `-tags`.
 
 1. `make dev` — the binary boots the flat stack (Turso + owned auth + goqite + SSE Hub) + DagNats +
    NATS, and seeds the demo users on first run.
-2. Open `/` — public landing page, no auth.
+2. Open `/` — a guest lands on `/login`; there is no public marketing page in the tree.
 3. Open `/todo` — sign in as `demo1@demo.app` / `demo1234456`, add a todo, and watch it
    stream through the SSE hub. (`demo2@demo.app`, same password, keeps
    a separate private list, plus shared todos both logins see live — verify in a second browser.)

@@ -37,7 +37,7 @@ func Register(reg *recipe.Registry, d register.Deps) {
 	chatRouter := NewRouter(d.Cfg)
 	memStore := store.NewMemStore()
 	h := NewHandler(d.Cfg, d.Auth, d.Queue, hub,
-		memStore, ResponderFromLLM(d.RealLLM, d.SimulatedLLM, chatRouter, chatSurfaces))
+		memStore, ResponderFromLLM(d.RealLLM, chatRouter, chatSurfaces))
 	if d.ChatRef != nil {
 		d.ChatRef.Count = func(ctx context.Context, owner string) (int, int, error) {
 			msgs, err := memStore.List(ctx, owner)
@@ -56,7 +56,7 @@ func Register(reg *recipe.Registry, d register.Deps) {
 	if d.Panels != nil {
 		*d.Panels = append(*d.Panels, NewChatPanel(memStore))
 	}
-	h.SetModelLeg(d.RealLLM, d.SimulatedLLM, chatRouter, chatSurfaces)
+	h.SetModelLeg(d.RealLLM, chatRouter, chatSurfaces)
 	h.RegisterHandlers(d.Queue.Registry())
 	reg.Add(h.Recipe())
 }

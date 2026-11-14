@@ -75,7 +75,7 @@ func TestMountFeatureDuplicatePanics(t *testing.T) {
 
 // TestUnknownMethodAnswers405 pins the router-level method decision: a path
 // the tree serves for GET is not a hand-rolled check in every handler, so a
-// POST answers 405 instead of falling through to the landing page.
+// POST answers 405 instead of falling through to GET.
 func TestUnknownMethodAnswers405(t *testing.T) {
 	feat := chi.NewRouter()
 	feat.Get("/only-get", func(http.ResponseWriter, *http.Request) {})
@@ -113,20 +113,21 @@ func TestMountSubtreeKeepsFullPath(t *testing.T) {
 	}
 }
 
-// TestUnknownPathReachesLanding pins the not-found delegation: the landing
-// router is the catch-all, so an unmatched URL renders it rather than a bare
-// 404.
-func TestUnknownPathReachesLanding(t *testing.T) {
+// TestUnknownPathReachesNotFound pins the delegation: Router.NotFound is the
+// catch-all, so an unmatched URL reaches the handler the composition root
+// installs instead of falling through to chi's bare 404. The tree no longer
+// installs a catch-all page, but the delegation itself is what this pins.
+func TestUnknownPathReachesNotFound(t *testing.T) {
 	root := NewRouter()
 	root.NotFound(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("landing"))
+		_, _ = w.Write([]byte("not-found"))
 	})
 
 	rec := httptest.NewRecorder()
 	root.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/nope", nil))
-	if rec.Code != http.StatusOK || rec.Body.String() != "landing" {
-		t.Fatalf("GET /nope = %d %q, want 200 landing", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusOK || rec.Body.String() != "not-found" {
+		t.Fatalf("GET /nope = %d %q, want 200 not-found", rec.Code, rec.Body.String())
 	}
 }
 

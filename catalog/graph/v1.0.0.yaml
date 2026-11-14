@@ -1,6 +1,8 @@
 id: graph
 summary: "System panorama: internal graph, DagNats presence, and the live /graph page."
 version: v1.0.0
+author: {name: calionauta}
+released: "2026-11-08"
 source:
   repo: github.com/calionauta/gogogo
   ref: c7722900
@@ -8,7 +10,6 @@ files:
   internal/graph/graph.go: "a67ca87b67a4ab20913a2b9f017a5a4b636dede33e16ecabb8bb091887a2f907"
 license: MIT
 minCore: v0.62.0
-recommended: true
 register: features/graph/handlers
 slots:
   - dashboard.card

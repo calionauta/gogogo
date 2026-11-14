@@ -1,6 +1,6 @@
 ---
 name: panels/kiosk-orders
-description: "Panel line: when the model should answer from the user's own kiosk orders, and which slice to pick."
+description: "Panel line: when the model should answer from the caller's own kiosk orders."
 version: 1
 output: json
 variables: []

@@ -264,11 +264,11 @@ func TestBuildPageData_MasksJevKey(t *testing.T) {
 	}
 }
 
-// TestMarkRemovedUnits pins the mounted-set correction: a recipe with no
+// TestMarkRemovedUnits pins the mounted-set correction: a feature with no
 // provider in this build (uninstalled — its registry row stays as
 // removal-class data) must not read "in". Servants keep their status
 // (a servant's off state is its switch, not a removal), and mounted
-// recipes stay "in".
+// features stay "in".
 func TestMarkRemovedUnits(t *testing.T) {
 	pd := BuildPageData(&config.Config{})
 	mounted := map[string]bool{}
@@ -284,20 +284,20 @@ func TestMarkRemovedUnits(t *testing.T) {
 			rows[r.ID] = r
 		}
 	}
-	if got := rows["todo"].Status; got != "removed" {
+	if got := rows["todo"].Status; got != UnitStatusRemoved {
 		t.Errorf("todo row status = %q, want removed (unmounted recipe)", got)
 	}
-	if got := rows["notes"].Status; got != "in" {
+	if got := rows["notes"].Status; got != UnitStatusIn {
 		t.Errorf("notes row status = %q, want in (mounted)", got)
 	}
-	if got := rows["goakt"].Status; !strings.HasPrefix(got, "opt-out:") {
+	if got := rows["goakt"].Status; !strings.HasPrefix(string(got), string(UnitStatusOptOut)) {
 		t.Errorf("goakt row status = %q, want its opt-out text (servants keep status)", got)
 	}
 }
 
 // TestBuildPageDataUnits pins the /config inventory: every shipped unit,
 // grouped by removal class, with an honest status. graph is a Servant, so
-// it must group there (not with the recipes), and a switch-gated unit (goakt)
+// it must group there (not with the features), and a switch-gated unit (goakt)
 // must read opt-out, never plain "in".
 func TestBuildPageDataUnits(t *testing.T) {
 	pd := BuildPageData(&config.Config{})
@@ -308,7 +308,7 @@ func TestBuildPageDataUnits(t *testing.T) {
 		total += len(g.Rows)
 	}
 	if len(byLabel) != 3 {
-		t.Fatalf("Units groups = %v, want Core/Servants/Recipes", byLabelKeys(byLabel))
+		t.Fatalf("Units groups = %v, want Core/Servants/Features", byLabelKeys(byLabel))
 	}
 	if total == 0 {
 		t.Fatal("Units inventory is empty")
@@ -322,16 +322,17 @@ func TestBuildPageDataUnits(t *testing.T) {
 		return nil
 	}
 	if graph := find("Servants", "graph"); graph == nil {
-		t.Error("graph is not in the Servants inventory (Kind: plugin decision)")
+		t.Error("graph is not in the Servants inventory (KindServant)")
 	}
-	if goakt := find("Servants", "goakt"); goakt == nil || !strings.HasPrefix(goakt.Status, "opt-out:") ||
-		!strings.Contains(goakt.Status, "GOAKT_ENABLED") {
+	if goakt := find("Servants", "goakt"); goakt == nil ||
+		!strings.HasPrefix(string(goakt.Status), string(UnitStatusOptOut)) ||
+		!strings.Contains(string(goakt.Status), "GOAKT_ENABLED") {
 		t.Errorf("goakt row = %+v, want opt-out: GOAKT_ENABLED=...", goakt)
 	}
 	// Some core unit is always in (no switch).
 	inCore := false
 	for _, r := range byLabel["Core"] {
-		if r.Status == "in" {
+		if r.Status == UnitStatusIn {
 			inCore = true
 			break
 		}

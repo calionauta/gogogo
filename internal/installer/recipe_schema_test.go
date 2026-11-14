@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	sessionDDL = "CREATE TABLE ext_pomodoro_sessions (id TEXT PRIMARY KEY);\n"
-	indexDDL   = "CREATE INDEX idx_sessions ON ext_pomodoro_sessions (id);\n"
+	sessionDDL = "CREATE TABLE ext_timer_sessions (id TEXT PRIMARY KEY);\n"
+	indexDDL   = "CREATE INDEX idx_sessions ON ext_timer_sessions (id);\n"
 )
 
 // newDDLRecipeDir writes a recipe that declares a table and ships its DDL the
@@ -20,10 +20,10 @@ const (
 func newDDLRecipeDir(t *testing.T, ref string, files map[string]string) string {
 	t.Helper()
 	dir := t.TempDir()
-	manifest := "id: pomodoro\n" +
+	manifest := "id: timer\n" +
 		"upstream:\n  repo: example.com/recipes\n  ref: " + ref + "\n" +
-		"declaration:\n  routes:\n    - {method: GET, pattern: /pomodoro}\n" +
-		"  tables:\n    - ext_pomodoro_sessions\n"
+		"declaration:\n  routes:\n    - {method: GET, pattern: /timer}\n" +
+		"  tables:\n    - ext_timer_sessions\n"
 	writeFile(t, filepath.Join(dir, recipeManifestFile), manifest)
 	for rel, body := range files {
 		writeFile(t, filepath.Join(dir, filepath.FromSlash(rel)), body)
@@ -33,19 +33,19 @@ func newDDLRecipeDir(t *testing.T, ref string, files map[string]string) string {
 
 // mirrorAt is where one installed migration lands in the mirror.
 func mirrorAt(root, name string) string {
-	return filepath.Join(root, filepath.FromSlash(recipeSchemaDir), "pomodoro__"+name)
+	return filepath.Join(root, filepath.FromSlash(recipeSchemaDir), "timer__"+name)
 }
 
 // TestRecipeSchemaMirrorsAreFlat pins the measurement the layout depends on:
 // sqlc reads a schema entry one level deep, so a nested mirror would be silently
 // ignored and the recipe's table would have no generated queries.
 func TestRecipeSchemaMirrorsAreFlat(t *testing.T) {
-	got := schemaMirrors("pomodoro", map[string]string{
-		"features/pomodoro/migrations/0001_init.sql":      "h1",
-		"features/pomodoro/migrations/2026/0002_more.sql": "h2",
-		"features/pomodoro/handlers/chi.go":               "h3",
+	got := schemaMirrors("timer", map[string]string{
+		"features/timer/migrations/0001_init.sql":      "h1",
+		"features/timer/migrations/2026/0002_more.sql": "h2",
+		"features/timer/handlers/chi.go":               "h3",
 	})
-	want := []string{"pomodoro__0001_init.sql", "pomodoro__2026_0002_more.sql"}
+	want := []string{"timer__0001_init.sql", "timer__2026_0002_more.sql"}
 	if len(got) != len(want) {
 		t.Fatalf("got %d mirrors, want %d: %+v", len(got), len(want), got)
 	}
@@ -58,12 +58,12 @@ func TestRecipeSchemaMirrorsAreFlat(t *testing.T) {
 
 func TestRecipeSchemaSourcesPicksMigrationsOnly(t *testing.T) {
 	cases := map[string]bool{
-		"migrations/0001_init.sql":                        true,
-		"features/pomodoro/migrations/0001_init.sql":      true,
-		"features/pomodoro/migrations/2026/0002_more.sql": true,
-		"features/pomodoro/seed.sql":                      false,
-		"features/pomodoro/migrations/README.md":          false,
-		"features/pomodoro/handlers/chi.go":               false,
+		"migrations/0001_init.sql":                     true,
+		"features/timer/migrations/0001_init.sql":      true,
+		"features/timer/migrations/2026/0002_more.sql": true,
+		"features/timer/seed.sql":                      false,
+		"features/timer/migrations/README.md":          false,
+		"features/timer/handlers/chi.go":               false,
 	}
 	for path, want := range cases {
 		if got := isRecipeMigration(path); got != want {
@@ -75,8 +75,8 @@ func TestRecipeSchemaSourcesPicksMigrationsOnly(t *testing.T) {
 func TestRecipeInstallMirrorsItsDDLForCodegen(t *testing.T) {
 	root := newRecipeCheckout(t)
 	src := newDDLRecipeDir(t, "v1", map[string]string{
-		"features/pomodoro/handlers/chi.go":          recipeHandlerV1,
-		"features/pomodoro/migrations/0001_init.sql": sessionDDL,
+		"features/timer/handlers/chi.go":          recipeHandlerV1,
+		"features/timer/migrations/0001_init.sql": sessionDDL,
 	})
 
 	out, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes")
@@ -104,7 +104,7 @@ func TestRecipeInstallMirrorsItsDDLForCodegen(t *testing.T) {
 func TestRecipeInstallMirrorsNothingForATableLessRecipe(t *testing.T) {
 	root := newRecipeCheckout(t)
 	src := newRecipeDir(t, "v1", map[string]string{
-		"features/pomodoro/handlers/chi.go": recipeHandlerV1,
+		"features/timer/handlers/chi.go": recipeHandlerV1,
 	})
 
 	if _, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes"); err != nil {
@@ -118,17 +118,17 @@ func TestRecipeInstallMirrorsNothingForATableLessRecipe(t *testing.T) {
 func TestRecipeInstallPrunesAMigrationTheRecipeDropped(t *testing.T) {
 	root := newRecipeCheckout(t)
 	v1 := newDDLRecipeDir(t, "v1", map[string]string{
-		"features/pomodoro/handlers/chi.go":           recipeHandlerV1,
-		"features/pomodoro/migrations/0001_init.sql":  sessionDDL,
-		"features/pomodoro/migrations/0002_index.sql": indexDDL,
+		"features/timer/handlers/chi.go":           recipeHandlerV1,
+		"features/timer/migrations/0001_init.sql":  sessionDDL,
+		"features/timer/migrations/0002_index.sql": indexDDL,
 	})
 	if _, err := runRecipeCLI(t, "install", v1, "--dir", root, "--yes"); err != nil {
 		t.Fatalf("install: %v", err)
 	}
 
 	v2 := newDDLRecipeDir(t, "v2", map[string]string{
-		"features/pomodoro/handlers/chi.go":          recipeHandlerV1,
-		"features/pomodoro/migrations/0001_init.sql": sessionDDL,
+		"features/timer/handlers/chi.go":          recipeHandlerV1,
+		"features/timer/migrations/0001_init.sql": sessionDDL,
 	})
 	if _, err := runRecipeCLI(t, "update", v2, "--dir", root, "--yes"); err != nil {
 		t.Fatalf("update: %v", err)
@@ -149,15 +149,15 @@ func TestRecipeInstallPrunesAMigrationTheRecipeDropped(t *testing.T) {
 func TestRecipeInstallMirrorsTheUsersEditedMigration(t *testing.T) {
 	root := newRecipeCheckout(t)
 	src := newDDLRecipeDir(t, "v1", map[string]string{
-		"features/pomodoro/handlers/chi.go":          recipeHandlerV1,
-		"features/pomodoro/migrations/0001_init.sql": sessionDDL,
+		"features/timer/handlers/chi.go":          recipeHandlerV1,
+		"features/timer/migrations/0001_init.sql": sessionDDL,
 	})
 	if _, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes"); err != nil {
 		t.Fatalf("install: %v", err)
 	}
 
-	edited := sessionDDL + "CREATE TABLE ext_pomodoro_notes (id TEXT);\n"
-	writeFile(t, filepath.Join(root, "features", "pomodoro", "migrations", "0001_init.sql"), edited)
+	edited := sessionDDL + "CREATE TABLE ext_timer_notes (id TEXT);\n"
+	writeFile(t, filepath.Join(root, "features", "timer", "migrations", "0001_init.sql"), edited)
 	if _, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes"); err != nil {
 		t.Fatalf("reinstall: %v", err)
 	}
@@ -174,14 +174,14 @@ func TestRecipeInstallMirrorsTheUsersEditedMigration(t *testing.T) {
 func TestRecipeUninstallRemovesTheSchemaMirror(t *testing.T) {
 	root := newRecipeCheckout(t)
 	src := newDDLRecipeDir(t, "v1", map[string]string{
-		"features/pomodoro/handlers/chi.go":          recipeHandlerV1,
-		"features/pomodoro/migrations/0001_init.sql": sessionDDL,
+		"features/timer/handlers/chi.go":          recipeHandlerV1,
+		"features/timer/migrations/0001_init.sql": sessionDDL,
 	})
 	if _, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes"); err != nil {
 		t.Fatalf("install: %v", err)
 	}
 
-	out, err := runRecipeCLI(t, "uninstall", "pomodoro", "--dir", root, "--yes")
+	out, err := runRecipeCLI(t, "uninstall", "timer", "--dir", root, "--yes")
 	if err != nil {
 		t.Fatalf("uninstall: %v", err)
 	}
@@ -199,16 +199,16 @@ func TestRecipeUninstallRemovesTheSchemaMirror(t *testing.T) {
 func TestRecipeStatusReportsAStaleSchemaMirror(t *testing.T) {
 	root := newRecipeCheckout(t)
 	src := newDDLRecipeDir(t, "v1", map[string]string{
-		"features/pomodoro/handlers/chi.go":          recipeHandlerV1,
-		"features/pomodoro/migrations/0001_init.sql": sessionDDL,
+		"features/timer/handlers/chi.go":          recipeHandlerV1,
+		"features/timer/migrations/0001_init.sql": sessionDDL,
 	})
 	if _, err := runRecipeCLI(t, "install", src, "--dir", root, "--yes"); err != nil {
 		t.Fatalf("install: %v", err)
 	}
 
 	// A hand-edit to the generated copy: the tree and the runtime still create
-	// ext_pomodoro_sessions, while codegen would read a table that never exists.
-	writeFile(t, mirrorAt(root, "0001_init.sql"), "CREATE TABLE ext_pomodoro_old (id TEXT);\n")
+	// ext_timer_sessions, while codegen would read a table that never exists.
+	writeFile(t, mirrorAt(root, "0001_init.sql"), "CREATE TABLE ext_timer_old (id TEXT);\n")
 
 	out, err := runRecipeCLI(t, "status", "--dir", root)
 	if err == nil {

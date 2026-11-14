@@ -151,6 +151,18 @@ func CatalogFromContext(ctx context.Context) *Catalog {
 	return Default()
 }
 
+// CatalogInContext returns the ctx catalog and whether one was installed.
+//
+// It exists for the ONE caller that must distinguish "the plugin is off" from
+// "the plugin is on and this is the default catalog": a language picker. With
+// the servant off nothing resolves a locale per request, so offering the choice
+// would be an affordance the server does not honour. CatalogFromContext keeps
+// its fallback for rendering, where English-is-fine is the correct answer.
+func CatalogInContext(ctx context.Context) (*Catalog, bool) {
+	v, ok := ctx.Value(catalogKey{}).(*Catalog)
+	return v, ok && v != nil
+}
+
 // T renders id for the request locale.
 func T(ctx context.Context, id string, args map[string]any) string {
 	return CatalogFromContext(ctx).T(ctx, id, args)

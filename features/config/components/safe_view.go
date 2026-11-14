@@ -79,7 +79,7 @@ type PageData struct {
 	// enforced denies when true.
 	RBACEnabled bool
 	// Units is the inventory of everything this binary ships, grouped by
-	// removal class (Core / Servants / Recipes). Status is "in" (always
+	// removal class (Core / Servants / Features). Status is "in" (always
 	// shipped) or the unit's RuntimeOff switch text (opt-out); whether a
 	// switch is currently off is the Runtime tab's job, not guessed here.
 	Units []UnitGroup
@@ -138,18 +138,37 @@ type Group struct {
 }
 
 // UnitGroup is one removal-class group on the Units tab: Core, Servants or
-// Recipes (prose names — the Kind values stay in the registry).
+// Features. The label comes from capabilities.KindGroupLabel — the class has
+// exactly one name, so the page cannot drift from the registry.
 type UnitGroup struct {
 	Label string
 	Rows  []UnitRow
 }
+
+// UnitStatus is a unit's state in this build. It is compared and rendered, so
+// the two exact-match values are constants: a typo in the template's `== "in"`
+// would otherwise silently change the badge.
+//
+// The opt-out value carries the switch text, so it is not a constant; the
+// prefix is (UnitStatusOptOut) and the row builds the rest.
+type UnitStatus string
+
+const (
+	// UnitStatusIn is a unit the binary mounts with nothing to configure.
+	UnitStatusIn UnitStatus = "in"
+	// UnitStatusRemoved is a feature whose provider was uninstalled or is
+	// absent from this build.
+	UnitStatusRemoved UnitStatus = "removed"
+	// UnitStatusOptOut prefixes the runtime switch that disables the unit.
+	UnitStatusOptOut UnitStatus = "opt-out: "
+)
 
 // UnitRow is one unit in the inventory: its id, a one-line summary and its
 // status.
 type UnitRow struct {
 	ID      string
 	Summary string
-	Status  string // "in" | "opt-out: <switch>" | "removed"
+	Status  UnitStatus
 	Kind    capabilities.Kind
 }
 
@@ -157,14 +176,14 @@ type UnitRow struct {
 // actually mounted: a recipe with no provider in this build is not "in" —
 // it was uninstalled (its registry row stays as removal-class data) or
 // switched off at boot. Switch-gated rows keep their opt-out text: for
-// them, unmounted is the documented off state, not a removal. Recipes only —
+// them, unmounted is the documented off state, not a removal. Features only —
 // Core/Servants are always wired when the row exists.
 func MarkRemovedUnits(data *PageData, mounted map[string]bool) {
 	for i := range data.Units {
 		for j := range data.Units[i].Rows {
 			row := &data.Units[i].Rows[j]
-			if row.Kind == capabilities.KindFeature && !mounted[row.ID] && row.Status == "in" {
-				row.Status = "removed"
+			if row.Kind == capabilities.KindFeature && !mounted[row.ID] && row.Status == UnitStatusIn {
+				row.Status = UnitStatusRemoved
 			}
 		}
 	}
@@ -174,24 +193,20 @@ func MarkRemovedUnits(data *PageData, mounted map[string]bool) {
 // with a RuntimeOff switch is opt-out (the switch text says how); the rest
 // are always in. Sorted by id per group so renders are stable.
 func buildUnits() []UnitGroup {
-	groups := []UnitGroup{
-		{Label: "Core"},
-		{Label: "Servants"},
-		{Label: "Recipes"},
-	}
-	byKind := map[capabilities.Kind]int{
-		capabilities.KindCore:    0,
-		capabilities.KindPlugin:  1,
-		capabilities.KindFeature: 2,
+	groups := make([]UnitGroup, 0, len(capabilities.Kinds))
+	byKind := make(map[capabilities.Kind]int, len(capabilities.Kinds))
+	for i, kind := range capabilities.Kinds {
+		groups = append(groups, UnitGroup{Label: capabilities.KindGroupLabel(kind)})
+		byKind[kind] = i
 	}
 	for _, u := range capabilities.All {
 		idx, ok := byKind[u.Kind]
 		if !ok {
 			continue
 		}
-		status := "in"
+		status := UnitStatusIn
 		if u.RuntimeOff != "" {
-			status = "opt-out: " + u.RuntimeOff
+			status = UnitStatusOptOut + UnitStatus(u.RuntimeOff)
 		}
 		groups[idx].Rows = append(groups[idx].Rows, UnitRow{
 			ID: u.ID, Summary: u.Summary, Status: status, Kind: u.Kind,

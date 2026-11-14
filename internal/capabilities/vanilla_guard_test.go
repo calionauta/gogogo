@@ -59,8 +59,20 @@ var vanillaAllow = map[string][]vanillaAllowed{
 	// owned by the browser, so the button has to hand the toggle to it. The
 	// rest of the island (the watchdog timer, the spoken replies) is the
 	// browser API's own lifecycle, not app state.
+	//
+	// The click is NOT an island: Datastar's data-on:click calls
+	// __kioskVoice.toggle (a second listener fired on the same click and the
+	// two toggles cancelled out). What remains is the DOM-ready deferral: the
+	// component renders into <head>, where getElementById returns null for
+	// every body id, and Datastar has no primitive that runs "after the body
+	// is parsed" from a <head> script. Ruled out: moving the component to the
+	// body — the shell's head slot is the only place a page contributes scripts
+	// without a recipe-owned route.
 	"features/kiosk/components/page.templ": {
-		{`mic.addEventListener("click", function () {`, "SpeechRecognition toggle (browser API)"},
+		{
+			`document.addEventListener("DOMContentLoaded", initKioskVoice);`,
+			"head script waits for the body (no Datastar primitive)",
+		},
 	},
 	// Nav link row: ONE <details> serves the inline row and the collapsed
 	// menu, so its `open` state must follow the stylesheet's breakpoint.

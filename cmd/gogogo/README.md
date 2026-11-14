@@ -43,7 +43,7 @@ the same engine the MCP server calls. Full contract:
 [`skills/gogogo-recipe-authoring`](../../skills/gogogo-recipe-authoring/SKILL.md).
 
 ```bash
-go run ./cmd/gogogo recipe install ./_recipes/pomodoro --dir ./my-app --yes
+go run ./cmd/gogogo recipe install ./path/to/bundle --dir ./my-app --yes
 go run ./cmd/gogogo recipe status --dir ./my-app   # pristine / modified / deleted
 go run ./cmd/gogogo recipe list --dir ./my-app [--format json]
 go run ./cmd/gogogo recipe check todo --dir ./my-app   # evaluator; blocks a route owner with no tests
@@ -157,10 +157,10 @@ go run ./cmd/gogogo --name my-app --no-tui --yes --dir ./my-app
 
 | Option | Verdict |
 |---|---|
-| `curl \| bash` shell script | Adopted as **distribution only**: `install.sh` fetches checksummed release binaries (thin wrapper, zero logic). Rejected as the trim engine itself: fragile TUI, hard to safely edit Go wiring, easy to half-trim. |
-| Extend `scripts/rename-project.py` with trim flags | Rejected: Python is not guaranteed on the user's machine, no TUI, and the trim engine belongs next to the Go code it edits. The Python script stays as the rename reference + `make rename` fallback. |
-| Go TUI with Charm `Huh` + `Bubbletea` in a **separate module** | Right UX, right stack (2026-standard, performative), but adds deps. Deferred: the prompts here are structured as a form model so they can move to `Huh` without touching the trim engine. When that happens it must live in its own `go.mod` so the main binary stays lean. |
-| `go run ./cmd/gogogo` stdlib-only in the main module (this) | **Chosen**: `go run` needs nothing but Go, zero new dependencies, fully testable, and the trim engine is the same one a future TUI would call. `--no-tui` flag shape already matches the scripted path. Prebuilt binaries (GoReleaser, same engine) cover Go-less machines. |
+| `curl \| bash` shell script | Adopted as **distribution only**: `install.sh` fetches checksummed release binaries (thin wrapper, zero logic). Rejected as the removal engine itself: fragile TUI, hard to safely edit Go wiring, easy to leave half-removed. |
+| Extend `scripts/rename-project.py` with removal flags | Rejected: Python is not guaranteed on the user's machine, no TUI, and the engine belongs next to the Go code it edits. The Python script stays as the rename reference + `make rename` fallback. |
+| Go TUI with Charm `Huh` + `Bubbletea` in a **separate module** | Right UX, right stack (2026-standard, performative), but adds deps. Deferred: the prompts here are structured as a form model so they can move to `Huh` without touching the engine. When that happens it must live in its own `go.mod` so the main binary stays lean. |
+| `go run ./cmd/gogogo` stdlib-only in the main module (this) | **Chosen**: `go run` needs nothing but Go, zero new dependencies, fully testable, and the engine is the same one a future TUI would call. `--no-tui` flag shape already matches the scripted path. Prebuilt binaries (GoReleaser, same engine) cover Go-less machines. |
 | `gh extension` / `make init` wrapper | Rejected as primary (needs `gh` + extension install); `make init` may wrap this CLI later for discoverability. |
 
 ## Manual deletions (registry paths)
@@ -175,13 +175,12 @@ wants a smaller tree, guided by the unit card in `docs/unit-contracts.md`.
 | `dagnats` | `internal/dagnats/`, `features/todo/handlers/onboarding.go` (+ its test), `internal/nats/single_nats_test.go`, `cmd/web/dagnats.go`, `cmd/web/start_nats_test.go` | Drop the `bootOnboarding` line and the `/api/onboarding` mounts in `internal/server/chi.go`; `startDagNats` / `shutdownDagNats` calls in `cmd/web/main.go`; drop `danmestas/dagnats` from `go.mod`. No dead UI: the workflow tab auto-hides via the `dagnatsUIEnabled` signal |
 | `goakt` | `internal/goakt/`, `features/room/`, `cmd/web/goakt.go` | Drop the `bootRoomActor` line, the `/room` mounts and the room-actor shutdown in `internal/server/chi.go` (+ the `fakeRooms` fixture in its test); `startGoAkt` / `shutdownGoAkt` calls in `cmd/web/main.go`; drop `tochemey/goakt` from `go.mod`. Navbar Room link stripped |
 | `whiteboard` | `features/whiteboard/`, `features/notes/`, `internal/collab/` | Drop the `wbhandlers`/`noteshandlers` handler lines and the `/whiteboard` + `/notes` mounts in `internal/server/chi.go`; Phase C demo block in `cmd/desktop/main.go` (+ `collab`/`context`/`time` imports); Whiteboard + Notes `[]Module` entries stripped |
-| `landing` | `features/landing/` | Drop the `landinghandlers.NewHandler` line, its import and the `/` mount in `internal/server/chi.go`; shell brand retargeted `/` → `/todo`. Warns: plain GET / 404s afterwards |
 | `config-view` | `features/config/` | Drop the `confighandlers.NewHandler` line, its import and the `/config` mounts; Config `[]Module` entry stripped |
 | `credits` | `features/credits/` | Drop the `bootCredits` line and the `/api/credits` + `/api/ai` + `/api/byok` mounts in `internal/server/chi.go`; drop `ai-credits` (+ `stripe-go` if unused) from `go.mod`. Warns: AI Suggest becomes unmetered |
 | `sounds` | `features/sounds/`, `web/resources/static/cuelume.js`, `web/resources/static/cuelume/` | `@sounds.*` calls + `features/sounds` imports stripped from all 5 page layouts (whichever remain); `go tool templ generate` re-runs automatically. Warns: `data-cuelume-*` attrs stay, inert |
 | `genui` | `features/genui/`, `features/chat/` | Drop the `panels` line and the `Panels` Deps field in `internal/server/chi.go`; Chat `[]Module` entry stripped; mux target table shrinks (re-add by hand, see follow-ups). Warns: `SMOKE_FEATURES` must drop `genui` |
 | `review` | `features/review/` | Drop the `bootReview` helper + `reviewH` line and the `/review` + `/api/review/` mounts in `internal/server/chi.go` (+ the `newReviewHandlerForTest` fixture in its test); Review `[]Module` entry stripped; `go mod tidy` drops `genkit` + `go-jev`. Warns: `SMOKE_FEATURES` must drop `review` |
-| `search` | `internal/search/` | Delete the package and the capability entry. A consumer keeps working with the SQL-only substring layer (it holds a `Searcher`), and `features/todo/handlers/search_source.go` goes with the unit because it exists only to feed the plugin |
+| `search` | `internal/search/` | Delete the package and the capability entry. A consumer keeps working with the SQL-only substring layer (it holds a `Searcher`), and `features/todo/handlers/search_source.go` goes with the unit because it exists only to feed the servant |
 | `perf` | `internal/perf/`, `internal/server/perf.go` (+ its test), `internal/ui/perf.go` | Drop the `bootPerf`/`closePerf` lines and the `perfPageMiddleware`/menu entry; remove `PerfEnabled` and the `/debug/*` policy rows; drop `arl/statsviz` from `go.mod`. Manual deletion; the runtime switch keeps it off in production |
 
 Deliberately **not** offered: `todo` (reference implementation — remove manually
@@ -209,11 +208,11 @@ env-blessed with the reason recorded.
 | Generative UI + chat | Unset `GOAI_API_KEY` (chat stub in tests) | `features/genui/` + `features/chat/` + wiring | ✅ `genui` |
 | Review loop + typed AI flows | Unset `GOAI_API_KEY` (page shows setup hint; run 503s) | `features/review/` + wiring (Genkit bundled inside `review`) | ✅ `review` |
 | Offline sync | `OFFLINE_SYNC_ENABLED=false` | Manual — `config` struct field + `sw.js` + templ SW registration | ❌ env-blessed (struct-field cascade) |
-| Persistence (single Turso/sqlc store) | — (core, no switch) | — (core data layer, not trimmable) | ❌ |
+| Persistence (single Turso/sqlc store) | — (core, no switch) | — (core data layer, not removable) | ❌ |
 | Auth | — (core middleware) | Login UI removable manually; middleware stays | ❌ |
 | Sounds | — (client-side only) | `features/sounds/` + call sites | ✅ `sounds` |
 | Operator diagnostics (statsviz + pprof) | `PERF_ENABLED=false` | `internal/perf/` + mount/menu/config | ✅ opt-in `perf` |
-| Landing / config view | — (zero boot cost) | Package + wiring call | ✅ `landing`, `config-view` |
+| Config view | — (zero boot cost) | Package + wiring call | ✅ `config-view` |
 
 Full env reference: `docs/configuration.md`. Deletion checklists:
 `docs/scope-taxonomy.md#removing-a-component`.

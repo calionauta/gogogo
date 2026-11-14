@@ -7,7 +7,7 @@ package main
 // themselves: capabilities, slices, units, linters. It did not cover a
 // number of LINES — and that is the number that moves on every commit.
 //
-// The claim this catches is real: docs/scope-taxonomy.md said the pomodoro
+// The claim this catches is real: a page once said a recipe
 // recipe is "281 lines" while the tree held 453, and #404 added 210 more.
 // A reader who trusts the number is wrong by 2x and has no way to tell.
 
@@ -58,7 +58,7 @@ func namesAPath(line string) bool {
 			continue
 		}
 		segments := strings.Split(token, "/")
-		if slices.Contains(repoRoots, segments[0]) || segments[0] == "_recipes" {
+		if slices.Contains(repoRoots, segments[0]) {
 			return true
 		}
 	}

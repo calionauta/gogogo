@@ -1,10 +1,10 @@
 # Recipe: API without auth, without Turso
 
-This is a **fork recipe, not a trim preset** — and that is deliberate. Every
+This is a **fork recipe, not a removal preset** — and that is deliberate. Every
 handler takes `dbgen.Queries`, every row is owner-scoped, every request
 resolves an owner through `internal/auth`. Removing those is a second
 product mode (unowned rows, memory stores, session-less middleware),
-not a deletion the trim gate can prove. What follows is the exact map so
+not a deletion the build gate can prove. What follows is the exact map so
 the fork is a day of work, not a week of archaeology. (Why no preset:
 presets compose deletions the build gate proves; this changes contracts
 the gate cannot see. A future `AUTH_MODE=single` fixed-owner mode would
@@ -21,9 +21,9 @@ Owner resolution has three choke points; everything else funnels through them:
    `features/todo/handlers/chi.go` (the reference shape), plus session reads in
    `features/notes/handlers/chi.go`, `features/whiteboard/handlers/chi.go`,
    `features/chat/handlers/chi.go`,
-   `features/room/handlers/chi.go`, `features/landing/handlers/chi.go`,
+   `features/room/handlers/chi.go`,
    `features/config/handlers/chi.go`, `features/credits/handlers/chi.go`,
-   `features/onboarding/onboarding.go`. Fourteen call sites total —
+   `features/onboarding/onboarding.go`. Thirteen call sites total —
    replace each with a fixed owner constant (e.g. `"public"`) seeded once.
 3. `internal/demo/` — the fresh-install demo account. Delete the call in
    `BootChi` (`internal/server/chi.go`) when there is no login form left
@@ -63,7 +63,7 @@ inline calls.
 ## Proof after any variant
 
 `go build ./...` then the affected suites (`internal/server`,
-`internal/auth` if auth remains, `features/...`). The trim provenance
-section in `AGENTS.md` does not apply (nothing was trimmed) — note the
-fork in your own AGENTS.md instead so the next agent does not
+`internal/auth` if auth remains, `features/...`). The `## Trim provenance`
+section in `AGENTS.md` does not apply (a fork is not a scaffold-time removal) —
+note the fork in your own AGENTS.md instead so the next agent does not
 "restore" what you removed on purpose.

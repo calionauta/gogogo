@@ -9,10 +9,10 @@ Switch-off mechanics (env flag vs deletion) are in
 about *fit*, not removal.
 
 Conventions: **core** is load-bearing (customize, never remove);
-**servant** (`Kind: plugin` — wired library, site name) serves other
+**servant** (`Kind: servant` — a wired library) serves other
 capabilities (nothing user-facing disappears, but something stops working);
-**recipe** (`Kind: feature` — copied slice, site name) is a terminal user
-surface (a page or journey disappears when uninstalled).
+**feature** (`Kind: feature` — a terminal user surface, shipped as a recipe)
+is a page or a journey that disappears when the recipe is uninstalled.
 
 ## Core
 
@@ -54,7 +54,7 @@ Not for: API-token auth for machines (not included); BYOK accounting
 `app` (deps bundle). You never keep-or-drop these;
 skip this section when deciding.
 
-## Servants (`Kind: plugin`)
+## Servants (`Kind: servant`)
 
 ### `nats` — cross-process messaging (servant, env-blessed)
 
@@ -67,7 +67,7 @@ Runtime off: `NATS_ENABLED=false` (in-memory hub fallback).
 
 Not for: single-process deployments (the hub covers fan-out; see
 "Topology profiles" below). Deletion is manual (15+ importers carry
-NATS types) — toggle, don't trim.
+NATS types) — toggle, don't remove.
 
 ### `dagnats` — durable multi-step workflows (servant)
 
@@ -225,7 +225,7 @@ provider (see `delivery`); the app keeps `users.email` and the inbox.
   (`ot.js` by Tim Baumann) — deliberately no unit for it. Do not scaffold
   a second editor on your own; if a need genuinely requires OT semantics,
   open an issue first.
-- **Public vs operator surface:** unauthenticated homepage → `landing`;
+- **Public vs operator surface:** unauthenticated entry → `/login` (`/` redirects);
   auth-gated env inspection → `config-view`.
 
 ### No unit for these (yet) — advise answers the full map
@@ -233,14 +233,14 @@ provider (see `delivery`); the app keeps `users.email` and the inbox.
 Real needs with no registry entry, verified against `advise` (no preset
 matched — decide from the table or build custom; do not force-fit):
 
-- Online store (menu, orders, pickup, checkout) — menu display alone is
-  `landing`; orders/payments have no unit.
+- Online store (menu, orders, pickup, checkout) — menu display is a page you
+  write; orders/payments have no unit.
 - Reservations and booking (clinic slots, restaurant tables) — the admin
   side is `config-view`; booking itself has no unit.
 - Support chat and chatbots — `llm` makes the call, but conversation
   memory, routing, and supervision have no unit.
-- Photo galleries, donations, volunteer rotas — static display is
-  `landing`; the workflows behind them have no unit.
+- Photo galleries, donations, volunteer rotas — static display is a page you
+  write; the workflows behind them have no unit.
 - Per-entity timers and single-owner locks (one cart, one room owner) —
   presenter locks are `goakt`; per-entity timers and conversation
   supervision remain evaluation triggers (no unit yet).
@@ -290,7 +290,7 @@ Con: an actor runtime to learn and boot for what starts as a counter.
 Not for: production rooms (no persistence, single process) — copy
 the grain pattern into your own feature instead.
 
-### `notes` — shared plain text (feature, manual removal, rides the whiteboard unit for trim)
+### `notes` — shared plain text (feature, manual removal, rides the whiteboard unit)
 
 What: the `/notes/` pages exercising server-owned Loro Text (character
 ops merge, resolved text streams to peers, typing presence). A reference implementation
@@ -315,12 +315,12 @@ admin) deletes one.
 Not for: rich text (no marks); offline-first editing
 (ops need the server — a dropped connection holds text in the tab only).
 
-### `landing` — public entry page (feature, offered)
+### A public homepage — yours to write, not a unit
 
-What: unauthenticated `GET /`, rendered inside the shared shell. Dropping it
-404s `/` (brand retargets to `/todo`).
-
-- Homepage, public product surface, the demo CTA.
+The template has **no** public marketing page: `GET /` is a core redirect —
+a guest to `/login`, a session to its home (`internal/server/home.go`). A
+product that wants a homepage writes one; nothing in the tree is a placeholder
+for it.
 
 ### `config-view` — ops visibility (feature, offered)
 

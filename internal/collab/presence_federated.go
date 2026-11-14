@@ -237,7 +237,7 @@ func (f *FederatedPresence) announce(ctx context.Context, docID string) {
 	}
 	peers, err := f.localSeam().List(ctx, docID)
 	if err != nil {
-		obsArgs := append(observability.WithComponent("collab", "plugin"), "doc", docID, "error", err)
+		obsArgs := append(observability.WithComponent("collab", "servant"), "doc", docID, "error", err)
 		observability.Warn(ctx, "collab: federated roster list failed", obsArgs...)
 		return
 	}

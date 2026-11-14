@@ -183,7 +183,7 @@ func pruneOpReceipts(ctx context.Context, q *dbgen.Queries) {
 		})
 		if err != nil {
 			observability.Warn(ctx, "server: op-receipt prune failed",
-				append(observability.WithComponent("offline-sync", "plugin"), "error", err)...)
+				append(observability.WithComponent("offline-sync", "servant"), "error", err)...)
 			return
 		}
 		if deleted < auditPruneBatch {

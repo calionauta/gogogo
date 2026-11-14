@@ -207,7 +207,7 @@ func fieldKeys(fields map[string]string) string {
 // write" are one reading. The method is included because a model that guesses
 // GET for a POST declaration gets a rejected answer (see checkDeclaredAction),
 // and the cheapest way not to guess is to be told.
-func actionsFragment() string {
+func actionsFragment(c *prompts.Composer) string {
 	specs := DeclaredActions()
 	if len(specs) == 0 {
 		return ""
@@ -217,7 +217,7 @@ func actionsFragment() string {
 		lines = append(lines, fmt.Sprintf("%s -> {label:%q, method:%s, url:%s, fields:{%s}}",
 			spec.When, spec.Label, spec.Method, spec.URL, fieldHint(spec.Fields)))
 	}
-	return prompts.MustRender("genui/actions", map[string]string{
+	return c.MustRender("genui/actions", map[string]string{
 		"actions": strings.Join(lines, "; "),
 	})
 }
@@ -251,9 +251,9 @@ func actionAllowed(surfaces []Surface) bool {
 // actionsFragmentIfAllowed gates the actions advert on the surface set, so a
 // leg configured without the catalog is never told about actions it cannot
 // attach to anything.
-func actionsFragmentIfAllowed(surfaces []Surface) string {
+func actionsFragmentIfAllowed(c *prompts.Composer, surfaces []Surface) string {
 	if !actionAllowed(surfaces) {
 		return ""
 	}
-	return actionsFragment()
+	return actionsFragment(c)
 }

@@ -91,6 +91,14 @@ func main() {
 		problems = append(problems, hit.String())
 	}
 
+	// A candidate tree (the optimizer's seam) is gated too, against the library.
+	overrideChecked := 0
+	if dir := os.Getenv(prompts.OverrideDirEnv); dir != "" {
+		overProblems, n := checkOverrideTree(dir)
+		problems = append(problems, overProblems...)
+		overrideChecked = n
+	}
+
 	if len(problems) > 0 {
 		for _, p := range problems {
 			fmt.Fprintln(os.Stderr, p)
@@ -102,6 +110,9 @@ func main() {
 	}
 	if !*quiet {
 		fmt.Printf("check-prompts: %d prompt file(s) valid, no inline prompts in Go\n", len(files))
+		if overrideChecked > 0 {
+			fmt.Printf("check-prompts: %d override file(s) valid against the library\n", overrideChecked)
+		}
 	}
 }
 

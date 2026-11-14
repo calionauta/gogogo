@@ -31,7 +31,18 @@ func (h *Handler) confirm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sse := sdk.NewSSE(w, r)
-	parsed := kiosk.Parse(r.PostFormValue("text"))
+	// The SAME decision the preview made: a confirm must not reject an order the
+	// page just showed as ready, so the engine decides here too.
+	text := r.PostFormValue("text")
+	parsed := h.engine.Settle(r.Context(), text, kiosk.Parse(text))
+	// The SAME merge the preview ran: a tapped choice must survive into the
+	// write, or the counter would charge for something else than it showed.
+	parsed = kiosk.ApplyChoices(parsed, kiosk.Choices{
+		Drink:  r.PostFormValue("drink"),
+		Size:   r.PostFormValue("size"),
+		Milks:  r.PostForm["milk"],
+		Extras: r.PostForm["extras"],
+	})
 	if !parsed.Complete() {
 		// Not a 400: the page asked, the answer is "not yet", and the same
 		// signals that explain the preview explain this.
@@ -39,26 +50,26 @@ func (h *Handler) confirm(w http.ResponseWriter, r *http.Request) {
 		signals["kioskNotice"] = "Finish the order before confirming."
 		if err := dshelpers.MergeSignals(sse, signals); err != nil {
 			observability.Warn(r.Context(), "kiosk: confirm refusal signals failed",
-				append(observability.WithComponent("kiosk", "handler"), "error", err)...)
+				append(observability.WithComponent("kiosk", observability.LayerFeature), "error", err)...)
 		}
 		return
 	}
 	previewed := strings.TrimSpace(r.PostFormValue("previewed"))
 	if err := h.orders.Confirm(r.Context(), sess.User.ID, parsed.Order, previewed); err != nil {
 		observability.Error(r.Context(), "kiosk: confirm failed",
-			append(observability.WithComponent("kiosk", "handler"), "error", err)...)
+			append(observability.WithComponent("kiosk", observability.LayerFeature), "error", err)...)
 		if serr := dshelpers.MergeSignals(sse, map[string]any{
 			"kioskNotice": "The order could not be recorded.",
 		}); serr != nil {
 			observability.Warn(r.Context(), "kiosk: confirm error signals failed",
-				append(observability.WithComponent("kiosk", "handler"), "error", serr)...)
+				append(observability.WithComponent("kiosk", observability.LayerFeature), "error", serr)...)
 		}
 		return
 	}
 	rows, err := h.orders.List(r.Context(), sess.User.ID, ordersPageLimit)
 	if err != nil {
 		observability.Error(r.Context(), "kiosk: list after confirm failed",
-			append(observability.WithComponent("kiosk", "handler"), "error", err)...)
+			append(observability.WithComponent("kiosk", observability.LayerFeature), "error", err)...)
 		http.Error(w, "listing orders failed", http.StatusInternalServerError)
 		return
 	}
@@ -70,11 +81,11 @@ func (h *Handler) confirm(w http.ResponseWriter, r *http.Request) {
 	if err := dshelpers.RenderAndPatch(sse, components.OrdersList(orderViews(rows)),
 		sdk.WithSelectorID("kiosk-orders"), sdk.WithModeInner()); err != nil {
 		observability.Warn(r.Context(), "kiosk: orders patch failed",
-			append(observability.WithComponent("kiosk", "handler"), "error", err)...)
+			append(observability.WithComponent("kiosk", observability.LayerFeature), "error", err)...)
 	}
 	if err := dshelpers.MergeSignals(sse, clearedSignals("Order confirmed.")); err != nil {
 		observability.Warn(r.Context(), "kiosk: confirm success signals failed",
-			append(observability.WithComponent("kiosk", "handler"), "error", err)...)
+			append(observability.WithComponent("kiosk", observability.LayerFeature), "error", err)...)
 	}
 }
 

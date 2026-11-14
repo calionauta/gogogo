@@ -51,7 +51,7 @@ func TestMutatingToolsAreTheKnownSet(t *testing.T) {
 		}
 	}
 	want := map[string]bool{
-		"trim_apply":       true,
+		"scaffold_apply":   true,
 		"new_feature":      true,
 		"recipe_install":   true,
 		"recipe_update":    true,

@@ -22,12 +22,23 @@ func printPreamble(w io.Writer) {
 	fmt.Fprintln(w, `gogogo `+Version+` — scaffold a project from gogogo.
 
   Preflight: go run ./cmd/gogogo doctor --json
-  Codegen: go run ./cmd/gogogo generate [--check]
-`)
+  Codegen: go run ./cmd/gogogo generate [--check]`)
 }
 
-func PrintUsage(w io.Writer, fs *flag.FlagSet) {
-	printPreamble(w)
+// shapeHelp is the --shape paragraph, kept out of PrintUsage so the usage text
+// stays one screen and the flag reference stays one block.
+const shapeHelp = `Pick what the tree ships with --shape (default full: every target). A shape
+  prunes entrypoints; it never changes what a page shows:
+
+    --shape web       cmd/web only
+    --shape api       cmd/web, no other target (page routes stay: no PageRoutes seam yet)
+    --shape desktop   cmd/desktop + cmd/web
+    --shape gui       cmd/gui only
+    --shape mobile    cmd/mobile + cmd/web`
+
+// printScaffoldUsage is the scaffold half of the reference: the human path, the
+// agent path, and how a shape narrows what the tree ships.
+func printScaffoldUsage(w io.Writer) {
 	fmt.Fprintln(w, `
   Interactive (humans: 2 questions — name, owner — then a plan to confirm):
 
@@ -43,6 +54,13 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
       --no-tui --dry-run --format json --dir ./my-app
     go run ./cmd/gogogo --name my-app --no-tui --yes --dir ./my-app
 
+  `+shapeHelp)
+}
+
+func PrintUsage(w io.Writer, fs *flag.FlagSet) {
+	printPreamble(w)
+	printScaffoldUsage(w)
+	fmt.Fprintln(w, `
   Take a unit INTO an app that is not gogogo — read-only: writes a scratch
   bundle plus PORTING.md, and never touches the target tree:
 
@@ -58,12 +76,12 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
   --yes it prints the plan and changes nothing; --yes copies the tree, writes
   .recipes/<id>.yml and regenerates internal/server/recipes.gen.go:
 
-    go run ./cmd/gogogo recipe install _recipes/pomodoro --dir ./my-app
-    go run ./cmd/gogogo recipe install _recipes/pomodoro --dir ./my-app --yes
-    go run ./cmd/gogogo recipe install --entry catalog/pomodoro/v1.2.0.yml \
-      ./downloaded/pomodoro --dir ./my-app --yes
-    go run ./cmd/gogogo recipe update _recipes/pomodoro --dir ./my-app --yes
-    go run ./cmd/gogogo recipe uninstall pomodoro --dir ./my-app --yes
+    go run ./cmd/gogogo recipe install ./path/to/bundle --dir ./my-app
+    go run ./cmd/gogogo recipe install ./path/to/bundle --dir ./my-app --yes
+    go run ./cmd/gogogo recipe install --entry catalog/todo/v1.0.0.yaml \
+      ./downloaded/todo --dir ./my-app --yes
+    go run ./cmd/gogogo recipe update ./path/to/bundle --dir ./my-app --yes
+    go run ./cmd/gogogo recipe uninstall todo --dir ./my-app --yes
 
   What did I change inside a recipe? Pristine vs yours, plus whether the
   receipt still matches the copied code (read-only):
@@ -79,8 +97,8 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
   Discover/evaluate recipes headlessly; describe prints each verb's sentence:
 
     go run ./cmd/gogogo recipe list --dir ./my-app --format json
-    go run ./cmd/gogogo recipe describe pomodoro --dir ./my-app --format json
-    go run ./cmd/gogogo recipe check pomodoro --dir ./my-app --format json
+    go run ./cmd/gogogo recipe describe timer --dir ./my-app --format json
+    go run ./cmd/gogogo recipe check timer --dir ./my-app --format json
 
   Invoke one declared verb against a running server (loopback only):
 
@@ -122,10 +140,10 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
        With --run it skips the printing and becomes dev itself: execs
        make dev in the new checkout (humans only; agents must not).
 
-  Capabilities (id, kind). plugin (site: Servant) serves other
-  capabilities; feature (site: Recipe) is a terminal user surface. core
-  is load-bearing, including the recipe engine. Every capability ships
-  in the scaffold; manual removal is recorded per-unit Reason.`)
+  Capabilities (id, kind). `+"`servant`"+` serves other capabilities; `+"`feature`"+` is a
+  terminal user surface; `+"`core`"+` is load-bearing, including the recipe
+  engine. Every capability ships in the scaffold; manual removal is
+  recorded per-unit Reason in the registry.`)
 	printUsageTail(w, fs)
 }
 

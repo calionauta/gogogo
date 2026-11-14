@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -42,17 +43,18 @@ type CatalogEntry struct {
 	// Summary is the user-facing sentence discovery shows. The review
 	// requires it so `recipe list` never answers with a repo path where a
 	// human or agent expects to learn what the recipe allows.
-	Summary string            `yaml:"summary"`
-	Version string            `yaml:"version"`
-	Source  Upstream          `yaml:"source"`
-	Files   map[string]string `yaml:"files"`
-	License string            `yaml:"license"`
-	MinCore string            `yaml:"minCore"`
-	// Recommended marks this catalog recipe as advised at scaffold time.
-	// The installer recommends it in the plan/advise; installation still
-	// requires explicit acceptance. The catalog maintainer flips this over
-	// time without code changes.
-	Recommended bool `yaml:"recommended,omitempty"`
+	Summary string `yaml:"summary"`
+	Version string `yaml:"version"`
+	// Author and Released are the credit and the version's date. The name is
+	// required (an entry nobody owns is not reviewable); the address is
+	// optional. `released` is the date the version was published, distinct from
+	// `reviewedAt` (when this catalog reviewed it).
+	Author   Author            `yaml:"author"`
+	Released string            `yaml:"released"`
+	Source   Upstream          `yaml:"source"`
+	Files    map[string]string `yaml:"files"`
+	License  string            `yaml:"license"`
+	MinCore  string            `yaml:"minCore"`
 	// Register is the repo-relative package exporting `Register`, when the
 	// entry's code mounts through the seam. Empty is a data-only recipe.
 	Register string `yaml:"register,omitempty"`
@@ -72,12 +74,11 @@ type CatalogEntry struct {
 	// reviewed install cannot turn a documented decision back into a
 	// `recipe check` warning.
 	Omitted []OmittedRoute `yaml:"omitted,omitempty"`
-	Metrics []Metric       `yaml:"metrics,omitempty"`
-	// Outcomes are reviewed like metrics: a catalog entry that omits them
-	// installs a recipe whose claims are smaller than the ones the author
-	// reviewed.
-	Outcomes []Outcome  `yaml:"outcomes,omitempty"`
-	Panel    *PanelSpec `yaml:"panel,omitempty"`
+	// Metrics are reviewed as one list (activity and outcome kinds alike): a
+	// catalog entry that omits them installs a recipe whose claims are smaller
+	// than the ones the author reviewed.
+	Metrics []Metric   `yaml:"metrics,omitempty"`
+	Panel   *PanelSpec `yaml:"panel,omitempty"`
 	// UpstreamDeps is a pointer so "absent" and "empty" are different claims:
 	// absent is a missing declaration, empty is "this recipe needs nothing".
 	UpstreamDeps    *[]string `yaml:"upstreamDeps"`
@@ -135,6 +136,17 @@ func (e CatalogEntry) identityProblems() []string {
 	}
 	if strings.TrimSpace(e.Summary) == "" {
 		out = append(out, "summary is required: discovery shows it instead of the upstream repo")
+	}
+	if strings.TrimSpace(e.Author.Name) == "" {
+		out = append(out, "author.name is required: a recipe nobody owns is not reviewable")
+	}
+	if e.Author.Email != "" && !strings.Contains(e.Author.Email, "@") {
+		out = append(out, fmt.Sprintf("author.email %q is not an address", e.Author.Email))
+	}
+	if e.Released == "" {
+		out = append(out, "released is required: a version without a date is a version nobody can sequence")
+	} else if _, terr := time.Parse("2006-01-02", e.Released); terr != nil {
+		out = append(out, fmt.Sprintf("released %q must be YYYY-MM-DD", e.Released))
 	}
 	if e.Source.Repo == "" {
 		out = append(out, "source.repo is empty: the pristine baseline must be locatable")
@@ -199,13 +211,13 @@ func (e CatalogEntry) surfaceProblems() []string {
 	// is smaller than the one the author reviewed.
 	decl := Declaration{
 		Routes: e.Routes, Actions: e.Actions, Omitted: e.Omitted,
-		Metrics: e.Metrics, Outcomes: e.Outcomes, Panel: e.Panel, Tables: e.Tables,
+		Metrics: e.Metrics, Panel: e.Panel, Tables: e.Tables,
 	}
 	out = append(out, ActionProblems(decl)...)
 	out = append(out, OmissionProblems(decl)...)
 	out = append(out, ActionDocProblems(decl)...)
 	out = append(out, MetricProblems(decl)...)
-	out = append(out, OutcomeProblems(decl)...)
+	out = append(out, OutcomeTableProblems(decl)...)
 	out = append(out, PanelProblems(decl)...)
 	for _, w := range e.WorksWith {
 		if w == "" {

@@ -72,7 +72,7 @@ func TestBundledUnitsMountThroughTheSeam(t *testing.T) {
 	// dropped Register fail for the right reason (red-proof: delete one
 	// Register from units.gen.go and its id goes missing here).
 	wantIDs := []string{
-		"account", "chat", "config-view", "credits", "dashboard", "landing",
+		"account", "chat", "config-view", "credits", "dashboard",
 		"notes", "notifications", "review", "room", "todo", "whiteboard",
 	}
 	got := map[string]recipe.Provider{}

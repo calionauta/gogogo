@@ -54,7 +54,7 @@ Rules:
 | `whiteboard` | TODO | same as notes (shared collaborative docs) |
 | `notifications` | TODO | inbox + `remind` + Bus — same shape as todo |
 | `room` | TODO | presence + patches — wrap transport, keep service core |
-| `graph`/`review`/`config`/`license`/`account`/`dashboard`/`landing` | TODO | follow the same skeleton when a second frontend (native/desktop) appears |
+| `graph`/`review`/`config`/`license`/`account`/`dashboard` | TODO | follow the same skeleton when a second frontend (native/desktop) appears |
 
 Shipping a recipe without a service keeps it web-only; adding a native
 frontend **requires** the service first, or the duplication this work

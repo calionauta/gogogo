@@ -15,8 +15,11 @@
 > over abstract ideals. The stack optimizes for simplicity, consistency, and
 > shipping software with minimal friction.
 
-A Go web template: backend + frontend + DB + auth + LLM + deploy in one
-binary. Not a framework — wired, documented code you own and edit.
+A Go product structure: backend + frontend + DB + auth + LLM + deploy in one
+binary, plus the CLI and MCP server an agent uses to evolve it. Not a framework
+— you own the code, so nothing is versioned out from under you. The scaffold
+copies the tree; the evolution engine (`gogogo`) and the headless runtime
+(`POST /api/ext/invoke`) are for building on it, not for running it.
 
 Full manual: **[Docs](https://calionauta.github.io/gogogo/docs/)**
 (`docs/` is the source, `site/` publishes it).
@@ -46,10 +49,16 @@ GoAkt (rooms) · Loro CRDT (whiteboard/notes) · GoAI (any provider). One
 Product slices are recipes: copied code you own, with a receipt
 (`.recipes/<id>.yml`) recording where it came from. Install, update,
 and uninstall with `gogogo recipe install|update|uninstall` — user edits
-are kept (three-way via git). Reference: `features/todo`. Minimal
-installable example: `_recipes/pomodoro`. Contract:
+are kept (three-way via git). References: `features/todo` (the slice every
+recipe derives from) and `features/kiosk` (the instrumented one). Contract:
 [`skills/gogogo-recipe-authoring`](skills/gogogo-recipe-authoring/SKILL.md).
 Taxonomy: [scope-taxonomy](docs/scope-taxonomy.md).
+What can be installed — and what was reviewed — is [`catalog/`](catalog): one
+`<id>/<version>.yaml` per released recipe, plus
+[`recommended.yml`](catalog/recommended.yml), the one list the scaffold advises
+from. What ships in this tree (feature per row, with its runtime opt-out):
+[docs/features](docs/features.md). What is installed right now, read from the
+receipts: `go run ./cmd/gogogo recipe list`.
 
 ## For AI agents
 

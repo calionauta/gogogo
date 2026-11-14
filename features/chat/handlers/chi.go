@@ -75,7 +75,6 @@ type Handler struct {
 	// shared responder cannot serve two tabs with different toggles.
 	// Nil in tests, which inject a stub responder instead.
 	realLLM *llm.Client
-	simLLM  *llm.Client
 	router  comp.Router
 }
 
@@ -91,13 +90,21 @@ func NewHandler(
 	return &Handler{cfg: cfg, auth: a, q: q, hub: hub, store: st, responder: responder}
 }
 
+// modelConfigured reports whether a REAL model is available. The simulated
+// client is deliberately excluded: it returns one canned answer that ignores
+// the prompt, so treating it as "configured" showed a working composer whose
+// every answer said the same thing. A surface that needs a model says so
+// instead of pretending.
+func (h *Handler) modelConfigured() bool {
+	return h.realLLM != nil && h.realLLM.Configured()
+}
+
 // SetModelLeg installs the production model leg: the two LLM clients, the
 // optional lead-component router, and the boot surface default. The worker
 // rebuilds the responder per job from these plus the tab's toggles; tests
 // skip this and keep the injected stub responder.
-func (h *Handler) SetModelLeg(real, sim *llm.Client, router comp.Router, surfaces []comp.Surface) {
+func (h *Handler) SetModelLeg(real *llm.Client, router comp.Router, surfaces []comp.Surface) {
 	h.realLLM = real
-	h.simLLM = sim
 	h.router = router
 	h.defaultSurfaces = surfaces
 }
@@ -157,7 +164,7 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 		def = comp.DefaultSurfacesChat
 	}
 	_ = chatcomponents.ChatIndex(email, sess.Role, h.cfg.BuildLabel, h.cfg.BuildCommit,
-		messageViews(r.Context(), msgs), demo.On(r),
+		messageViews(r.Context(), msgs), demo.On(r), h.modelConfigured(),
 		comp.HasSurfaces(def, comp.SurfaceCatalog),
 		comp.HasSurfaces(def, comp.SurfaceCustom),
 		comp.HasSurfaces(def, comp.SurfaceNative)).Render(r.Context(), w)

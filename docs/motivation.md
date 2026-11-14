@@ -93,7 +93,7 @@ the criteria above:
 - **goqite + SSE Hub (+ retry-go)** — background jobs with exponential backoff; progress streams to the browser. No Redis.
 - **age + `~/.secrets/`** — secrets encrypted at rest, decrypted at boot. No vault, no cloud.
 
-## Plugins and features: disable or remove whatever you want
+## Servants and features: disable or remove whatever you want
 
 Servants switch off with an env var; recipes uninstall by receipt.
 Snapshot of Oct 2026 — the live list with opt-outs is

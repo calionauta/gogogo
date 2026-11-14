@@ -4,12 +4,14 @@ package installer
 import (
 	"flag"
 	"fmt"
+	"go/format"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/calionauta/gogogo/internal/capabilities"
 	"github.com/calionauta/gogogo/internal/recipe"
 )
 
@@ -67,7 +69,9 @@ func runRecipeUninstall(args []string, stdout io.Writer) error {
 	if derr != nil {
 		return &ExitError{code: 1, msg: "recipe uninstall: " + derr.Error()}
 	}
-	r.Removed = time.Now().UTC().Format(time.RFC3339)
+	if merr := r.MarkRemoved(time.Now()); merr != nil {
+		return &ExitError{code: 1, msg: "recipe uninstall: " + merr.Error()}
+	}
 	if serr := recipe.SaveReceipt(root, r); serr != nil {
 		return &ExitError{code: 1, msg: "recipe uninstall: write receipt: " + serr.Error()}
 	}
@@ -102,6 +106,12 @@ func printRecipeUninstallReceipt(stdout io.Writer, id string, res recipe.ApplyRe
 	if d.Policy {
 		fmt.Fprintf(stdout, "  policy:   dropped its block from %s\n", recipePolicyFile)
 	}
+	if d.Nav {
+		fmt.Fprintf(stdout, "  nav:      dropped its entry from %s\n", modulesFile)
+	}
+	if d.Card {
+		fmt.Fprintf(stdout, "  card:     removed %s/%s.md\n", capabilities.CardDir, id)
+	}
 	if declaresNav(r.Declaration) {
 		// The rail lost an entry, so the page digests moved back.
 		fmt.Fprintln(stdout, navDigestNotice)
@@ -130,7 +140,16 @@ type uninstallDerived struct {
 	Generated []string
 	Policy    bool
 	DDL       bool
-	Codegen   codegenReport
+	// Card reports that the slice's written boundary (docs/domain/<id>.md)
+	// left the tree. check-domains refuses a card with no slice, so an
+	// uninstall that kept it would make the very next commit red.
+	Card bool
+	// Nav reports that a sidebar entry left internal/ui/modules.go. A bundled
+	// unit keeps that entry in source (installed recipes contribute one at
+	// runtime), so removing the package without the line would leave the rail
+	// pointing at a page that no longer exists.
+	Nav     bool
+	Codegen codegenReport
 }
 
 // removeDerived removes those artifacts and then runs the generators, in that
@@ -154,7 +173,98 @@ func removeDerived(root, id string, removed []string, r recipe.Receipt) (uninsta
 	// The policy rows are the tool's too: an installed recipe's block goes with
 	// it, or the file keeps granting paths nothing serves.
 	d.Policy, err = removeRecipePolicy(root, id)
+	if err != nil {
+		return d, err
+	}
+	// The rail entry is spread across two places (Modules and viewerModules);
+	// both are removed here so "uninstall" means "no dead link", not "no
+	// package". A runtime nav contribution has no line and this is a no-op.
+	d.Nav, err = removeModuleEntry(root, id)
+	if err != nil {
+		return d, err
+	}
+	d.Card, err = removeDomainCard(root, id)
 	return d, err
+}
+
+// removeDomainCard deletes docs/domain/<id>.md when it exists.
+//
+// The card is the slice's boundary, so it leaves with the slice. It is checked
+// for before removing because a data-only recipe (policy or schema, no code)
+// legitimately has no card, and "no card" is success, not a refusal.
+func removeDomainCard(root, id string) (bool, error) {
+	path := capabilities.CardPath(root, id)
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	if err := os.Remove(path); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// sourceFileMode is the mode for rewriting a tracked source file in place.
+const sourceFileMode = 0o644
+
+// removeModuleEntry drops a destination from the shell's module registry.
+//
+// The registry is the one place a bundled page becomes navigable, so an
+// uninstall that skipped it left the rail linking to a package that was gone.
+// Handles both entry shapes in the file (a one-line `{ID: "x", ...}` and the
+// multi-line `{` + `ID: "x",` form) and the viewer lookup beside it.
+func removeModuleEntry(root, id string) (bool, error) {
+	path := filepath.Join(root, filepath.FromSlash(modulesFile))
+	raw, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	lines := strings.Split(string(raw), "\n")
+	var out []string
+	changed := false
+	for i := 0; i < len(lines); i++ {
+		line := lines[i]
+		if strings.Contains(line, `{ID: "`+id+`",`) {
+			changed = true
+			continue
+		}
+		if strings.TrimSpace(line) == "{" {
+			// Multi-line entry: drop it only when its ID line names this unit.
+			end := i + 1
+			for end < len(lines) && !strings.HasSuffix(strings.TrimSpace(lines[end]), "},") {
+				end++
+			}
+			block := strings.Join(lines[i:min(end+1, len(lines))], "\n")
+			if strings.Contains(block, `ID:        "`+id+`",`) || strings.Contains(block, `ID: "`+id+`",`) {
+				changed = true
+				i = end
+				continue
+			}
+		}
+		if strings.Contains(line, `"`+id+`":`) && strings.Contains(line, "true") {
+			changed = true
+			continue
+		}
+		out = append(out, line)
+	}
+	if !changed {
+		return false, nil
+	}
+	formatted, ferr := format.Source([]byte(strings.Join(out, "\n")))
+	if ferr != nil {
+		// Leaving the file unformatted is still better than leaving the entry:
+		// the gate that formats is cheaper than a dead rail link.
+		formatted = []byte(strings.Join(out, "\n"))
+	}
+	if err := os.WriteFile(path, formatted, sourceFileMode); err != nil { //nolint:gosec // tracked source file
+		return false, err
+	}
+	return true, nil
 }
 
 // parseRecipeUninstallArgs accepts the id before or after the flags.
@@ -178,7 +288,7 @@ func parseRecipeUninstallArgs(args []string) (recipeUninstallArgs, error) {
 	}
 	if opt.id == "" {
 		return opt, &ExitError{code: 1, msg: "recipe uninstall needs a recipe id " +
-			"(`recipe uninstall pomodoro`); `recipe status` lists what is installed"}
+			"(`recipe uninstall timer`); `recipe status` lists what is installed"}
 	}
 	if fs.NArg() > 1 {
 		return opt, &ExitError{code: 1, msg: "recipe uninstall takes one recipe id"}

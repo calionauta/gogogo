@@ -1,6 +1,7 @@
 id: kiosk
 summary: A voice-first order demo over a closed menu, with one owner-scoped order table and a declared outcome.
 version: v0.1.0
+author: {name: calionauta}
 upstream:
     repo: github.com/calionauta/gogogo
     ref: master
@@ -11,10 +12,10 @@ files:
     features/kiosk/embed.go: 16bd1f0ce7184f4ad63c0c9433c2f8f672f91bc222ee7140df709c47da19ffd6
     features/kiosk/handlers/chi.go: 39d371145c61b5cfb1f96c694af415c4105e7c62d3f5b002926b39339581c7a6
     features/kiosk/handlers/confirm.go: e19004b9b6d18e0663f41c5adc8a6978801636e7e3789931f19acf9e595fd9d2
-    features/kiosk/handlers/genui_panel.go: 6b329c866bba54fc4e52bb42752c17ce47b1feef5c22f081ff588acafcc5637d
+    features/kiosk/handlers/genui_panel.go: 4cbeff325be62b1ea13ea2b25885f62cbdc0c35e44e279d682b3d1543ebc75c9
     features/kiosk/handlers/outcome_test.go: 3b7acd5274996c368db175890e5efe4247a55c96da72848eaf25984a9ca6ccc8
     features/kiosk/handlers/preview.go: 0d67934548312aa520abd8452dd7bc1c4b650b2785552772c3896c0a98d75768
-    features/kiosk/handlers/recipe.go: 68a2c355d7cd73302ebfe3b6a9d3ae62a4a2136796ee56c3e1d7f755aff56273
+    features/kiosk/handlers/recipe.go: c69a8f0e8937c75dea133a2948955e2e98ea0a84c2551da487773382cc480ce7
     features/kiosk/handlers/recipe_test.go: 9875bdccb477df4c786ea844494968c15ae6713ea80a7264ef9d363dbf7954ea
     features/kiosk/handlers/register.go: 9f307d222293b8f87cfb9bf1e1f05cfd507b8f75080be2b77934a0cde1044f48
     features/kiosk/menu.go: eb403c9841da8b4382a80e338e4ca60e1ce352411e5661e372fc4f2256d83323
@@ -55,8 +56,8 @@ declaration:
     metrics:
         - label: Orders confirmed
           query: SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ?
-    outcomes:
-        - id: order_without_repair
+        - kind: outcome
+          id: order_without_repair
           job: Receive the order you asked for without fixing a misread order
           beneficiary: user
           success:
@@ -65,8 +66,9 @@ declaration:
           total:
             label: Orders confirmed
             query: SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ?
-          counterSignals:
-            - corrected
+          counterbalance:
+            - label: Orders corrected
+              query: SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ? AND corrected = 1
           window: session
     panel:
         component: kiosk_orders

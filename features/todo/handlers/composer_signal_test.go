@@ -22,10 +22,10 @@ import (
 //
 // Red-proof: put `"newTitle": ""` back into the create merge and this fails.
 //
-// No wireBM25: the create path under test does not touch the search plugin,
-// and the `search` trim preset deletes search_test.go — which is where wireBM25
-// lives. A dependency on it here would break the trimmed tree's build (caught
-// by TestTrimmedTreeStillBuilds/search), so this file stays plugin-free.
+// No wireBM25: the create path under test does not touch the search servant,
+// and removing that unit deletes search_test.go — which is where wireBM25
+// lives. A dependency on it here would break a product tree that removed
+// search, so this file stays free of it.
 func TestCreateResponseDoesNotWriteTheComposerSignal(t *testing.T) {
 	f := newHandlersFixture(t)
 	cookie := f.signup("composer@example.com")

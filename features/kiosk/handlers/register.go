@@ -43,6 +43,6 @@ func Register(reg *recipe.Registry, d register.Deps) {
 		// would take the whole tree down for a missing menu entry. Boot has no
 		// request context, so the empty one keeps the log on the app's logger.
 		observability.Warn(context.Background(), "kiosk: sidebar entry refused",
-			append(observability.WithComponent("kiosk", "handler"), "error", err)...)
+			append(observability.WithComponent("kiosk", observability.LayerFeature), "error", err)...)
 	}
 }
