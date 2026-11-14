@@ -28,7 +28,19 @@ func (h *Handler) preview(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad form", http.StatusBadRequest)
 		return
 	}
+	// The parser reads what the menu knows; the engine decides the rest. Settle
+	// is a no-op when the parse is already complete, so the fast path costs
+	// nothing.
+	//
+	// `engine` is the field's opt-in: the input's debounce fires every 250ms
+	// while somebody speaks, and a decision engine that costs a round trip per
+	// keystroke would make typing worse than the menu alone. The page asks for
+	// it explicitly (Interpret / the mic finishing a phrase), which is when a
+	// human is actually waiting for a decision.
 	parsed := kiosk.Parse(r.PostFormValue("text"))
+	if r.PostFormValue("decide") == "1" {
+		parsed = h.engine.Settle(r.Context(), r.PostFormValue("text"), parsed)
+	}
 	sse := sdk.NewSSE(w, r)
 	if err := dshelpers.MergeSignals(sse, previewSignals(parsed)); err != nil {
 		observability.Warn(r.Context(), "kiosk: preview signals failed",

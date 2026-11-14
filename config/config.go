@@ -190,6 +190,7 @@ func Load() *Config {
 	cfg.loadStorageEnv()
 	cfg.loadReviewEnv()
 	cfg.loadChatRouterEnv()
+	cfg.loadKioskClassifierEnv()
 	cfg.loadGenUIEnv()
 
 	cfg.Credits.Enabled = envBool("CREDITS_ENABLED", false)

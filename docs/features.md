@@ -22,7 +22,7 @@ being one.
 | **Localization (servant)** | `internal/i18n` seam + `golang.org/x/text` | `I18N_ENABLED=false` (already the default — markup stays on English fallbacks) |
 | **Collaborative whiteboard** | Loro CRDT + Rough.js + NATS | delete by hand (bundle with notes + collab transport; see its registry Reason), or `COLLAB_SNAPSHOTS=memory` for snapshot-free local mode |
 | **Shared notes** | Loro Text (server-owned) + SSE Hub | delete by hand (bundle with whiteboard + collab transport) |
-| **Kiosk orders (voice)** | Own closed-menu parser + on-device Web Speech + jev fallback | delete by hand (bundle with genui: its chat panel renders through genui) |
+| **Kiosk orders (voice)** | Closed-menu parser (fast path) + jev-like classifier (decides what the menu cannot) + on-device Web Speech | `KIOSK_CLASSIFIER_ENABLED` unset (parser only); delete by hand (bundle with genui: its chat panel renders through genui) |
 | **Durable workflows** | DagNats over JetStream | `DAGNATS_ENABLED=false` |
 | **Inbox + reminders** | DagNats `sleep` → owner-scoped delivery row | `DAGNATS_ENABLED=false` hides the form; the inbox stays |
 | **Entity actors** | GoAkt grains (room lease + whiteboard presence) | `GOAKT_ENABLED=false` (whiteboard falls back to `PeerSet`) |

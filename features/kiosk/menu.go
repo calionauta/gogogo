@@ -11,10 +11,12 @@
 //  1. The menu is Go data, not model output and not a second list in JS. The
 //     page renders the same aliases into the recognizer's contextual-bias
 //     phrases, so there is one vocabulary and it cannot drift.
-//  2. Parsing is a deterministic function over that closed set. A closed menu
-//     does not need an LLM: it needs aliases, a unit test, and zero latency. The
-//     Jev seam stays available for utterances this cannot settle, but it is
-//     opt-in and measured first — see docs/research/recipe-outcomes-2026-11.md.
+//  2. Parsing is a deterministic function over that closed set, and it is the
+//     FAST PATH of two. A phrase the menu already matches costs no network and
+//     no tokens; an utterance the menu cannot settle ("something cold with oat
+//     milk", a mixed language, slang) is decided by the classifier in
+//     classifier.go, which chooses among these same IDs and can invent none of
+//     them. KIOSK_CLASSIFIER_ENABLED turns it on; off is the keyless path.
 package kiosk
 
 import (

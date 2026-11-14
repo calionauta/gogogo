@@ -3,6 +3,8 @@
 package handlers
 
 import (
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/calionauta/gogogo/features/kiosk"
@@ -60,5 +62,23 @@ func TestCorrectionClearsStaleFields(t *testing.T) {
 	without := previewSignals(kiosk.Parse("large latte"))
 	if without["kioskMilk"] != "" {
 		t.Errorf("kioskMilk = %v after the milk was removed", without["kioskMilk"])
+	}
+}
+
+// TestPreviewDoesNotDecideOnEveryKeystroke is the latency contract: the input
+// debounces at 250ms, and a decision engine that runs per keystroke would cost a
+// round trip each time — slower than the menu alone. The engine runs only when
+// the page asks (Interpret, or the recognizer finishing an utterance).
+func TestPreviewDoesNotDecideOnEveryKeystroke(t *testing.T) {
+	// The handler reads the form value; the page leaves it empty while typing.
+	// This test pins the CONTRACT at the source level, because a handler unit
+	// test cannot observe "the browser did not set the field".
+	raw, err := os.ReadFile("preview.go")
+	if err != nil {
+		t.Fatalf("read preview.go: %v", err)
+	}
+	src := string(raw)
+	if !strings.Contains(src, `r.PostFormValue("decide") == "1"`) {
+		t.Fatal("the handler decides unconditionally: every debounced keystroke would call the engine")
 	}
 }

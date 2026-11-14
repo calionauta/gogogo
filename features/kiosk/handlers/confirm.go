@@ -31,7 +31,10 @@ func (h *Handler) confirm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sse := sdk.NewSSE(w, r)
-	parsed := kiosk.Parse(r.PostFormValue("text"))
+	// The SAME decision the preview made: a confirm must not reject an order the
+	// page just showed as ready, so the engine decides here too.
+	text := r.PostFormValue("text")
+	parsed := h.engine.Settle(r.Context(), text, kiosk.Parse(text))
 	if !parsed.Complete() {
 		// Not a 400: the page asked, the answer is "not yet", and the same
 		// signals that explain the preview explain this.

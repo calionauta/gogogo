@@ -66,6 +66,7 @@ func seedSignals() Seeds {
 		"kioskNotice":  "",
 		"kioskBusy":    false,
 		"kioskQueued":  false,
+		"kioskDecide":  false,
 	}
 }
 
@@ -158,6 +159,13 @@ templ kioskHead() {
 					}
 					input.value = text.trim();
 					input.dispatchEvent(new Event("input", { bubbles: true }));
+					// A finished utterance is exactly when the decision engine
+					// earns its round trip: the menu has had its chance, and a
+					// person is waiting for the order to settle. Typing keeps the
+					// parser-only path (see the input's debounce).
+					if (event.results[event.results.length - 1].isFinal) {
+						input.dispatchEvent(new CustomEvent("kiosk-decide", { bubbles: true }));
+					}
 				};
 				recognition.onerror = function (event) {
 					say("Microphone: " + (event.error || "error") + " — type the order.");
@@ -334,11 +342,24 @@ templ kioskBody(data PageData) {
 						aria-label={ i18n.T(ctx, "kiosk.orderLabel", nil) }
 						maxlength="240"
 						data-bind="kioskText"
-						data-on:input__debounce.250ms="!$kioskBusy ? ($kioskBusy = true, @post('/api/kiosk/preview', {contentType: 'form'}).finally(() => { $kioskBusy = false; if ($kioskQueued) { $kioskQueued = false; el.dispatchEvent(new CustomEvent('kiosk-retry', { bubbles: true })) } })) : ($kioskQueued = true)"
+						data-on:input__debounce.250ms="!$kioskBusy ? ($kioskBusy = true, $kioskDecide = false, @post('/api/kiosk/preview', {contentType: 'form'}).finally(() => { $kioskBusy = false; if ($kioskQueued) { $kioskQueued = false; el.dispatchEvent(new CustomEvent('kiosk-retry', { bubbles: true })) } })) : ($kioskQueued = true)"
 						data-on:kiosk-retry="!$kioskBusy ? ($kioskBusy = true, @post('/api/kiosk/preview', {contentType: 'form'}).finally(() => { $kioskBusy = false; })) : null"
+						data-on:kiosk-decide="!$kioskBusy ? ($kioskBusy = true, $kioskDecide = true, @post('/api/kiosk/preview', {contentType: 'form'}).finally(() => { $kioskBusy = false; $kioskDecide = false })) : ($kioskQueued = true)"
 					/>
 					<input type="hidden" name="previewed" data-attr:value="$kioskPreview"/>
-					<button type="submit" class="btn btn-sm">{ i18n.T(ctx, "kiosk.interpret", nil) }</button>
+					{{/* `decide` asks the server to run the decision engine. The
+					     debounced typing path leaves it empty: a classifier call per
+					     keystroke would make typing slower than the menu alone. The
+					     explicit actions below set it, so the engine runs exactly
+					     when a human is waiting for a decision. */}}
+					<input type="hidden" name="decide" data-attr:value="$kioskDecide ? '1' : ''"/>
+					<button
+						type="submit"
+						class="btn btn-sm"
+						data-on:click="$kioskDecide = true"
+					>
+						{ i18n.T(ctx, "kiosk.interpret", nil) }
+					</button>
 				</form>
 				<div class="ui-row">
 					<button

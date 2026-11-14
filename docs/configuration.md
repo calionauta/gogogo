@@ -93,10 +93,13 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 | `JEV_CONFIDENCE_THRESHOLD` | `0.7` | Below this the verdict escalates to a human; recalibrate per backend (see [Review loop](review.md)) |
 | `JEV_ROUTER_ENABLED` | `false` | Let the same jev-compatible endpoint choose which component a Chat answer leads with. Off = byte-identical prompt to the router-less one |
 | `JEV_ROUTER_CONFIDENCE_THRESHOLD` | `0.7` | Below this the pick is ignored and the whole catalog is offered |
+| `KIOSK_CLASSIFIER_ENABLED` | `true` | Let the same jev-compatible chain decide an order the closed menu could not settle. The parser stays the fast path; the classifier chooses only among the menu's own IDs, so it can invent no item, size or price. `false` = parser only (an offline counter) |
+| `KIOSK_CLASSIFIER_CONFIDENCE_THRESHOLD` | `0.7` | Below this the classifier's choice is ignored and the parser's "missing" stands (the counter re-asks) |
 | `GENUI_CHAT_SURFACES` | `catalog,custom,native` | Chat's answer surfaces: CSV of `catalog,custom,native` (every band toggles independently). `custom` is `html_block` (model-invented, sanitized markup). `native` is the app's own panels (real rows from the store). `none` is prose-only: the model answers in plain prose and the page still works. `catalog` alone is the strict showcase (unknown types fail closed). The tab toggles the same names per request from the composer. |
 
-The router (`JEV_ROUTER_*`) is opt-in and reuses the primary→fallback
-chain above — one chain serves the judge and the router, for BOTH AI legs.
+The router (`JEV_ROUTER_*`) and the kiosk's decision engine
+(`KIOSK_CLASSIFIER_*`) are opt-in and reuse the primary→fallback chain
+above — one chain serves the judge, the router and the order classifier.
 Turning it on adds a leading hint to the prompt; it never removes a
 component from what the model may emit, and every failure (endpoint down,
 low confidence, a label

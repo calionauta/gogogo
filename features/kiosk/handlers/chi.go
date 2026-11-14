@@ -24,9 +24,13 @@ import (
 // register.Deps, the same values the root hands its own units, so a recipe is
 // not a special case at boot.
 type Handler struct {
-	auth   *auth.Auth
-	cfg    *config.Config
+	auth *auth.Auth
+	cfg  *config.Config
+	// orders is the write path; engine decides an order the menu could not.
+	// Nil engine means the operator did not enable the classifier, which is the
+	// default and the keyless path.
 	orders *service.Orders
+	engine *kiosk.Classifier
 }
 
 // NewHandler builds the slice. A missing auth or store is a wiring bug, and the
@@ -35,7 +39,7 @@ func NewHandler(a *auth.Auth, q *dbgen.Queries, cfg *config.Config) *Handler {
 	if a == nil || q == nil {
 		panic("kiosk: NewHandler needs auth and queries")
 	}
-	return &Handler{auth: a, cfg: cfg, orders: service.NewOrders(q)}
+	return &Handler{auth: a, cfg: cfg, orders: service.NewOrders(q), engine: newClassifier(cfg)}
 }
 
 // Routes returns the recipe's router with ABSOLUTE patterns, the convention the
