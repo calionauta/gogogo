@@ -54,14 +54,19 @@ func previewSignals(parsed kiosk.ParseResult) map[string]any {
 		signals["kioskNeed"] = "I could not tell which drink — say one, or type it."
 		return signals
 	}
+	// Partial orders show what IS known. Gating every field on the drink meant
+	// "I'd like a big drink" left the whole preview blank: the size was parsed
+	// and then thrown away, so the page looked frozen while the user spoke. Only
+	// the price and the preview token wait for a drink — a size with no drink has
+	// no price, and a partial preview must never look confirmable.
 	if parsed.Order.Drink != "" {
 		signals["kioskDrink"] = kiosk.DrinkLabel(parsed.Order.Drink)
-		signals["kioskSize"] = kiosk.SizeLabel(parsed.Order.Size)
-		signals["kioskMilk"] = kiosk.MilkLabel(parsed.Order.Milk)
-		signals["kioskExtras"] = kiosk.ExtraLabels(parsed.Order.Extras)
 		signals["kioskPrice"] = formatPrice(kiosk.PriceCents(parsed.Order))
 		signals["kioskPreview"] = kiosk.Serialize(parsed.Order)
 	}
+	signals["kioskSize"] = kiosk.SizeLabel(parsed.Order.Size)
+	signals["kioskMilk"] = kiosk.MilkLabel(parsed.Order.Milk)
+	signals["kioskExtras"] = kiosk.ExtraLabels(parsed.Order.Extras)
 	if len(parsed.Missing) > 0 {
 		signals["kioskNeed"] = "Missing: " + strings.Join(missingLabels(parsed.Missing), ", ")
 	}
