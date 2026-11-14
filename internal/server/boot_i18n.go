@@ -64,3 +64,18 @@ func joinConfigSupported(supported []string) string {
 	}
 	return strings.Join(supported, ",")
 }
+
+// registerLocaleRoute mounts the language picker's write half.
+//
+// It lives here because this file owns the whole i18n seam: the catalog is
+// built here, the middleware is applied here, and the route that writes the
+// preference belongs beside them. A bad catalog degrades to "no picker" rather
+// than failing the route — the same rule applyI18N follows at boot.
+func registerLocaleRoute(r *Router, cfg *config.Config) {
+	cat, err := bootI18N(cfg)
+	if err != nil {
+		cat = nil
+	}
+	r.Claim("core", "GET", "/_ui/locale")
+	r.Get("/_ui/locale", localeHandler(cat))
+}

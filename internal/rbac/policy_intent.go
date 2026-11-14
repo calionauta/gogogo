@@ -45,6 +45,11 @@ var publicRoutes = map[string]bool{
 	"/api/auth/password/reset":            true,
 	"/api/auth/password/reset/request":    true,
 	"/api/session/stream":                 true,
+	// The language preference. Public on purpose: the login page is a page a
+	// visitor may want in their own language, and the cookie is a display
+	// preference with nothing to protect. Same reasoning as /_ui/demo, which
+	// is declared public in policy.csv but reachable only through its row.
+	"/_ui/locale": true,
 	// Browser CSP reports post with no session. The row is anonymous by
 	// policy; naming it here is what makes the coverage gate agree, and it
 	// is mounted by a CONSTANT path, so the source scan cannot see it.

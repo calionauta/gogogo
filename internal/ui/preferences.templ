@@ -28,6 +28,7 @@
 package ui
 
 import (
+	"github.com/calionauta/gogogo/internal/i18n"
 	"github.com/calionauta/gogogo/internal/themes"
 )
 
@@ -41,7 +42,7 @@ import (
 // src/css/input.css.
 templ Preferences() {
 	<li class="app-pref">
-		<p class="app-pref-head" id="app-pref-theme">Tema</p>
+		<p class="app-pref-head" id="app-pref-theme">{ i18n.T(ctx, "prefs.theme", nil) }</p>
 		<ul class="app-pref-list" aria-labelledby="app-pref-theme">
 			for _, t := range themes.All {
 				<li>

@@ -75,9 +75,9 @@ func extInvokeHandler(reg *recipe.Registry, invokeOut func() http.Handler) http.
 		// neutralizes browser interpretation of any reflected markup.
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(status)
-		//nolint:gosec // G705: `out` is our own composed mux's response to
-		// the operator's own params (already rendered by the inner handler);
-		// text/plain above forces browsers to treat it as inert text.
+		// `out` is our own composed mux's response to the operator's own params
+		// (already rendered by the inner handler); text/plain above forces
+		// browsers to treat it as inert text.
 		_, _ = w.Write(out)
 	})
 }

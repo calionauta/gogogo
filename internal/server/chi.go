@@ -473,6 +473,7 @@ func buildChiMux(
 	// it sets a display preference, and the landing page has no panel to dock.
 	r.Claim("core", "GET", "/_ui/demo")
 	r.Get("/_ui/demo", demoModeHandler)
+	registerLocaleRoute(r, deps.Cfg)
 	r.Claim("core", "GET", "/sw.js")
 	r.Claim("core", "HEAD", "/sw.js")
 	r.Get("/sw.js", serviceWorkerHandler().ServeHTTP)

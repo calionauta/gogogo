@@ -53,7 +53,7 @@ func homeHandler(a *auth.Auth, r *Router) http.HandlerFunc {
 		}
 		// The target is a path from a closed set (homePath or a ui.Module URL),
 		// never client input: the role only SELECTS from that set.
-		http.Redirect(w, req, homeFor(role, r), http.StatusSeeOther) //nolint:gosec // G710: closed set, not user input
+		http.Redirect(w, req, homeFor(role, r), http.StatusSeeOther)
 	}
 }
 

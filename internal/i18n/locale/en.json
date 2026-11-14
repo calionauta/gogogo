@@ -18,5 +18,15 @@
   "forbidden.body": "Your role ({{.Role}}) does not include this area. Ask an administrator if you think this is a mistake.",
   "forbidden.dashboard": "Go to dashboard",
   "forbidden.account": "Account settings",
-  "dashboard.card.locked": "Not available for your role"
+  "dashboard.card.locked": "Not available for your role",
+  "nav.dashboard": "Dashboard",
+  "nav.whiteboard": "Whiteboard",
+  "nav.review": "Review",
+  "nav.room": "Room",
+  "nav.graph": "Graph",
+  "nav.config": "Config",
+  "lang.heading": "Language",
+  "nav.notifications": "Inbox",
+  "prefs.theme": "Theme",
+  "prefs.language": "Language"
 }

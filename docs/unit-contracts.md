@@ -131,7 +131,7 @@ age-decrypted env loader
 flat backend boot (Turso + auth + handlers + queues + workers)
 
 - **Owned:** `internal/server`
-- **Routes:** `/`, `/_ui/demo`, `/api/ext/invoke`, `/health`, `/sw.js`
+- **Routes:** `/`, `/_ui/demo`, `/_ui/locale`, `/api/ext/invoke`, `/health`, `/sw.js`
 - **Store calls:** `dbgen.CountUnreadInApp`, `dbgen.CountUsers`, `dbgen.DeleteOpReceiptsBatchBefore`, `dbgen.DeleteSecurityEventsBatchBefore`, `dbgen.GetUserByEmail`, `dbgen.SetUserRole`
 - **Note:** Core: cmd/web and cmd/desktop both boot through BootChi/StartChi. attach JetStream, then serve.
 
@@ -255,10 +255,10 @@ panorama graph (capabilities + recipes)
 localization seam (embedded catalogs, locale resolution, number/date formatting)
 
 - **Owned:** `internal/i18n`
-- **Runtime off:** `I18N_ENABLED=false (already the default)`
+- **Runtime off:** `I18N_ENABLED=false`
 - **Why that class:** Phase one owns lookup and formatting; CLDR depth is a documented revisit trigger, not an upfront dependency.
 - **Note:** Removable seam: delete internal/i18n plus this entry and the I18n config; the shell keeps rendering the English fallback. Runtime-off is the blessed path until a phase converts markup.
-- **Warning:** With the servant off, markup stays on English fallbacks; no feature needs the locale context to render.
+- **Warning:** With the servant off, markup stays on English strings and the account panel offers no language picker (there is no catalog to offer), so no page depends on the locale context to render.
 
 ## `license-activation` — servant
 

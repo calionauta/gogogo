@@ -42,7 +42,7 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `I18N_ENABLED` | `false` | Master switch for the localization servant. `false` keeps English markup; `true` enables locale resolution (query `lang`, locale cookie, then `Accept-Language`) and translated strings where a phase has converted them. |
+| `I18N_ENABLED` | `true` | Master switch for the localization servant. `true` resolves the request locale (query `lang`, the `gogogo_locale` cookie, then `Accept-Language`) and renders the translated strings in the account panel's language picker; `false` keeps English markup and hides the picker. |
 | `SUPPORTED_LOCALES` | `en,pt-BR` | Comma-separated locale tags the catalog loader must find. Invalid entries are skipped; the fallback must be in this list or it resets to `en`. |
 | `DEFAULT_LOCALE` | `en` | Fallback locale when no preference matches. Must be one of `SUPPORTED_LOCALES`. |
 

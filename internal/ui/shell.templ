@@ -13,6 +13,8 @@
 package ui
 
 import (
+	"context"
+
 	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/internal/components"
 	"github.com/calionauta/gogogo/internal/i18n"
@@ -44,7 +46,7 @@ type Data struct {
 	// their demo IS the page, so hiding it behind a toggle would hide the point —
 	// and a page with no panel gets no [ Demo ] button.
 	Panel       templ.Component
-	OfflineSync bool               // offline outbox wired
+	OfflineSync bool // offline outbox wired
 	Stack       []components.TechItem // layers this page demonstrates (0 = no key)
 }
 
@@ -58,6 +60,34 @@ func (d Data) HeadingText() string {
 		return m.Title
 	}
 	return d.Title
+}
+
+// HeadingLabel is HeadingText in the request's language. The explicit Heading
+// override wins and is NOT translated: a page that sets its own heading is
+// writing page copy, and the catalog only owns the destination names.
+func (d Data) HeadingLabel(ctx context.Context) string {
+	if d.Heading != "" {
+		return d.Heading
+	}
+	if m, ok := ByID(d.Module); ok {
+		return ModuleLabel(ctx, m)
+	}
+	return d.Title
+}
+
+// installedCatalog is the request catalog ONLY when the i18n servant is on.
+//
+// CatalogFromContext would answer with the English default even when the plugin
+// is off, and a language picker whose choice the server ignores is exactly the
+// dead affordance the UI rules forbid. Reading it here (instead of adding a
+// field every page must fill) keeps the 14 call sites unchanged and the
+// decision in one place.
+func installedCatalog(ctx context.Context) *i18n.Catalog {
+	cat, ok := i18n.CatalogInContext(ctx)
+	if !ok {
+		return nil
+	}
+	return cat
 }
 
 // Shell renders one module page: head, sidebar, header, body.
@@ -167,7 +197,7 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 										<a href={ templ.SafeURL(d.CrumbURL) } title={ "Back to " + d.CrumbLabel }>&#8249; { d.CrumbLabel }</a>
 									</nav>
 								}
-								<h1>{ d.HeadingText() }</h1>
+								<h1>{ d.HeadingLabel(ctx) }</h1>
 								if d.Context != "" {
 									<p class="app-module-context">{ d.Context }</p>
 								}
@@ -289,7 +319,7 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 							}
 						</nav>
 						<div class="app-rail-foot">
-							@authviews.UserMenu(d.Email, d.Role, Preferences(), Operator(ctx), Perf(ctx))
+							@authviews.UserMenu(d.Email, d.Role, Preferences(), Language(installedCatalog(ctx)), Operator(ctx), Perf(ctx))
 						</div>
 					</aside>
 				</div>

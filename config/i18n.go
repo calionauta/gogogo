@@ -17,9 +17,10 @@ import (
 
 // I18NConfig selects the localization plugin surface.
 type I18NConfig struct {
-	// Enabled is I18N_ENABLED (default false). False keeps the
-	// binary on English markup; true enables locale resolution
-	// and translated strings where a phase has converted them.
+	// Enabled is I18N_ENABLED (default true). True resolves the request locale
+	// and renders the translated strings the catalogs carry; false keeps the
+	// binary on English markup (the same templates, English keys), which is the
+	// opt-out for a tree that deleted the servant.
 	Enabled bool
 	// Supported is SUPPORTED_LOCALES (default "en,pt-BR"):
 	// the tags the catalog loader must find. Invalid entries
@@ -32,7 +33,7 @@ type I18NConfig struct {
 
 // loadI18NEnv fills I18n from env.
 func (c *Config) loadI18NEnv() {
-	enabled := envBool("I18N_ENABLED", false)
+	enabled := envBool("I18N_ENABLED", true)
 	supported := parseI18NSupported(getEnv("SUPPORTED_LOCALES", "en,pt-BR"))
 	def := strings.TrimSpace(getEnv("DEFAULT_LOCALE", "en"))
 	if def == "" {

@@ -115,13 +115,14 @@ func TestAnonymousPolicyIsMinimal(t *testing.T) {
 			anon = append(anon, strings.TrimSpace(parts[2]))
 		}
 	}
-	// 22 since /static joined /static/*: MountSubtree registers the bare prefix
+	// 23 since /_ui/locale joined (the language preference; 22 after /static
+	// joined /static/*: MountSubtree registers the bare prefix
 	// as well as the subtree, and without its own row GET /static was admin-only
 	// while GET /static/x was public (found by the runtime gate in
 	// internal/server). Public account creation (/signup) is the other
 	// deliberate widening, reviewed here so a wildcard cannot widen the block
 	// unnoticed.
-	const maxAnonymousObjects = 22
+	const maxAnonymousObjects = 23
 	if len(anon) > maxAnonymousObjects {
 		t.Errorf("the anonymous block has %d objects (max %d): is every one still public by intent?\n%v",
 			len(anon), maxAnonymousObjects, anon)
