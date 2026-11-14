@@ -44,7 +44,7 @@ templ Language(cat *i18n.Catalog) {
 					<li>
 						<a
 							class="app-pref-option"
-							href={ "/_ui/locale?lang=" + opt.Tag }
+							href={ opt.Href() }
 							hreflang={ opt.Tag }
 							lang={ opt.Tag }
 							data-attr:aria-current={ currentAttr(opt.Active) }

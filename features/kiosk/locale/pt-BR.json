@@ -19,5 +19,7 @@
   "noOrdersTitle": "Nenhum pedido ainda",
   "noOrdersBody": "Diga ou digite um pedido e confirme. Pedidos são por conta: a lista é limitada em SQL, não filtrada no template.",
   "corrected": "corrigido",
-  "stop": "Parar"
+  "stop": "Parar",
+  "reset": "Recomeçar",
+  "resetHint": "Limpar o pedido atual e começar de novo"
 }

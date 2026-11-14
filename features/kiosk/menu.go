@@ -74,6 +74,11 @@ var (
 		{ID: "medium", Label: "Medium", Aliases: []string{"medium", "regular"}, DeltaCents: 0},
 		{ID: "large", Label: "Large", Aliases: []string{"large", "big", "tall"}, DeltaCents: 60},
 	}
+	// Milks are the ALTERNATIVES to the default. A bare "milk" is not one of
+	// them: every drink already comes with milk, so "with milk" asks for nothing
+	// to change, and matching it to "whole" silently recorded a choice the
+	// customer never made. Only a word that names a milk selects one; plain
+	// "milk" is understood and ignored.
 	Milks = []Milk{
 		{ID: "oat", Label: "Oat", Aliases: []string{"oat", "oat milk"}},
 		{ID: "soy", Label: "Soy", Aliases: []string{"soy", "soy milk"}},

@@ -164,6 +164,15 @@ templ kioskHead() {
 					// person is waiting for the order to settle. Typing keeps the
 					// parser-only path (see the input's debounce).
 					if (event.results[event.results.length - 1].isFinal) {
+						var said = text.trim().toLowerCase();
+						var wantsReset = resetPhrases.some(function (p) { return said.indexOf(p) !== -1; });
+						if (wantsReset) {
+							// Dispatch, so ONE definition of "clear" serves the
+							// button and the voice command.
+							input.dispatchEvent(new CustomEvent("kiosk-clear", { bubbles: true }));
+							say("Order cleared — say or type a new one.");
+							return;
+						}
 						input.dispatchEvent(new CustomEvent("kiosk-decide", { bubbles: true }));
 					}
 				};
@@ -304,6 +313,11 @@ templ kioskHead() {
 				});
 			}
 
+			// A spoken "start over" clears the order the same way the button does.
+			// The recognizer only fills the input, so the phrase is checked here
+			// rather than parsed server-side: it is a command, not an order.
+			var resetPhrases = ["start over", "start again", "clear", "cancel order", "recomeçar", "limpar", "cancelar"];
+
 			// ONE handler: the markup's data-on:click calls __kioskVoice.toggle.
 			// An addEventListener here would fire on the same click as well, so
 			// the two toggles cancelled out — the button flipped to Stop and
@@ -345,6 +359,7 @@ templ kioskBody(data PageData) {
 						data-on:input__debounce.250ms="!$kioskBusy ? ($kioskBusy = true, $kioskDecide = false, @post('/api/kiosk/preview', {contentType: 'form'}).finally(() => { $kioskBusy = false; if ($kioskQueued) { $kioskQueued = false; el.dispatchEvent(new CustomEvent('kiosk-retry', { bubbles: true })) } })) : ($kioskQueued = true)"
 						data-on:kiosk-retry="!$kioskBusy ? ($kioskBusy = true, @post('/api/kiosk/preview', {contentType: 'form'}).finally(() => { $kioskBusy = false; })) : null"
 						data-on:kiosk-decide="!$kioskBusy ? ($kioskBusy = true, $kioskDecide = true, @post('/api/kiosk/preview', {contentType: 'form'}).finally(() => { $kioskBusy = false; $kioskDecide = false })) : ($kioskQueued = true)"
+						data-on:kiosk-clear="el.value = ''; $kioskText = ''; $kioskDrink = ''; $kioskSize = ''; $kioskMilk = ''; $kioskExtras = ''; $kioskPrice = ''; $kioskNeed = ''; $kioskPreview = ''; $kioskNotice = ''; $kioskDecide = false; el.focus()"
 					/>
 					<input type="hidden" name="previewed" data-attr:value="$kioskPreview"/>
 					{{/* `decide` asks the server to run the decision engine. The
@@ -359,6 +374,20 @@ templ kioskBody(data PageData) {
 						data-on:click="$kioskDecide = true"
 					>
 						{ i18n.T(ctx, "kiosk.interpret", nil) }
+					</button>
+					{{/* Reset is the counter's "customer changed their mind": it
+					     empties the input and the preview in one click. Disabled
+					     while a request is in flight, because clearing mid-answer
+					     would let the late patch land on a cleared form. */}}
+					<button
+						type="button"
+						id="kiosk-clear"
+						class="btn btn-ghost btn-sm"
+						title={ i18n.T(ctx, "kiosk.resetHint", nil) }
+						data-attr:disabled="!!$kioskBusy"
+						data-on:click="el.dispatchEvent(new CustomEvent('kiosk-clear', { bubbles: true }))"
+					>
+						{ i18n.T(ctx, "kiosk.reset", nil) }
 					</button>
 				</form>
 				<div class="ui-row">

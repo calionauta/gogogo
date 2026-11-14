@@ -179,3 +179,34 @@ func TestKioskAsksForTheMicrophoneBeforeAnythingElse(t *testing.T) {
 		t.Error("the permission stream is not released")
 	}
 }
+
+// TestKioskCanStartOver covers the missing affordance: an order begun by voice
+// had no way to be abandoned, so a customer who changed their mind was stuck
+// editing text.
+func TestKioskCanStartOver(t *testing.T) {
+	var body bytes.Buffer
+	if err := kioskBody(PageData{MenuLine: "Espresso $3.50"}).Render(context.Background(), &body); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	html := body.String()
+	if !strings.Contains(html, `id="kiosk-clear"`) {
+		t.Error("no reset control on the page")
+	}
+	// ONE definition of "clear": the button and the spoken command both dispatch
+	// this event, and a single Datastar handler empties the form.
+	if !strings.Contains(html, "kiosk-clear") {
+		t.Error("reset is not wired through the shared event")
+	}
+	if !strings.Contains(html, "$kioskDrink = &#39;&#39;") && !strings.Contains(html, "$kioskDrink = ''") {
+		t.Error("the reset handler does not clear the preview signals")
+	}
+	// A spoken command must reach the same handler. The recognizer lives in the
+	// HEAD component, so it is rendered separately.
+	script := renderKioskHead(t)
+	if !strings.Contains(script, "kiosk-clear") {
+		t.Error("the recognizer does not dispatch the reset event")
+	}
+	if !strings.Contains(script, "resetPhrases") {
+		t.Error("no spoken reset phrase is recognized")
+	}
+}

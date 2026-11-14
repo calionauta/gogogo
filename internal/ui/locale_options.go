@@ -71,6 +71,13 @@ func LocaleOptions(cat *i18n.Catalog, current string) []LocaleOption {
 	return out
 }
 
+// Href is the link that selects this language. Built here (not in the markup)
+// so the template stays one attribute expression: an href whose value is itself
+// a quoted string makes the datastar lint read it as a literal attribute.
+func (o LocaleOption) Href() string {
+	return "/_ui/locale?lang=" + o.Tag
+}
+
 // ModuleLabel is a destination's name in the request's language.
 //
 // The catalog owns the words (nav.<id>); the module registry owns the

@@ -19,5 +19,7 @@
   "noOrdersTitle": "No orders yet",
   "noOrdersBody": "Say or type an order and confirm it. Orders are per account: the list is scoped in SQL, not filtered in the template.",
   "corrected": "corrected",
-  "stop": "Stop"
+  "stop": "Stop",
+  "reset": "Start over",
+  "resetHint": "Clear the current order and start again"
 }
