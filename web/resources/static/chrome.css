@@ -1269,3 +1269,17 @@ input[type="search"]::-webkit-search-cancel-button { cursor: pointer; }
 @media (max-width: 380px) {
   .todo-item .todo-age { display: none; }
 }
+
+/* Kiosk receipt: sticky UNDER the module header, never over it.
+   The header is `position: sticky; top: 0; z-index: 20` and its height varies
+   (a crumb line or a context line adds a row), so a hard-coded `top` either
+   hides the receipt behind it or leaves a gap. The shell measures the header and
+   publishes --app-header-h; the receipt offsets by that plus a hair of spacing.
+   The fallback (4.5rem) is a header with no crumb and no context, so a page that
+   loads before the measurement still clears the common case instead of
+   overlapping. */
+.app-kiosk-receipt {
+  position: sticky;
+  top: calc(var(--app-header-h, 4.5rem) + 0.5rem);
+  z-index: 10;
+}

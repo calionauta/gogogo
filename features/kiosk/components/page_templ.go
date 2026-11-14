@@ -406,7 +406,7 @@ func kioskBody(data PageData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</span></div></div></section><section class=\"ui-card sticky top-2 z-10 shadow-sm\" id=\"kiosk-receipt\"><div class=\"ui-card-body ui-stack\"><div class=\"flex items-baseline justify-between gap-3\"><h2 class=\"ui-title\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</span></div></div></section><section class=\"ui-card app-kiosk-receipt shadow-sm\" id=\"kiosk-receipt\"><div class=\"ui-card-body ui-stack\"><div class=\"flex items-baseline justify-between gap-3\"><h2 class=\"ui-title\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -447,6 +447,27 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 			</div>
 			@components.ToastContainer()
 			@AppDock(d.Module, d.Role)
+			// The module header is sticky and its height VARIES (a crumb line or
+			// a context line adds a row), so any page with a sticky element below
+			// it needs the real number, not a guess. Publishing it as
+			// --app-header-h is the one place that measurement happens; the kiosk
+			// receipt offsets by it (see .app-kiosk-receipt in chrome.css).
+			//
+			// ResizeObserver, not a scroll/resize listener: it fires on the
+			// element's own size change, which covers the row appearing or the
+			// viewport reflowing, with no handler to leak and nothing to undo.
+			<script nonce={ templ.GetNonce(ctx) }>
+				(function () {
+					var header = document.querySelector(".app-module-header");
+					if (!header || !window.ResizeObserver) return;
+					var publish = function () {
+						document.documentElement.style.setProperty(
+							"--app-header-h", header.getBoundingClientRect().height + "px");
+					};
+					new ResizeObserver(publish).observe(header);
+					publish();
+				})();
+			</script>
 		</body>
 	</html>
 }

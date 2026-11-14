@@ -6797,11 +6797,6 @@
     [dir="rtl"] :is(.chat-start .chat-bubble):before {
       transform: rotateY(180deg);
     }
-  }
-  .top-2 {
-    top: calc(var(--spacing) * 2);
-  }
-  @layer daisyui.l1.l2 {
     .dock-active:after {
       width: calc(0.25rem * 10);
       background-color: currentcolor;
@@ -7158,9 +7153,6 @@
         --join-mt: calc(var(--border, 1px) * -1 * var(--join-v));
       }
     }
-  }
-  .z-10 {
-    z-index: 10;
   }
   @layer daisyui.l1.l2.l3 {
     .tab-content {

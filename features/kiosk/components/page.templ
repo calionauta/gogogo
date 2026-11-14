@@ -402,7 +402,7 @@ templ kioskBody(data PageData) {
 		// must stay readable while they scroll the menu or the order list. It
 		// sits directly under the field, so saying an order and seeing its price
 		// never needs a scroll.
-		<section class="ui-card sticky top-2 z-10 shadow-sm" id="kiosk-receipt">
+		<section class="ui-card app-kiosk-receipt shadow-sm" id="kiosk-receipt">
 			<div class="ui-card-body ui-stack">
 				<div class="flex items-baseline justify-between gap-3">
 					<h2 class="ui-title">{ i18n.T(ctx, "kiosk.preview", nil) }</h2>
