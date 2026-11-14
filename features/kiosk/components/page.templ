@@ -121,6 +121,11 @@ templ kioskHead() {
 			var listening = false;
 			var lastResultAt = 0;
 			var watchdog = 0;
+			// silenceMs bounds a silent session (see armWatchdog). Speech
+			// recognition can detect a voice and never fire a result, so the
+			// page must not claim to be listening forever; it must also be
+			// long enough that a person reading the menu is not cut off.
+			var silenceMs = 30000;
 			// The recognizer accumulates every final result for the whole
 			// session (continuous = true), so rebuilding the field from index 0
 			// replayed words the customer had already cleared — the "old order
@@ -140,9 +145,32 @@ templ kioskHead() {
 				mic.textContent = mic.getAttribute("data-label-idle") || "Microphone";
 			}
 
+			// armWatchdog bounds a silent session. A known browser bug
+			// (Chromium 579050368) detects speech and never fires a result;
+			// silence must become an instruction, not a spinner that never
+			// ends. It is re-armed on every result, so a long order is never
+			// cut off mid-sentence, and half a minute is long enough to read a menu.
+			function armWatchdog() {
+				clearTimeout(watchdog);
+				watchdog = setTimeout(function () {
+					if (listening && Date.now() - lastResultAt >= silenceMs - 500) {
+						say("I did not catch that — type the order.");
+						stop();
+					}
+				}, silenceMs);
+			}
+
 			function stop() {
 				clearTimeout(watchdog);
-				if (recognition && listening) recognition.stop();
+				// Drop the reference BEFORE aborting: the discarded session's
+				// onend/onerror then fail the staleness guard instead of
+				// resetting the button of a session that is still live.
+				var rec = recognition;
+				recognition = null;
+				listening = false;
+				if (rec) {
+					try { rec.abort(); } catch (_) { /* already ended */ }
+				}
 				idle();
 			}
 
@@ -154,16 +182,25 @@ templ kioskHead() {
 			}
 
 			function prepare(next) {
-				if (recognition) return recognition;
-				recognition = new SR();
-				recognition.lang = lang;
-				recognition.continuous = true;
-				recognition.interimResults = true;
-				recognition.maxAlternatives = 1;
-				recognition.processLocally = true;
-				bias(recognition);
-				recognition.onresult = function (event) {
+				// A NEW recognizer per session. Reusing the object that had just
+				// stopped raced its onend against the next start(): the old
+				// session's onend ran after the restart and put the button back
+				// to "Microphone" while the microphone was live — the reported
+				// "mic looks on but the app does nothing". A fresh instance has
+				// no state to race, and the staleness guard below turns every
+				// event from a discarded session into a no-op.
+				var rec = new SR();
+				recognition = rec;
+				rec.lang = lang;
+				rec.continuous = true;
+				rec.interimResults = true;
+				rec.maxAlternatives = 1;
+				rec.processLocally = true;
+				bias(rec);
+				rec.onresult = function (event) {
+					if (recognition !== rec) return;
 					lastResultAt = Date.now();
+					armWatchdog();
 					// Start at the first result THIS event changed and fold in only
 					// results the buffer has not seen: that is what makes a cleared
 					// transcript stay cleared.
@@ -201,11 +238,13 @@ templ kioskHead() {
 						input.dispatchEvent(new CustomEvent("kiosk-decide", { bubbles: true }));
 					}
 				};
-				recognition.onerror = function (event) {
+				rec.onerror = function (event) {
+					if (recognition !== rec) return;
 					say("Microphone: " + (event.error || "error") + " — type the order.");
 					stop();
 				};
-				recognition.onend = function () {
+				rec.onend = function () {
+					if (recognition !== rec) return;
 					// The browser ends a session on its own after silence. Leave it
 					// stopped and say so rather than pretending it is still listening.
 					if (listening) {
@@ -213,7 +252,7 @@ templ kioskHead() {
 						idle();
 					}
 				};
-				return next(recognition);
+				return next(rec);
 			}
 
 			// bias supplies the menu as phrases. Contextual biasing is the cheap half
@@ -319,6 +358,7 @@ templ kioskHead() {
 			// startRecognition begins a listening session, assuming the language
 			// pack is present and the microphone is allowed.
 			function startRecognition() {
+				if (listening) return;
 				prepare(function (rec) {
 					// A new session starts with an empty result list; whatever the
 					// field already holds is treated as committed, so stopping and
@@ -332,16 +372,16 @@ templ kioskHead() {
 					mic.textContent = mic.getAttribute("data-label-live") || "Stop";
 					say("Listening on device…");
 					lastResultAt = Date.now();
-					rec.start();
-					// A known browser bug (Chromium 579050368) detects speech and
-					// never fires a result. Silence must become an instruction,
-					// not a spinner that never ends.
-					watchdog = setTimeout(function () {
-						if (listening && Date.now() - lastResultAt > 4000) {
-							say("I did not catch that — type the order.");
-							stop();
-						}
-					}, 4500);
+					try {
+						rec.start();
+					} catch (_) {
+						// A start that throws would otherwise leave the button
+						// saying Stop on a session that never began.
+						say("Could not start the microphone — tap it again.");
+						stop();
+						return;
+					}
+					armWatchdog();
 				});
 			}
 
@@ -360,6 +400,17 @@ templ kioskHead() {
 				committed = "";
 				lastFinal = resultCount;
 			});
+
+			// The counter is voice-first: arriving on the page IS the intent to
+			// speak, so the microphone starts without a second tap. start()
+			// still triggers the browser's permission prompt (never a silent
+			// grant), and a refusal stays a message instead of a retry loop.
+			function autoStart() {
+				if (!localSupport()) return;
+				if (listening) return;
+				start();
+			}
+			autoStart();
 
 			// ONE handler: the markup's data-on:click calls __kioskVoice.toggle.
 			// An addEventListener here would fire on the same click as well, so

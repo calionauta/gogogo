@@ -51,7 +51,7 @@ func shellNav(slots *recipe.SlotRegistry) []ui.NavEntry {
 	entries := slots.Entries(recipe.SlotNavSidebar)
 	out := make([]ui.NavEntry, 0, len(entries))
 	for _, e := range entries {
-		out = append(out, ui.NavEntry{Label: e.Label, Href: e.Href, Admin: e.Admin})
+		out = append(out, ui.NavEntry{Label: e.Label, Href: e.Href, Icon: e.Icon, Admin: e.Admin})
 	}
 	return out
 }

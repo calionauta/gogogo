@@ -74,3 +74,16 @@ func TestRailHidesAdminOnlyExtension(t *testing.T) {
 		t.Error("an admin rail must render the admin-only extension destination")
 	}
 }
+
+// TestNavEntryIconFallsBack is the rail's promise for an extension that names
+// no glyph: a destination still renders, with the generic tile. Guessing an
+// icon from the label would be the shell inventing a contract.
+func TestNavEntryIconFallsBack(t *testing.T) {
+	if got := navEntryIcon(NavEntry{Label: "Timer", Href: "/timer"}); got != "material-symbols:stack" {
+		t.Errorf("navEntryIcon(no icon) = %q, want the generic stack", got)
+	}
+	named := NavEntry{Label: "Kiosk", Href: "/kiosk", Icon: "material-symbols:point-of-sale"}
+	if got := navEntryIcon(named); got != named.Icon {
+		t.Errorf("navEntryIcon(named) = %q, want %q", got, named.Icon)
+	}
+}

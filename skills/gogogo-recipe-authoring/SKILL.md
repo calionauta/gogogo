@@ -103,7 +103,7 @@ only a slot with a **host page in this build** can be filled.
 | Slot | Shape | Rendered in | You supply |
 |---|---|---|---|
 | `settings.section` | `section` — a block in the settings column | the settings page | a form section plus its **own** save endpoint |
-| `nav.sidebar` | `entries` — a list of destinations | the shell rail | a label and a href, not a fragment |
+| `nav.sidebar` | `entries` — a list of destinations | the shell rail | a label, a root-relative href and an optional `internal/icon` catalog key, not a fragment |
 | `record.row-actions` | `actions` — declarative data | the todo row | label, href, verb, optional confirmation — **not** a component |
 | `dashboard.card` | `cell` — one grid cell, narrow | the dashboard page (`features/dashboard`, GET `/dashboard`) | a title and rendered content; the dashboard owns the card and the grid |
 

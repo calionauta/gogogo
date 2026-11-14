@@ -34,7 +34,10 @@ func Register(reg *recipe.Registry, d register.Deps) {
 	}
 	err := d.Slots.Add(recipe.Contribution{
 		Entries: map[recipe.SlotID][]recipe.Entry{
-			recipe.SlotNavSidebar: {{Label: "Kiosk", Href: "/kiosk"}},
+			// The icon is the store counter, not the rail's generic stack: this
+			// destination is a point of sale, and the glyph is what says so
+			// before the label is read.
+			recipe.SlotNavSidebar: {{Label: "Kiosk", Href: "/kiosk", Icon: "material-symbols:point-of-sale"}},
 		},
 	})
 	if err != nil {

@@ -501,9 +501,14 @@ templ AppDock(module string, role string) {
 			type="button"
 			class="app-dock-menu"
 			aria-label="Open navigation"
+			aria-controls="app-rail"
+			data-attr:aria-expanded={ "$railOpen ? 'true' : 'false'" }
 			data-on:click="$railOpen = true"
 		>
-			@icon.Icon("material-symbols:menu", "app-dock-icon")
+			// The toggle glyph is the accordion chevron, not a hamburger: it
+			// points up when the drawer is closed and rotates to point down
+			// when it opens, so the icon says what the next tap does.
+			@icon.Icon("material-symbols:keyboard-arrow-up", "app-dock-icon app-dock-chevron")
 			<span class="dock-label">Menu</span>
 		</button>
 	</nav>
@@ -538,7 +543,7 @@ templ railEntry(e NavEntry) {
 		title={ e.Label }
 		data-cuelume-hover="tick"
 		data-cuelume-press="toggle">
-		@icon.Icon("material-symbols:stack", "app-rail-icon")
+		@icon.Icon(navEntryIcon(e), "app-rail-icon")
 		<span class="app-rail-label is-drawer-close:hidden">{ e.Label }</span>
 	</a>
 }

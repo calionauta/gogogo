@@ -22,10 +22,23 @@ import (
 type NavEntry struct {
 	Label string
 	Href  string
+	// Icon is a catalog key (internal/icon). Empty keeps the rail's generic
+	// glyph, so an entry that names nothing still renders a destination.
+	Icon string
 	// Admin keeps the destination out of a non-admin rail. The built-in
 	// modules carry the same flag; without it an extension's operator-only
 	// page would render a link that 403s.
 	Admin bool
+}
+
+// navEntryIcon is the rail's glyph for a contributed destination: the recipe's
+// own catalog key when it names one, the generic stack otherwise. Kept here
+// (not in the template) so the fallback is one line the tests can read.
+func navEntryIcon(e NavEntry) string {
+	if e.Icon != "" {
+		return e.Icon
+	}
+	return "material-symbols:stack"
 }
 
 type navKey struct{}
