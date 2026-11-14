@@ -346,6 +346,7 @@ templ kioskBody(data PageData) {
 					id="kiosk-form"
 					class="ui-row"
 					data-on:submit__prevent="@post('/api/kiosk/preview', {contentType: 'form'})"
+					data-on:kiosk-clear="var i = document.getElementById('kiosk-text'); i.value = ''; $kioskText = ''; $kioskDrink = ''; $kioskSize = ''; $kioskMilk = ''; $kioskExtras = ''; $kioskPrice = ''; $kioskNeed = ''; $kioskPreview = ''; $kioskNotice = ''; $kioskDecide = false; i.focus()"
 				>
 					<input
 						id="kiosk-text"
@@ -359,7 +360,6 @@ templ kioskBody(data PageData) {
 						data-on:input__debounce.250ms="!$kioskBusy ? ($kioskBusy = true, $kioskDecide = false, @post('/api/kiosk/preview', {contentType: 'form'}).finally(() => { $kioskBusy = false; if ($kioskQueued) { $kioskQueued = false; el.dispatchEvent(new CustomEvent('kiosk-retry', { bubbles: true })) } })) : ($kioskQueued = true)"
 						data-on:kiosk-retry="!$kioskBusy ? ($kioskBusy = true, @post('/api/kiosk/preview', {contentType: 'form'}).finally(() => { $kioskBusy = false; })) : null"
 						data-on:kiosk-decide="!$kioskBusy ? ($kioskBusy = true, $kioskDecide = true, @post('/api/kiosk/preview', {contentType: 'form'}).finally(() => { $kioskBusy = false; $kioskDecide = false })) : ($kioskQueued = true)"
-						data-on:kiosk-clear="el.value = ''; $kioskText = ''; $kioskDrink = ''; $kioskSize = ''; $kioskMilk = ''; $kioskExtras = ''; $kioskPrice = ''; $kioskNeed = ''; $kioskPreview = ''; $kioskNotice = ''; $kioskDecide = false; el.focus()"
 					/>
 					<input type="hidden" name="previewed" data-attr:value="$kioskPreview"/>
 					{{/* `decide` asks the server to run the decision engine. The

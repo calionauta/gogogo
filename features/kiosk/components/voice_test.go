@@ -197,8 +197,22 @@ func TestKioskCanStartOver(t *testing.T) {
 	if !strings.Contains(html, "kiosk-clear") {
 		t.Error("reset is not wired through the shared event")
 	}
-	if !strings.Contains(html, "$kioskDrink = &#39;&#39;") && !strings.Contains(html, "$kioskDrink = ''") {
-		t.Error("the reset handler does not clear the preview signals")
+	// The handler lives on the FORM: it is the common ancestor of the button and
+	// the input, and a bubbling event from a sibling never reaches the input.
+	formStart := strings.Index(html, `id="kiosk-form"`)
+	if formStart < 0 {
+		t.Fatal("the kiosk form is missing")
+	}
+	formEnd := strings.Index(html[formStart:], "</form>")
+	if formEnd < 0 {
+		t.Fatal("the form is not closed")
+	}
+	form := html[formStart : formStart+formEnd]
+	if !strings.Contains(form, "kiosk-clear") {
+		t.Error("the clear handler is not on the form (the button's event would not reach it)")
+	}
+	if !strings.Contains(form, "$kioskDrink = ''") && !strings.Contains(form, "$kioskDrink = &#39;&#39;") {
+		t.Error("the clear handler does not empty the preview signals")
 	}
 	// A spoken command must reach the same handler. The recognizer lives in the
 	// HEAD component, so it is rendered separately.
