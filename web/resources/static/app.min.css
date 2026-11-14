@@ -6797,6 +6797,11 @@
     [dir="rtl"] :is(.chat-start .chat-bubble):before {
       transform: rotateY(180deg);
     }
+  }
+  .top-2 {
+    top: calc(var(--spacing) * 2);
+  }
+  @layer daisyui.l1.l2 {
     .dock-active:after {
       width: calc(0.25rem * 10);
       background-color: currentcolor;
@@ -7153,6 +7158,9 @@
         --join-mt: calc(var(--border, 1px) * -1 * var(--join-v));
       }
     }
+  }
+  .z-10 {
+    z-index: 10;
   }
   @layer daisyui.l1.l2.l3 {
     .tab-content {
@@ -8425,9 +8433,6 @@
       border-color: color-mix(in oklab, var(--color-base-300) 60%, transparent);
     }
   }
-  .self-start {
-    align-self: flex-start;
-  }
   .truncate {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -8841,6 +8846,9 @@
   }
   .py-4 {
     padding-block: calc(var(--spacing) * 4);
+  }
+  .pt-0 {
+    padding-top: 0px;
   }
   .pt-2 {
     padding-top: calc(var(--spacing) * 2);

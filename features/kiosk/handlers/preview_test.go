@@ -3,8 +3,6 @@
 package handlers
 
 import (
-	"os"
-	"strings"
 	"testing"
 
 	"github.com/calionauta/gogogo/features/kiosk"
@@ -65,21 +63,36 @@ func TestCorrectionClearsStaleFields(t *testing.T) {
 	}
 }
 
-// TestPreviewDoesNotDecideOnEveryKeystroke is the latency contract: the input
-// debounces at 250ms, and a decision engine that runs per keystroke would cost a
-// round trip each time — slower than the menu alone. The engine runs only when
-// the page asks (Interpret, or the recognizer finishing an utterance).
-func TestPreviewDoesNotDecideOnEveryKeystroke(t *testing.T) {
-	// The handler reads the form value; the page leaves it empty while typing.
-	// This test pins the CONTRACT at the source level, because a handler unit
-	// test cannot observe "the browser did not set the field".
-	raw, err := os.ReadFile("preview.go")
-	if err != nil {
-		t.Fatalf("read preview.go: %v", err)
+// TestEngineRunsOnlyWhenItCanHelp is the latency contract. The engine costs
+// about a second per question, so it must not run while somebody is still
+// composing: a complete parse needs nothing, and "a big" is not a sentence yet.
+func TestEngineRunsOnlyWhenItCanHelp(t *testing.T) {
+	cases := []struct {
+		name string
+		text string
+		want bool
+	}{
+		{"complete parse", "large latte", false},
+		{"still composing", "a big", false},
+		{"two words", "expresso milk", false},
+		{"a request the menu cannot settle", "something cold with oat milk", true},
+		{"mixed language", "um cafe grande com leite", true},
 	}
-	src := string(raw)
-	if !strings.Contains(src, `r.PostFormValue("decide") == "1"`) {
-		t.Fatal("the handler decides unconditionally: every debounced keystroke would call the engine")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			parsed := kiosk.Parse(tc.text)
+			if got := engineWorthAsking(parsed, tc.text); got != tc.want {
+				t.Fatalf("engineWorthAsking(%q) = %v, want %v", tc.text, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestAmbiguousParseSkipsTheEngine: two drinks matched, and asking a model which
+// one the CUSTOMER meant is the guess the parser refused to make.
+func TestAmbiguousParseSkipsTheEngine(t *testing.T) {
+	if engineWorthAsking(kiosk.Parse("latte mocha"), "latte mocha") {
+		t.Error("the engine was asked about an ambiguous order")
 	}
 }
 

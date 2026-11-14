@@ -19,9 +19,9 @@ import "github.com/calionauta/gogogo/internal/i18n"
 // unacceptable. The tap therefore posts the chosen IDs with the text, the server
 // merges them (an explicit choice beats what the text implied) and answers with
 // the same preview signals a spoken order produces.
-// A native submit would navigate: the form has no action, so it would GET its
-// own fields. submit__prevent is what makes the button post; the change handler
-// keeps a tap live without waiting for the button.
+// A tap IS the choice: there is no submit button, so the change handler is the
+// whole wiring. submit__prevent stays because a form with inputs can still be
+// submitted by Enter, and a native submit would navigate instead of posting.
 templ MenuCatalogue(cat Catalogue) {
 	<form
 		id="kiosk-catalogue"
@@ -34,9 +34,6 @@ templ MenuCatalogue(cat Catalogue) {
 		@radioGroup(i18n.T(ctx, "kiosk.size", nil), "size", cat.Sizes)
 		@checkGroup(i18n.T(ctx, "kiosk.milk", nil), "milk", cat.Milks)
 		@checkGroup(i18n.T(ctx, "kiosk.extras", nil), "extras", cat.Extras)
-		<button type="submit" class="btn btn-sm btn-ghost self-start">
-			{ i18n.T(ctx, "kiosk.applyChoices", nil) }
-		</button>
 	</form>
 }
 

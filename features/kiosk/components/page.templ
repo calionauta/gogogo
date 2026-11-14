@@ -67,7 +67,6 @@ func seedSignals() Seeds {
 		"kioskNotice":  "",
 		"kioskBusy":    false,
 		"kioskQueued":  false,
-		"kioskDecide":  false,
 	}
 }
 
@@ -347,7 +346,7 @@ templ kioskBody(data PageData) {
 					id="kiosk-form"
 					class="ui-row"
 					data-on:submit__prevent="@post('/api/kiosk/preview', {contentType: 'form'})"
-					data-on:kiosk-clear="var i = document.getElementById('kiosk-text'); i.value = ''; $kioskText = ''; $kioskDrink = ''; $kioskSize = ''; $kioskMilk = ''; $kioskExtras = ''; $kioskPrice = ''; $kioskNeed = ''; $kioskPreview = ''; $kioskNotice = ''; $kioskDecide = false; i.focus()"
+					data-on:kiosk-clear="var i = document.getElementById('kiosk-text'); i.value = ''; $kioskText = ''; $kioskDrink = ''; $kioskSize = ''; $kioskMilk = ''; $kioskExtras = ''; $kioskPrice = ''; $kioskNeed = ''; $kioskPreview = ''; $kioskNotice = ''; i.focus()"
 				>
 					<input
 						id="kiosk-text"
@@ -358,28 +357,17 @@ templ kioskBody(data PageData) {
 						aria-label={ i18n.T(ctx, "kiosk.orderLabel", nil) }
 						maxlength="240"
 						data-bind="kioskText"
-						data-on:input__debounce.250ms="!$kioskBusy ? ($kioskBusy = true, $kioskDecide = false, @post('/api/kiosk/preview', {contentType: 'form'}).finally(() => { $kioskBusy = false; if ($kioskQueued) { $kioskQueued = false; el.dispatchEvent(new CustomEvent('kiosk-retry', { bubbles: true })) } })) : ($kioskQueued = true)"
+						data-on:input__debounce.350ms="!$kioskBusy ? ($kioskBusy = true, @post('/api/kiosk/preview', {contentType: 'form'}).finally(() => { $kioskBusy = false; if ($kioskQueued) { $kioskQueued = false; el.dispatchEvent(new CustomEvent('kiosk-retry', { bubbles: true })) } })) : ($kioskQueued = true)"
 						data-on:kiosk-retry="!$kioskBusy ? ($kioskBusy = true, @post('/api/kiosk/preview', {contentType: 'form'}).finally(() => { $kioskBusy = false; })) : null"
-						data-on:kiosk-decide="!$kioskBusy ? ($kioskBusy = true, $kioskDecide = true, @post('/api/kiosk/preview', {contentType: 'form'}).finally(() => { $kioskBusy = false; $kioskDecide = false })) : ($kioskQueued = true)"
 					/>
 					<input type="hidden" name="previewed" data-attr:value="$kioskPreview"/>
-					{{/* `decide` asks the server to run the decision engine. The
-					     debounced typing path leaves it empty: a classifier call per
-					     keystroke would make typing slower than the menu alone. The
-					     explicit actions below set it, so the engine runs exactly
-					     when a human is waiting for a decision. */}}
-					<input type="hidden" name="decide" data-attr:value="$kioskDecide ? '1' : ''"/>
-					<button
-						type="submit"
-						class="btn btn-sm"
-						data-on:click="$kioskDecide = true"
-					>
-						{ i18n.T(ctx, "kiosk.interpret", nil) }
-					</button>
-					{{/* Reset is the counter's "customer changed their mind": it
-					     empties the input and the preview in one click. Disabled
-					     while a request is in flight, because clearing mid-answer
-					     would let the late patch land on a cleared form. */}}
+					{{/* No "Interpret" button: the field IS interpreted. The debounce
+					     posts what was typed or spoken, the server parses it, and the
+					     decision engine runs only when the menu could not settle it —
+					     the customer never has to tell the page to understand them.
+					     Reset is the counter's "customer changed their mind". It is
+					     disabled while a request is in flight, because clearing
+					     mid-answer would let the late patch land on a cleared form. */}}
 					<button
 						type="button"
 						id="kiosk-clear"
@@ -410,21 +398,16 @@ templ kioskBody(data PageData) {
 			</div>
 		</section>
 
-		{{/* The menu, visible and tappable. Dictation is one way to order; a
-		     noisy room or a customer who does not know the word "oat" needs to
-		     SEE what is sold. Both paths produce the same order. */}}
-		<section class="ui-card" id="kiosk-menu">
+		// The receipt is STICKY: it is the thing the customer is buying, and it
+		// must stay readable while they scroll the menu or the order list. It
+		// sits directly under the field, so saying an order and seeing its price
+		// never needs a scroll.
+		<section class="ui-card sticky top-2 z-10 shadow-sm" id="kiosk-receipt">
 			<div class="ui-card-body ui-stack">
-				<h2 class="ui-title">{ i18n.T(ctx, "kiosk.menu", nil) }</h2>
-				<p class="ui-meta">{ data.MenuLine }</p>
-				@MenuCatalogue(data.Catalogue)
-			</div>
-		</section>
-
-		<section class="ui-card">
-			<div class="ui-card-body ui-stack">
-				<h2 class="ui-title">{ i18n.T(ctx, "kiosk.preview", nil) }</h2>
-				<p class="ui-meta">{ i18n.T(ctx, "kiosk.previewHelp", nil) }</p>
+				<div class="flex items-baseline justify-between gap-3">
+					<h2 class="ui-title">{ i18n.T(ctx, "kiosk.preview", nil) }</h2>
+					<span class="ui-meta" data-show="!!$kioskBusy">{ i18n.T(ctx, "kiosk.pricing", nil) }</span>
+				</div>
 				{{/* The preview is a receipt, not a form: what the customer is
 				     about to buy, read top to bottom, with the total set apart —
 				     the same shape a paper ticket has, so it is understood at a
@@ -463,6 +446,24 @@ templ kioskBody(data PageData) {
 				<p class="ui-meta" data-show="!!$kioskNotice" data-text="$kioskNotice"></p>
 			</div>
 		</section>
+
+		// The menu is PROGRESSIVE DISCLOSURE, not a permanent block: a customer
+		// who knows what they want never needs it, and a screen of buttons
+		// between the field and the receipt buries the thing they are buying.
+		// The summary states the menu line, so the prices are readable without
+		// opening it.
+		<details class="ui-card" id="kiosk-menu">
+			<summary class="ui-card-body cursor-pointer">
+				<div class="ui-row justify-between gap-3">
+					<h2 class="ui-title">{ i18n.T(ctx, "kiosk.menu", nil) }</h2>
+					<span class="ui-meta">{ i18n.T(ctx, "kiosk.menuOpenHint", nil) }</span>
+				</div>
+				<p class="ui-meta">{ data.MenuLine }</p>
+			</summary>
+			<div class="ui-card-body ui-stack pt-0">
+				@MenuCatalogue(data.Catalogue)
+			</div>
+		</details>
 
 		<section class="ui-card">
 			<div class="ui-card-body">

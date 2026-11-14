@@ -4,7 +4,6 @@
   "sayOrderHelp": "The microphone uses the device's own recognition. Without support, permission or the language pack, type it: the path is the same.",
   "orderPlaceholder": "a large latte with oat milk",
   "orderLabel": "Order",
-  "interpret": "Interpret",
   "microphone": "Microphone",
   "micOptional": "Typing always works — the microphone is optional.",
   "preview": "Preview",
@@ -23,5 +22,6 @@
   "reset": "Start over",
   "resetHint": "Clear the current order and start again",
   "menu": "Menu",
-  "applyChoices": "Use these choices"
+  "pricing": "pricing…",
+  "menuOpenHint": "tap to open"
 }

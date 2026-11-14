@@ -32,14 +32,27 @@ func (h *Handler) preview(w http.ResponseWriter, r *http.Request) {
 	// is a no-op when the parse is already complete, so the fast path costs
 	// nothing.
 	//
-	// `engine` is the field's opt-in: the input's debounce fires every 250ms
-	// while somebody speaks, and a decision engine that costs a round trip per
-	// keystroke would make typing worse than the menu alone. The page asks for
-	// it explicitly (Interpret / the mic finishing a phrase), which is when a
-	// human is actually waiting for a decision.
+	// The field IS interpreted: no button tells the server to understand it.
+	// The engine runs only when the menu could NOT settle the utterance, and
+	// never for a parse that is already complete — a plain "large latte" costs
+	// no round trip, while an unfamiliar phrase gets the decision engine. That
+	// condition is the latency budget, so it does not need a second flag the
+	// page has to remember to set.
 	text := r.PostFormValue("text")
 	parsed := kiosk.Parse(text)
-	if r.PostFormValue("decide") == "1" {
+	// The engine is the expensive leg (~1s per question), so it runs only when
+	// it can change the answer and the customer has stopped composing:
+	//
+	//   - the menu left something unsettled (a complete parse needs nothing);
+	//   - the utterance is long enough to be a sentence rather than the first
+	//     letters of one ("a big" is still being typed, "a big espresso with
+	//     milk" is a request);
+	//   - the catalogue is not mid-tap (it sends explicit IDs, not words).
+	//
+	// `engine` is therefore the page telling us "the input is settled" (blur,
+	// mic final, or the debounce after a pause), never a button the customer has
+	// to press to be understood.
+	if h.engine != nil && r.PostFormValue("engine") != "0" && engineWorthAsking(parsed, text) {
 		parsed = h.engine.Settle(r.Context(), text, parsed)
 	}
 	// A tapped choice is an EXPLICIT decision and wins over whatever the text
@@ -110,4 +123,17 @@ func missingLabels(missing []string) []string {
 		out = append(out, field)
 	}
 	return out
+}
+
+// engineWorthAsking is the latency budget, stated once. It answers "could a
+// classifier change this order, and is the sentence finished enough to ask
+// about?" — not "is the engine enabled", which config already decides.
+func engineWorthAsking(parsed kiosk.ParseResult, text string) bool {
+	if parsed.Complete() || parsed.Ambiguous {
+		return false
+	}
+	// Fewer than three words is a phrase still being composed. Asking here
+	// would spend a second to classify "a big" and then throw the answer away
+	// on the next keystroke.
+	return len(strings.Fields(text)) >= 3
 }
