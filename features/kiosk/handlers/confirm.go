@@ -31,10 +31,15 @@ func (h *Handler) confirm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sse := sdk.NewSSE(w, r)
-	// The SAME decision the preview made: a confirm must not reject an order the
-	// page just showed as ready, so the engine decides here too.
+	// The SAME decision the preview made, against the SAME draft: `previewed` is
+	// the order the customer saw. Re-applying the utterance to it is idempotent
+	// (the engine sets and removes by ID), so a preview and a confirm cannot
+	// disagree on what the text meant.
 	text := r.PostFormValue("text")
-	parsed := h.engine.Settle(r.Context(), text, kiosk.Parse(text))
+	previewed := strings.TrimSpace(r.PostFormValue("previewed"))
+	parsed := kiosk.ApplyUtterance(text, kiosk.Deserialize(previewed))
+	parsed = h.engine.Settle(r.Context(), text, parsed)
+	parsed = kiosk.ApplyOnlyCue(text, parsed)
 	// The SAME merge the preview ran: a tapped choice must survive into the
 	// write, or the counter would charge for something else than it showed.
 	parsed = kiosk.ApplyChoices(parsed, kiosk.Choices{
@@ -54,7 +59,6 @@ func (h *Handler) confirm(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	previewed := strings.TrimSpace(r.PostFormValue("previewed"))
 	if err := h.orders.Confirm(r.Context(), sess.User.ID, parsed.Order, previewed); err != nil {
 		observability.Error(r.Context(), "kiosk: confirm failed",
 			append(observability.WithComponent("kiosk", observability.LayerFeature), "error", err)...)

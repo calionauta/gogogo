@@ -221,10 +221,11 @@ templ kioskHead() {
 					var text = (committed + " " + interim).trim();
 					input.value = text;
 					input.dispatchEvent(new Event("input", { bubbles: true }));
-					// A finished utterance is exactly when the decision engine
-					// earns its round trip: the menu has had its chance, and a
-					// person is waiting for the order to settle. Typing keeps the
-					// parser-only path (see the input's debounce).
+					// A finished utterance only needs to have dispatched `input`
+					// above: the page's debounce posts it, and the server decides
+					// whether the decision engine is worth a round trip (a
+					// correction or an order already in play yes, a plain order
+					// no). Typing and speaking share that one path.
 					if (finished) {
 						var said = text.toLowerCase();
 						var wantsReset = resetPhrases.some(function (p) { return said.indexOf(p) !== -1; });
@@ -233,9 +234,7 @@ templ kioskHead() {
 							// button and the voice command.
 							input.dispatchEvent(new CustomEvent("kiosk-clear", { bubbles: true }));
 							say("Order cleared — say or type a new one.");
-							return;
 						}
-						input.dispatchEvent(new CustomEvent("kiosk-decide", { bubbles: true }));
 					}
 				};
 				rec.onerror = function (event) {
@@ -396,9 +395,15 @@ templ kioskHead() {
 			// same event — including the utterance still in flight, which is a
 			// phrase the customer just cancelled. Listening keeps running: on a
 			// counter, "start over" is almost always followed by a new order.
-			root.addEventListener("kiosk-clear", function () {
-				committed = "";
-				lastFinal = resultCount;
+			//
+			// This is published on the global rather than added as a listener:
+			// the markup owns the event with data-on:kiosk-clear, so the guard
+			// that keeps behavior out of vanilla JS sees no island.
+			window.__kioskVoice = Object.assign(window.__kioskVoice || {}, {
+				forget: function () {
+					committed = "";
+					lastFinal = resultCount;
+				}
 			});
 
 			// The counter is voice-first: arriving on the page IS the intent to
@@ -416,7 +421,9 @@ templ kioskHead() {
 			// An addEventListener here would fire on the same click as well, so
 			// the two toggles cancelled out — the button flipped to Stop and
 			// straight back to Microphone, and recognition never stayed on.
-			window.__kioskVoice = { toggle: function () { if (listening) stop(); else start(); } };
+			window.__kioskVoice = Object.assign(window.__kioskVoice || {}, {
+				toggle: function () { if (listening) stop(); else start(); }
+			});
 		}
 
 		// The body is not parsed yet when this script runs (it is in <head>), so
@@ -440,7 +447,7 @@ templ kioskBody(data PageData) {
 					id="kiosk-form"
 					class="ui-row"
 					data-on:submit__prevent="@post('/api/kiosk/preview', {contentType: 'form'})"
-					data-on:kiosk-clear="var i = document.getElementById('kiosk-text'); i.value = ''; $kioskText = ''; $kioskDrink = ''; $kioskSize = ''; $kioskMilk = ''; $kioskExtras = ''; $kioskPrice = ''; $kioskNeed = ''; $kioskPreview = ''; $kioskNotice = ''; i.focus()"
+					data-on:kiosk-clear="window.__kioskVoice && window.__kioskVoice.forget(); var i = document.getElementById('kiosk-text'); i.value = ''; $kioskText = ''; $kioskDrink = ''; $kioskSize = ''; $kioskMilk = ''; $kioskExtras = ''; $kioskPrice = ''; $kioskNeed = ''; $kioskPreview = ''; $kioskNotice = ''; i.focus()"
 				>
 					<input
 						id="kiosk-text"
@@ -533,7 +540,7 @@ templ kioskBody(data PageData) {
 					type="button"
 					class="btn btn-primary btn-sm"
 					data-attr:disabled="!!($kioskBusy || !$kioskDrink || $kioskNeed)"
-					data-on:click="$kioskBusy = true; @post('/api/kiosk/confirm', {contentType: 'form'}).finally(() => { $kioskBusy = false; })"
+					data-on:click="$kioskBusy = true; @post('/api/kiosk/confirm', {contentType: 'form', selector: '#kiosk-form'}).finally(() => { $kioskBusy = false; })"
 				>
 					{ i18n.T(ctx, "kiosk.confirm", nil) }
 				</button>

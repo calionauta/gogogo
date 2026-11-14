@@ -154,19 +154,28 @@ func TestKioskClearForgetsTheRecognizedTranscript(t *testing.T) {
 	if !strings.Contains(script, "event.resultIndex") {
 		t.Error("onresult ignores event.resultIndex, so it cannot tell new words from committed ones")
 	}
-	_, clearBody, ok := strings.Cut(script, `addEventListener("kiosk-clear"`)
+	_, clearBody, ok := strings.Cut(script, "forget: function ()")
 	if !ok {
-		t.Fatal("the voice wiring does not listen for kiosk-clear; the recognizer buffer keeps the cleared order")
+		t.Fatal("the voice wiring publishes no forget(); the recognizer buffer keeps the cleared order")
 	}
-	listener, _, ok := strings.Cut(clearBody, "});")
-	if !ok || !strings.Contains(listener, `committed = ""`) {
-		t.Error("the clear listener does not empty the committed transcript")
+	forget, _, ok := strings.Cut(clearBody, "});")
+	if !ok || !strings.Contains(forget, `committed = ""`) {
+		t.Error("forget() does not empty the committed transcript")
 	}
 	// The utterance still in flight is also cancelled: dropping only the
 	// finished text would let a phrase spoken before the clear land in the
 	// field after it.
-	if !strings.Contains(listener, "lastFinal = resultCount") {
+	if !strings.Contains(forget, "lastFinal = resultCount") {
 		t.Error("a clear keeps the unfinished utterance; it reappears when it finalizes")
+	}
+	// The markup owns the event: data-on:kiosk-clear calls forget(), so the
+	// behavior stays out of a second addEventListener island.
+	var body bytes.Buffer
+	if err := kioskBody(PageData{MenuLine: "Espresso $3.50"}).Render(context.Background(), &body); err != nil {
+		t.Fatalf("render kioskBody: %v", err)
+	}
+	if !strings.Contains(body.String(), "__kioskVoice.forget()") {
+		t.Error("the kiosk-clear handler does not call __kioskVoice.forget(); the transcript survives a clear")
 	}
 }
 

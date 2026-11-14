@@ -28,33 +28,27 @@ func (h *Handler) preview(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad form", http.StatusBadRequest)
 		return
 	}
-	// The parser reads what the menu knows; the engine decides the rest. Settle
-	// is a no-op when the parse is already complete, so the fast path costs
-	// nothing.
+	// The parser reads what the menu knows; the engine decides the rest.
 	//
-	// The field IS interpreted: no button tells the server to understand it.
-	// The engine runs only when the menu could NOT settle the utterance, and
-	// never for a parse that is already complete — a plain "large latte" costs
-	// no round trip, while an unfamiliar phrase gets the decision engine. That
-	// condition is the latency budget, so it does not need a second flag the
-	// page has to remember to set.
+	// `previewed` is the order already on screen: the draft this utterance is
+	// applied to. Carrying it in is what lets a correction mean something on a
+	// later sentence — "remove the cinnamon" needs a cinnamon to remove. An
+	// empty value is a fresh order.
+	//
+	// The field IS interpreted: no button tells the server to understand it. The
+	// engine runs when the menu could not settle the final intent or the
+	// utterance is a change to an order already in play; a plain "large latte"
+	// costs no round trip. That condition is the latency budget, so it does not
+	// need a flag the page has to remember to set.
 	text := r.PostFormValue("text")
-	parsed := kiosk.Parse(text)
-	// The engine is the expensive leg (~1s per question), so it runs only when
-	// it can change the answer and the customer has stopped composing:
-	//
-	//   - the menu left something unsettled (a complete parse needs nothing);
-	//   - the utterance is long enough to be a sentence rather than the first
-	//     letters of one ("a big" is still being typed, "a big espresso with
-	//     milk" is a request);
-	//   - the catalogue is not mid-tap (it sends explicit IDs, not words).
-	//
-	// `engine` is therefore the page telling us "the input is settled" (blur,
-	// mic final, or the debounce after a pause), never a button the customer has
-	// to press to be understood.
-	if h.engine != nil && r.PostFormValue("engine") != "0" && engineWorthAsking(parsed, text) {
+	draft := kiosk.Deserialize(r.PostFormValue("previewed"))
+	parsed := kiosk.ApplyUtterance(text, draft)
+	if h.engine != nil && engineWorthAsking(parsed, draft, text) {
 		parsed = h.engine.Settle(r.Context(), text, parsed)
 	}
+	// The explicit "just this" cue runs after the engine: it restates the
+	// current order, which would put back the modifier the customer dismissed.
+	parsed = kiosk.ApplyOnlyCue(text, parsed)
 	// A tapped choice is an EXPLICIT decision and wins over whatever the text
 	// implied: the customer pointed at "Oat", so a stale "whole" from an earlier
 	// sentence must not survive. The merge is one place (applyChoices) so the
@@ -128,12 +122,22 @@ func missingLabels(missing []string) []string {
 // engineWorthAsking is the latency budget, stated once. It answers "could a
 // classifier change this order, and is the sentence finished enough to ask
 // about?" — not "is the engine enabled", which config already decides.
-func engineWorthAsking(parsed kiosk.ParseResult, text string) bool {
-	if parsed.Complete() || parsed.Ambiguous {
+func engineWorthAsking(parsed kiosk.ParseResult, draft kiosk.Order, text string) bool {
+	if parsed.Ambiguous {
 		return false
 	}
-	// Fewer than three words is a phrase still being composed. Asking here
-	// would spend a second to classify "a big" and then throw the answer away
-	// on the next keystroke.
-	return len(strings.Fields(text)) >= 3
+	words := len(strings.Fields(text))
+	if words == 0 {
+		return false
+	}
+	// A correction, an extra in play, or an order already on screen is semantic
+	// even in two words: "sem canela" and "remova canela" must reach the engine,
+	// or the parser's additive match would add what the customer just removed.
+	if kiosk.LooksLikeCorrection(text) || !draft.Empty() || len(parsed.Order.Extras) > 0 {
+		return words >= 2
+	}
+	// Otherwise: fewer than three words is a phrase still being composed, and a
+	// complete parse needs nothing. Asking here would spend a round trip to
+	// classify "a big" and throw the answer away on the next keystroke.
+	return words >= 3 && !parsed.Complete()
 }
