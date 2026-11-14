@@ -284,13 +284,13 @@ func TestMarkRemovedUnits(t *testing.T) {
 			rows[r.ID] = r
 		}
 	}
-	if got := rows["todo"].Status; got != "removed" {
+	if got := rows["todo"].Status; got != UnitStatusRemoved {
 		t.Errorf("todo row status = %q, want removed (unmounted recipe)", got)
 	}
-	if got := rows["notes"].Status; got != "in" {
+	if got := rows["notes"].Status; got != UnitStatusIn {
 		t.Errorf("notes row status = %q, want in (mounted)", got)
 	}
-	if got := rows["goakt"].Status; !strings.HasPrefix(got, "opt-out:") {
+	if got := rows["goakt"].Status; !strings.HasPrefix(string(got), string(UnitStatusOptOut)) {
 		t.Errorf("goakt row status = %q, want its opt-out text (servants keep status)", got)
 	}
 }
@@ -324,14 +324,15 @@ func TestBuildPageDataUnits(t *testing.T) {
 	if graph := find("Servants", "graph"); graph == nil {
 		t.Error("graph is not in the Servants inventory (KindServant)")
 	}
-	if goakt := find("Servants", "goakt"); goakt == nil || !strings.HasPrefix(goakt.Status, "opt-out:") ||
-		!strings.Contains(goakt.Status, "GOAKT_ENABLED") {
+	if goakt := find("Servants", "goakt"); goakt == nil ||
+		!strings.HasPrefix(string(goakt.Status), string(UnitStatusOptOut)) ||
+		!strings.Contains(string(goakt.Status), "GOAKT_ENABLED") {
 		t.Errorf("goakt row = %+v, want opt-out: GOAKT_ENABLED=...", goakt)
 	}
 	// Some core unit is always in (no switch).
 	inCore := false
 	for _, r := range byLabel["Core"] {
-		if r.Status == "in" {
+		if r.Status == UnitStatusIn {
 			inCore = true
 			break
 		}

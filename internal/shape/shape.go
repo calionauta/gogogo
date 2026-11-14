@@ -28,6 +28,10 @@ import (
 type Shape string
 
 const (
+	// Unset is the zero value: a Config parsed from a file that omits `shape`.
+	// It is spelled as a constant so the "did the file name a shape?" question
+	// is a comparison of two constants, never of a type against "".
+	Unset Shape = ""
 	// Full ships every target; it is the default and today's behaviour.
 	Full Shape = "full"
 	// Web is the browser app: `cmd/web` only.
@@ -106,7 +110,7 @@ type Config struct {
 
 // Parse validates a shape declaration without touching a tree.
 func Parse(c Config) (Config, error) {
-	if c.Shape == "" {
+	if c.Shape == Unset {
 		c.Shape = Full
 	}
 	if !Valid(c.Shape) {

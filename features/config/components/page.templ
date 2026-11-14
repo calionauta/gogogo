@@ -240,7 +240,7 @@ templ configBody(data PageData) {
 									<tr>
 										<td class="font-mono">{ row.ID }</td>
 										<td>
-											if row.Status == "in" {
+											if row.Status == UnitStatusIn {
 												<span class="badge badge-sm badge-soft badge-success">in</span>
 											} else {
 												<span class="badge badge-sm badge-soft badge-warning whitespace-normal text-left h-auto py-1">{ row.Status }</span>

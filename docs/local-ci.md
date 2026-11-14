@@ -526,6 +526,8 @@ by hand, so when a step is added to one, add it to the other:
 | CSS bundle matches sources | ✓ `css-check` | ✓ (after `npm ci`) |
 | SCOPE annotations | ✓ | ✓ |
 | Flat-stack deps (no banned framework, no cross-feature imports, owned sql.Open) | ✓ `check-flatdeps` | ✓ |
+| Product ⟂ evolution tools (`cmd/web` must build after the tool is deleted) | ✓ `check-product-boundary` | ✓ |
+| One spelling per state (no named string type compared with a literal) | ✓ `check-typed-states` | ✓ |
 | Prose claims (no hand-written counts or sizes, live paths, real subcommands, every CLI verb documented, the generated MCP tool tables match the catalog, every `docs/` page published or declared repo-facing) | ✓ `check-docs` | ✓ |
 | DagNats doc pin vs go.mod | ✓ `check-dagnats-pin` | ✓ |
 | SKILL.md frontmatter | ✓ | ✓ |

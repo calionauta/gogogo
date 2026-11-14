@@ -21,6 +21,11 @@ const (
 	extRecipeUpdate    = "recipe update"
 	extRecipeStatus    = "recipe status"
 	extRecipeUninstall = "recipe uninstall"
+
+	// originCapability and originRecipe are the two provenances a descriptor
+	// can have. Named here because descriptorState compares them.
+	originCapability = "capability"
+	originRecipe     = "recipe"
 )
 
 type recipeDescriptor struct {
@@ -36,7 +41,7 @@ type recipeDescriptor struct {
 	Register         string              `json:"register,omitempty"`
 	DependsOn        []string            `json:"dependsOn,omitempty"`
 	Dependents       []string            `json:"dependents,omitempty"`
-	State            string              `json:"state"`
+	State            RecipeState         `json:"state"`
 	Routes           []string            `json:"routes,omitempty"`
 	Tables           []string            `json:"tables,omitempty"`
 	Jobs             []string            `json:"jobs,omitempty"`
@@ -83,17 +88,33 @@ type outcomeDescriptor struct {
 	TotalLabel     string   `json:"totalLabel"`
 }
 
-func descriptorState(installed, removed bool, origin string) string {
-	if removed {
-		return "removed"
+// RecipeState is where a recipe sits in this tree. It is the JSON `state`
+// field, so the spellings are a wire contract: constants, never literals at
+// the comparison site.
+//
+//	A recipe receipt says installed or removed; a bundled unit that never
+//	needs a receipt says builtin; anything else is unknown (never a guess).
+type RecipeState string
+
+const (
+	StateInstalledRecipe RecipeState = "installed"
+	StateRemovedRecipe   RecipeState = "removed"
+	StateBuiltinRecipe   RecipeState = "builtin"
+	StateUnknownRecipe   RecipeState = "unknown"
+)
+
+// descriptorState derives the state from the three facts that decide it.
+func descriptorState(installed, removed bool, origin string) RecipeState {
+	switch {
+	case removed:
+		return StateRemovedRecipe
+	case installed:
+		return StateInstalledRecipe
+	case origin == originCapability:
+		return StateBuiltinRecipe
+	default:
+		return StateUnknownRecipe
 	}
-	if installed {
-		return "installed"
-	}
-	if origin == "capability" {
-		return "builtin"
-	}
-	return "unknown"
 }
 
 func applyReceiptSurface(desc *recipeDescriptor, r recipe.Receipt) {
@@ -194,7 +215,7 @@ func recipeDescriptors(dir string) ([]recipeDescriptor, error) {
 		seen[cap.ID] = true
 		desc := recipeDescriptor{
 			ID: cap.ID, Kind: string(cap.Kind), Summary: cap.Summary,
-			Origin: "capability", Installed: receiptSet[cap.ID],
+			Origin: originCapability, Installed: receiptSet[cap.ID],
 			Register: cap.Register, DependsOn: append([]string(nil), cap.DependsOn...),
 			Dependents: append([]string(nil), dependents[cap.ID]...),
 			Invoke:     append([]string(nil), cap.Actions...),
@@ -234,7 +255,7 @@ func recipeDescriptors(dir string) ([]recipeDescriptor, error) {
 		}
 		desc := recipeDescriptor{
 			ID: id, Kind: extRecipeKindName, Summary: summary,
-			Origin: "recipe", Installed: true, Register: r.Register,
+			Origin: originRecipe, Installed: true, Register: r.Register,
 			Removed: r.Removed != "", Actions: []string{extRecipeInstall, extRecipeUpdate, extRecipeStatus, extRecipeUninstall},
 		}
 		applyReceiptSurface(&desc, r)

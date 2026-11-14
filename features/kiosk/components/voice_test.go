@@ -114,3 +114,29 @@ func TestKioskMicButtonIsBoundToTheWiring(t *testing.T) {
 		}
 	}
 }
+
+// TestKioskLanguagePackDownloadCannotHang is the bug the operator hit: Chrome's
+// SpeechRecognition.install() stays pending for minutes on a slow link and never
+// rejects, so the page said "Downloading…" forever with no instruction and no way
+// back. Every browser call now has a bound and a way out.
+func TestKioskLanguagePackDownloadCannotHang(t *testing.T) {
+	script := renderKioskHead(t)
+	for _, want := range []string{
+		"installWithTimeout",
+		"availableWithTimeout",
+		"setTimeout",
+	} {
+		if !strings.Contains(script, want) {
+			t.Errorf("the voice script has no bounded %q; a pending install would hang the label", want)
+		}
+	}
+	// The "already downloading" case must tell the user to retry rather than
+	// stacking a second install on top of the first.
+	if !strings.Contains(script, "still downloading") {
+		t.Error("no guidance for the already-downloading state")
+	}
+	// The user always keeps the typed path.
+	if !strings.Contains(script, "type the order") {
+		t.Error("the fallback instruction is gone")
+	}
+}

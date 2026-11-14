@@ -17,7 +17,7 @@ SMOKE_BIN ?= $(OS_TMPDIR)/gogogo-ci-local-web
 # build does not use the wails3 CLI at all — it is a plain `go build` — so no
 # copy of the version belongs here to drift from the module graph.
 
-.PHONY: check-product-boundary check-operator-look operator-look-pass operator-look-fail all build desktop desktop-smoke desktop-sync-smoke mobile run-desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean templ fmt css css-install datastar-lint test test-recipe verify-local verify-local-share lint check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui gui-build gui-test run-gui lint-gui mygo mygo-build mygo-test run-mygo mygo-smoke check-generated install-sh-guard check-classes check-ci-scripts daisyui-lint vocabulary check-docs docs-index check-mcp site site-check check-shape check-domains check-prompts
+.PHONY: check-typed-states check-product-boundary check-operator-look operator-look-pass operator-look-fail all build desktop desktop-smoke desktop-sync-smoke mobile run-desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean templ fmt css css-install datastar-lint test test-recipe verify-local verify-local-share lint check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui gui-build gui-test run-gui lint-gui mygo mygo-build mygo-test run-mygo mygo-smoke check-generated install-sh-guard check-classes check-ci-scripts daisyui-lint vocabulary check-docs docs-index check-mcp site site-check check-shape check-domains check-prompts
 
 all: build
 
@@ -396,6 +396,14 @@ check-product-boundary:
 	@go run ./cmd/check-product-boundary -dir .
 	@echo "✅ product binary is free of the evolution tools"
 
+# check-typed-states makes "one spelling per state" executable: a named string
+# type compared against a literal (`if d.State == "removed"`) compiles and falls
+# through silently, so the compiler cannot catch it. Type-aware, ~1.5s.
+check-typed-states:
+	@echo "→ check-typed-states (states are compared through their constants)..."
+	@go run ./cmd/check-typed-states -dir .
+	@echo "✅ no state is compared against a string literal"
+
 # check-secrets-env proves secret env plumbing stays on the rails without
 # booting anything: os.Getenv/LookupEnv/Setenv with secret-shaped names
 # (*_KEY, *_TOKEN, *_SECRET, *_PASSWORD, …) may only run in owner files
@@ -572,7 +580,7 @@ check-recipes:
 	@go run ./cmd/gogogo recipe check --dir . --format json >/dev/null
 	@echo "  ✓ recipes pass gogogo recipe check"
 
-ci-local: check-host-capacity reap-stale check-browser-cleanup check-generated check-shape check-recipes check-sizes datastar-lint css-check check-no-jsx check-ci-scripts check-classes daisyui-lint check-flatdeps check-product-boundary check-domains check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard check-prompts
+ci-local: check-host-capacity reap-stale check-browser-cleanup check-generated check-shape check-recipes check-sizes datastar-lint css-check check-no-jsx check-ci-scripts check-classes daisyui-lint check-flatdeps check-product-boundary check-typed-states check-domains check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard check-prompts
 	@echo "→ lint (golangci-lint, same as CI)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/web-packages.sh); golangci-lint run $$PKGS; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 	@echo "→ build (single build, reused by the smoke tests)"
@@ -609,7 +617,7 @@ check-no-jsx:
 # so a CSS or installer tweak would otherwise pay for the whole suite. This
 # narrows on the changed packages, falling back to all packages when a shared
 # file (go.mod, config/, db/) changed.
-ci-local-fast: check-fast-capacity reap-stale check-generated check-shape check-recipes check-sizes datastar-lint css-check check-no-jsx check-ci-scripts check-classes daisyui-lint check-flatdeps check-product-boundary check-domains check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard check-prompts
+ci-local-fast: check-fast-capacity reap-stale check-generated check-shape check-recipes check-sizes datastar-lint css-check check-no-jsx check-ci-scripts check-classes daisyui-lint check-flatdeps check-product-boundary check-typed-states check-domains check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard check-prompts
 # Pre-flight: check-fast-capacity refuses a wedged box (use CI instead).
 # Budget: more than $FAST_MAX_PARALLEL_PKGS (default 8) changed packages
 # runs serially (-p 1) to bound shared-host load.

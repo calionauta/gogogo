@@ -188,19 +188,50 @@ templ kioskHead() {
 				}
 			}
 
+			// installTimeout bounds the language-pack download. Chrome's install()
+			// can stay pending for minutes on a slow link and never reject, which
+			// left the page saying "Downloading…" forever with no way back — the
+			// button still worked, but nothing said so. A timeout turns that into
+			// an instruction (type, or ask again) instead of a stuck label.
+			var installTimeout = 20000;
+
+			function availableWithTimeout(options) {
+				return Promise.race([
+					SR.available(options),
+					new Promise(function (resolve) { setTimeout(function () { resolve("unknown"); }, 5000); })
+				]);
+			}
+
+			function installWithTimeout(options) {
+				return Promise.race([
+					SR.install(options),
+					new Promise(function (resolve) { setTimeout(function () { resolve(false); }, installTimeout); })
+				]);
+			}
+
 			function start() {
 				if (!localSupport()) {
 					say("This browser offers no on-device recognition — type the order.");
 					return;
 				}
 				var options = { langs: [lang], processLocally: true };
-				SR.available(options).then(function (state) {
-					if (state === "available") return true;
+				availableWithTimeout(options).then(function (state) {
+					if (state === "available") return "ready";
+					// `downloading` means an install is already running: waiting on
+					// another one would stack downloads, so ask the user to retry.
+					if (state === "downloading") {
+						say("The language pack is still downloading — tap the microphone again in a moment.");
+						return "pending";
+					}
 					say("Downloading the language pack once…");
-					return SR.install(options);
-				}).then(function (ready) {
-					if (!ready) {
-						say("No local language pack — type the order.");
+					return installWithTimeout(options).then(function (ok) {
+						return ok ? "ready" : "pending";
+					});
+				}).then(function (outcome) {
+					if (outcome !== "ready") {
+						// "pending": the install is still running in the background
+						// and the label already says what to do, so it is not
+						// overwritten here.
 						return;
 					}
 					prepare(function (rec) {

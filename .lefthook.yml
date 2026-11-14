@@ -84,6 +84,12 @@ pre-commit:
       run: go run ./cmd/check-product-boundary -dir .
       glob: "{go.mod,cmd/**,internal/**,features/**}"
 
+    # One spelling per state: a literal comparison on a named string type
+    # compiles and falls through, so only a type-aware gate sees it.
+    - name: typed-states
+      run: go run ./cmd/check-typed-states -dir .
+      glob: "**/*.go"
+
     # The app-shape record and the slice cards are the two written contracts a
     # change silently outgrows: a route added to a feature, a unit dropped by a
     # shape. Milliseconds, and they fire only when the record, a card or a Go
