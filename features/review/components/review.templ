@@ -108,9 +108,7 @@ templ reviewBody(signals Signals) {
 						</div>
 					</form>
 				} else {
-					<div class="alert alert-warning" role="status">
-						<span>Review needs a configured LLM. Set GOAI_API_KEY on the server, then reload.</span>
-					</div>
+					@components.LLMRequired("Review")
 				}
 				<div class="mt-2 text-sm text-error" style="display:none" data-show="$review_error !== ''" data-text="$review_error" role="alert"></div>
 				<div class="mt-6" id="review-result"></div>

@@ -91,10 +91,15 @@ templ kioskSound() {
 // kioskHead carries the voice wiring. The recognizer only fills the input and
 // dispatches `input`: the request itself belongs to the markup, next to the
 // debounce, so there is one place that decides when the server is asked.
+//
+// The wiring runs on DOMContentLoaded, not where the tag sits: this component is
+// rendered into <head>, so at parse time the body does not exist yet and every
+// getElementById would return null — the button rendered, did nothing, and said
+// nothing (the report "no option to turn the microphone on").
 templ kioskHead() {
 	@sounds.SoundAssets()
 	<script nonce={ templ.GetNonce(ctx) }>
-		(function () {
+		function initKioskVoice() {
 			var root = document.getElementById("kiosk-voice");
 			var input = document.getElementById("kiosk-text");
 			var status = document.getElementById("kiosk-voice-status");
@@ -102,6 +107,13 @@ templ kioskHead() {
 			if (!root || !input || !status || !mic) return;
 
 			var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+			// No recognizer at all: the button cannot ever work, so it leaves
+			// instead of sitting there inviting a click that does nothing.
+			if (!SR) {
+				mic.hidden = true;
+				status.textContent = "This browser has no speech recognition — type the order.";
+				return;
+			}
 			var lang = document.documentElement.lang || "en-US";
 			var recognition = null;
 			var listening = false;
@@ -111,7 +123,8 @@ templ kioskHead() {
 			function say(text) { status.textContent = text; }
 			function idle() {
 				listening = false;
-				mic.setAttribute("aria-pressed", "false");						mic.textContent = "Microphone";
+				mic.setAttribute("aria-pressed", "false");
+				mic.textContent = "Microphone";
 			}
 
 			function stop() {
@@ -212,12 +225,21 @@ templ kioskHead() {
 				});
 			}
 
-			mic.addEventListener("click", function () {
-				if (listening) stop(); else start();
-			});
-
+			// ONE handler: the markup's data-on:click calls __kioskVoice.toggle.
+			// An addEventListener here would fire on the same click as well, so
+			// the two toggles cancelled out — the button flipped to Stop and
+			// straight back to Microphone, and recognition never stayed on.
 			window.__kioskVoice = { toggle: function () { if (listening) stop(); else start(); } };
-		})();
+		}
+
+		// The body is not parsed yet when this script runs (it is in <head>), so
+		// the wiring waits for the DOM. `readyState` covers the case where a
+		// later include has already fired the event.
+		if (document.readyState === "loading") {
+			document.addEventListener("DOMContentLoaded", initKioskVoice);
+		} else {
+			initKioskVoice();
+		}
 	</script>
 }
 

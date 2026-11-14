@@ -102,6 +102,11 @@ a "Suggest (simulated)" button with the same `goqite` job + SSE feedback flow
 as a real suggestion; its retries stay at the worker level so every attempt is
 visible in the demo.
 
+Chat and Review need a **real** model: both render the shared setup notice and
+hide their controls when `GOAI_API_KEY` is unset. The simulated client is for the
+queue/retry demo (AI Suggest), never for an answer surface — a canned reply
+ignores the prompt, so it would look configured and answer the wrong question.
+
 If neither `GOAI_API_KEY` is set nor `SIMULATE_LLM` is enabled, the AI suggest
 route is **not registered** and the UI button is hidden. The Todo example keeps
 working — AI is opt-in, not required.

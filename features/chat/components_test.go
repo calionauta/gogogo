@@ -24,7 +24,7 @@ func TestChatPageWiring(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
 	if err := chatcomponents.ChatIndex(
-		"a@b.c", "user", "dev", "", nil, false, true, true, true,
+		"a@b.c", "user", "dev", "", nil, false, true, true, true, true,
 	).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("ChatIndex: %v", err)
 	}
@@ -170,7 +170,7 @@ func TestChatCounterTracksTheLiveThread(t *testing.T) {
 	var page bytes.Buffer
 	msgs := []store.MessageView{{Role: "user", Text: "hi"}, {Role: "assistant", Text: "there"}}
 	if err := chatcomponents.ChatIndex(
-		"a@b.c", "user", "dev", "", msgs, true, true, true, true,
+		"a@b.c", "user", "dev", "", msgs, true, true, true, true, true,
 	).Render(context.Background(), &page); err != nil {
 		t.Fatalf("ChatIndex: %v", err)
 	}
@@ -232,7 +232,7 @@ func TestChatNewChatAffordance(t *testing.T) {
 	var buf bytes.Buffer
 	msgs := []store.MessageView{{Role: "user", Text: "hi"}}
 	if err := chatcomponents.ChatIndex(
-		"a@b.c", "user", "dev", "", msgs, false, true, true, true,
+		"a@b.c", "user", "dev", "", msgs, false, true, true, true, true,
 	).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("ChatIndex: %v", err)
 	}
@@ -273,5 +273,54 @@ func TestChatListRendersBubbles(t *testing.T) {
 		if !strings.Contains(buf.String(), want) {
 			t.Errorf("bubbles missing %q", want)
 		}
+	}
+}
+
+// TestChatWithoutModelShowsTheSetupNotice is the reported bug: the page rendered
+// a working composer whose every answer was one canned grid. Without a model it
+// now shows the shared setup notice and no composer at all.
+func TestChatWithoutModelShowsTheSetupNotice(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	if err := chatcomponents.ChatIndex(
+		"a@b.c", "user", "dev", "", []store.MessageView{{Role: "user", Text: "oi"}}, false, false, true, true, true,
+	).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("ChatIndex: %v", err)
+	}
+	html := html2.UnescapeString(buf.String())
+	if !strings.Contains(html, "needs a configured LLM") {
+		t.Error("no setup notice on a chat page without a model")
+	}
+	if !strings.Contains(html, "GOAI_API_KEY") {
+		t.Error("the notice does not name the knob to set")
+	}
+	// The composer is gone, not disabled: a disabled box still invites the click.
+	for _, unwanted := range []string{`id="chat-composer"`, `id="chat-prompt"`} {
+		if strings.Contains(html, unwanted) {
+			t.Errorf("%s is still rendered without a model", unwanted)
+		}
+	}
+	// History is the user's own data and stays.
+	if !strings.Contains(html, "id=\"chat-messages\"") {
+		t.Error("the conversation history disappeared with the composer")
+	}
+}
+
+// TestChatWithModelKeepsTheComposer is the other half: the notice is a branch,
+// not a replacement, so a configured model still gets the real page.
+func TestChatWithModelKeepsTheComposer(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	if err := chatcomponents.ChatIndex(
+		"a@b.c", "user", "dev", "", nil, false, true, true, true, true,
+	).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("ChatIndex: %v", err)
+	}
+	html := html2.UnescapeString(buf.String())
+	if strings.Contains(html, "needs a configured LLM") {
+		t.Error("a configured chat page still shows the setup notice")
+	}
+	if !strings.Contains(html, `id="chat-composer"`) {
+		t.Error("the composer is missing on a configured page")
 	}
 }

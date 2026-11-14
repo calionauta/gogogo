@@ -15,7 +15,7 @@ being one.
 | **Todo app + realtime** | SSE Hub record-sync + ephemeral signals | — |
 | **Background jobs + retry** | `goqite` + `retry-go` | — |
 | **AI Suggest** | GoAI | `GOAI_API_KEY` unset |
-| **Chat (conversation)** | Invented visuals (sanitized) + catalog + diagrams + persisted history + the app's own panels | `GOAI_API_KEY` unset (`SIMULATE_LLM` demo answers keyless); delete genui for a smaller tree (its registry Reason walks the delete) |
+| **Chat (conversation)** | Invented visuals (sanitized) + catalog + diagrams + persisted history + the app's own panels | `GOAI_API_KEY` unset (the page shows the setup notice and hides the composer — it never answers with canned text); delete genui for a smaller tree (its registry Reason walks the delete) |
 | **Review loop** | Genkit flows (servant) + GoAI + jev classifier judge | `GOAI_API_KEY` unset (real-LLM only; page shows a setup hint); delete review by hand (its registry Reason walks the delete) |
 | **AI credits + BYOK** | [ai-credits](https://github.com/calionauta/ai-credits) | `CREDITS_ENABLED=false` |
 | **Search (one seam, three layers)** | Own layers — no external engine | delete search by hand (its registry Reason) |
@@ -94,7 +94,7 @@ The [Todo feature](todo-example.md) is the full reference implementation.
 | Dashboard | `/dashboard` | Auth-gated. One card per destination that reports data; the counts match what each page shows; a recipe that declares an outcome also shows its success/total ratio, with the counter signal beside it |
 | Todo demo | `/todo` | Auth-gated. Seeded demo account |
 | Account security | `/account` | Auth-gated. Email verification, password change, TOTP enrollment/recovery, session list/revoke |
-| Chat demo | `/chat` | Auth-gated. The one AI demo: conversation + catalog + diagrams + persisted history; keyless demo answers, live model with `GOAI_API_KEY` |
+| Chat demo | `/chat` | Auth-gated. Conversation + catalog + diagrams + persisted history; needs `GOAI_API_KEY` — without it the page explains the knob and keeps your history |
 | Review loop | `/review` | Auth-gated. Writer → critic → classifier judge, streamed verdict, discarded. Runs on the `genkit` servant |
 | Whiteboard | `/whiteboard` | Auth-gated |
 | Kiosk | `/kiosk` | Auth-gated. Voice order over a closed menu; the chat panel is `kiosk_orders` |

@@ -165,6 +165,11 @@ func kioskSound() templ.Component {
 // kioskHead carries the voice wiring. The recognizer only fills the input and
 // dispatches `input`: the request itself belongs to the markup, next to the
 // debounce, so there is one place that decides when the server is asked.
+//
+// The wiring runs on DOMContentLoaded, not where the tag sits: this component is
+// rendered into <head>, so at parse time the body does not exist yet and every
+// getElementById would return null — the button rendered, did nothing, and said
+// nothing (the report "no option to turn the microphone on").
 func kioskHead() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -197,13 +202,13 @@ func kioskHead() templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 96, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 101, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\">\n\t\t(function () {\n\t\t\tvar root = document.getElementById(\"kiosk-voice\");\n\t\t\tvar input = document.getElementById(\"kiosk-text\");\n\t\t\tvar status = document.getElementById(\"kiosk-voice-status\");\n\t\t\tvar mic = document.getElementById(\"kiosk-mic\");\n\t\t\tif (!root || !input || !status || !mic) return;\n\n\t\t\tvar SR = window.SpeechRecognition || window.webkitSpeechRecognition;\n\t\t\tvar lang = document.documentElement.lang || \"en-US\";\n\t\t\tvar recognition = null;\n\t\t\tvar listening = false;\n\t\t\tvar lastResultAt = 0;\n\t\t\tvar watchdog = 0;\n\n\t\t\tfunction say(text) { status.textContent = text; }\n\t\t\tfunction idle() {\n\t\t\t\tlistening = false;\n\t\t\t\tmic.setAttribute(\"aria-pressed\", \"false\");\t\t\t\t\t\tmic.textContent = \"Microphone\";\n\t\t\t}\n\n\t\t\tfunction stop() {\n\t\t\t\tclearTimeout(watchdog);\n\t\t\t\tif (recognition && listening) recognition.stop();\n\t\t\t\tidle();\n\t\t\t}\n\n\t\t\t// On-device gating. available()/install() are the 2026 Web Speech API\n\t\t\t// surface; without them the browser can only recognize remotely, and\n\t\t\t// this page does not use a remote recognizer.\n\t\t\tfunction localSupport() {\n\t\t\t\treturn !!(SR && typeof SR.available === \"function\" && typeof SR.install === \"function\");\n\t\t\t}\n\n\t\t\tfunction prepare(next) {\n\t\t\t\tif (recognition) return recognition;\n\t\t\t\trecognition = new SR();\n\t\t\t\trecognition.lang = lang;\n\t\t\t\trecognition.continuous = true;\n\t\t\t\trecognition.interimResults = true;\n\t\t\t\trecognition.maxAlternatives = 1;\n\t\t\t\trecognition.processLocally = true;\n\t\t\t\tbias(recognition);\n\t\t\t\trecognition.onresult = function (event) {\n\t\t\t\t\tlastResultAt = Date.now();\n\t\t\t\t\tvar text = \"\";\n\t\t\t\t\tfor (var i = 0; i < event.results.length; i++) {\n\t\t\t\t\t\ttext += event.results[i][0].transcript + \" \";\n\t\t\t\t\t}\n\t\t\t\t\tinput.value = text.trim();\n\t\t\t\t\tinput.dispatchEvent(new Event(\"input\", { bubbles: true }));\n\t\t\t\t};\n\t\t\t\trecognition.onerror = function (event) {\n\t\t\t\t\tsay(\"Microphone: \" + (event.error || \"error\") + \" — type the order.\");\n\t\t\t\t\tstop();\n\t\t\t\t};\n\t\t\t\trecognition.onend = function () {\n\t\t\t\t\t// The browser ends a session on its own after silence. Leave it\n\t\t\t\t\t// stopped and say so rather than pretending it is still listening.\n\t\t\t\t\tif (listening) {\n\t\t\t\t\t\tsay(\"Listening stopped — tap the microphone to continue, or type.\");\n\t\t\t\t\t\tidle();\n\t\t\t\t\t}\n\t\t\t\t};\n\t\t\t\treturn next(recognition);\n\t\t\t}\n\n\t\t\t// bias supplies the menu as phrases. Contextual biasing is the cheap half\n\t\t\t// of accuracy: the recognizer prefers words it was told about.\n\t\t\tfunction bias(rec) {\n\t\t\t\tif (!rec.phrases || !window.SpeechRecognitionPhrase) return;\n\t\t\t\tif (!root.dataset.phrases) return;\n\t\t\t\ttry {\n\t\t\t\t\tvar labels = JSON.parse(root.dataset.phrases);\n\t\t\t\t\trec.phrases = labels.map(function (label) {\n\t\t\t\t\t\treturn new SpeechRecognitionPhrase(label, 1);\n\t\t\t\t\t});\n\t\t\t\t} catch (_) {\n\t\t\t\t\t// A malformed attribute costs the bias, not the feature.\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction start() {\n\t\t\t\tif (!localSupport()) {\n\t\t\t\t\tsay(\"This browser offers no on-device recognition — type the order.\");\n\t\t\t\t\treturn;\n\t\t\t\t}\n\t\t\t\tvar options = { langs: [lang], processLocally: true };\n\t\t\t\tSR.available(options).then(function (state) {\n\t\t\t\t\tif (state === \"available\") return true;\n\t\t\t\t\tsay(\"Downloading the language pack once…\");\n\t\t\t\t\treturn SR.install(options);\n\t\t\t\t}).then(function (ready) {\n\t\t\t\t\tif (!ready) {\n\t\t\t\t\t\tsay(\"No local language pack — type the order.\");\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\t\t\t\t\tprepare(function (rec) {\n\t\t\t\t\t\tlistening = true;\n\t\t\t\t\t\tmic.setAttribute(\"aria-pressed\", \"true\");\n\t\t\t\t\t\tmic.textContent = \"Stop\";\n\t\t\t\t\t\tsay(\"Listening on device…\");\n\t\t\t\t\t\tlastResultAt = Date.now();\n\t\t\t\t\t\trec.start();\n\t\t\t\t\t\t// A known browser bug (Chromium 579050368) detects speech and\n\t\t\t\t\t\t// never fires a result. Silence must become an instruction,\n\t\t\t\t\t\t// not a spinner that never ends.\n\t\t\t\t\t\twatchdog = setTimeout(function () {\n\t\t\t\t\t\t\tif (listening && Date.now() - lastResultAt > 4000) {\n\t\t\t\t\t\t\t\tsay(\"I did not catch that — type the order.\");\n\t\t\t\t\t\t\t\tstop();\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}, 4500);\n\t\t\t\t\t});\n\t\t\t\t}).catch(function () {\n\t\t\t\t\tsay(\"On-device recognition unavailable — type the order.\");\n\t\t\t\t});\n\t\t\t}\n\n\t\t\tmic.addEventListener(\"click\", function () {\n\t\t\t\tif (listening) stop(); else start();\n\t\t\t});\n\n\t\t\twindow.__kioskVoice = { toggle: function () { if (listening) stop(); else start(); } };\n\t\t})();\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\">\n\t\tfunction initKioskVoice() {\n\t\t\tvar root = document.getElementById(\"kiosk-voice\");\n\t\t\tvar input = document.getElementById(\"kiosk-text\");\n\t\t\tvar status = document.getElementById(\"kiosk-voice-status\");\n\t\t\tvar mic = document.getElementById(\"kiosk-mic\");\n\t\t\tif (!root || !input || !status || !mic) return;\n\n\t\t\tvar SR = window.SpeechRecognition || window.webkitSpeechRecognition;\n\t\t\t// No recognizer at all: the button cannot ever work, so it leaves\n\t\t\t// instead of sitting there inviting a click that does nothing.\n\t\t\tif (!SR) {\n\t\t\t\tmic.hidden = true;\n\t\t\t\tstatus.textContent = \"This browser has no speech recognition — type the order.\";\n\t\t\t\treturn;\n\t\t\t}\n\t\t\tvar lang = document.documentElement.lang || \"en-US\";\n\t\t\tvar recognition = null;\n\t\t\tvar listening = false;\n\t\t\tvar lastResultAt = 0;\n\t\t\tvar watchdog = 0;\n\n\t\t\tfunction say(text) { status.textContent = text; }\n\t\t\tfunction idle() {\n\t\t\t\tlistening = false;\n\t\t\t\tmic.setAttribute(\"aria-pressed\", \"false\");\n\t\t\t\tmic.textContent = \"Microphone\";\n\t\t\t}\n\n\t\t\tfunction stop() {\n\t\t\t\tclearTimeout(watchdog);\n\t\t\t\tif (recognition && listening) recognition.stop();\n\t\t\t\tidle();\n\t\t\t}\n\n\t\t\t// On-device gating. available()/install() are the 2026 Web Speech API\n\t\t\t// surface; without them the browser can only recognize remotely, and\n\t\t\t// this page does not use a remote recognizer.\n\t\t\tfunction localSupport() {\n\t\t\t\treturn !!(SR && typeof SR.available === \"function\" && typeof SR.install === \"function\");\n\t\t\t}\n\n\t\t\tfunction prepare(next) {\n\t\t\t\tif (recognition) return recognition;\n\t\t\t\trecognition = new SR();\n\t\t\t\trecognition.lang = lang;\n\t\t\t\trecognition.continuous = true;\n\t\t\t\trecognition.interimResults = true;\n\t\t\t\trecognition.maxAlternatives = 1;\n\t\t\t\trecognition.processLocally = true;\n\t\t\t\tbias(recognition);\n\t\t\t\trecognition.onresult = function (event) {\n\t\t\t\t\tlastResultAt = Date.now();\n\t\t\t\t\tvar text = \"\";\n\t\t\t\t\tfor (var i = 0; i < event.results.length; i++) {\n\t\t\t\t\t\ttext += event.results[i][0].transcript + \" \";\n\t\t\t\t\t}\n\t\t\t\t\tinput.value = text.trim();\n\t\t\t\t\tinput.dispatchEvent(new Event(\"input\", { bubbles: true }));\n\t\t\t\t};\n\t\t\t\trecognition.onerror = function (event) {\n\t\t\t\t\tsay(\"Microphone: \" + (event.error || \"error\") + \" — type the order.\");\n\t\t\t\t\tstop();\n\t\t\t\t};\n\t\t\t\trecognition.onend = function () {\n\t\t\t\t\t// The browser ends a session on its own after silence. Leave it\n\t\t\t\t\t// stopped and say so rather than pretending it is still listening.\n\t\t\t\t\tif (listening) {\n\t\t\t\t\t\tsay(\"Listening stopped — tap the microphone to continue, or type.\");\n\t\t\t\t\t\tidle();\n\t\t\t\t\t}\n\t\t\t\t};\n\t\t\t\treturn next(recognition);\n\t\t\t}\n\n\t\t\t// bias supplies the menu as phrases. Contextual biasing is the cheap half\n\t\t\t// of accuracy: the recognizer prefers words it was told about.\n\t\t\tfunction bias(rec) {\n\t\t\t\tif (!rec.phrases || !window.SpeechRecognitionPhrase) return;\n\t\t\t\tif (!root.dataset.phrases) return;\n\t\t\t\ttry {\n\t\t\t\t\tvar labels = JSON.parse(root.dataset.phrases);\n\t\t\t\t\trec.phrases = labels.map(function (label) {\n\t\t\t\t\t\treturn new SpeechRecognitionPhrase(label, 1);\n\t\t\t\t\t});\n\t\t\t\t} catch (_) {\n\t\t\t\t\t// A malformed attribute costs the bias, not the feature.\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction start() {\n\t\t\t\tif (!localSupport()) {\n\t\t\t\t\tsay(\"This browser offers no on-device recognition — type the order.\");\n\t\t\t\t\treturn;\n\t\t\t\t}\n\t\t\t\tvar options = { langs: [lang], processLocally: true };\n\t\t\t\tSR.available(options).then(function (state) {\n\t\t\t\t\tif (state === \"available\") return true;\n\t\t\t\t\tsay(\"Downloading the language pack once…\");\n\t\t\t\t\treturn SR.install(options);\n\t\t\t\t}).then(function (ready) {\n\t\t\t\t\tif (!ready) {\n\t\t\t\t\t\tsay(\"No local language pack — type the order.\");\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\t\t\t\t\tprepare(function (rec) {\n\t\t\t\t\t\tlistening = true;\n\t\t\t\t\t\tmic.setAttribute(\"aria-pressed\", \"true\");\n\t\t\t\t\t\tmic.textContent = \"Stop\";\n\t\t\t\t\t\tsay(\"Listening on device…\");\n\t\t\t\t\t\tlastResultAt = Date.now();\n\t\t\t\t\t\trec.start();\n\t\t\t\t\t\t// A known browser bug (Chromium 579050368) detects speech and\n\t\t\t\t\t\t// never fires a result. Silence must become an instruction,\n\t\t\t\t\t\t// not a spinner that never ends.\n\t\t\t\t\t\twatchdog = setTimeout(function () {\n\t\t\t\t\t\t\tif (listening && Date.now() - lastResultAt > 4000) {\n\t\t\t\t\t\t\t\tsay(\"I did not catch that — type the order.\");\n\t\t\t\t\t\t\t\tstop();\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}, 4500);\n\t\t\t\t\t});\n\t\t\t\t}).catch(function () {\n\t\t\t\t\tsay(\"On-device recognition unavailable — type the order.\");\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// ONE handler: the markup's data-on:click calls __kioskVoice.toggle.\n\t\t\t// An addEventListener here would fire on the same click as well, so\n\t\t\t// the two toggles cancelled out — the button flipped to Stop and\n\t\t\t// straight back to Microphone, and recognition never stayed on.\n\t\t\twindow.__kioskVoice = { toggle: function () { if (listening) stop(); else start(); } };\n\t\t}\n\n\t\t// The body is not parsed yet when this script runs (it is in <head>), so\n\t\t// the wiring waits for the DOM. `readyState` covers the case where a\n\t\t// later include has already fired the event.\n\t\tif (document.readyState === \"loading\") {\n\t\t\tdocument.addEventListener(\"DOMContentLoaded\", initKioskVoice);\n\t\t} else {\n\t\t\tinitKioskVoice();\n\t\t}\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -239,7 +244,7 @@ func kioskBody(data PageData) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(MarshalSignals(seedSignals()))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 225, Col: 90}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 247, Col: 90}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 		if templ_7745c5c3_Err != nil {
@@ -252,7 +257,7 @@ func kioskBody(data PageData) templ.Component {
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.Phrases)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 226, Col: 71}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 248, Col: 71}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 		if templ_7745c5c3_Err != nil {
@@ -265,7 +270,7 @@ func kioskBody(data PageData) templ.Component {
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(data.MenuLine)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 267, Col: 38}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 289, Col: 38}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -318,7 +323,7 @@ func OrdersList(orders []Order) templ.Component {
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(len(orders)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 326, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 348, Col: 51}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
@@ -346,7 +351,7 @@ func OrdersList(orders []Order) templ.Component {
 				var templ_7745c5c3_Var11 string
 				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(o.Drink)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 341, Col: 15}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 363, Col: 15}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 				if templ_7745c5c3_Err != nil {
@@ -359,7 +364,7 @@ func OrdersList(orders []Order) templ.Component {
 				var templ_7745c5c3_Var12 string
 				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(o.Size)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 341, Col: 29}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 363, Col: 29}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 				if templ_7745c5c3_Err != nil {
@@ -377,7 +382,7 @@ func OrdersList(orders []Order) templ.Component {
 					var templ_7745c5c3_Var13 string
 					templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(o.Milk)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 343, Col: 18}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 365, Col: 18}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 					if templ_7745c5c3_Err != nil {
@@ -396,7 +401,7 @@ func OrdersList(orders []Order) templ.Component {
 					var templ_7745c5c3_Var14 string
 					templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(o.Extras)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 346, Col: 20}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 368, Col: 20}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 					if templ_7745c5c3_Err != nil {
@@ -420,7 +425,7 @@ func OrdersList(orders []Order) templ.Component {
 				var templ_7745c5c3_Var15 string
 				templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(o.Price)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 352, Col: 36}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 374, Col: 36}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 				if templ_7745c5c3_Err != nil {
@@ -433,7 +438,7 @@ func OrdersList(orders []Order) templ.Component {
 				var templ_7745c5c3_Var16 string
 				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(o.When)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 352, Col: 50}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 374, Col: 50}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 				if templ_7745c5c3_Err != nil {

@@ -1,4 +1,4 @@
-// LLM responder legs (real/simulated/demo/err)
+// LLM responder legs (real/err)
 package components
 
 import (
@@ -29,7 +29,7 @@ type Responder interface {
 // PanelSummarizer does for providers.
 type OwnerContext interface {
 	// WithOwner returns a responder scoped to owner, or the receiver when the
-	// leg has no data to fetch (demo/simulated).
+	// leg has no data to fetch.
 	WithOwner(owner string) Responder
 }
 
@@ -115,45 +115,6 @@ func (r llmResponder) WithOwner(owner string) Responder {
 	return r
 }
 
-// demoResponder is the keyless showcase: deterministic directives,
-// labeled as demo data. Same role as SIMULATE_LLM in todo — the feature
-// works with zero keys.
-type demoResponder struct{ answer string }
-
-// demoAnswer is the keyless Chat showcase: the invented visual the model
-// composes for a request. It is sanitized and rendered exactly like a live
-// answer — one class-only grid, no styles, scripts or media — and HTML
-// attributes are single-quoted so the markup nests in JSON without escaping.
-// Red-proof: the assertion that the demo carries an html_block fails if the
-// answer is ever replaced by prose alone.
-const demoAnswer = `{"components":[` +
-	`{"type":"html_block","props":{"html":"` +
-	`<div class='grid grid-cols-1 sm:grid-cols-3 gap-3'>` +
-	`<div class='card bg-base-200 p-4'><p class='text-xs uppercase opacity-60'>Monday</p>` +
-	`<p class='font-semibold'>Ship the smoke guard</p></div>` +
-	`<div class='card bg-base-200 p-4'><p class='text-xs uppercase opacity-60'>Tuesday</p>` +
-	`<p class='font-semibold'>Read the parser diff</p></div>` +
-	`<div class='card bg-base-200 p-4'><p class='text-xs uppercase opacity-60'>Wednesday</p>` +
-	`<p class='font-semibold'>Write the handoff note</p></div>` +
-	`</div>` +
-	`"}},` +
-	`{"type":"text_note","props":{"text":"Demo answer — connect GOAI_API_KEY and the model ` +
-	`composes this markup itself, for the request it was given."}}` +
-	`]}`
-
-func (d demoResponder) Respond(_ context.Context, _ string) (string, error) {
-	return d.answer, nil
-}
-
-// WithOwner implements OwnerContext as a no-op pass-through.
-//
-// The keyless showcase has no store and no owner, and that is exactly why it
-// implements the seam rather than letting the worker's type assertion fail: the
-// assertion is the dispatch, so a responder that ignored it would silently get
-// no owner context while looking like it did. Making the no-op explicit keeps
-// "this leg has no data" a decision instead of an accident.
-func (d demoResponder) WithOwner(string) Responder { return d }
-
 type errResponder struct{ err error }
 
 func (e errResponder) Respond(_ context.Context, _ string) (string, error) {
@@ -165,18 +126,20 @@ func (e errResponder) Respond(_ context.Context, _ string) (string, error) {
 // worker's dispatch is uniform rather than conditional on the leg's health.
 func (e errResponder) WithOwner(string) Responder { return e }
 
-// NewResponder picks the model leg: real key wins, simulated key gets
-// the deterministic demo, neither is a fail-closed error (the worker
-// releases the spinner through the error result either way). router is
-// optional (nil = off) and is consulted only for the real-model leg: the
-// demo answer is fixed, so routing it would be a lie. surfaces is the
-// enabled answer vocabulary (nil = Chat defaults).
-func NewResponder(real, simulated *llm.Client, router Router, surfaces []Surface) Responder {
+// NewResponder picks the model leg: a real key answers, and nothing else does.
+//
+// The simulated client used to get a canned "demo answer" — one fixed grid for
+// every prompt. It made the page look configured while ignoring what the user
+// asked, which is worse than an honest refusal: the answer was wrong, not
+// absent, and nothing said so. A surface without a model now renders the
+// shared setup notice instead (see internal/components.LLMRequired), and this
+// leg fails closed with the knob named.
+//
+// router is optional (nil = off) and surfaces is the enabled answer vocabulary
+// (nil = Chat defaults).
+func NewResponder(real *llm.Client, router Router, surfaces []Surface) Responder {
 	if real != nil && real.Configured() {
 		return llmResponder{client: real, router: router, surfaces: surfaces, chat: true}
 	}
-	if simulated != nil && simulated.Configured() {
-		return demoResponder{answer: demoAnswer}
-	}
-	return errResponder{err: errors.New("genui: no LLM configured (GOAI_API_KEY or SIMULATE_LLM=true)")}
+	return errResponder{err: errors.New("genui: no LLM configured (set GOAI_API_KEY)")}
 }
