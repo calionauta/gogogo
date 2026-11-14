@@ -269,7 +269,7 @@ func TestRecipeInstallWritesRegistration(t *testing.T) {
 	if !strings.Contains(gen, `"example.com/app/features/timer/handlers"`) {
 		t.Fatalf("generated registration does not import the recipe under the tree's module:\n%s", gen)
 	}
-	if !strings.Contains(gen, "timer.Register,") {
+	if !strings.Contains(gen, "{ID: \"timer\", Fn: timer.Register}") {
 		t.Fatalf("generated registration does not call the recipe:\n%s", gen)
 	}
 	if formatted, ferr := format.Source([]byte(gen)); ferr != nil || string(formatted) != gen {
@@ -302,7 +302,7 @@ func TestRecipeUninstallMarksRemovedAndUnregisters(t *testing.T) {
 	if strings.Contains(gen, "timer.Register") {
 		t.Fatalf("registration still imports a removed recipe:\n%s", gen)
 	}
-	if !strings.Contains(gen, "[]register.Func{}") {
+	if !strings.Contains(gen, "[]register.Entry{}") {
 		t.Fatalf("registration is not the empty set:\n%s", gen)
 	}
 }

@@ -9,6 +9,7 @@ package ui
 
 import (
 	"context"
+	"strings"
 
 	"github.com/calionauta/gogogo/internal/rbac"
 )
@@ -35,6 +36,30 @@ func WithNav(ctx context.Context, entries []NavEntry) context.Context {
 		return ctx
 	}
 	return context.WithValue(ctx, navKey{}, entries)
+}
+
+// NavEventName turns a destination path into a bounded analytics event name:
+// "/kiosk" → "nav.kiosk". The name is markup data for the beacon endpoint,
+// which revalidates it; anything outside [a-z0-9_.-] becomes a dash here so a
+// path can never carry an arbitrary string into an event name.
+func NavEventName(href string) string {
+	name := strings.Trim(href, "/")
+	if name == "" {
+		return "nav.home"
+	}
+	name = strings.Map(func(r rune) rune {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '.', r == '-', r == '_':
+			return r
+		case r == '/':
+			return '.'
+		case r >= 'A' && r <= 'Z':
+			return r + ('a' - 'A')
+		default:
+			return '-'
+		}
+	}, name)
+	return "nav." + name
 }
 
 // Nav returns the extension destinations to render. A page rendered outside

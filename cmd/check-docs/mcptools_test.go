@@ -36,7 +36,7 @@ func TestMCPToolsAreReadFromTheCatalog(t *testing.T) {
 	// A description written as concatenated literals must be read whole: the
 	// first piece alone would be a different sentence than the tool serves.
 	for _, tool := range tools {
-		if tool.name == "recipe_describe" && !strings.Contains(tool.desc, "metrics/outcomes") {
+		if tool.name == "recipe_describe" && !strings.Contains(tool.desc, "metrics") {
 			t.Errorf("recipe_describe description was truncated: %q", tool.desc)
 		}
 	}

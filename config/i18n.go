@@ -29,6 +29,12 @@ type I18NConfig struct {
 	// Default is DEFAULT_LOCALE (default "en"), the fallback
 	// when no preference matches. Must be in Supported.
 	Default string
+	// RequireRecipeCoverage is I18N_REQUIRE_RECIPE_COVERAGE (default false).
+	// When true, a recipe that ships translations but misses a Supported tag
+	// fails the boot instead of only warning. Off by default because a
+	// partial catalog still renders (English fallback); the operator opts in
+	// when every installed recipe must be fully translated.
+	RequireRecipeCoverage bool
 }
 
 // loadI18NEnv fills I18n from env.
@@ -50,6 +56,7 @@ func (c *Config) loadI18NEnv() {
 	c.I18n.Enabled = enabled
 	c.I18n.Supported = supported
 	c.I18n.Default = def
+	c.I18n.RequireRecipeCoverage = envBool("I18N_REQUIRE_RECIPE_COVERAGE", false)
 }
 
 // parseI18NSupported trims the CSV and drops empties.

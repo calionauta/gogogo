@@ -64,6 +64,8 @@ export default {
     desc: "Turso single-writer stance, the probed MVCC path, and revisit triggers." },
   { group: "Core", slug: "configuration", file: "configuration.md",
     desc: "Every environment variable and runtime constant." },
+  { group: "Core", slug: "hooks-analytics", file: "hooks-analytics.md",
+    desc: "One event bus for hooks and analytics: the closed event set, the HMAC webhook, the provider seam, the declarative UI beacon, and the durable outbox that is not built yet." },
   { group: "Core", slug: "rbac", file: "rbac.md",
     desc: "Casbin RBAC: role vocabulary, the feature checklist, hint-vs-enforcement, and the two invariants that bite (authentication is not authorization; policy objects are paths, not regex)." },
   { group: "Core", slug: "security", file: "security.md",

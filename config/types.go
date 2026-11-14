@@ -283,4 +283,22 @@ type Config struct {
 	// plugin is removable; disabled keeps English markup. See
 	// config/i18n.go and docs/configuration.md.
 	I18n I18NConfig
+
+	// Recipes holds the deploy-time recipe switches (RECIPES_DISABLED). The
+	// durable switch is the recipe_state table, edited from /config; this is
+	// the fallback for a build with no admin surface. See config/recipes.go.
+	Recipes RecipesConfig
+
+	// AppShape is the product shape (APP_SHAPE, else .gogogo/shape.yml, else
+	// full). `api` makes the runtime serve only /api, health and assets; pages
+	// answer 404. See config/shape.go and docs/shape.md.
+	AppShape string
+
+	// Events holds the hook/webhook/analytics transport (EVENTS_*,
+	// ANALYTICS_*). Empty/`none` keeps every event in-process. See
+	// config/events.go and docs/hooks-analytics.md.
+	Events EventsConfig
 }
+
+// IsAPIShape reports whether this tree is the API-only product shape.
+func (c *Config) IsAPIShape() bool { return c != nil && c.AppShape == "api" }

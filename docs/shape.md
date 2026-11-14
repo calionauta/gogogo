@@ -13,7 +13,7 @@ entrypoints per value.
 |---|---|---|
 | `full` | `cmd/web`, `cmd/desktop`, `cmd/gui`, `cmd/mobile` | every target — the default, and today's behaviour |
 | `web` | `cmd/web` | the browser app |
-| `api` | `cmd/web` | `/api/*` and health with no page routes — the same binary, not a second one |
+| `api` | `cmd/web` | `/api/*`, health, auth API and assets only — page paths answer 404 in the same binary. `APP_SHAPE=api` (or the record) skips the page mounts (the backstop gate catches direct mounts) |
 | `desktop` | `cmd/desktop`, `cmd/web` | the Wails shell and the server it embeds |
 | `gui` | `cmd/gui` | the gogpu/ui native shell |
 | `mobile` | `cmd/mobile`, `cmd/web` | the Wails Android shell and the server it embeds |
@@ -83,9 +83,14 @@ every commit.
 - It does not carry a per-unit shape label. `Capability.Shapes` is the next
   step: today the registry has no shape column, so a second shape touching the
   same unit is a review question, not a gate verdict.
-- `api` is the only shape whose cost is real: it needs a `server.PageRoutes`
-  seam so the page handlers and their RBAC rows can be dropped coherently. Until
-  that lands, declaring `api` means the pages are removed by hand.
+- `api` is enforced **at the mount**: `MountFeature` refuses a page route in
+  this shape, so it never enters the tree (no handler, no RBAC read, no
+  template render), and `internal/server/shape_gate.go` stays as the backstop
+  for a path mounted directly. `/api`, `/health`, `/_ui`, static assets and the
+  auth API keep working. The page handlers still compile — full compile-time
+  pruning is a measured trade-off, not an assumption (`TODO-tradeoffs.md`).
+- A deployed API binary should set `APP_SHAPE=api`; a developer tree with
+  `.gogogo/shape.yml` gets the same answer without an env.
 
 The proposal that led here — including the phase order above — is the
 "App shapes" research note under `docs/research/`.

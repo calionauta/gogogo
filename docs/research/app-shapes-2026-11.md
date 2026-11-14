@@ -1,5 +1,11 @@
 # App shapes: one template, five products
 
+> **Status (2026-11-14).** Phase 3 landed: `server/shape_gate.go` enforces the
+> `api` shape at runtime (`APP_SHAPE=api` or `.gogogo/shape.yml`), answering 404
+> for page paths while `/api`, `/health`, `/_ui`, assets and the auth API keep
+> working. Compile-time pruning of page handlers/RBAC rows remains a later
+> optimization. `Capability.Shapes` is still open.
+
 Reviewed: 2026-11-12
 
 **Question.** A user of `gogogo new` may want only the web app, only an

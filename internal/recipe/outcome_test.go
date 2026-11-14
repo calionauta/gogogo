@@ -8,7 +8,7 @@ import (
 )
 
 // validOutcome is the reference shape: an outcome with two counts over a
-// declared table and one counterbalance reading, no invented target.
+// declared table and one counterMetrics reading, no invented target.
 func validOutcome() Metric {
 	return Metric{
 		Kind:        MetricOutcome,
@@ -23,7 +23,7 @@ func validOutcome() Metric {
 			Label: "Orders confirmed",
 			Query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ?",
 		},
-		Counterbalance: []Count{{
+		CounterMetrics: []Count{{
 			Label: "Orders corrected",
 			Query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ? AND corrected = 1",
 		}},
@@ -43,11 +43,11 @@ func TestMetricProblemsAcceptsTheDeclaredShapes(t *testing.T) {
 	if problems := MetricProblems(d); len(problems) != 0 {
 		t.Fatalf("a well-formed declaration must pass, got %v", problems)
 	}
-	if problems := OutcomeTableProblems(d); len(problems) != 0 {
+	if problems := MetricTableProblems(d); len(problems) != 0 {
 		t.Fatalf("a well-formed declaration must pass its table check, got %v", problems)
 	}
-	if len(d.Activity()) != 1 || len(d.Outcomes()) != 1 {
-		t.Fatalf("kinds did not split: activity=%d outcomes=%d", len(d.Activity()), len(d.Outcomes()))
+	if len(d.Activity()) != 1 || len(d.OutcomeMetrics()) != 1 {
+		t.Fatalf("kinds did not split: activity=%d outcomes=%d", len(d.Activity()), len(d.OutcomeMetrics()))
 	}
 }
 
@@ -72,8 +72,8 @@ func TestMetricProblemsPinEveryRule(t *testing.T) {
 			o.Success.Query = "SELECT COUNT(*) FROM ext_kiosk_orders"
 		}, "must bind 1 owner parameter"},
 		{"a missing half", func(o *Metric) { o.Total = nil }, "needs both success and total"},
-		{"counterbalance is not a count", func(o *Metric) {
-			o.Counterbalance[0].Query = "SELECT corrected FROM ext_kiosk_orders"
+		{"counterMetrics is not a count", func(o *Metric) {
+			o.CounterMetrics[0].Query = "SELECT corrected FROM ext_kiosk_orders"
 		}, "must select count"},
 		{"unknown kind", func(o *Metric) { o.Kind = "ratio" }, "must be one of"},
 	}
@@ -121,41 +121,41 @@ func TestOutcomeIDsAreUnique(t *testing.T) {
 // TestOutcomeOverUndeclaredTableIsAnError is the enforced half of "is this
 // instrumented": the query names the table, and the declaration must own it.
 func TestOutcomeOverUndeclaredTableIsAnError(t *testing.T) {
-	problems := OutcomeTableProblems(Declaration{Metrics: []Metric{validOutcome()}})
+	problems := MetricTableProblems(Declaration{Metrics: []Metric{validOutcome()}})
 	joined := strings.Join(problems, "\n")
 	if !strings.Contains(joined, `reads table "ext_kiosk_orders"`) {
 		t.Fatalf("a table outside the declaration must be refused, got %v", problems)
 	}
 }
 
-// TestCounterbalanceOverUndeclaredTableIsAnError covers the reading the
+// TestCounterMetricsOverUndeclaredTableIsAnError covers the reading the
 // declaration added: it is a count like the other two, so it owes the same
 // ownership proof.
-func TestCounterbalanceOverUndeclaredTableIsAnError(t *testing.T) {
+func TestCounterMetricsOverUndeclaredTableIsAnError(t *testing.T) {
 	o := validOutcome()
-	o.Counterbalance[0].Query = "SELECT COUNT(*) FROM todos WHERE owner = ?"
-	problems := OutcomeTableProblems(Declaration{
+	o.CounterMetrics[0].Query = "SELECT COUNT(*) FROM todos WHERE owner = ?"
+	problems := MetricTableProblems(Declaration{
 		Tables: []string{"ext_kiosk_orders"}, Metrics: []Metric{o},
 	})
-	if !strings.Contains(strings.Join(problems, "\n"), "counterbalance[0]") {
-		t.Fatalf("a counterbalance over an undeclared table must be refused, got %v", problems)
+	if !strings.Contains(strings.Join(problems, "\n"), "counterMetrics[0]") {
+		t.Fatalf("a counterMetrics over an undeclared table must be refused, got %v", problems)
 	}
 }
 
-// TestOutcomeInstrumentationGapsNamesTheMissingState is the instrumentation
-// half: the declaration is valid, the code records one counterbalance state and
+// TestMetricInstrumentationGapsNamesTheMissingState is the instrumentation
+// half: the declaration is valid, the code records one counterMetrics state and
 // not the other, and the report names the gap `recipe check` blocks on.
-func TestOutcomeInstrumentationGapsNamesTheMissingState(t *testing.T) {
+func TestMetricInstrumentationGapsNamesTheMissingState(t *testing.T) {
 	files := map[string]string{
 		"features/kiosk/service/orders.go": "// Confirm marks corrected=1 on a repair.\n",
 	}
 	root := writeTree(t, files)
 	o := validOutcome()
-	o.Counterbalance = []Count{
+	o.CounterMetrics = []Count{
 		{Label: "Corrected", Query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ? AND corrected = 1"},
 		{Label: "Abandoned", Query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ? AND abandoned = 1"},
 	}
-	gaps := OutcomeInstrumentationGaps(root, receiptFor(files, Declaration{
+	gaps := MetricInstrumentationGaps(root, receiptFor(files, Declaration{
 		Tables: []string{"ext_kiosk_orders"}, Metrics: []Metric{o},
 	}))
 	if len(gaps) != 1 || !strings.Contains(gaps[0], `"abandoned"`) {

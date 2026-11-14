@@ -69,8 +69,13 @@ type Receipt struct {
 	// Author and Released travel with the recipe: credit survives the copy, and
 	// a reader can tell which release of the slice they own without asking the
 	// upstream or the catalog.
-	Author   Author   `yaml:"author,omitempty"`
-	Released string   `yaml:"released,omitempty"`
+	Author   Author `yaml:"author,omitempty"`
+	Released string `yaml:"released,omitempty"`
+	// BasedOn records the recipes this slice was derived from. It is provenance,
+	// not a dependency: the code was copied and edited, and naming the bases
+	// lets a reviewer (or an agent) read the pattern this slice inherited
+	// instead of guessing from the diff. Empty is valid for a greenfield slice.
+	BasedOn  []string `yaml:"basedOn,omitempty"`
 	Upstream Upstream `yaml:"upstream"`
 	// Files maps installed path → hex sha256 of the PRISTINE upstream content.
 	// This is the third leg of any three-way merge; without it "what did I
@@ -144,7 +149,7 @@ type Declaration struct {
 	// Metrics are everything the recipe measures, in the order the dashboard
 	// should render it. Each entry declares its Kind: an `activity` count (how
 	// much happened) or an `outcome` (did the job get done, as success over
-	// eligible, with the counterbalance readings that qualify it). One list
+	// eligible, with the counterMetrics readings that qualify it). One list
 	// because both answer "is it working" at different strengths, and two
 	// parallel fields made the reader guess which one to trust.
 	Metrics []Metric `yaml:"metrics,omitempty"`
@@ -170,10 +175,14 @@ type PanelSpec struct {
 }
 
 // Route is a declared HTTP surface. The pattern is absolute, matching the
-// composition root's convention.
+// composition root's convention. Role is the policy subject the route needs;
+// empty means `user` (the historical default), and `admin` is the one other
+// value a bundled recipe uses (the admin dashboard). A recipe cannot invent a
+// role vocabulary: roles are core.
 type Route struct {
 	Method  string `yaml:"method"`
 	Pattern string `yaml:"pattern"`
+	Role    string `yaml:"role,omitempty"`
 }
 
 // FileReport is one row of the drift report.

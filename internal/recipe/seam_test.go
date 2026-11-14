@@ -60,6 +60,43 @@ func TestSeamMountsRecipeWithoutCoreEdit(t *testing.T) {
 	}
 }
 
+// TestSeamRefusesUntrueDeclarationsAtBoot pins the fail-fast rule: a route role
+// outside the core vocabulary, an outcome over a table the recipe does not own,
+// and an action targeting an undeclared route are boot conflicts, not
+// `recipe check` advice a production binary can serve.
+func TestSeamRefusesUntrueDeclarationsAtBoot(t *testing.T) {
+	reg := &Registry{}
+	reg.Add(newProvider("probe", Declaration{
+		Routes: []Route{{Method: "GET", Pattern: "/probe", Role: "superuser"}},
+		Tables: []string{"ext_probe"},
+		Metrics: []Metric{{
+			Kind: MetricOutcome, ID: "probe_ok", Job: "Do the probe",
+			Beneficiary: "user",
+			Success: &Count{
+				Label: "Ok", Query: "SELECT COUNT(*) FROM ext_other WHERE owner = ? AND ok = 1",
+			},
+			Total: &Count{
+				Label: "All", Query: "SELECT COUNT(*) FROM ext_other WHERE owner = ?",
+			},
+		}},
+		Actions: []InvokeAction{{
+			Verb: "go", Route: Route{Method: "POST", Pattern: "/api/probe"},
+		}},
+	}, "/probe"))
+
+	var b strings.Builder
+	for _, c := range reg.Validate() {
+		b.WriteString(c.String())
+		b.WriteByte('\n')
+	}
+	joined := b.String()
+	for _, want := range []string{"role", "ext_other", "action"} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("boot validation missed %q:\n%s", want, joined)
+		}
+	}
+}
+
 // TestSeamIgnoresADisabledProvider is the optional-unit rule: a unit whose
 // engine did not start returns a nil provider, and registration must be a
 // no-op rather than a declaration with nothing behind it. The route gate reads

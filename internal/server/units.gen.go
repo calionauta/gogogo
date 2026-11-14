@@ -23,19 +23,19 @@ import (
 // bundledUnits is every in-tree unit that mounts itself, in id order. The list
 // is generated from `capabilities.Capability.Register`, so a unit opts in by
 // naming its package in the registry — the file that already owns its identity.
-var bundledUnits = []register.Func{
-	accounthandlers.Register,
-	chathandlers.Register,
-	confighandlers.Register,
-	creditshandlers.Register,
-	dashboardhandlers.Register,
-	kioskhandlers.Register,
-	noteshandlers.Register,
-	notificationshandlers.Register,
-	reviewhandlers.Register,
-	roomhandlers.Register,
-	todohandlers.Register,
-	whiteboardhandlers.Register,
+var bundledUnits = []register.Entry{
+	{ID: "account", Fn: accounthandlers.Register},
+	{ID: "chat", Fn: chathandlers.Register},
+	{ID: "config-view", Fn: confighandlers.Register},
+	{ID: "credits", Fn: creditshandlers.Register},
+	{ID: "dashboard", Fn: dashboardhandlers.Register},
+	{ID: "kiosk", Fn: kioskhandlers.Register},
+	{ID: "notes", Fn: noteshandlers.Register},
+	{ID: "notifications", Fn: notificationshandlers.Register},
+	{ID: "review", Fn: reviewhandlers.Register},
+	{ID: "room", Fn: roomhandlers.Register},
+	{ID: "todo", Fn: todohandlers.Register},
+	{ID: "whiteboard", Fn: whiteboardhandlers.Register},
 }
 
 // registerBundledUnits is the one generated call the composition root makes for
@@ -43,7 +43,9 @@ var bundledUnits = []register.Func{
 // two sets have different lifetimes: an installed recipe can be uninstalled, a
 // unit of this tree is removed by deleting its files and regenerating.
 func registerBundledUnits(reg *recipe.Registry, d register.Deps) {
-	for _, registerUnit := range bundledUnits {
-		registerUnit(reg, d)
+	for _, entry := range bundledUnits {
+		if d.Allowed(entry.ID) {
+			entry.Fn(reg, d)
+		}
 	}
 }

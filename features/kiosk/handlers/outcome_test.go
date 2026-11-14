@@ -43,7 +43,7 @@ func TestOutcomeRatioOverItsOwnSchema(t *testing.T) {
 	insertOrder(ctx, t, db, "o3", "u2", 0)
 
 	d := recipeProvider{}.Declaration()
-	outcomes := d.Outcomes()
+	outcomes := d.OutcomeMetrics()
 	if len(outcomes) != 1 {
 		t.Fatalf("want exactly one declared outcome, got %d", len(outcomes))
 	}
@@ -65,16 +65,16 @@ func TestOutcomeRatioOverItsOwnSchema(t *testing.T) {
 		}
 	}
 
-	// The counterbalance reading is a real count too: the same schema answers
+	// The counterMetrics reading is a real count too: the same schema answers
 	// it, which is what makes it a fact rather than a note.
-	if len(o.Counterbalance) != 1 {
-		t.Fatalf("want one counterbalance reading, got %d", len(o.Counterbalance))
+	if len(o.CounterMetrics) != 1 {
+		t.Fatalf("want one counterMetrics reading, got %d", len(o.CounterMetrics))
 	}
-	if got := countFor(ctx, t, db, o.Counterbalance[0].Query, "u1"); got != 1 {
-		t.Errorf("u1 counterbalance = %d, want 1 (the repaired order)", got)
+	if got := countFor(ctx, t, db, o.CounterMetrics[0].Query, "u1"); got != 1 {
+		t.Errorf("u1 counterMetrics = %d, want 1 (the repaired order)", got)
 	}
-	if got := countFor(ctx, t, db, o.Counterbalance[0].Query, "u2"); got != 0 {
-		t.Errorf("u2 counterbalance = %d, want 0", got)
+	if got := countFor(ctx, t, db, o.CounterMetrics[0].Query, "u2"); got != 0 {
+		t.Errorf("u2 counterMetrics = %d, want 0", got)
 	}
 }
 

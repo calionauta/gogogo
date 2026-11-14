@@ -116,6 +116,18 @@ if you need to reproduce a shard locally: `TEST_PKGS_FILE` (the scope
 `scripts/test-web.sh` runs) and `SHARD_UNIVERSE_FILE` (the list
 `scripts/ci-shard-packages.sh` splits).
 
+### When the fast gate stops being fast
+
+A shared-file change (`go.mod`, `go.sum`, `Makefile`, `config/`,
+`internal/capabilities/`, `internal/db/`) makes `changed-packages.sh` fall back
+to **all** packages. Above `FAST_MAX_PARALLEL_PKGS` (default 8) the target then
+runs `go test -race -p 1` on purpose, to bound load on a co-tenanted host — that
+is the same suite as `ci-local`, serialized, and it can exceed ten minutes.
+Two practical fixes: run the gate in the background and collect it when it
+finishes, or set `FAST_MAX_PARALLEL_PKGS` to a value that lets the race suite
+use the cores this host actually has (only on a dedicated box). The 10-minute
+cutoff some agents hit is the tool's command timeout, not the Makefile's.
+
 Use it while iterating; the full `ci-local` (and `make signoff`) remain the
 authoritative pre-push gate — `ci-local-fast` does not replace CI coverage, it
 just stops a CSS tweak from paying for the todo suite.

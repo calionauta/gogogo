@@ -131,9 +131,9 @@ func renderBundledUnits(t *testing.T, root string) []byte {
 	b.WriteString("// bundledUnits is every in-tree unit that mounts itself, in id order. The list\n")
 	b.WriteString("// is generated from `capabilities.Capability.Register`, so a unit opts in by\n")
 	b.WriteString("// naming its package in the registry — the file that already owns its identity.\n")
-	b.WriteString("var bundledUnits = []register.Func{\n")
+	b.WriteString("var bundledUnits = []register.Entry{\n")
 	for _, e := range entries {
-		fmt.Fprintf(&b, "\t%s.Register,\n", e.alias)
+		fmt.Fprintf(&b, "\t{ID: %q, Fn: %s.Register},\n", e.id, e.alias)
 	}
 	b.WriteString("}\n\n")
 	b.WriteString("// registerBundledUnits is the one generated call the composition root makes for\n")
@@ -141,8 +141,10 @@ func renderBundledUnits(t *testing.T, root string) []byte {
 	b.WriteString("// two sets have different lifetimes: an installed recipe can be uninstalled, a\n")
 	b.WriteString("// unit of this tree is removed by deleting its files and regenerating.\n")
 	b.WriteString("func registerBundledUnits(reg *recipe.Registry, d register.Deps) {\n")
-	b.WriteString("\tfor _, registerUnit := range bundledUnits {\n")
-	b.WriteString("\t\tregisterUnit(reg, d)\n")
+	b.WriteString("\tfor _, entry := range bundledUnits {\n")
+	b.WriteString("\t\tif d.Allowed(entry.ID) {\n")
+	b.WriteString("\t\t\tentry.Fn(reg, d)\n")
+	b.WriteString("\t\t}\n")
 	b.WriteString("\t}\n")
 	b.WriteString("}\n")
 

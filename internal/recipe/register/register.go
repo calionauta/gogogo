@@ -21,6 +21,7 @@ import (
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/collab"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/events"
 	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/natswire"
 	"github.com/calionauta/gogogo/internal/queue"
@@ -89,6 +90,35 @@ type Deps struct {
 	// contract never imports a feature package (the same reason
 	// InboxRef.Bus is `any`). Nil = no panels installed.
 	Panels *[]any
+	// Enabled is the runtime recipe switch. The generated registration calls a
+	// recipe only when this returns true, so a disabled recipe neither mounts
+	// routes nor starts its workers. Nil means "everything enabled" — the
+	// tests and a tree with no state table.
+	Enabled func(id string) bool
+	// Installed is every recipe id the generated registration knows (bundled
+	// units and installed receipts), for the admin Units table. A recipe that
+	// is installed but disabled is not mounted, so the registry alone cannot
+	// list it; this is the build fact.
+	Installed []string
+	// Events is the in-process domain-event bus. Emit is nil-safe, so a
+	// caller with no bus (tests, a trimmed tree) emits into nothing. A recipe
+	// publishes a fact after its write commits; it never subscribes to core
+	// internals (see docs/hooks-analytics.md).
+	Events *events.Bus
+}
+
+// Entry is one recipe the generated registration knows: the id is the switch
+// key, Fn is the package's Register. A plain []Func could not be filtered by
+// id, which is why the runtime toggle needs this shape.
+type Entry struct {
+	ID string
+	Fn Func
+}
+
+// Allowed reports whether the id is enabled in this boot. A nil switch is the
+// permissive default (tests, a store with no state row).
+func (d Deps) Allowed(id string) bool {
+	return d.Enabled == nil || d.Enabled(id)
 }
 
 // OnboardingResumer is what the todo create path needs from the onboarding

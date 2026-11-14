@@ -141,6 +141,35 @@ func TestKioskLanguagePackDownloadCannotHang(t *testing.T) {
 	}
 }
 
+// TestKioskClearForgetsTheRecognizedTranscript is the reported regression:
+// clearing emptied the field, but continuous recognition keeps every final
+// result for the whole session, so the next word rebuilt the field from index 0
+// and the old order came back. The field must start at event.resultIndex and the
+// transcript buffer must be dropped on the same event the markup handles.
+func TestKioskClearForgetsTheRecognizedTranscript(t *testing.T) {
+	script := renderKioskHead(t)
+	if strings.Contains(script, "i = 0; i < event.results.length") {
+		t.Error("onresult rebuilds from result 0; a continuous session replays every cleared word")
+	}
+	if !strings.Contains(script, "event.resultIndex") {
+		t.Error("onresult ignores event.resultIndex, so it cannot tell new words from committed ones")
+	}
+	_, clearBody, ok := strings.Cut(script, `addEventListener("kiosk-clear"`)
+	if !ok {
+		t.Fatal("the voice wiring does not listen for kiosk-clear; the recognizer buffer keeps the cleared order")
+	}
+	listener, _, ok := strings.Cut(clearBody, "});")
+	if !ok || !strings.Contains(listener, `committed = ""`) {
+		t.Error("the clear listener does not empty the committed transcript")
+	}
+	// The utterance still in flight is also cancelled: dropping only the
+	// finished text would let a phrase spoken before the clear land in the
+	// field after it.
+	if !strings.Contains(listener, "lastFinal = resultCount") {
+		t.Error("a clear keeps the unfinished utterance; it reappears when it finalizes")
+	}
+}
+
 // TestKioskAsksForTheMicrophoneBeforeAnythingElse is the reported bug: clicking
 // the button said "Microphone: not-allowed" without ever prompting. Chrome does
 // not show the permission dialog for SpeechRecognition.start() — the recognizer

@@ -16,6 +16,7 @@ attributes:
   allowed:
     # --- project attributes, read by this repo's own JS/tests ---
     - data-tool            # tool-call rendering (genui)
+    - data-analytics-event # affordance name read by static/analytics.js
     - data-doc-id          # notes/whiteboard document id (read by notes.js)
     - data-component        # component name on server-rendered partials
     - data-offline-sync     # offline replay marker; smoke asserts it

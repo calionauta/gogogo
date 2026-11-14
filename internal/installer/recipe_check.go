@@ -20,59 +20,6 @@ import (
 	"github.com/calionauta/gogogo/internal/recipe"
 )
 
-// RecipeCheckReport is the machine representation of one recipe check.
-type RecipeCheckReport struct {
-	ID            string                `json:"id"`
-	Healthy       bool                  `json:"healthy"`
-	Score         int                   `json:"score"`
-	Errors        []string              `json:"errors,omitempty"`
-	Warnings      []string              `json:"warnings,omitempty"`
-	Suggestions   []string              `json:"suggestions,omitempty"`
-	Complexity    recipeCheckComplexity `json:"complexity"`
-	Declaration   recipe.Declaration    `json:"declaration"`
-	ProviderFiles []string              `json:"providerFiles,omitempty"`
-	Metrics       []checkMetricSummary  `json:"metrics,omitempty"`
-	Outcomes      []checkOutcomeSummary `json:"outcomes,omitempty"`
-	Panel         *recipe.PanelSpec     `json:"panel,omitempty"`
-	// Tests is the DERIVED inventory, never a declaration: the receipt already
-	// enumerates every installed file with its hash, so the checker reads the
-	// test files from there. A second list maintained by the author would be a
-	// second source of truth that can only disagree with the first.
-	Tests recipeCheckTests `json:"tests"`
-	// Omitted is information, not a warning: the author explained why the
-	// route is not headless, and the report shows that decision.
-	Omitted []recipe.OmittedRoute `json:"omitted,omitempty"`
-}
-
-// recipeCheckTests is what the receipt carries as tests, plus the packages those
-// tests live in. Empty Files on a recipe that owns routes or registers code is
-// the one verdict this checker treats as an error rather than a warning: an
-// installed slice whose behavior nobody pins is not reviewable, and it is the
-// community-recipe failure mode the catalog review cannot fix from the outside.
-type recipeCheckTests struct {
-	Files    []string `json:"files,omitempty"`
-	Packages []string `json:"packages,omitempty"`
-}
-
-// checkMetricSummary is the checker-facing shape of one dashboard metric.
-type checkMetricSummary struct {
-	Label  string `json:"label"`
-	Query  string `json:"query"`
-	Signal string `json:"signal"`
-	Owner  *bool  `json:"owner,omitempty"`
-}
-
-// checkOutcomeSummary is the checker-facing shape of one declared outcome: the
-// job and the two counts, so a reader can see the ratio without opening the
-// receipt.
-type checkOutcomeSummary struct {
-	ID             string   `json:"id"`
-	Job            string   `json:"job"`
-	Success        string   `json:"success"`
-	Total          string   `json:"total"`
-	Counterbalance []string `json:"counterbalance,omitempty"`
-}
-
 // runRecipeCheck evaluates installed recipes without mutating the tree.
 func runRecipeCheck(args []string, stdout io.Writer) error {
 	opt, err := parseRecipeLookupArgs("check", args)
@@ -97,7 +44,7 @@ func runRecipeCheck(args []string, stdout io.Writer) error {
 	reports := make([]RecipeCheckReport, 0, len(ids))
 	blockers := 0
 	for _, id := range ids {
-		report := checkOneRecipe(root, id)
+		report := checkOneRecipeWith(root, id, opt.locales, opt.strictLocales, opt.strictHeadless)
 		if !report.Healthy {
 			blockers++
 		}
@@ -118,9 +65,21 @@ func runRecipeCheck(args []string, stdout io.Writer) error {
 	return nil
 }
 
+// defaultRecipeLocales is the fallback for tests and callers that do not pass
+// the instance's configured set. The CLI reads SUPPORTED_LOCALES instead.
+var defaultRecipeLocales = []string{"en", "pt-BR"}
+
 // checkOneRecipe is the pure evaluator. Split from runRecipeCheck so
 // tests can pin the scoring rules without the CLI.
 func checkOneRecipe(root, id string) RecipeCheckReport {
+	return checkOneRecipeWith(root, id, defaultRecipeLocales, false, false)
+}
+
+// checkOneRecipeWith is checkOneRecipe with the instance's locale and headless
+// strictness.
+func checkOneRecipeWith(
+	root, id string, locales []string, strictLocales, strictHeadless bool,
+) RecipeCheckReport {
 	report := RecipeCheckReport{ID: id}
 	receipt, err := recipe.LoadReceipt(root, id)
 	if err != nil {
@@ -129,7 +88,11 @@ func checkOneRecipe(root, id string) RecipeCheckReport {
 	report.Declaration = receipt.Declaration
 	report.Panel = receipt.Declaration.Panel
 	report.Omitted = append([]recipe.OmittedRoute(nil), receipt.Declaration.Omitted...)
-	report.Metrics, report.Outcomes = summariseMetrics(receipt.Declaration)
+	report.Metrics = summariseMetrics(receipt.Declaration)
+	report.Locales = checkRecipeLocales(root, receipt, locales)
+	localeErrs, localeWarns := localeProblems(id, report.Locales, strictLocales)
+	report = reportWithErrors(report, localeErrs...)
+	report = reportWithWarnings(report, localeWarns...)
 	if receipt.Removed != "" {
 		return reportWithErrors(report, "recipe is removed; restore or uninstall it")
 	}
@@ -149,7 +112,7 @@ func checkOneRecipe(root, id string) RecipeCheckReport {
 	}
 	metrics := recipe.MetricProblems(receipt.Declaration)
 	panelProblems := recipe.PanelProblems(receipt.Declaration)
-	outcomeProblems := recipe.OutcomeTableProblems(receipt.Declaration)
+	outcomeProblems := recipe.MetricTableProblems(receipt.Declaration)
 	report.Errors = append(report.Errors, metrics...)
 	report.Errors = append(report.Errors, panelProblems...)
 	report.Errors = append(report.Errors, outcomeProblems...)
@@ -162,7 +125,7 @@ func checkOneRecipe(root, id string) RecipeCheckReport {
 	}
 	report = checkOutcomeInstrumentation(root, receipt, report)
 	report = checkRecipeRegistration(root, receipt, report)
-	report = checkRecipeHeadless(receipt, report)
+	report = checkRecipeHeadless(receipt, report, strictHeadless)
 	report = checkRecipeMetricsAndPanel(root, receipt, report)
 	report, complexity := checkRecipeSource(root, receipt, report)
 	report.Complexity = complexity
@@ -199,7 +162,7 @@ func checkOneRecipe(root, id string) RecipeCheckReport {
 // rule (an older receipt must keep running), which is why the check — the place
 // the declaration is judged — is where it becomes an error.
 func checkOutcomeInstrumentation(root string, receipt recipe.Receipt, report RecipeCheckReport) RecipeCheckReport {
-	gaps := recipe.OutcomeInstrumentationGaps(root, receipt)
+	gaps := recipe.MetricInstrumentationGaps(root, receipt)
 	if len(gaps) == 0 {
 		return report
 	}
@@ -285,8 +248,20 @@ func printRecipeCheck(stdout io.Writer, report RecipeCheckReport) {
 	for _, o := range report.Omitted {
 		fmt.Fprintf(stdout, "  omitted: %s %s — %s\n", o.Route.Method, o.Route.Pattern, o.Reason)
 	}
-	for _, o := range report.Outcomes {
-		fmt.Fprintf(stdout, "  outcome: %s — %s\n", o.ID, o.Job)
+	for _, m := range report.Metrics {
+		if m.Kind == string(recipe.MetricOutcome) {
+			fmt.Fprintf(stdout, "  metric: %s — %s\n", m.ID, m.Job)
+		}
+	}
+	if len(report.Locales.Required) > 0 {
+		line := "  locales: required " + strings.Join(report.Locales.Required, ", ")
+		if len(report.Locales.Shipped) > 0 {
+			line += "; shipped " + strings.Join(report.Locales.Shipped, ", ")
+		}
+		if len(report.Locales.Missing) > 0 {
+			line += "; missing " + strings.Join(report.Locales.Missing, ", ")
+		}
+		fmt.Fprintln(stdout, line)
 	}
 }
 
@@ -354,11 +329,17 @@ func checkRecipeRegistration(root string, receipt recipe.Receipt, report RecipeC
 // description is a name the agent cannot choose between. These are
 // warnings, not errors: an existing recipe must keep evaluating while its
 // author fills the surface (the catalog review is where it becomes required).
-func checkRecipeHeadless(receipt recipe.Receipt, report RecipeCheckReport) RecipeCheckReport {
+func checkRecipeHeadless(receipt recipe.Receipt, report RecipeCheckReport, strict bool) RecipeCheckReport {
+	grade := func(r RecipeCheckReport, msg string) RecipeCheckReport {
+		if strict {
+			return reportWithErrors(r, msg)
+		}
+		return reportWithWarnings(r, msg)
+	}
 	decl := receipt.Declaration
 	docProblems := recipe.ActionDocProblems(decl)
 	for _, problem := range docProblems {
-		report = reportWithWarnings(report, problem)
+		report = grade(report, problem)
 	}
 	if len(docProblems) > 0 {
 		report.Suggestions = appendUnique(report.Suggestions,
@@ -382,7 +363,7 @@ func checkRecipeHeadless(receipt recipe.Receipt, report RecipeCheckReport) Recip
 		shown = append(slices.Clone(shown[:maxInvisibleShown]),
 			fmt.Sprintf("+%d more", len(invisible)-maxInvisibleShown))
 	}
-	report = reportWithWarnings(report,
+	report = grade(report,
 		"mutating routes with no headless action: "+strings.Join(shown, ", "))
 	report.Suggestions = appendUnique(report.Suggestions,
 		"declare an InvokeAction (verb, description, params) for each mutating route, "+

@@ -5,7 +5,7 @@
 //
 //	activity — how much happened (one count, no claim).
 //	outcome  — did the job get done, as a success count against the eligible
-//	           count, plus the counterbalance readings that stop the success
+//	           count, plus the counterMetrics readings that stop the success
 //	           number being read as health.
 //
 // WHY ONE LIST, NOT TWO FIELDS. The previous shape had `metrics` and `outcomes`
@@ -44,12 +44,15 @@ const (
 	// MetricActivity counts activity. No denominator, no claim.
 	MetricActivity MetricKind = "activity"
 	// MetricOutcome answers a job as success over eligible, with the
-	// counterbalance readings that qualify it.
+	// counterMetrics readings that qualify it.
 	MetricOutcome MetricKind = "outcome"
 )
 
 // MetricKinds is the closed set, in the order the docs present them.
 var MetricKinds = []MetricKind{MetricActivity, MetricOutcome}
+
+// metricWord is the one spelling a conflict and a count error use.
+const metricWord = "metric"
 
 // beneficiary is whose job an outcome serves. A closed set: the operator's
 // number and the user's number must not be the same declaration, or optimizing
@@ -66,6 +69,12 @@ var outcomeWindows = []string{"session", "day", "none"}
 type Count struct {
 	Label string `yaml:"label"`
 	Query string `yaml:"query"`
+	// AllQuery is the same reading without the owner filter, for the admin
+	// dashboard. It must be a COUNT(*) with no `?`. Empty means the reading is
+	// owner-only: the admin dashboard then shows no number rather than a sum of
+	// per-user counts, which would double-count shared rows and leak one user's
+	// data shape.
+	AllQuery string `yaml:"allQuery,omitempty"`
 	// Signal is the dashboard counter's JS identifier. Empty derives it from
 	// the label.
 	Signal string `yaml:"signal,omitempty"`
@@ -90,7 +99,7 @@ func WithoutOwner() *bool {
 
 // Metric is one reading. Kind decides which fields are required: an activity
 // metric uses the top-level Label/Query, an outcome uses ID/Job/Success/Total
-// plus its Counterbalance readings.
+// plus its CounterMetrics readings.
 //
 // A flat union rather than two list fields: the reader sees one ordered list,
 // and `MetricProblems` is the single place that decides whether a given kind has
@@ -103,6 +112,7 @@ type Metric struct {
 	// activity: the count itself.
 	Label      string `yaml:"label,omitempty"`
 	Query      string `yaml:"query,omitempty"`
+	AllQuery   string `yaml:"allQuery,omitempty"`
 	Signal     string `yaml:"signal,omitempty"`
 	OwnerBinds *bool  `yaml:"ownerBinds,omitempty"`
 
@@ -112,7 +122,7 @@ type Metric struct {
 	Beneficiary    string   `yaml:"beneficiary,omitempty"`
 	Success        *Count   `yaml:"success,omitempty"`
 	Total          *Count   `yaml:"total,omitempty"`
-	Counterbalance []Count  `yaml:"counterbalance,omitempty"`
+	CounterMetrics []Count  `yaml:"counterMetrics,omitempty"`
 	Window         string   `yaml:"window,omitempty"`
 	Target         *float64 `yaml:"target,omitempty"`
 }
@@ -129,7 +139,10 @@ func (m Metric) ResolvedKind() MetricKind {
 // AsCount views an activity metric through the Count shape, so one executor
 // serves both kinds.
 func (m Metric) AsCount() Count {
-	return Count{Label: m.Label, Query: m.Query, Signal: m.Signal, OwnerBinds: m.OwnerBinds}
+	return Count{
+		Label: m.Label, Query: m.Query, AllQuery: m.AllQuery,
+		Signal: m.Signal, OwnerBinds: m.OwnerBinds,
+	}
 }
 
 // Activity returns the activity metrics in declaration order.
@@ -143,8 +156,10 @@ func (d Declaration) Activity() []Metric {
 	return out
 }
 
-// Outcomes returns the outcome metrics in declaration order.
-func (d Declaration) Outcomes() []Metric {
+// OutcomeMetrics returns the metrics whose kind is outcome, in declaration
+// order. They are metrics like any other; the name says which projection this
+// is, never that an outcome is a second entity.
+func (d Declaration) OutcomeMetrics() []Metric {
 	out := make([]Metric, 0, len(d.Metrics))
 	for _, m := range d.Metrics {
 		if m.ResolvedKind() == MetricOutcome {
@@ -188,7 +203,7 @@ func metricName(m Metric) string {
 }
 
 // outcomeProblems covers one outcome: identity, the claim, both halves and the
-// counterbalance readings.
+// counterMetrics readings.
 func outcomeProblems(m Metric, seen map[string]bool) []string {
 	var out []string
 	if !validPanelName(m.ID) {
@@ -220,8 +235,8 @@ func outcomeProblems(m Metric, seen map[string]bool) []string {
 	}
 	out = append(out, countProblems("outcome "+m.ID+" success", *m.Success)...)
 	out = append(out, countProblems("outcome "+m.ID+" total", *m.Total)...)
-	for i, c := range m.Counterbalance {
-		out = append(out, countProblems(fmt.Sprintf("outcome %s counterbalance[%d]", m.ID, i), c)...)
+	for i, c := range m.CounterMetrics {
+		out = append(out, countProblems(fmt.Sprintf("outcome %s counterMetrics[%d]", m.ID, i), c)...)
 	}
 	return out
 }
@@ -241,6 +256,11 @@ func countProblems(prefix string, c Count) []string {
 	if err := validCount(c.Query, c.BindsOwner()); err != nil {
 		out = append(out, fmt.Sprintf("%s: %v", metricLabel(name), err))
 	}
+	if c.AllQuery != "" {
+		if err := validCount(c.AllQuery, false); err != nil {
+			out = append(out, fmt.Sprintf("%s: allQuery: %v", metricLabel(name), err))
+		}
+	}
 	// The signal drives the dashboard's counter: it lands inside a `$name`
 	// expression in the page's script, so a name that is not an identifier is
 	// a syntax error there. It fails here instead.
@@ -254,7 +274,7 @@ func countProblems(prefix string, c Count) []string {
 // metricLabel is the human handle in a count error.
 func metricLabel(name string) string {
 	if name == "" {
-		return "metric"
+		return metricWord
 	}
 	return fmt.Sprintf("metric %q", name)
 }

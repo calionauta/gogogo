@@ -31,7 +31,7 @@ const shapeHelp = `Pick what the tree ships with --shape (default full: every ta
   prunes entrypoints; it never changes what a page shows:
 
     --shape web       cmd/web only
-    --shape api       cmd/web, no other target (page routes stay: no PageRoutes seam yet)
+    --shape api       cmd/web, no other target (page routes answer 404 at runtime)
     --shape desktop   cmd/desktop + cmd/web
     --shape gui       cmd/gui only
     --shape mobile    cmd/mobile + cmd/web`

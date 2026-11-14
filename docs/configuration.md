@@ -21,8 +21,10 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 | `ENVIRONMENT` | `development` | Anything other than `production` selects dev mode |
 | `APP_NAME` | binary name | Project name (secrets scope); never empty |
 | `APP_INSTANCE_ID` | hostname | Stable per-instance identity for cross-instance fan-out: names the JetStream CRUD durable and tags published events so an instance ignores its own echo. Set it when the hostname changes across restarts (StatefulSet, recreated containers) and you want the durable cursor to survive |
+| `APP_SHAPE` | `.gogogo/shape.yml`, else `full` | Product shape at runtime. `api` makes `cmd/web` serve only `/api`, `/health`, `/_ui`, static assets and the auth API; page paths answer 404. Set it explicitly for a deployed API binary; a developer tree reads the shape record when no env is set. Other values (`full`, `web`, `desktop`, `gui`, `mobile`) keep pages on. See [App shape](shape.md) |
+| `RECIPES_DISABLED` | unset | Comma-separated feature recipe ids that must not mount even though their code is installed. This is the deploy-time fallback; the durable switch is `recipe_state`, edited from `/config` → Units. A disabled recipe starts no routes and no workers; the change takes effect on the next boot |
 | `LOG_LEVEL` | `INFO` | slog level |
-| `HTTP_ACCESS_LOG` | `false` | Emit one structured `http: request` line per request (method, path, status, bytes, duration, stream). A stream is logged when it closes, with its real duration. Off by default: a busy SSE page logs a line per stream. The write is flusher-preserving, so enabling it never breaks an SSE handler. |
+| `HTTP_ACCESS_LOG` | `false` | Emit one structured `http: request` line per request (method, path, status, bytes, duration, stream). A stream is logged when it closes, with its real duration. Off by default: a busy SSE page logs a line per stream. A request owned by a mounted capability (every recipe and feature route) is logged **even when this is false**, with a `capability` field — the structural interaction log. The write is flusher-preserving, so enabling it never breaks an SSE handler. |
 | `DATA_DIR` | `data` | Root for runtime data |
 | `APP_URL` | unset | Public origin used to build links that leave the process (the magic-link email), e.g. `https://app.example.com`. Required for magic links: without it the endpoint fails closed rather than trusting the request `Host` (which a proxy may rewrite and an attacker may forge). Malformed values fail the boot. Magic, verification and reset links are built from this origin. |
 | `RATE_LIMIT_RPM` | `1200` | Per-session dynamic-request budget per minute. `0` disables the in-process limiter; the edge reverse proxy remains the primary throttle for a fleet. Signed-out requests are not counted (their expensive surfaces have dedicated throttles). |
@@ -45,6 +47,7 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 | `I18N_ENABLED` | `true` | Master switch for the localization servant. `true` resolves the request locale (query `lang`, the `gogogo_locale` cookie, then `Accept-Language`) and renders the translated strings in the account panel's language picker; `false` keeps English markup and hides the picker. |
 | `SUPPORTED_LOCALES` | `en,pt-BR` | Comma-separated locale tags the catalog loader must find. Invalid entries are skipped; the fallback must be in this list or it resets to `en`. |
 | `DEFAULT_LOCALE` | `en` | Fallback locale when no preference matches. Must be one of `SUPPORTED_LOCALES`. |
+| `I18N_REQUIRE_RECIPE_COVERAGE` | `false` | Fail the boot when an installed recipe ships translations but misses one of `SUPPORTED_LOCALES` (or ships none). Off by default because the fallback still renders; `recipe check --strict-locales` applies the same rule before deploy. |
 
 ### Realtime and workflows
 
@@ -61,6 +64,18 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 | `DAGNATS_NATS_PORT` | `4222` | Shared embedded JetStream port (DagNats boots it; the whiteboard SyncWorker attaches) |
 | `DAGNATS_STORE_DIR` | under `DATA_DIR` | DagNats store directory |
 | `DAGNATS_GREET_PACING` | `1500ms` | How long the onboarding **greet** step pauses before completing. Exists only so a human watching the stepper can read the "greeting" phase — it is deliberate product latency, so tune it rather than delete it. A non-positive or unparseable value falls back to `1500ms`. Set `0`-ish (e.g. `1ms`) for automated runs. |
+
+### Events and analytics
+
+Both are off by default and share one in-process bus; see [Hooks, events and analytics](hooks-analytics.md).
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `EVENTS_WEBHOOK_URL` | unset | Outbound webhook sink. Every domain event is POSTed as JSON with an HMAC signature header. Unset means no event leaves the process. The URL is never logged. |
+| `EVENTS_WEBHOOK_SECRET` | unset | HMAC-SHA256 key for `X-Gogogo-Signature` (`sha256=<hex>`). Empty sends the event unsigned; a receiver should then treat the source as trusted-network-only. |
+| `ANALYTICS_PROVIDER` | `none` | Provider seam: `none` or `posthog`. An unknown value warns and falls back to `none`, and a provider without `ANALYTICS_KEY` also stays `none`, so a typo never sends events. |
+| `ANALYTICS_KEY` | unset | Provider project key (PostHog project API key). Server-side only; never rendered into a page. |
+| `ANALYTICS_HOST` | `https://app.posthog.com` | Provider ingest origin. Set it for a self-hosted or EU instance. |
 
 ### Persistence
 

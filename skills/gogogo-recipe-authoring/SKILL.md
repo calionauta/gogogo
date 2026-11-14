@@ -58,8 +58,13 @@ Check in this order, and stop at the first hit:
    bundle (a directory with `.recipe.yml`) is what you point `recipe install` at when
    the code must travel to ANOTHER tree; the template ships none.)
 3. **The scaffold** — `go run ./cmd/gogogo new feature <name>` writes a handler, a page,
-   the wiring, the capability entry, the policy rows, then proves the build. Use it as the
-   starting point; a hand-rolled slice will miss a gate.
+   the wiring, the capability entry, the policy rows, locale stubs, then proves the build.
+   Use it as the starting point; a hand-rolled slice will miss a gate.
+
+When a recipe is derived from others, record `basedOn: [id, …]` in the receipt and the
+manifest. It is provenance, not a dependency: one primary slice is copied, and the others
+contribute patterns (a component, a slot, a query shape), never a second registration.
+Two copied routing slices collide by construction; the seam refuses the duplicate route.
 
 Installing a recipe is a *build* operation, not a runtime one: nothing is resolved at
 run time, so nothing drifts on a running host.
@@ -136,7 +141,7 @@ metrics:
 ```
 
 An **outcome** says whether the job got done, for whom, and how often it went
-wrong — declared as a **pair of counts** plus the counterbalance readings that
+wrong — declared as a **pair of counts** plus the counterMetrics readings that
 qualify the ratio. It is the same list, with `kind: outcome`:
 
 ```yaml
@@ -149,7 +154,7 @@ metrics:
     beneficiary: user            # user | operator — never both
     success: { label: Orders without repair, query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ? AND corrected = 0" }
     total:   { label: Orders confirmed,     query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ?" }
-    counterbalance:              # a COUNT, not a token — shown beside the ratio
+    counterMetrics:              # a COUNT, not a token — shown beside the ratio
       - { label: Orders corrected, query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ? AND corrected = 1" }
     window: session              # session | day | none
 ```
@@ -158,18 +163,18 @@ Four rules, and the reference has the rest (field-by-field gates, denominator
 pitfalls, the questions to ask the operator, the tests, non-goals):
 
 - **Do not invent one.** Propose the job, the beneficiary, the pair and the
-  counterbalance reading; wait for the operator before declaring.
+  counterMetrics reading; wait for the operator before declaring.
 - **Every count is `COUNT(*)`** over `declaration.tables` — an outcome query on
   a table you do not own is refused, and there is no event stream or log query
   to fall back on.
-- **A counterbalance is a column you write** (`corrected`), so the ratio cannot
+- **A counterMetrics is a column you write** (`corrected`), so the ratio cannot
   drift from the rows. One reading; two usually means two outcomes.
 - **Zero denominator is "no data"**, rendered `—`; never manufacture a `1`.
 
 `kind: activity` (or no `kind`) is the cheaper half — declare one when the
 surface shows a number, an outcome when it shows a ratio.
 
-Read `references/outcomes.md` (relative to this skill) before declaring or
+Read `references/metrics.md` (relative to this skill) before declaring or
 changing either.
 
 ### Strings: ship them with the recipe
@@ -310,6 +315,7 @@ summary: A timer with one page and one owner-scoped session table.
 version: v1.0.0
 author: {name: Your Name, email: you@example.com}   # credit travels with the copy
 released: "2026-11-13"                              # the date this version shipped
+basedOn: [todo]                                     # the slice(s) this was derived from
 upstream:
   repo: github.com/calionauta/gogogo
   ref: v0.56.0
@@ -360,6 +366,14 @@ it to the target tree's own module in copied `.go`/`.templ` files (never in
 prose). `register.Deps` is the seam's promise (config, auth, store, SSE hub). A
 field appears there by a core decision, not by request: needing something else is
 a conversation about the contract, never a local workaround.
+
+A recipe that publishes a domain fact does it **after its write commits**, on
+the shared bus: `d.Events.Emit(ctx, events.Event{Name: "<id>.<fact>", ...})`.
+`Emit` is nil-safe, the bus is best-effort (not an audit trail — `security_events`
+stays the durable record), and a name is prefixed with the recipe id. The receipt
+does not declare `events:` yet, so there is no gate to lean on: keep the
+taxonomy small and documented in the recipe's own page. Contract:
+[`docs/hooks-analytics.md`](../../docs/hooks-analytics.md).
 
 The installer turns receipts into `internal/server/recipes.gen.go` — the one
 generated file `buildChiMux` calls. Never edit it by hand: `gogogo recipe

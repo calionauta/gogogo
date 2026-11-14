@@ -132,7 +132,7 @@ flat backend boot (Turso + auth + handlers + queues + workers)
 
 - **Owned:** `internal/server`
 - **Routes:** `/`, `/_ui/demo`, `/_ui/locale`, `/api/ext/invoke`, `/health`, `/sw.js`
-- **Store calls:** `dbgen.CountUnreadInApp`, `dbgen.CountUsers`, `dbgen.DeleteOpReceiptsBatchBefore`, `dbgen.DeleteSecurityEventsBatchBefore`, `dbgen.GetUserByEmail`, `dbgen.SetUserRole`
+- **Store calls:** `dbgen.CountUnreadInApp`, `dbgen.CountUsers`, `dbgen.DeleteOpReceiptsBatchBefore`, `dbgen.DeleteSecurityEventsBatchBefore`, `dbgen.GetUserByEmail`, `dbgen.ListRecipeStates`, `dbgen.SetUserRole`
 - **Note:** Core: cmd/web and cmd/desktop both boot through BootChi/StartChi. attach JetStream, then serve.
 
 ## `shell` — core
@@ -155,6 +155,7 @@ AppContext (dependency bundle for the native window)
 capability registry + installer engine (CLI and MCP share it)
 
 - **Owned:** `internal/capabilities`, `internal/installer`, `internal/shape`
+- **Store calls:** `dbgen.ListRecipeStates`, `dbgen.SetRecipeState`
 - **Note:** Meta-capability: deleting it breaks cmd/gogogo, not the web binary. internal/shape reads the shape record from the developer CLI, never cmd/web.
 
 ## `collab` — servant
@@ -346,8 +347,8 @@ conversation demo (persisted history + catalog answers on genui)
 admin-only /config view + user role/session actions
 
 - **Owned:** `features/config`
-- **Routes:** `/config`, `/config/audit.csv`, `/config/users/revoke`, `/config/users/role`
-- **Store calls:** `dbgen.CountAdmins`, `dbgen.GetUserByEmail`, `dbgen.ListSecurityEventNames`, `dbgen.ListSecurityEventsByEvent`, `dbgen.ListSecurityEventsPage`, `dbgen.ListUsers`, `dbgen.SecurityEventCountsSince`, `dbgen.SetUserRole`
+- **Routes:** `/config`, `/config/audit.csv`, `/config/recipes/toggle`, `/config/users/revoke`, `/config/users/role`
+- **Store calls:** `dbgen.CountAdmins`, `dbgen.GetUserByEmail`, `dbgen.ListRecipeStates`, `dbgen.ListSecurityEventNames`, `dbgen.ListSecurityEventsByEvent`, `dbgen.ListSecurityEventsPage`, `dbgen.ListUsers`, `dbgen.SecurityEventCountsSince`, `dbgen.SetRecipeState`, `dbgen.SetUserRole`
 - **Depends on:** sounds
 - **Why that class:** Delete the dir and its routes with the account-menu Config entry.
 - **Warning:** The Config rail and account-menu entries are removed by hand with the unit.
@@ -357,7 +358,7 @@ admin-only /config view + user role/session actions
 signed-in summary page; the dashboard.card slot host
 
 - **Owned:** `features/dashboard`
-- **Routes:** `/dashboard`
+- **Routes:** `/admin/dashboard`, `/dashboard`
 - **Depends on:** sounds
 - **Why that class:** Host page for dashboard.card: one unit mounts itself through the recipe seam. Remove manually (delete the unit, its two policy rows, its Modules entry).
 

@@ -121,6 +121,17 @@ templ kioskHead() {
 			var listening = false;
 			var lastResultAt = 0;
 			var watchdog = 0;
+			// The recognizer accumulates every final result for the whole
+			// session (continuous = true), so rebuilding the field from index 0
+			// replayed words the customer had already cleared — the "old order
+			// comes back" bug. `committed` is the accepted final text and
+			// `lastFinal` the first result index not yet folded into it.
+			var committed = "";
+			var lastFinal = 0;
+			// resultCount is how many results the recognizer has delivered so
+			// far; a clear uses it to forget the utterance in flight, not only
+			// the finished ones.
+			var resultCount = 0;
 
 			function say(text) { status.textContent = text; }
 			function idle() {
@@ -153,18 +164,32 @@ templ kioskHead() {
 				bias(recognition);
 				recognition.onresult = function (event) {
 					lastResultAt = Date.now();
-					var text = "";
-					for (var i = 0; i < event.results.length; i++) {
-						text += event.results[i][0].transcript + " ";
+					// Start at the first result THIS event changed and fold in only
+					// results the buffer has not seen: that is what makes a cleared
+					// transcript stay cleared.
+					resultCount = event.results.length;
+					var interim = "";
+					var finished = false;
+					for (var i = event.resultIndex; i < event.results.length; i++) {
+						if (i < lastFinal) continue;
+						var result = event.results[i];
+						if (result.isFinal) {
+							committed = (committed + " " + result[0].transcript).trim();
+							lastFinal = i + 1;
+							finished = true;
+						} else {
+							interim = (interim + " " + result[0].transcript).trim();
+						}
 					}
-					input.value = text.trim();
+					var text = (committed + " " + interim).trim();
+					input.value = text;
 					input.dispatchEvent(new Event("input", { bubbles: true }));
 					// A finished utterance is exactly when the decision engine
 					// earns its round trip: the menu has had its chance, and a
 					// person is waiting for the order to settle. Typing keeps the
 					// parser-only path (see the input's debounce).
-					if (event.results[event.results.length - 1].isFinal) {
-						var said = text.trim().toLowerCase();
+					if (finished) {
+						var said = text.toLowerCase();
 						var wantsReset = resetPhrases.some(function (p) { return said.indexOf(p) !== -1; });
 						if (wantsReset) {
 							// Dispatch, so ONE definition of "clear" serves the
@@ -295,6 +320,13 @@ templ kioskHead() {
 			// pack is present and the microphone is allowed.
 			function startRecognition() {
 				prepare(function (rec) {
+					// A new session starts with an empty result list; whatever the
+					// field already holds is treated as committed, so stopping and
+					// resuming the microphone continues the order instead of losing
+					// the words spoken before the pause.
+					committed = (input.value || "").trim();
+					lastFinal = 0;
+					resultCount = 0;
 					listening = true;
 					mic.setAttribute("aria-pressed", "true");
 					mic.textContent = mic.getAttribute("data-label-live") || "Stop";
@@ -317,6 +349,17 @@ templ kioskHead() {
 			// The recognizer only fills the input, so the phrase is checked here
 			// rather than parsed server-side: it is a command, not an order.
 			var resetPhrases = ["start over", "start again", "clear", "cancel order", "recomeçar", "limpar", "cancelar"];
+
+			// Clear means forget, not only empty the box. The Datastar handler
+			// empties the field; the recognizer's buffer is what put the old
+			// order back on the next word, so the voice wiring drops it on the
+			// same event — including the utterance still in flight, which is a
+			// phrase the customer just cancelled. Listening keeps running: on a
+			// counter, "start over" is almost always followed by a new order.
+			root.addEventListener("kiosk-clear", function () {
+				committed = "";
+				lastFinal = resultCount;
+			});
 
 			// ONE handler: the markup's data-on:click calls __kioskVoice.toggle.
 			// An addEventListener here would fire on the same click as well, so

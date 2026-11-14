@@ -26,6 +26,7 @@
   </a>
   <nav class="nav-links" aria-label="Primary">
     <a href="#descent">Stack</a>
+    <a href="#app-shapes">Shapes</a>
     <a href="#async-layers">Async</a>
     <a href="#agents">Agents</a>
     <a href="#install">Install</a>
@@ -712,6 +713,34 @@
     </article>
 
   </div>
+</section>
+
+<section class="async-layers" id="app-shapes">
+  <div class="cap-head">
+    <p class="kicker">One template, five products</p>
+    <h2>Same binary.<br><em>Five product shapes.</em></h2>
+    <p class="cap-lede">A shape is a row of the enum, not a fork. <code>APP_SHAPE</code> — or the committed <code>.gogogo/shape.yml</code> record — decides which entrypoints ship and which surfaces answer. No build tags, no second boot path, no stub files.</p>
+  </div>
+
+  <div class="table-wrap" role="region" aria-label="App shapes">
+  <table class="async-table">
+    <thead>
+      <tr><th scope="col">Shape</th><th scope="col">Entrypoints</th><th scope="col">What it serves</th><th scope="col">Switch</th></tr>
+    </thead>
+    <tbody>
+      <tr><th scope="row"><code>full</code></th><td data-label="Entrypoints">web, desktop, gui, mobile</td><td data-label="What it serves">every target — the default</td><td data-label="Switch"><code>APP_SHAPE=full</code></td></tr>
+      <tr><th scope="row"><code>web</code></th><td data-label="Entrypoints">cmd/web</td><td data-label="What it serves">the browser product: pages, API, streams</td><td data-label="Switch"><code>APP_SHAPE=web</code></td></tr>
+      <tr><th scope="row"><code>api</code></th><td data-label="Entrypoints">cmd/web</td><td data-label="What it serves">API, health, auth API and assets only — page routes are not mounted and answer 404</td><td data-label="Switch"><code>APP_SHAPE=api</code></td></tr>
+      <tr><th scope="row"><code>desktop</code></th><td data-label="Entrypoints">cmd/desktop, cmd/web</td><td data-label="What it serves">the Wails shell and the server it embeds</td><td data-label="Switch"><code>APP_SHAPE=desktop</code></td></tr>
+      <tr><th scope="row"><code>gui</code></th><td data-label="Entrypoints">cmd/gui</td><td data-label="What it serves">the native gogpu/ui window</td><td data-label="Switch"><code>APP_SHAPE=gui</code></td></tr>
+      <tr><th scope="row"><code>mobile</code></th><td data-label="Entrypoints">cmd/mobile, cmd/web</td><td data-label="What it serves">the Wails Android shell and the server it embeds</td><td data-label="Switch"><code>APP_SHAPE=mobile</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p class="async-fine">The <code>api</code> shape prunes page routes at mount: the 404 comes from the route tree, not from a handler that runs and refuses. The enum and the <code>check-shape</code> gate are documented, not implied.</p>
+
+  <p class="async-link"><a href="./docs/shape/">Read the app shape doc →</a></p>
 </section>
 
 <section class="async-layers" id="async-layers">

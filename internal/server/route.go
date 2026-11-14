@@ -37,6 +37,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/calionauta/gogogo/config"
+	"github.com/calionauta/gogogo/internal/events"
 	"github.com/calionauta/gogogo/internal/recipe"
 )
 
@@ -44,6 +45,27 @@ import (
 type routeKey struct {
 	method  string
 	pattern string
+}
+
+// routeOwnerHolder is shared between the edge access log and the mount
+// middleware: the mount knows the capability, the edge owns the log line, and
+// the request context is the one place both can meet without a global.
+type routeOwnerHolder struct {
+	id string
+}
+
+type routeOwnerKey struct{}
+
+// withRouteOwner marks every handler a capability mounts with its owner, so the
+// access log can attribute the interaction. The holder is set by the edge; when
+// there is none (a test driving the router directly), the handler still runs.
+func withRouteOwner(owner string, h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if holder, ok := r.Context().Value(routeOwnerKey{}).(*routeOwnerHolder); ok {
+			holder.id = owner
+		}
+		h.ServeHTTP(w, r)
+	})
 }
 
 // routeTable is the duplicate guard behind MountFeature: the root tree knows
@@ -73,6 +95,13 @@ func claimRoute(t *routeTable, owner, method, pattern string) {
 type Router struct {
 	chi.Router
 	routes *routeTable
+	// events is the domain-event bus every mounted capability writes to. Nil
+	// (a test tree, a tree with observability off) skips the wrapper entirely.
+	events *events.Bus
+	// pageRoutes is false in the `api` product shape: a page route is then
+	// not mounted at all, so the 404 comes from the tree rather than from a
+	// handler that runs and refuses (see shape_gate.go).
+	pageRoutes bool
 	// recipes is the installed recipe set the root mounted, kept so a gate can
 	// compare each declaration against what actually reached the tree.
 	recipes *recipe.Registry
@@ -90,7 +119,12 @@ type Router struct {
 
 // NewRouter builds an empty app tree with its own duplicate-guard record.
 func NewRouter() *Router {
-	return &Router{Router: chi.NewRouter(), routes: &routeTable{owner: map[routeKey]string{}}, recipes: &recipe.Registry{}}
+	return &Router{
+		Router:     chi.NewRouter(),
+		routes:     &routeTable{owner: map[routeKey]string{}},
+		recipes:    &recipe.Registry{},
+		pageRoutes: true,
+	}
 }
 
 // Claim records method+pattern as owned by owner (used for the handful of
@@ -117,7 +151,15 @@ func (r *Router) MountFeature(owner string, h chi.Router) {
 		return
 	}
 	err := chi.Walk(h, func(method, pattern string, handler http.Handler, mws ...func(http.Handler) http.Handler) error {
+		// The api shape keeps its promise at the mount, not only at the
+		// edge: a page route never enters the tree, so no page handler, RBAC
+		// read or template render can run for a path the product does not
+		// serve.
+		if !r.pageRoutes && !apiPathAllowed(pattern) {
+			return nil
+		}
 		r.Claim(owner, method, pattern)
+		handler = emitInteraction(r.events, owner, withRouteOwner(owner, handler))
 		r.Method(method, pattern, chi.Chain(mws...).Handler(handler))
 		return nil
 	})

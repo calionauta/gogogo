@@ -33,6 +33,7 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 			{Method: get, Pattern: "/config"},
 			{Method: post, Pattern: "/config/users/role"},
 			{Method: post, Pattern: "/config/users/revoke"},
+			{Method: post, Pattern: "/config/recipes/toggle"},
 			{Method: get, Pattern: "/config/audit.csv"},
 		},
 	}

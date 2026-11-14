@@ -12,7 +12,7 @@ import (
 // back from the Module.Admin flag: a test that consults the same field the
 // sidebar filters by cannot notice the flag being dropped — it was written that
 // way first, and red-proofing showed it stayed green with `Admin: true` deleted.
-var adminOnlyIDs = map[string]bool{"config": true}
+var adminOnlyIDs = map[string]bool{"config": true, "admin-dashboard": true}
 
 // TestGroupedHidesAdminModulesFromNonAdmins pins the role rule the rail has: an
 // admin-only module never renders for a viewer or a plain user. Config is
@@ -66,8 +66,9 @@ func TestMenuOnlyModulesAreAccountOnly(t *testing.T) {
 	// route 403s for its audience is a dead link, and this is the parity the
 	// rail's visibility_policy_test.go plays for the menu side.
 	menuOnlyAudience := map[string][]string{
-		"config": {"admin"},
-		"graph":  {"user", "admin"},
+		"config":          {"admin"},
+		"admin-dashboard": {"admin"},
+		"graph":           {"user", "admin"},
 	}
 	seen := map[string]bool{}
 	e, err := rbac.NewEnforcer()

@@ -17,6 +17,30 @@ file, image and doc against. A builder older than the tree either refuses
 outright or downloads the pinned toolchain mid-build, so the pin lives in one
 place instead of drifting per file.
 
+## Before creating a feature, find the best base recipe
+
+A new feature is a recipe before it is a diff. Search before writing:
+
+1. `gogogo recipe list --dir .` lists every capability and installed recipe
+   with its kind, origin and state. `gogogo recipe describe <id>` (MCP:
+   `recipe_list` / `recipe_describe`) shows its routes, tables, slots, metrics,
+   panel and whether it already measures what you were about to measure.
+2. Pick the closest slice as the **primary base**. `todo` is the structural
+   reference; a domain recipe from the catalog is better when one exists.
+3. Copy ONE slice. A second recipe contributes **patterns**, not files: a
+   component, a slot contribution, a query shape. Two routing/registration
+   slices merged into one tree collide; the seam will refuse the duplicate
+   route, and that refusal is correct.
+4. Record the provenance in `.recipes/<id>.yml`:
+   `basedOn: [primary-id, secondary-id]`. It is provenance, not a dependency:
+   the code was copied and edited, and the next reader should see the pattern
+   you inherited.
+5. If nothing fits, scaffold with `gogogo new feature <name>` and use `todo` as
+   the shape. Say in the commit message why no base recipe fit.
+
+Never invent a second definition of something a recipe already declares — a
+metric, a panel, a job, a table. Read `recipe describe` first.
+
 ## Before creating a feature or installing a library, check upstream first
 
 The template already ships: auth (owned argon2id + sessions), todo + realtime, background

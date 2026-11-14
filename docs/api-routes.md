@@ -5,12 +5,13 @@
 > Coverage is enforced by TestTemplAPIURLsHaveRoutes (every ref below
 > must match a registered route); this file is the inventory it proves.
 
-## Registered routes (77)
+## Registered routes (78)
 
 Every `/api/*` literal in non-test, non-generated Go sources.
 
 - `/api/`
 - `/api/ai/request`
+- `/api/analytics`
 - `/api/auth/magic`
 - `/api/auth/magic/request`
 - `/api/auth/magic?`
@@ -87,10 +88,11 @@ Every `/api/*` literal in non-test, non-generated Go sources.
 - `/api/whiteboard/{docID}/update`
 - `/api/whiteboards/fragment`
 
-## Template and script refs (27)
+## Template and script refs (28)
 
 Every `/api/*` URL fired from `.templ` and `.js` sources.
 
+- `/api/analytics`
 - `/api/auth/magic`
 - `/api/auth/password/reset`
 - `/api/chat/ask`

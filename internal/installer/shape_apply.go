@@ -29,11 +29,11 @@ func applyShapeIfNeeded(opt options, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	// `api` is the one shape whose name promises more than the entrypoint prune
-	// delivers, so the operator hears it from the tool, not from a doc.
+	// `api` is the one shape with a runtime consequence, so the operator hears
+	// how it is enforced: the same cmd/web answers 404 for page paths.
 	if cfg.Shape == shapekit.API {
-		fmt.Fprintln(stdout, "gogogo: shape api — entrypoints pruned; page routes are NOT removed")
-		fmt.Fprintln(stdout, "        (the server.PageRoutes seam does not exist yet; see docs/shape.md)")
+		fmt.Fprintln(stdout, "gogogo: shape api — entrypoints pruned; page routes answer 404 at runtime")
+		fmt.Fprintln(stdout, "        (set APP_SHAPE=api for a deployed binary; the record is read otherwise)")
 	}
 	return nil
 }

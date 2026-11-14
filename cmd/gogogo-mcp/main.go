@@ -113,9 +113,10 @@ type newFeatureArgs struct {
 type recipeArgs struct {
 	Src     string `json:"src,omitempty" jsonschema:"recipe directory, or recipe id for install/update (required unless entry is set)"`
 	Entry   string `json:"entry,omitempty" jsonschema:"optional catalog entry (.yml); src is then the pristine contents directory"`
-	ID      string `json:"id,omitempty" jsonschema:"installed recipe id (for status/uninstall)"`
+	ID      string `json:"id,omitempty" jsonschema:"installed recipe id (for status/uninstall/enable/disable)"`
 	Dir     string `json:"dir,omitempty" jsonschema:"target checkout directory (required)"`
 	Catalog string `json:"catalog,omitempty" jsonschema:"optional catalog directory for status/outdated (default: <dir>/catalog)"`
+	DB      string `json:"db,omitempty" jsonschema:"optional app database path for enable/disable (default TURSO_DB_PATH or <dir>/data/app.db)"`
 	Format  string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
 	Confirm bool   `json:"confirm,omitempty" jsonschema:"must be true for install/update/uninstall (preview with dryRun first)"`
 	DryRun  bool   `json:"dryRun,omitempty" jsonschema:"print the plan and stop; changes nothing"`

@@ -113,41 +113,7 @@ func (r *Registry) Validate() []Conflict {
 	var conflicts []Conflict
 
 	for _, p := range r.Providers() {
-		d := p.Declaration()
-		claim("recipe", p.ID(), p.ID())
-
-		for _, rt := range d.Routes {
-			claim("route", rt.Method+" "+rt.Pattern, p.ID())
-		}
-		for _, job := range d.Jobs {
-			claim("job", job, p.ID())
-			if !HasRecipePrefix(job, p.ID()) {
-				conflicts = append(conflicts, Conflict{
-					Kind: "job", Key: job, Owner: []string{p.ID(), "(no recipe prefix)"},
-				})
-			}
-		}
-		for _, table := range d.Tables {
-			claim("table", table, p.ID())
-			if isCoreTable(table) {
-				conflicts = append(conflicts, Conflict{
-					Kind: "table", Key: table, Owner: []string{p.ID(), "core"},
-				})
-			}
-		}
-		for _, slot := range d.Slots {
-			claim("slot", slot, p.ID())
-		}
-		for _, m := range MetricProblems(d) {
-			conflicts = append(conflicts, Conflict{
-				Kind: "metric", Key: p.ID(), Owner: []string{p.ID(), m},
-			})
-		}
-		for _, m := range PanelProblems(d) {
-			conflicts = append(conflicts, Conflict{
-				Kind: "panel", Key: p.ID(), Owner: []string{p.ID(), m},
-			})
-		}
+		conflicts = append(conflicts, providerConflicts(p, claim)...)
 	}
 
 	for kind, keys := range owners {
@@ -163,6 +129,54 @@ func (r *Registry) Validate() []Conflict {
 		}
 		return conflicts[i].Key < conflicts[j].Key
 	})
+	return conflicts
+}
+
+// providerConflicts claims one provider's declared set and reports every
+// violation. Extracted from Validate for the complexity gate; the claim closure
+// belongs to the caller because it accumulates the cross-provider owner map.
+func providerConflicts(p Provider, claim func(kind, key, owner string)) []Conflict {
+	d := p.Declaration()
+	claim("recipe", p.ID(), p.ID())
+	var conflicts []Conflict
+	for _, rt := range d.Routes {
+		claim("route", rt.Method+" "+rt.Pattern, p.ID())
+	}
+	for _, job := range d.Jobs {
+		claim("job", job, p.ID())
+		if !HasRecipePrefix(job, p.ID()) {
+			conflicts = append(conflicts, Conflict{
+				Kind: "job", Key: job, Owner: []string{p.ID(), "(no recipe prefix)"},
+			})
+		}
+	}
+	for _, table := range d.Tables {
+		claim("table", table, p.ID())
+		if isCoreTable(table) {
+			conflicts = append(conflicts, Conflict{
+				Kind: "table", Key: table, Owner: []string{p.ID(), "core"},
+			})
+		}
+	}
+	for _, slot := range d.Slots {
+		claim("slot", slot, p.ID())
+	}
+	// Ownership and surface checks are boot gates too, not only `recipe check`
+	// advice: an outcome over a table the recipe does not own, a route with an
+	// unknown role, or an action targeting a route the declaration never
+	// claimed is a lie the running app must not serve.
+	for kind, problems := range map[string][]string{
+		metricWord: append(MetricProblems(d), MetricTableProblems(d)...),
+		"route":    routeRoleProblems(d.Routes),
+		"action":   append(ActionProblems(d), OmissionProblems(d)...),
+		"panel":    PanelProblems(d),
+	} {
+		for _, problem := range problems {
+			conflicts = append(conflicts, Conflict{
+				Kind: kind, Key: p.ID(), Owner: []string{p.ID(), problem},
+			})
+		}
+	}
 	return conflicts
 }
 

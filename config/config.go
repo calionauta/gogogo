@@ -185,7 +185,7 @@ func Load() *Config {
 	cfg.loadAuthEnv()
 	cfg.loadDeliveryEnv()
 	cfg.loadSearchEnv()
-	cfg.loadI18NEnv()
+	cfg.loadPluginEnv()
 	cfg.Turso.AuthToken = getEnv("TURSO_AUTH_TOKEN", "")
 	cfg.loadStorageEnv()
 	cfg.loadReviewEnv()

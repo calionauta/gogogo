@@ -20,9 +20,10 @@ import (
 // ownership check has to read.
 var queryFromTableRE = regexp.MustCompile(`(?i)\bfrom\s+([a-z_][a-z0-9_]*)`)
 
-// OutcomeTableProblems checks every count in the declaration against the tables
-// it claims. It runs on boot, in `recipe check` and in the catalog review.
-func OutcomeTableProblems(d Declaration) []string {
+// MetricTableProblems checks every outcome metric's counts against the tables
+// the declaration claims. It runs on boot, in `recipe check` and in the catalog
+// review.
+func MetricTableProblems(d Declaration) []string {
 	if len(d.Metrics) == 0 {
 		return nil
 	}
@@ -45,9 +46,9 @@ func OutcomeTableProblems(d Declaration) []string {
 			if m.Total != nil {
 				out = append(out, countTableProblems("outcome "+m.ID+" total", *m.Total, declared)...)
 			}
-			for i, c := range m.Counterbalance {
+			for i, c := range m.CounterMetrics {
 				out = append(out, countTableProblems(
-					fmt.Sprintf("outcome %s counterbalance[%d]", m.ID, i), c, declared)...)
+					fmt.Sprintf("outcome %s counterMetrics[%d]", m.ID, i), c, declared)...)
 			}
 		}
 	}
@@ -69,6 +70,15 @@ func countTableProblems(prefix string, c Count, declared map[string]bool) []stri
 				"a table the recipe does not own cannot be attributed to it",
 			prefix, table)}
 	}
+	if c.AllQuery != "" {
+		if allTable, ok := queryFromTable(c.AllQuery); !ok {
+			return []string{prefix + ": allQuery must select from one table"}
+		} else if !declared[allTable] {
+			return []string{fmt.Sprintf(
+				"%s allQuery reads table %q, which the declaration does not list",
+				prefix, allTable)}
+		}
+	}
 	return nil
 }
 
@@ -82,16 +92,16 @@ func queryFromTable(query string) (string, bool) {
 	return strings.ToLower(m[1]), true
 }
 
-// OutcomeInstrumentationGaps reports counterbalance readings whose state the
+// MetricInstrumentationGaps reports counterMetrics readings whose state the
 // recipe's code never records.
 //
-// The declaration is well-formed, but a counterbalance count over a column no
+// The declaration is well-formed, but a counterMetrics count over a column no
 // write path ever sets is a number nobody can read, and the fix is either
 // recording it or dropping the claim. `recipe check` grades these as errors.
 // Boot never runs this check — a legacy receipt must keep booting — so the gate
 // lives where the declaration is judged, not in the engine.
-func OutcomeInstrumentationGaps(root string, r Receipt) []string {
-	outcomes := r.Declaration.Outcomes()
+func MetricInstrumentationGaps(root string, r Receipt) []string {
+	outcomes := r.Declaration.OutcomeMetrics()
 	if len(outcomes) == 0 {
 		return nil
 	}
@@ -102,10 +112,10 @@ func OutcomeInstrumentationGaps(root string, r Receipt) []string {
 	blob := strings.Join(code, "\n")
 	var out []string
 	for _, o := range outcomes {
-		for _, c := range o.Counterbalance {
+		for _, c := range o.CounterMetrics {
 			if token := counterToken(c.Query); token != "" && !strings.Contains(blob, token) {
 				out = append(out, fmt.Sprintf(
-					"outcome %q declares counterbalance %q that the recipe's code never mentions",
+					"outcome %q declares counterMetrics %q that the recipe's code never mentions",
 					o.ID, token))
 			}
 		}
@@ -113,7 +123,7 @@ func OutcomeInstrumentationGaps(root string, r Receipt) []string {
 	return out
 }
 
-// counterToken is the column a counterbalance query filters on, which is the
+// counterToken is the column a counterMetrics query filters on, which is the
 // state the code must record.
 //
 // The owner binding (`owner = ?`) is skipped: it is the scoping every count

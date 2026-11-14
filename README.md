@@ -44,6 +44,19 @@ argon2id sessions + Casbin RBAC · goqite + DagNats + NATS JetStream ·
 GoAkt (rooms) · Loro CRDT (whiteboard/notes) · GoAI (any provider). One
 `make build` compiles everything; opt out at runtime with env vars.
 
+## App shapes: one template, five products
+
+The same `cmd/web` binary can ship as a full product, a web app, an API-only
+backend, or the server behind the desktop and mobile shells. `APP_SHAPE` (or the
+`.gogogo/shape.yml` record) picks the entrypoints and the surfaces; `api` prunes
+the page routes at mount and answers 404 for them, while `/api`, `/health` and
+the assets keep working. Nothing is a build tag and nothing is a second boot
+path. Enum, record and the `check-shape` gate: [`docs/shape.md`](docs/shape.md).
+
+```bash
+APP_SHAPE=api make build   # one binary, no pages
+```
+
 ## Recipes
 
 Product slices are recipes: copied code you own, with a receipt

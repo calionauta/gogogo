@@ -27,6 +27,7 @@ func checkDeclaration(root string, r Receipt) []string {
 				fmt.Sprintf("declared route %s %s does not appear in the recipe's code", rt.Method, rt.Pattern))
 		}
 	}
+	problems = append(problems, routeRoleProblems(r.Declaration.Routes)...)
 	for _, job := range r.Declaration.Jobs {
 		if !strings.Contains(blob, job) {
 			problems = append(problems,
@@ -69,11 +70,28 @@ func checkDeclaration(root string, r Receipt) []string {
 	problems = append(problems, actionProblems(r.Declaration)...)
 	problems = append(problems, OmissionProblems(r.Declaration)...)
 	problems = append(problems, MetricProblems(r.Declaration)...)
-	problems = append(problems, OutcomeTableProblems(r.Declaration)...)
+	problems = append(problems, MetricTableProblems(r.Declaration)...)
 	if ps := PanelProblems(r.Declaration); len(ps) > 0 {
 		problems = append(problems, ps...)
 	}
 	return problems
+}
+
+// routeRoleProblems checks a declared route's policy subject. Empty means
+// `user`; `admin` is the only other value a recipe uses today. A recipe may not
+// invent a role vocabulary, so an unknown value is refused here rather than
+// producing a policy row no enforcer will match.
+func routeRoleProblems(routes []Route) []string {
+	var out []string
+	for _, r := range routes {
+		switch r.Role {
+		case "", "user", "viewer", "admin":
+		default:
+			out = append(out, fmt.Sprintf(
+				"route %s %s declares role %q; want user, viewer or admin", r.Method, r.Pattern, r.Role))
+		}
+	}
+	return out
 }
 
 // IsJSIdent reports whether s is a plain JavaScript identifier: a letter or
