@@ -7,7 +7,7 @@
 -- order differed from it. That single column is why this recipe needs no event
 -- table to answer "was the order right without a repair".
 
-CREATE TABLE ext_coffee_orders (
+CREATE TABLE ext_kiosk_orders (
     id           TEXT    PRIMARY KEY,
     owner        TEXT    NOT NULL REFERENCES users(id),
     drink        TEXT    NOT NULL,
@@ -21,4 +21,4 @@ CREATE TABLE ext_coffee_orders (
 
 -- Both the dashboard metric and the list read one owner's rows newest first;
 -- this is the access path they share.
-CREATE INDEX ext_coffee_orders_owner ON ext_coffee_orders (owner, confirmed_at);
+CREATE INDEX ext_kiosk_orders_owner ON ext_kiosk_orders (owner, confirmed_at);

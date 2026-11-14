@@ -29,14 +29,14 @@ An outcome is `success / total`, both declared metrics:
 ```yaml
 outcomes:
   - id: order_without_repair
-    job: Receive the coffee you asked for without fixing a misread order
+    job: Receive the order you asked for without fixing a misread order
     beneficiary: user
     success:
       label: Orders without repair
-      query: "SELECT COUNT(*) FROM ext_coffee_orders WHERE owner = ? AND corrected = 0"
+      query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ? AND corrected = 0"
     total:
       label: Orders confirmed
-      query: "SELECT COUNT(*) FROM ext_coffee_orders WHERE owner = ?"
+      query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ?"
     counterSignals: [corrected]
     window: session
 ```
@@ -128,5 +128,5 @@ hidden telemetry to disable.
 
 Shipped 2026-11-12: `Outcome`, `OutcomeProblems`,
 `OutcomeInstrumentationGaps`, dashboard rendering, `recipe check` output, and
-the `coffee` demo declaring `order_without_repair`. Receipts without outcomes are
+the `kiosk` demo declaring `order_without_repair`. Receipts without outcomes are
 unchanged and score the same.

@@ -140,10 +140,10 @@ the counter signals that limit how the ratio may be read.
 ```go
 Outcomes: []recipe.Outcome{{
     ID:          "order_without_repair",
-    Job:         "Receive the coffee you asked for without fixing a misread order",
+    Job:         "Receive the order you asked for without fixing a misread order",
     Beneficiary: "user",
-    Success:     recipe.Metric{Label: "Orders without repair", Query: "SELECT COUNT(*) FROM ext_coffee_orders WHERE owner = ? AND corrected = 0"},
-    Total:       recipe.Metric{Label: "Orders confirmed",     Query: "SELECT COUNT(*) FROM ext_coffee_orders WHERE owner = ?"},
+    Success:     recipe.Metric{Label: "Orders without repair", Query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ? AND corrected = 0"},
+    Total:       recipe.Metric{Label: "Orders confirmed",     Query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ?"},
     CounterSignals: []string{"corrected"},
     Window:         "session",
 }},

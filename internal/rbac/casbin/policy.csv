@@ -271,3 +271,9 @@ p, user, /whiteboard, .*
 p, user, /whiteboard/*, .*
 p, user, /whiteboard/new, .*
 # end recipe:whiteboard
+# recipe:kiosk
+# written by `gogogo recipe install`; `gogogo recipe uninstall` removes this block
+p, user, /api/kiosk/confirm, .*
+p, user, /api/kiosk/preview, .*
+p, user, /kiosk, .*
+# end recipe:kiosk

@@ -127,10 +127,10 @@ the recipe already owns:
 ```yaml
 outcomes:
   - id: order_without_repair
-    job: Receive the coffee you asked for without fixing a misread order
+    job: Receive the order you asked for without fixing a misread order
     beneficiary: user            # user | operator — never both
-    success: { label: Orders without repair, query: "SELECT COUNT(*) FROM ext_coffee_orders WHERE owner = ? AND corrected = 0" }
-    total:   { label: Orders confirmed,     query: "SELECT COUNT(*) FROM ext_coffee_orders WHERE owner = ?" }
+    success: { label: Orders without repair, query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ? AND corrected = 0" }
+    total:   { label: Orders confirmed,     query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ?" }
     counterSignals: [corrected]  # states your code actually records
     window: session              # session | day | none
 ```

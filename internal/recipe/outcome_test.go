@@ -12,15 +12,15 @@ import (
 func validOutcome() Outcome {
 	return Outcome{
 		ID:          "order_without_repair",
-		Job:         "Receive the coffee you asked for without fixing a misread order",
+		Job:         "Receive the order you asked for without fixing a misread order",
 		Beneficiary: "user",
 		Success: Metric{
 			Label: "Orders without repair",
-			Query: "SELECT COUNT(*) FROM ext_coffee_orders WHERE owner = ? AND corrected = 0",
+			Query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ? AND corrected = 0",
 		},
 		Total: Metric{
 			Label: "Orders confirmed",
-			Query: "SELECT COUNT(*) FROM ext_coffee_orders WHERE owner = ?",
+			Query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ?",
 		},
 		CounterSignals: []string{"corrected"},
 		Window:         "session",
@@ -30,7 +30,7 @@ func validOutcome() Outcome {
 // TestOutcomeProblemsAcceptsTheDeclaredShape is the positive control: without
 // it, "everything is a problem" would pass every negative case below.
 func TestOutcomeProblemsAcceptsTheDeclaredShape(t *testing.T) {
-	d := Declaration{Tables: []string{"ext_coffee_orders"}, Outcomes: []Outcome{validOutcome()}}
+	d := Declaration{Tables: []string{"ext_kiosk_orders"}, Outcomes: []Outcome{validOutcome()}}
 	if problems := OutcomeProblems(d); len(problems) != 0 {
 		t.Fatalf("a well-formed outcome must pass, got %v", problems)
 	}
@@ -51,10 +51,10 @@ func TestOutcomeProblemsPinEveryRule(t *testing.T) {
 		{"target above one", func(o *Outcome) { v := 1.5; o.Target = &v }, "must be in (0,1]"},
 		{"target at zero", func(o *Outcome) { v := 0.0; o.Target = &v }, "must be in (0,1]"},
 		{"success is not a count", func(o *Outcome) {
-			o.Success.Query = "SELECT id FROM ext_coffee_orders WHERE owner = ?"
+			o.Success.Query = "SELECT id FROM ext_kiosk_orders WHERE owner = ?"
 		}, "must select count"},
 		{"success binds the wrong owners", func(o *Outcome) {
-			o.Success.Query = "SELECT COUNT(*) FROM ext_coffee_orders"
+			o.Success.Query = "SELECT COUNT(*) FROM ext_kiosk_orders"
 		}, "must bind 1 owner parameter"},
 		{"total reads an undeclared table", func(o *Outcome) {
 			o.Total.Query = "SELECT COUNT(*) FROM todos WHERE owner = ?"
@@ -71,7 +71,7 @@ func TestOutcomeProblemsPinEveryRule(t *testing.T) {
 			o := validOutcome()
 			tc.mutate(&o)
 			problems := OutcomeProblems(Declaration{
-				Tables: []string{"ext_coffee_orders"}, Outcomes: []Outcome{o},
+				Tables: []string{"ext_kiosk_orders"}, Outcomes: []Outcome{o},
 			})
 			if !strings.Contains(strings.Join(problems, "\n"), tc.want) {
 				t.Fatalf("expected a problem containing %q, got %v", tc.want, problems)
@@ -85,7 +85,7 @@ func TestOutcomeProblemsPinEveryRule(t *testing.T) {
 func TestOutcomeIDsAreUnique(t *testing.T) {
 	o := validOutcome()
 	problems := OutcomeProblems(Declaration{
-		Tables: []string{"ext_coffee_orders"}, Outcomes: []Outcome{o, o},
+		Tables: []string{"ext_kiosk_orders"}, Outcomes: []Outcome{o, o},
 	})
 	if !strings.Contains(strings.Join(problems, "\n"), "duplicate outcome id") {
 		t.Fatalf("expected a duplicate-id problem, got %v", problems)
@@ -97,7 +97,7 @@ func TestOutcomeIDsAreUnique(t *testing.T) {
 func TestOutcomeOverUndeclaredTableIsAnError(t *testing.T) {
 	problems := OutcomeProblems(Declaration{Outcomes: []Outcome{validOutcome()}})
 	joined := strings.Join(problems, "\n")
-	if !strings.Contains(joined, `reads table "ext_coffee_orders"`) {
+	if !strings.Contains(joined, `reads table "ext_kiosk_orders"`) {
 		t.Fatalf("a table outside the declaration must be refused, got %v", problems)
 	}
 }
@@ -107,13 +107,13 @@ func TestOutcomeOverUndeclaredTableIsAnError(t *testing.T) {
 // the other, and the report names the gap `recipe check` blocks on.
 func TestOutcomeInstrumentationGapsNamesTheMissingSignal(t *testing.T) {
 	files := map[string]string{
-		"features/coffee/service/orders.go": "// Confirm marks corrected=1 on a repair.\n",
+		"features/kiosk/service/orders.go": "// Confirm marks corrected=1 on a repair.\n",
 	}
 	root := writeTree(t, files)
 	o := validOutcome()
 	o.CounterSignals = []string{"corrected", "abandoned"}
 	gaps := OutcomeInstrumentationGaps(root, receiptFor(files, Declaration{
-		Tables: []string{"ext_coffee_orders"}, Outcomes: []Outcome{o},
+		Tables: []string{"ext_kiosk_orders"}, Outcomes: []Outcome{o},
 	}))
 	if len(gaps) != 1 || !strings.Contains(gaps[0], `"abandoned"`) {
 		t.Fatalf("expected exactly the unmentioned signal, got %v", gaps)

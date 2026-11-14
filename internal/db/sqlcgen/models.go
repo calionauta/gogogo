@@ -34,6 +34,18 @@ type DocSnapshot struct {
 	Updated  string
 }
 
+type ExtKioskOrder struct {
+	ID          string
+	Owner       string
+	Drink       string
+	Size        string
+	Milk        string
+	Extras      string
+	PriceCents  int64
+	Corrected   int64
+	ConfirmedAt string
+}
+
 type ExtTodoTodo struct {
 	ID         string
 	Owner      string

@@ -1,0 +1,79 @@
+id: kiosk
+summary: A voice-first order demo over a closed menu, with one owner-scoped order table and a declared outcome.
+version: v0.1.0
+upstream:
+    repo: github.com/calionauta/gogogo
+    ref: master
+    path: features/kiosk
+files:
+    features/kiosk/components/page.templ: 3897804d7adf6e80243fbe14c2f762ead7b434853ffd10c3f5a11bf33a190f1c
+    features/kiosk/components/signals.go: 468ccfeb23709ed5284650eaf8a964bd04f2dd09ef6231fff68f5ad13011e6d9
+    features/kiosk/embed.go: 16bd1f0ce7184f4ad63c0c9433c2f8f672f91bc222ee7140df709c47da19ffd6
+    features/kiosk/handlers/chi.go: 39d371145c61b5cfb1f96c694af415c4105e7c62d3f5b002926b39339581c7a6
+    features/kiosk/handlers/confirm.go: e19004b9b6d18e0663f41c5adc8a6978801636e7e3789931f19acf9e595fd9d2
+    features/kiosk/handlers/genui_panel.go: 6b329c866bba54fc4e52bb42752c17ce47b1feef5c22f081ff588acafcc5637d
+    features/kiosk/handlers/outcome_test.go: 3b7acd5274996c368db175890e5efe4247a55c96da72848eaf25984a9ca6ccc8
+    features/kiosk/handlers/preview.go: 0d67934548312aa520abd8452dd7bc1c4b650b2785552772c3896c0a98d75768
+    features/kiosk/handlers/recipe.go: 68a2c355d7cd73302ebfe3b6a9d3ae62a4a2136796ee56c3e1d7f755aff56273
+    features/kiosk/handlers/recipe_test.go: 9875bdccb477df4c786ea844494968c15ae6713ea80a7264ef9d363dbf7954ea
+    features/kiosk/handlers/register.go: 9f307d222293b8f87cfb9bf1e1f05cfd507b8f75080be2b77934a0cde1044f48
+    features/kiosk/menu.go: eb403c9841da8b4382a80e338e4ca60e1ce352411e5661e372fc4f2256d83323
+    features/kiosk/menu_test.go: 3e3a9437654729e88dacbc45f2cd085831955f34970b85a4aadc7d5952bd6f50
+    features/kiosk/migrations/0001_init.sql: 6b676e8b583003f70af67df35b20996d25f9b27452b83748f39a5ee16a1508a6
+    features/kiosk/service/orders.go: 64162efa3be3ad4dc451d1168b05005d952d8272b3ac139560e9f650b39942b1
+    features/kiosk/service/orders_test.go: 217b781e1157dadceebfdd8db4304fd47467fea7e4ea3702b4dbf80c9cb9387b
+    internal/db/queries/kiosk.sql: 57393587a037f32068ed6512ae85097b22596bfd553032cce1afbe0df9e87a87
+declaration:
+    tables:
+        - ext_kiosk_orders
+    routes:
+        - method: GET
+          pattern: /kiosk
+        - method: POST
+          pattern: /api/kiosk/preview
+        - method: POST
+          pattern: /api/kiosk/confirm
+    slots:
+        - nav.sidebar
+    actions:
+        - verb: confirm
+          description: Confirm one order for the calling owner, parsed from the posted text.
+          route:
+            method: POST
+            pattern: /api/kiosk/confirm
+          params:
+            - text
+            - previewed
+          paramHelp:
+            previewed: The preview serialization the caller was shown; empty when nothing was previewed.
+            text: The spoken or typed order, in the recipe's own menu vocabulary.
+    omitted:
+        - route:
+            method: POST
+            pattern: /api/kiosk/preview
+          reason: Demo-only parse that writes nothing and answers with a UI patch; it never completes headless.
+    metrics:
+        - label: Orders confirmed
+          query: SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ?
+    outcomes:
+        - id: order_without_repair
+          job: Receive the order you asked for without fixing a misread order
+          beneficiary: user
+          success:
+            label: Orders without repair
+            query: SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ? AND corrected = 0
+          total:
+            label: Orders confirmed
+            query: SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ?
+          counterSignals:
+            - corrected
+          window: session
+    panel:
+        component: kiosk_orders
+        prompt: 'kiosk_orders {scope: recent|all} whenever the user asks about their orders'
+        writable:
+            - scope
+        values:
+            - recent
+            - all
+register: features/kiosk/handlers

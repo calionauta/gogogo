@@ -4,6 +4,8 @@ package capabilities
 // All is the full capability map. Installer units cover a subset (see
 // Offered); the rest are env-blessed, core, or manual-removal with the
 // reason recorded.
+const idGenui = "genui" // the unit id kiosk depends on
+
 var baseUnits = []Capability{
 	{
 		ID:      "capabilities",
@@ -223,7 +225,7 @@ var baseUnits = []Capability{
 		Reason:  "Every .templ page renders through it; deletion is manual.",
 	},
 	{
-		ID:      "genui",
+		ID:      idGenui,
 		Kind:    KindPlugin,
 		Summary: "generative UI: the Chat demo renders LLM answers as Templ directives over the SSE hub",
 		Dirs:    []string{"features/genui"},
@@ -369,7 +371,7 @@ var baseUnits = []Capability{
 		ID:        "chat",
 		Kind:      KindFeature,
 		Summary:   "conversation demo (persisted history + catalog answers on genui)",
-		DependsOn: []string{"genui"},
+		DependsOn: []string{idGenui},
 		Dirs:      []string{"features/chat"},
 		Register:  "features/chat/handlers",
 		Reason: "Bundled into the genui unit: chat imports genui components " +

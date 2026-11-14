@@ -1,9 +1,9 @@
-// The coffee parser's contract, one case per behavior a customer can produce.
+// The kiosk parser's contract, one case per behavior a customer can produce.
 //
 // These are the tests `recipe check` looks for, and the ones a browser smoke
 // cannot replace: the value of a deterministic parser is that every utterance
 // shape is a table row.
-package coffee
+package kiosk
 
 import (
 	"slices"
@@ -56,7 +56,7 @@ func TestParseReportsWhatIsMissing(t *testing.T) {
 		{"a latte", []string{"size"}},
 		{"large", []string{"drink"}},
 		{"", []string{"drink"}},
-		{"an iced coffee with caramel", []string{"drink"}},
+		{"an iced kiosk with caramel", []string{"drink"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.text, func(t *testing.T) {
@@ -100,7 +100,8 @@ func TestPriceCentsAddsSizeAndEachExtraOnce(t *testing.T) {
 }
 
 func TestValidateRefusesIDsOutsideTheMenu(t *testing.T) {
-	if problems := Validate(Order{Drink: "latte", Size: "large", Milk: "oat", Extras: []string{"syrup"}}); len(problems) != 0 {
+	onMenu := Order{Drink: "latte", Size: "large", Milk: "oat", Extras: []string{"syrup"}}
+	if problems := Validate(onMenu); len(problems) != 0 {
 		t.Fatalf("a menu order must validate, got %v", problems)
 	}
 	cases := []Order{
@@ -124,7 +125,8 @@ func TestSerializeDistinguishesThePreview(t *testing.T) {
 	if Serialize(a.Order) == Serialize(b.Order) {
 		t.Fatal("two different orders serialized the same")
 	}
-	if Serialize(a.Order) != Serialize(a.Order) {
+	first := Serialize(a.Order)
+	if first != Serialize(a.Order) {
 		t.Fatal("serialization is not stable for one order")
 	}
 }

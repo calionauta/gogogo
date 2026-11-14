@@ -1,10 +1,10 @@
-// The coffee recipe's own DDL, embedded in its package.
+// The kiosk recipe's own DDL, embedded in its package.
 //
 // The files live here, not in internal/dbschema/migrations: a recipe's schema is
 // its own, applied through the shared ledger under the recipe id, and it must
 // travel with the code that owns it. `recipe install` also mirrors the same
 // bytes flat into internal/db/recipe_schema/ so sqlc can see the table.
-package coffee
+package kiosk
 
 import (
 	"embed"

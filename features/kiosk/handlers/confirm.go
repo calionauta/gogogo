@@ -8,8 +8,8 @@ import (
 
 	sdk "github.com/starfederation/datastar-go/datastar"
 
-	"github.com/calionauta/gogogo/features/coffee"
-	"github.com/calionauta/gogogo/features/coffee/components"
+	"github.com/calionauta/gogogo/features/kiosk"
+	"github.com/calionauta/gogogo/features/kiosk/components"
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
 	"github.com/calionauta/gogogo/internal/observability"
 )
@@ -31,47 +31,50 @@ func (h *Handler) confirm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sse := sdk.NewSSE(w, r)
-	parsed := coffee.Parse(r.PostFormValue("text"))
+	parsed := kiosk.Parse(r.PostFormValue("text"))
 	if !parsed.Complete() {
 		// Not a 400: the page asked, the answer is "not yet", and the same
 		// signals that explain the preview explain this.
 		signals := previewSignals(parsed)
-		signals["coffeeNotice"] = "Finish the order before confirming."
+		signals["kioskNotice"] = "Finish the order before confirming."
 		if err := dshelpers.MergeSignals(sse, signals); err != nil {
-			observability.Warn(r.Context(), "coffee: confirm refusal signals failed",
-				append(observability.WithComponent("coffee", "handler"), "error", err)...)
+			observability.Warn(r.Context(), "kiosk: confirm refusal signals failed",
+				append(observability.WithComponent("kiosk", "handler"), "error", err)...)
 		}
 		return
 	}
 	previewed := strings.TrimSpace(r.PostFormValue("previewed"))
 	if err := h.orders.Confirm(r.Context(), sess.User.ID, parsed.Order, previewed); err != nil {
-		observability.Error(r.Context(), "coffee: confirm failed",
-			append(observability.WithComponent("coffee", "handler"), "error", err)...)
+		observability.Error(r.Context(), "kiosk: confirm failed",
+			append(observability.WithComponent("kiosk", "handler"), "error", err)...)
 		if serr := dshelpers.MergeSignals(sse, map[string]any{
-			"coffeeNotice": "The order could not be recorded.",
+			"kioskNotice": "The order could not be recorded.",
 		}); serr != nil {
-			observability.Warn(r.Context(), "coffee: confirm error signals failed",
-				append(observability.WithComponent("coffee", "handler"), "error", serr)...)
+			observability.Warn(r.Context(), "kiosk: confirm error signals failed",
+				append(observability.WithComponent("kiosk", "handler"), "error", serr)...)
 		}
 		return
 	}
-	rows, err := h.orders.List(r.Context(), sess.User.ID, 50)
+	rows, err := h.orders.List(r.Context(), sess.User.ID, ordersPageLimit)
 	if err != nil {
-		observability.Error(r.Context(), "coffee: list after confirm failed",
-			append(observability.WithComponent("coffee", "handler"), "error", err)...)
+		observability.Error(r.Context(), "kiosk: list after confirm failed",
+			append(observability.WithComponent("kiosk", "handler"), "error", err)...)
 		http.Error(w, "listing orders failed", http.StatusInternalServerError)
 		return
 	}
 	// The list patch names its region by id AND selector: a patch without a
 	// target is the failure mode the repo's Datastar rule exists to prevent.
+	//nolint:contextcheck // Datastar-go sinks take no context (PatchElements writes
+	// to the ResponseWriter); cancellation surfaces as a write error, which the
+	// branch below reports. Same reasoning as features/todo/handlers/chi.go.
 	if err := dshelpers.RenderAndPatch(sse, components.OrdersList(orderViews(rows)),
-		sdk.WithSelectorID("coffee-orders"), sdk.WithModeInner()); err != nil {
-		observability.Warn(r.Context(), "coffee: orders patch failed",
-			append(observability.WithComponent("coffee", "handler"), "error", err)...)
+		sdk.WithSelectorID("kiosk-orders"), sdk.WithModeInner()); err != nil {
+		observability.Warn(r.Context(), "kiosk: orders patch failed",
+			append(observability.WithComponent("kiosk", "handler"), "error", err)...)
 	}
 	if err := dshelpers.MergeSignals(sse, clearedSignals("Order confirmed.")); err != nil {
-		observability.Warn(r.Context(), "coffee: confirm success signals failed",
-			append(observability.WithComponent("coffee", "handler"), "error", err)...)
+		observability.Warn(r.Context(), "kiosk: confirm success signals failed",
+			append(observability.WithComponent("kiosk", "handler"), "error", err)...)
 	}
 }
 
@@ -80,13 +83,13 @@ func (h *Handler) confirm(w http.ResponseWriter, r *http.Request) {
 // the user typed next.
 func clearedSignals(notice string) map[string]any {
 	return map[string]any{
-		"coffeeDrink":   "",
-		"coffeeSize":    "",
-		"coffeeMilk":    "",
-		"coffeeExtras":  "",
-		"coffeePrice":   "",
-		"coffeeNeed":    "",
-		"coffeePreview": "",
-		"coffeeNotice":  notice,
+		"kioskDrink":   "",
+		"kioskSize":    "",
+		"kioskMilk":    "",
+		"kioskExtras":  "",
+		"kioskPrice":   "",
+		"kioskNeed":    "",
+		"kioskPreview": "",
+		"kioskNotice":  notice,
 	}
 }

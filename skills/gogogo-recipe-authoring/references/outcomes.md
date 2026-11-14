@@ -8,7 +8,7 @@ that disagrees with the code never ships.
 ## Metric vs outcome
 
 - A **metric** counts activity. `Orders confirmed: SELECT COUNT(*) FROM
-  ext_coffee_orders WHERE owner = ?`. One number, no denominator, no claim.
+  ext_kiosk_orders WHERE owner = ?`. One number, no denominator, no claim.
 - An **outcome** answers a job for a beneficiary, as a **pair of counts**:
   success over total. It renders as `2/2 · 100%`.
 
@@ -21,18 +21,18 @@ a pipeline.
 ```yaml
 metrics:
   - label: Orders confirmed
-    query: "SELECT COUNT(*) FROM ext_coffee_orders WHERE owner = ?"
+    query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ?"
 
 outcomes:
   - id: order_without_repair
-    job: Receive the coffee you asked for without fixing a misread order
+    job: Receive the order you asked for without fixing a misread order
     beneficiary: user            # user | operator — never both
     success:
       label: Orders without repair
-      query: "SELECT COUNT(*) FROM ext_coffee_orders WHERE owner = ? AND corrected = 0"
+      query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ? AND corrected = 0"
     total:
       label: Orders confirmed
-      query: "SELECT COUNT(*) FROM ext_coffee_orders WHERE owner = ?"
+      query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ?"
     counterSignals: [corrected]  # tokens your code must actually produce
     window: session              # session | day | none
     target: 0.9                  # optional; null unless the operator agreed a number
@@ -43,19 +43,19 @@ The same declaration in Go, in the recipe's `Declaration()`:
 ```go
 Metrics: []recipe.Metric{{
     Label: "Orders confirmed",
-    Query: "SELECT COUNT(*) FROM ext_coffee_orders WHERE owner = ?",
+    Query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ?",
 }},
 Outcomes: []recipe.Outcome{{
     ID:          "order_without_repair",
-    Job:         "Receive the coffee you asked for without fixing a misread order",
+    Job:         "Receive the order you asked for without fixing a misread order",
     Beneficiary: "user",
     Success: recipe.Metric{
         Label: "Orders without repair",
-        Query: "SELECT COUNT(*) FROM ext_coffee_orders WHERE owner = ? AND corrected = 0",
+        Query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ? AND corrected = 0",
     },
     Total: recipe.Metric{
         Label: "Orders confirmed",
-        Query: "SELECT COUNT(*) FROM ext_coffee_orders WHERE owner = ?",
+        Query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ?",
     },
     CounterSignals: []string{"corrected"},
     Window:         "session",
@@ -110,7 +110,7 @@ corrected := stored != previewed   // the row was stored as something else
 ```
 
 Store it as a column on the row the recipe already writes
-(`ext_coffee_orders.corrected`), then let the success query filter on it. That
+(`ext_kiosk_orders.corrected`), then let the success query filter on it. That
 is the whole mechanism: no event table, no collection toggle, no background
 aggregation, and the number cannot drift from the rows.
 
@@ -121,7 +121,7 @@ signals usually means the outcome is two outcomes.
 
 Do not invent an outcome. Propose and wait:
 
-1. State the job in the user's sentence ("receive the coffee you asked for
+1. State the job in the user's sentence ("receive the order you asked for
    without fixing a misread order").
 2. Name the beneficiary.
 3. Give the pair, with both labels.

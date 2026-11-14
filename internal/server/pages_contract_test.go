@@ -80,6 +80,13 @@ var pagesUnderTest = []pageUnderTest{
 		`value="custom"`,
 		`value="native"`,
 	}},
+	{name: "kiosk", route: "/kiosk", must: []string{
+		`id="kiosk-voice"`,
+		`id="kiosk-form"`,
+		`data-bind="kioskText"`,
+		`id="kiosk-voice-status"`,
+		`id="kiosk-orders"`,
+	}},
 	{name: "review", route: "/review", must: []string{
 		// The composer (review-composer / review-tab / review-content) is gated
 		// by signals.ReviewEnabled, which needs a real provider key; a stock

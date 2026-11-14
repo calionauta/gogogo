@@ -92,17 +92,16 @@ func registrationContent(root string) ([]byte, error) {
 // capabilities package (avoiding a cycle) by scanning for Register lines.
 func bundledRegisterPaths(root string) map[string]bool {
 	out := map[string]bool{}
-	const dir = "internal/capabilities"
-	files := []string{
-		dir + "/registry.go",
-		dir + "/registry_dashboard.go",
-		dir + "/registry_delivery.go",
-		dir + "/registry_identity.go",
-		dir + "/registry_graph.go",
-		dir + "/registry_license.go",
+	// Glob, not a hand-kept list: the registry is split into one file per
+	// group for the file-sizes gate, and a new group that nobody adds here
+	// would read as an installed registration — a bundled unit would then be
+	// mounted twice and panic at boot. Every registry_*.go is data.
+	files, globErr := filepath.Glob(filepath.Join(root, filepath.FromSlash("internal/capabilities"), "registry*.go"))
+	if globErr != nil {
+		return out
 	}
-	for _, rel := range files {
-		raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
+	for _, full := range files {
+		raw, err := os.ReadFile(full)
 		if err != nil {
 			continue
 		}

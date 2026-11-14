@@ -12,8 +12,8 @@ of the file you are about to touch.
 
 ## Registry at a glance
 
-- **Units:** 49 — 17 core · 21 plugin · 11 feature
-- **Manual removal:** 32 (core units are never removed)
+- **Units:** 50 — 17 core · 21 plugin · 12 feature
+- **Manual removal:** 33 (core units are never removed)
 - **Source of truth:** `internal/capabilities/registry.go`; this doc is
   regenerated from it, so the counts above cannot drift.
 
@@ -360,6 +360,17 @@ signed-in summary page; the dashboard.card slot host
 - **Routes:** `/dashboard`
 - **Depends on:** sounds
 - **Why that class:** Host page for dashboard.card: one unit mounts itself through the recipe seam. Remove manually (delete the unit, its two policy rows, its Modules entry).
+
+## `kiosk` — feature
+
+voice-first kiosk order demo (closed menu, on-device voice, one declared outcome)
+
+- **Owned:** `features/kiosk`
+- **Routes:** `/api/kiosk/confirm`, `/api/kiosk/preview`, `/kiosk`
+- **Store calls:** `dbgen.CreateKioskOrder`, `dbgen.ListKioskOrders`
+- **Depends on:** genui
+- **Why that class:** Bundled like the other demos: the code lives in features/kiosk and the receipt in .recipes/kiosk.yml, so it mounts through the same seam and `recipe uninstall kiosk` removes it. Its chat panel renders through genui — remove it with genui.
+- **Note:** The declared outcome (orders that needed no repair over orders confirmed) is the worked example of a declared measurement — docs/scope-taxonomy.md.
 
 ## `landing` — feature
 

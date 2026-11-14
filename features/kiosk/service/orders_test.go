@@ -7,15 +7,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/calionauta/gogogo/features/coffee"
+	"github.com/calionauta/gogogo/features/kiosk"
 )
 
 func TestCorrectedOnlyWhenThePreviewDiverged(t *testing.T) {
-	previewed := coffee.Parse("large latte")
+	previewed := kiosk.Parse("large latte")
 	if !previewed.Complete() {
 		t.Fatalf("fixture did not parse: %+v", previewed)
 	}
-	shown := coffee.Serialize(previewed.Order)
+	shown := kiosk.Serialize(previewed.Order)
 
 	cases := []struct {
 		name      string
@@ -31,7 +31,7 @@ func TestCorrectedOnlyWhenThePreviewDiverged(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			parsed := coffee.Parse(tc.text)
+			parsed := kiosk.Parse(tc.text)
 			if !parsed.Complete() {
 				t.Fatalf("fixture %q did not parse: %+v", tc.text, parsed)
 			}
@@ -46,12 +46,12 @@ func TestCorrectedOnlyWhenThePreviewDiverged(t *testing.T) {
 // empty preview is not a match, it is an absence, and it must not count as a
 // repair — a demo without a preview would otherwise report 100% corrected.
 func TestCorrectedIgnoresWhatWasNeverShown(t *testing.T) {
-	order := coffee.Parse("small espresso").Order
+	order := kiosk.Parse("small espresso").Order
 	if Corrected("", order) {
 		t.Fatal("an empty preview counted as a correction")
 	}
-	required := strings.Count(coffee.Serialize(order), "|")
+	required := strings.Count(kiosk.Serialize(order), "|")
 	if required != 3 {
-		t.Fatalf("serialization shape changed: %q", coffee.Serialize(order))
+		t.Fatalf("serialization shape changed: %q", kiosk.Serialize(order))
 	}
 }

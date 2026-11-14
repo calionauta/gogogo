@@ -1,13 +1,13 @@
-// The coffee recipe's native panel: the app's own orders, answerable from Chat.
+// The kiosk recipe's native panel: the app's own orders, answerable from Chat.
 //
 // It is built on comp.SlicePanel, the shared base (convention over
 // configuration): the recipe supplies the name, the prompt, the one writable
 // slice and two closures, and inherits Fill/Render. The view is
-// components.OrdersList — the SAME component /coffee renders — so the panel
+// components.OrdersList — the SAME component /kiosk renders — so the panel
 // cannot drift from the page it summarizes (the failure docs/native-panels.md
 // records).
 //
-// No ActionProvider: the confirm response patches the page's `#coffee-orders`
+// No ActionProvider: the confirm response patches the page's `#kiosk-orders`
 // region, which a chat thread does not have, and an action that writes while
 // looking inert is worse than no action. Headless callers use the declared
 // InvokeAction instead, which returns the same signals without a DOM target.
@@ -19,8 +19,14 @@ import (
 
 	"github.com/a-h/templ"
 
-	"github.com/calionauta/gogogo/features/coffee/components"
 	comp "github.com/calionauta/gogogo/features/genui/components"
+	"github.com/calionauta/gogogo/features/kiosk/components"
+)
+
+const (
+	// scopeRecent is the short recap; scopeAll is the page's own cap.
+	scopeRecent = "recent"
+	scopeAll    = "all"
 )
 
 // panel is the SlicePanel plus nothing: embedding keeps the inherited methods
@@ -33,10 +39,10 @@ type panel struct {
 // panel reads the store through the same service the page does.
 func (h *Handler) Panel() comp.PanelProvider {
 	return panel{comp.NewSlicePanel(
-		"coffee_orders",
-		"coffee_orders {scope: recent|all} whenever the user asks about their coffee orders",
+		"kiosk_orders",
+		"kiosk_orders {scope: recent|all} whenever the user asks about their orders",
 		"scope",
-		[]string{"recent", "all"},
+		[]string{scopeRecent, scopeAll},
 		h.panelRows,
 		panelRowsFromProps,
 		func(rows []any, _ string) (templ.Component, error) {
@@ -48,8 +54,8 @@ func (h *Handler) Panel() comp.PanelProvider {
 // panelRows is the List closure: the viewer's own rows, bounded by the slice the
 // model chose. `recent` is a short recap; `all` is the page's own cap.
 func (h *Handler) panelRows(ctx context.Context, owner, scope string) (any, error) {
-	limit := 50
-	if scope == "recent" {
+	limit := ordersPageLimit
+	if scope == scopeRecent {
 		limit = 5
 	}
 	rows, err := h.orders.List(ctx, owner, limit)
