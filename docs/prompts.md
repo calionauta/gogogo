@@ -163,6 +163,25 @@ already provides:
   existing `*_test.go` files around genui, review and the installer);
 - **a place to put the winner** — a file diff, reviewed like any other.
 
+### The cheap gate before the loop
+
+`go run ./cmd/prompt-eval -dir <candidate>` (or `-format json`) compares a
+candidate tree with the embedded library and answers the two questions that
+decide whether a run is worth a token:
+
+| Verdict | Means |
+|---|---|
+| `unchanged` | same body; nothing to score |
+| `changed` | body differs — valid when `version` went up |
+| `added` | the id is not in the library, so no call site loads it |
+| `removed` | the library has it and the tree dropped it |
+| `invalid` | the file does not parse, the version did not move, or `variables` changed |
+
+It exits **3** when any row is invalid, so a loop script can stop before
+spending a model call. It never calls a model: scoring quality is the loop's job
+(and needs a real key, which the repo forbids in tests), while "would this run be
+comparable with the last one" is mechanical and belongs here.
+
 ### The override seam
 
 A candidate tree can shadow the embedded library without a rebuild:

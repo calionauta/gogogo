@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/calionauta/gogogo/features/sounds"
+	"github.com/calionauta/gogogo/internal/i18n"
 	"github.com/calionauta/gogogo/internal/ui"
 )
 
@@ -96,18 +97,18 @@ templ body(data PageData) {
 
 		<section class="ui-card">
 			<div class="ui-card-body">
-				<h2 class="ui-title">Email</h2>
+				<h2 class="ui-title">{ i18n.T(ctx, "account.email", nil) }</h2>
 				<p class="text-sm">
 					{ data.Email }
 					if data.Verified {
-						<span class="badge badge-success badge-sm">verified</span>
+						<span class="badge badge-success badge-sm">{ i18n.T(ctx, "account.verified", nil) }</span>
 					} else {
-						<span class="badge badge-warning badge-sm">unverified</span>
+						<span class="badge badge-warning badge-sm">{ i18n.T(ctx, "account.unverified", nil) }</span>
 					}
 				</p>
 				if !data.Verified {
 					<form method="POST" action="/account/verify" class="mt-3">
-						<button type="submit" class="btn btn-sm">Resend verification email</button>
+						<button type="submit" class="btn btn-sm">{ i18n.T(ctx, "account.resendVerification", nil) }</button>
 					</form>
 				}
 			</div>
@@ -116,7 +117,7 @@ templ body(data PageData) {
 		if !data.OpenMode {
 		<section class="ui-card">
 			<div class="ui-card-body">
-				<h2 class="ui-title">Password</h2>
+				<h2 class="ui-title">{ i18n.T(ctx, "account.password", nil) }</h2>
 				<form method="POST" action="/account/password" class="space-y-3 max-w-md">
 					<label class="flex flex-col gap-1 w-full">
 						<div class="label"><span>Current password</span></div>
@@ -140,7 +141,7 @@ templ body(data PageData) {
 
 		<section class="ui-card">
 			<div class="ui-card-body">
-				<h2 class="ui-title">Two-factor authentication</h2>
+				<h2 class="ui-title">{ i18n.T(ctx, "account.twoFactor", nil) }</h2>
 				if data.TOTP {
 					<p class="text-sm">
 						<span class="badge badge-success badge-sm">enabled</span>
@@ -160,7 +161,7 @@ templ body(data PageData) {
 									inputmode="numeric" autocomplete="one-time-code"/>
 							</label>
 						}
-						<button type="submit" class="btn btn-sm btn-error">Disable two-factor</button>
+						<button type="submit" class="btn btn-sm btn-error">{ i18n.T(ctx, "account.disableTwoFactor", nil) }</button>
 					</form>
 					<form method="POST" action="/account/totp/recovery" class="mt-3 space-y-2 max-w-md">
 						if data.PasswordSet {
@@ -176,7 +177,7 @@ templ body(data PageData) {
 									inputmode="numeric" autocomplete="one-time-code"/>
 							</label>
 						}
-						<button type="submit" class="btn btn-sm">Generate new recovery codes</button>
+						<button type="submit" class="btn btn-sm">{ i18n.T(ctx, "account.recoveryCodes", nil) }</button>
 					</form>
 				} else if data.SetupSecret != "" {
 					<p class="text-sm">
@@ -196,12 +197,12 @@ templ body(data PageData) {
 							<input type="text" name="code" class="input input-sm" required
 								inputmode="numeric" autocomplete="one-time-code"/>
 						</label>
-						<button type="submit" class="btn btn-sm btn-primary">Enable two-factor</button>
+						<button type="submit" class="btn btn-sm btn-primary">{ i18n.T(ctx, "account.enableTwoFactor", nil) }</button>
 					</form>
 				} else {
 					<p class="text-sm">Add a second factor for every sign-in.</p>
 					<form method="POST" action="/account/totp/begin" class="mt-3">
-						<button type="submit" class="btn btn-sm btn-primary">Enable two-factor</button>
+						<button type="submit" class="btn btn-sm btn-primary">{ i18n.T(ctx, "account.enableTwoFactor", nil) }</button>
 					</form>
 				}
 				if len(data.RecoveryCodes) > 0 {
@@ -227,7 +228,7 @@ templ body(data PageData) {
 
 		<section class="ui-card">
 			<div class="ui-card-body">
-				<h2 class="ui-title">Sessions</h2>
+				<h2 class="ui-title">{ i18n.T(ctx, "account.sessions", nil) }</h2>
 				if len(data.Sessions) == 0 {
 					<p class="text-sm">No sessions to show.</p>
 				} else {
