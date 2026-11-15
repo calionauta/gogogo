@@ -182,13 +182,15 @@ func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, err
 	fs.BoolVar(&opt.yes, "yes", false, "apply without asking (agents: always pin this)")
 	fs.BoolVar(&opt.dryRun, "dry-run", false, "print the plan and stop; changes nothing")
 	fs.BoolVar(&opt.updateCh, "check-update", false, "compare this binary against the latest release, change nothing")
-	fs.BoolVar(&opt.run, "run", false, "hand over to `make dev` after a "+
+	// No backticks in a flag usage: `flag` reads them as the value PLACEHOLDER,
+	// so "hand over to `make dev`" printed the flag as "run make dev".
+	fs.BoolVar(&opt.run, "run", false, "hand over to make dev after a "+
 		"successful proof (takes this terminal; Ctrl-C stops dev; humans only)")
 	fs.StringVar(&opt.format, "format", planFormatText, "plan format: text|json")
 	fs.StringVar(&opt.locales, "locales", "",
 		"languages to ship, comma-separated (e.g. en,pt-BR); records locales.yml and seeds every new catalog")
 	fs.StringVar(&opt.recipes, "recipes", recipesNone,
-		"demo slices to drop: none|all|<ids> (default none; read one with `recipe source <id>`)")
+		"demo slices to drop: none|all|<ids> (default none; read one with: recipe source <id>)")
 	fs.StringVar(&opt.shape, "shape", string(shapekit.Full),
 		"product shape: full|web|api|desktop|gui|mobile (which entrypoints the tree ships)")
 	fs.Usage = func() { PrintUsage(stdout, fs) }

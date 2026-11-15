@@ -6,8 +6,8 @@ upstream:
   ref: master
   path: features/whiteboard
 files:
-  features/whiteboard/components/board.templ: 3521afe16714d6e7e30708e7b3d8929c76f13ac512eb651aafdd81a4f1eb3074
-  features/whiteboard/components/board_templ.go: e7dd67063d954feda3003ea0f8c68582606213cf8ce1d2dfb4c678f4afadbc5c
+  features/whiteboard/components/board.templ: 1fade6c8c136945b701f1916a1d9c2940f18934277cd1ae71118d0d616d32c22
+  features/whiteboard/components/board_templ.go: fc2473c2b9e43ebc88db07be99aaa026e423d0993976d61e196a95e61a6fcca5
   features/whiteboard/components/board_test.go: 4a6dc998db694b7da81fa490b466f45d46cf82d77b6e6b19d2d0e16e3998ae16
   features/whiteboard/embed.go: 211f94c30a286c4e7307af6344c77abf76f224a1ae949b8463ab44d86d7870d0
   features/whiteboard/handlers/chi.go: e1265b3ad6f246fc25a0fc61f334b0782e25185ff0b8516fe0ccc4d374d67b6e
@@ -24,8 +24,8 @@ files:
   features/whiteboard/handlers/port_test.go: e6af49f5bcdb099857d61adf094e1184209dfa13a7cf93f283931d7d43c4c5e2
   features/whiteboard/handlers/presence_cross_instance_test.go: 5f537ae45422afdf605cd45003f9bd9efbba5880a7620affd47ac70f46c4ac96
   features/whiteboard/handlers/presence_test.go: 31461c438b7be7eb5da5f0b95425c1821d2e3d643ac09291d5188b63af0155ad
-  features/whiteboard/handlers/recipe.go: 99ae36e4212252d662e769b556491e373f5b056c2955a27b36241b1af1130afb
-  features/whiteboard/handlers/register.go: bc25a6804d953f40048db313b4584030c3a2c329efe6f34764ff6530e7608e83
+  features/whiteboard/handlers/recipe.go: e02968f0fb8a5d72c43474eec12517ae230531f027501f0484371d7f97644fe1
+  features/whiteboard/handlers/register.go: 18de9f734b4a363defe266644adf549e1916c1770debb05e134c5f70bdfbd66a
   features/whiteboard/static/rough.min.js: d5d561189ea0ad7a2818d586dc964d84fa4751124a5270c6b267a41e53796e45
   features/whiteboard/static/whiteboard.js: 576891f40cf7070b95bbcd61e7e4bc2be899f92d5dd632bbc5c57d30892aada3
   features/whiteboard/handlers/genui_panel.go: 9fb36eba280c5c77f2c6410dc28b8be17842bda86c0fb4aa701a5cc09b6ade68

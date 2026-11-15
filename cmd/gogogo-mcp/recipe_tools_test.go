@@ -376,3 +376,59 @@ func hashOf(body string) string {
 	sum := sha256.Sum256([]byte(body))
 	return hex.EncodeToString(sum[:])
 }
+
+// TestRecipeReceiptsToolReportsAndFixes: the MCP half of the receipts gate.
+// Without `write` it reports and the call fails; with it the record is fixed
+// and the same call succeeds.
+func TestRecipeReceiptsToolReportsAndFixes(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "cmd", "web"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/fixture\n\ngo 1.27\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "cmd", "web"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "cmd", "web", "main.go"), []byte("package main\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	body := "package demo\n"
+	if err := os.MkdirAll(filepath.Join(root, "features", "demo"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "features", "demo", "x.go"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	receipt := "id: demo\nfiles:\n  features/demo/x.go: \"" + hashOf(body) + "\"\n"
+	if err := os.MkdirAll(filepath.Join(root, ".recipes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".recipes", "demo.yml"), []byte(receipt), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, _, err := handleRecipeReceipts(context.Background(), nil, receiptsArgs{Dir: root}); err != nil {
+		t.Fatalf("a matching receipt failed: %v", err)
+	}
+
+	edited := "package demo\n\n// edited\n"
+	if err := os.WriteFile(filepath.Join(root, "features", "demo", "x.go"), []byte(edited), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := handleRecipeReceipts(context.Background(), nil, receiptsArgs{Dir: root}); err == nil {
+		t.Fatal("a stale hash passed the tool")
+	}
+	res, _, err := handleRecipeReceipts(context.Background(), nil, receiptsArgs{Dir: root, Write: true})
+	if err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	// The tool defaults to JSON, so the fix arrives as the list of ids.
+	if !strings.Contains(contentText(t, res), "demo") {
+		t.Errorf("the fix was not announced: %s", contentText(t, res))
+	}
+	if _, _, err := handleRecipeReceipts(context.Background(), nil, receiptsArgs{Dir: root}); err != nil {
+		t.Fatalf("still red after write: %v", err)
+	}
+}

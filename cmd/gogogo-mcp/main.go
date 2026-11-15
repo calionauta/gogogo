@@ -337,6 +337,36 @@ func handleLocales(
 	return textResult(buf.String()), nil, nil
 }
 
+type receiptsArgs struct {
+	Dir    string `json:"dir,omitempty" jsonschema:"checkout whose receipts to verify (default: current directory)"`
+	Write  bool   `json:"write,omitempty" jsonschema:"re-hash the stale files in place (the fix); omit to report only"`
+	Format string `json:"format,omitempty" jsonschema:"text or json (default json)"`
+}
+
+// handleRecipeReceipts answers "do the declared hashes still describe the
+// tree?". A fork's edits are not drift — this is for the case where the RECORD
+// rotted, which silently breaks install/prune/test-scope downstream.
+func handleRecipeReceipts(
+	ctx context.Context, _ *mcp.CallToolRequest, args receiptsArgs,
+) (*mcp.CallToolResult, any, error) {
+	format := args.Format
+	if format == "" {
+		format = defaultFormat
+	}
+	cli := []string{cliRecipe, "receipts", flagFormat, format}
+	if args.Dir != "" {
+		cli = append(cli, flagDir, args.Dir)
+	}
+	if args.Write {
+		cli = append(cli, "--write")
+	}
+	var buf bytes.Buffer
+	if err := installer.Run(ctx, cli, strings.NewReader(""), &buf); err != nil {
+		return runResult(buf.String(), err)
+	}
+	return textResult(buf.String()), nil, nil
+}
+
 func handleRecipeStatus(
 	ctx context.Context, _ *mcp.CallToolRequest, args recipeArgs,
 ) (*mcp.CallToolResult, any, error) {

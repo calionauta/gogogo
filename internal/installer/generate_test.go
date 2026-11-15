@@ -6,6 +6,7 @@
 package installer
 
 import (
+	"os"
 	"path/filepath"
 	"slices"
 	"testing"
@@ -83,6 +84,56 @@ func TestExpandPatternIgnoresWhatTheStepDidNotProduce(t *testing.T) {
 	}
 }
 
+// TestRecursiveTemplPatternMatchesNestedOutput pins the bug this pattern had:
+// the remainder after "**/" still carried its "*", so the suffix test compared
+// a literal asterisk and matched ZERO files. The only artifact `templ generate`
+// produces was thereby exempt from the gate that exists to catch it.
+func TestRecursiveTemplPatternMatchesNestedOutput(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "features", "todo", "components", "layout_templ.go"), "package components\n")
+	writeFile(t, filepath.Join(root, "internal", "ui", "shell_templ.go"), "package ui\n")
+	writeFile(t, filepath.Join(root, "features", "todo", "layout.templ"), "package components\n")
+
+	wd, wdErr := os.Getwd()
+	if wdErr != nil {
+		t.Fatal(wdErr)
+	}
+	if chErr := os.Chdir(root); chErr != nil {
+		t.Fatal(chErr)
+	}
+	t.Cleanup(func() { _ = os.Chdir(wd) })
+
+	got, err := expandPattern(recursiveTemplPattern)
+	if err != nil {
+		t.Fatalf("expandPattern: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("matched %v, want the two generated files at two depths", got)
+	}
+}
+
+// TestSnapshotSeesNestedTemplFiles proves the wiring, not just the pattern: the
+// snapshot the check compares must contain the nested output, or a drift is
+// invisible however correct the matcher is.
+func TestSnapshotSeesNestedTemplFiles(t *testing.T) {
+	root := t.TempDir()
+	nested := filepath.Join(root, "features", "todo", "components", "layout_templ.go")
+	writeFile(t, nested, "package components\n")
+	wd, _ := os.Getwd()
+	if err := os.Chdir(root); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(wd) })
+
+	before, err := snapshotOutputs(generateOutputs)
+	if err != nil {
+		t.Fatalf("snapshotOutputs: %v", err)
+	}
+	if _, ok := before["features/todo/components/layout_templ.go"]; !ok {
+		t.Fatalf("the snapshot missed nested templ output: %v", before)
+	}
+}
+
 // TestGenerateOutputsCoverTheGeneratedTree keeps the list honest: every
 // committed artifact the generator owns is named, or `--check` cannot see it.
 func TestGenerateOutputsCoverTheGeneratedTree(t *testing.T) {
@@ -91,7 +142,7 @@ func TestGenerateOutputsCoverTheGeneratedTree(t *testing.T) {
 		"web/resources/static/app.min.css",
 		"docs/api-routes.md",
 		"docs/unit-contracts.md",
-		"*_templ.go",
+		recursiveTemplPattern,
 	}
 	for _, path := range want {
 		if !slices.Contains(generateOutputs, path) {

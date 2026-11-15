@@ -143,6 +143,16 @@ var toolCatalog = []toolDef{
 		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeSource) },
 	},
 	{
+		name: "recipe_receipts",
+		desc: "Do every recipe's declared hashes still describe the tree? Reports per-recipe stale paths; `write` " +
+			"re-hashes in place (the fix). Not the same question as recipe_status: `modified` is a fork's edit and " +
+			"is fine, but a receipt that no longer matches breaks install, `--recipes` pruning and `recipe test`'s " +
+			"package scope — all of which read the hash. Runs in `make check-recipes`.",
+		params: "`dir?`, `write?`, `format?`",
+		effect: "Only with `write`",
+		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeReceipts) },
+	},
+	{
 		name: "recipe_install",
 		desc: "Install a recipe package (tree plus .recipe.yml) into a gogogo checkout: copy, " +
 			"receipt, generated registration, schema/policy/codegen and proof. Mutates the target directory. " +

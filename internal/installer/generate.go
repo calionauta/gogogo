@@ -28,13 +28,22 @@ const (
 
 // generateOutputs are the paths the steps above rewrite. `--check` scopes to
 // them: a gate that reacts to a README edit is a gate nobody can run.
+//
+// "**/*_templ.go" is a recursive pattern, not a glob and not a shell: templ's
+// output lives BESIDE every .templ, and this tree has none at the root — a
+// plain "*_templ.go" matched zero files and silently exempted the only artifact
+// `templ generate` produces.
 var generateOutputs = []string{
 	"internal/db/sqlcgen",
 	"web/resources/static/app.min.css",
 	"docs/api-routes.md",
 	"docs/unit-contracts.md",
-	"*_templ.go",
+	recursiveTemplPattern,
 }
+
+// recursiveTemplPattern names every generated templ file, wherever the .templ
+// lives. Written once so the snapshot and the check cannot disagree.
+const recursiveTemplPattern = "**/*_templ.go"
 
 func marshalJSON(v any) ([]byte, error) { return json.MarshalIndent(v, "", "  ") }
 
@@ -79,9 +88,16 @@ func snapshotOutputs(patterns []string) (map[string]string, error) {
 	return out, nil
 }
 
-// expandPattern resolves one owned path: a FILE is itself, a DIRECTORY is every
-// Go file under it (the generated output a step rewrites).
+// expandPattern resolves one owned path: a recursive pattern walks the tree, a
+// FILE is itself, a DIRECTORY is every Go file under it (the generated output a
+// step rewrites).
 func expandPattern(pattern string) ([]string, error) {
+	if recursive, ok := strings.CutPrefix(pattern, "**/"); ok {
+		// The remainder is a glob TAIL ("*_templ.go"); drop the wildcard, since
+		// the match is a suffix test. Keeping it compared a literal asterisk and
+		// matched nothing — silently exempting every generated templ file.
+		return expandRecursive(strings.TrimPrefix(recursive, "*"))
+	}
 	info, err := os.Stat(pattern)
 	if err == nil && !info.IsDir() {
 		return []string{pattern}, nil
@@ -106,6 +122,32 @@ func expandPattern(pattern string) ([]string, error) {
 			}
 		}
 	}
+	return out, nil
+}
+
+// expandRecursive returns every file whose name matches suffix, at any depth.
+// It skips the same noise every tree scan in this package skips.
+func expandRecursive(suffix string) ([]string, error) {
+	var out []string
+	err := filepath.WalkDir(".", func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.IsDir() {
+			if skipDriftDir(d.Name()) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if strings.HasSuffix(d.Name(), suffix) {
+			out = append(out, filepath.ToSlash(path))
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	sort.Strings(out)
 	return out, nil
 }
 

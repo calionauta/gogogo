@@ -173,6 +173,13 @@ pre-commit:
     # `go install .../cmd/gogogo-mcp@latest`), so this is a scoped run of the
     # tests the root suite also covers — kept because the tools are the surface
     # a third party drives, and a parse-level regression there is silent.
+    # The receipt gate: a hash that no longer describes the tree breaks
+    # install, `--recipes` pruning and `recipe test`'s package scope — quietly.
+    # 82 of 276 hashes had rotted before this hook existed.
+    - name: receipt-hashes
+      run: go run ./cmd/gogogo recipe receipts --dir .
+      glob: "{.recipes/*.yml,features/**,internal/db/**,web/resources/static/**}"
+
     # The language gate: a recipe that ships translations must ship ALL the
     # languages this product declares, or a page mixes languages silently.
     - name: check-locales

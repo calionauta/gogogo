@@ -137,6 +137,14 @@ Keep the declaration in step with the code. A declared route the code does not r
 a drift **failure**, not a warning: it ships a nav entry that leads nowhere. A declared job
 the code does not register burns CPU forever.
 
+The **hashes** are a separate record from the declaration, and they rot quietly in the one
+place nobody looks: the template's own receipts. `gogogo recipe receipts` answers "do the
+declared hashes still describe the tree?" and `--write` re-hashes in place (the lines only;
+the files stay yours). It is a different question from `recipe status`: `modified` is *your*
+edit and is fine in a fork, but a migrated or mechanically-rewritten tree can leave the
+record behind, and then `recipe install` copies wrong, `--recipes` prunes wrong and
+`recipe test` derives the wrong package scope. It runs in `make check-recipes`.
+
 ### Metrics: one list, two kinds
 
 A **metric** is one `COUNT(*)` over a table the recipe owns. Both readings are

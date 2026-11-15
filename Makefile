@@ -596,6 +596,7 @@ sqlc:
 # documentation, panels, metrics, and complexity without running recipe code.
 check-recipes:
 	@go run ./cmd/gogogo recipe check --dir . --format json >/dev/null
+	@go run ./cmd/gogogo recipe receipts --dir .
 	@echo "  ✓ recipes pass gogogo recipe check"
 
 ci-local: check-host-capacity reap-stale check-browser-cleanup check-generated check-shape check-recipes check-sizes datastar-lint css-check check-no-jsx check-ci-scripts check-classes daisyui-lint check-flatdeps check-product-boundary check-typed-states check-domains check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard check-prompts

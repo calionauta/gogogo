@@ -297,3 +297,64 @@ func TestProvenanceSaysNoneWhenNothingWasDropped(t *testing.T) {
 		t.Errorf("an untouched tree lost its markers:\n%s", agents)
 	}
 }
+
+// TestCheckSweepSkipsTombstones is the bug a scaffolded product hit on day one:
+// a removed receipt is a TOMBSTONE (it records the data owner; the code is gone
+// on purpose), and grading it as "blocked — restore or uninstall it" made every
+// fresh product start with a red `recipe check` — and therefore a red
+// `make check-locales` — for the slices it had just, correctly, removed.
+func TestCheckSweepSkipsTombstones(t *testing.T) {
+	root := demoTree(t)
+	rec, loadErr := recipe.LoadReceipt(root, "chat")
+	if loadErr != nil {
+		t.Fatal(loadErr)
+	}
+	if err := rec.MarkRemoved(time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if err := recipe.SaveReceipt(root, rec); err != nil {
+		t.Fatal(err)
+	}
+	ids, err := statusIDs("check", root, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	live, removed := withoutRemovedRecipes(root, ids)
+	if len(removed) != 1 || removed[0] != "chat" {
+		t.Fatalf("removed = %v, want [chat]", removed)
+	}
+	for _, id := range live {
+		if id == "chat" {
+			t.Fatal("the sweep still grades the tombstone")
+		}
+	}
+	if len(live) != len(demoSlices)-1 {
+		t.Fatalf("live = %v, want every other slice", live)
+	}
+}
+
+// TestCheckOneKeepsTheTombstoneVerdict: asking ABOUT a removed recipe must
+// still say so — silence would hide that its code is gone.
+func TestCheckOneKeepsTheTombstoneVerdict(t *testing.T) {
+	root := demoTree(t)
+	rec, loadErr := recipe.LoadReceipt(root, "chat")
+	if loadErr != nil {
+		t.Fatal(loadErr)
+	}
+	if err := rec.MarkRemoved(time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if err := recipe.SaveReceipt(root, rec); err != nil {
+		t.Fatal(err)
+	}
+	report := checkOneRecipeWith(root, "chat", []string{"en"}, false, false)
+	found := false
+	for _, e := range report.Errors {
+		if strings.Contains(e, "removed") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("an explicit check lost the removed verdict: %+v", report)
+	}
+}

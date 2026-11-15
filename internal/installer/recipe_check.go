@@ -37,7 +37,19 @@ func runRecipeCheck(args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
+	var removed []string
+	// An explicit id is a question ABOUT that recipe, so it keeps the
+	// tombstone verdict ("removed — restore or uninstall it"). Only the
+	// "check everything" sweep skips them: a scaffolded product must not start
+	// red for the slices it correctly removed.
+	if opt.id == "" {
+		ids, removed = withoutRemovedRecipes(root, ids)
+	}
 	if len(ids) == 0 {
+		if len(removed) > 0 {
+			fmt.Fprintln(stdout, "recipe check: every receipt here is removed (nothing left to check)")
+			return nil
+		}
 		fmt.Fprintln(stdout, "recipe check: no receipts in "+recipe.ReceiptDir+"/ — nothing to check")
 		return nil
 	}

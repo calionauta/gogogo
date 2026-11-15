@@ -6,10 +6,10 @@ upstream:
   ref: master
   path: features/dashboard
 files:
-  features/dashboard/components/page.templ: 5d2d425add5eb3029bb78951f2f1ea9a75b7574b1cda8b001038e76920fa4aa6
-  features/dashboard/components/page_templ.go: d57875a0d95669f3f5f185a9eebbac5506fafc0f05f264d875d4e36d286c28f0
-  features/dashboard/handlers/chi.go: 36d8c490320eb92ddc89ca957a15e7f9e3c53323bfb317334d358962956670db
-  features/dashboard/handlers/chi_test.go: 916a375f0cd309ce6968c8e2b84e4ff44b78afd9ac9c2ca3706c16b3aebb6c17
+  features/dashboard/components/page.templ: b013f198f2514a475bcf3c06170e3232bf0a7ef8f8965ea4d8b3f770291312fa
+  features/dashboard/components/page_templ.go: 914dfffd10e293c7903e3e3ac14060d63aa170f69128d67f27f6a51ba66042fc
+  features/dashboard/handlers/chi.go: c8ec8fc83832a118efb243767062bea6924a92757ce2602918eaa2d9671a3a7e
+  features/dashboard/handlers/chi_test.go: bac4ea439e9c99b35d074953627831aff1c65f243a8bada207553532c379caa1
   features/dashboard/handlers/register.go: 4a5494a2798d083b0934639d93bb1731fa9361d29a8627a1874ba0e2e4939c45
 declaration:
   routes:

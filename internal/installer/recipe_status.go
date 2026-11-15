@@ -181,6 +181,26 @@ func statusIDs(command, root, id string) ([]string, error) {
 	return ids, nil
 }
 
+// withoutRemovedRecipes splits the receipt list into what still describes the
+// tree and what a scaffold or `recipe uninstall` already dropped.
+//
+// A removed receipt is a TOMBSTONE: it records who owned the data, and its code
+// is gone on purpose. Grading it as "blocked — restore or uninstall it" made
+// every scaffolded product start with a red `recipe check` (and therefore a red
+// `make check-locales`) for the slices it had just, correctly, removed. Asking
+// about one removed id explicitly still answers with the tombstone.
+func withoutRemovedRecipes(root string, ids []string) (live, removed []string) {
+	for _, id := range ids {
+		r, err := recipe.LoadReceipt(root, id)
+		if err == nil && r.Removed != "" {
+			removed = append(removed, id)
+			continue
+		}
+		live = append(live, id)
+	}
+	return live, removed
+}
+
 // driftReport is the machine shape of one recipe's drift. The schema mirror is
 // reported beside the declaration problems rather than inside them: the first
 // is a generated view lagging the code, the second is the code contradicting

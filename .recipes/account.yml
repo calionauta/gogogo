@@ -6,8 +6,8 @@ upstream:
   ref: master
   path: features/account
 files:
-  features/account/components/page.templ: 5f28d1c69670d90d399ea66066cdee2949ac4965a518d9cf659e26e7a7b5c437
-  features/account/components/page_templ.go: 8eb28074b0cd7d7cde5cad310d8f299cc089771ac1969b0543147d812289c1da
+  features/account/components/page.templ: 378fd95f7309d42e70575c5d217438739d7a875cb58135061df39c2b9d3b2741
+  features/account/components/page_templ.go: 5904a5aad6ce6293e84a0dccdeadc4ae86743a9535fb43bfcff14449de7076c4
   features/account/handlers/chi.go: 20a08f4b41da7cf913dd48c70f60ae06e4f2957ded8d5822784dfab4e7396496
   features/account/handlers/chi_test.go: 228a527b8310f51e3e8b3e981a289721f4122536b81def7494df329690794c13
   features/account/handlers/cloud.go: 20747005bda44ef2516b8365a2cacc60bf4283e783e946d101e51eea83609603

@@ -7,19 +7,19 @@ upstream:
     ref: master
     path: features/kiosk
 files:
-    features/kiosk/components/page.templ: 3897804d7adf6e80243fbe14c2f762ead7b434853ffd10c3f5a11bf33a190f1c
+    features/kiosk/components/page.templ: 7d400bbe326e80c97fdf16b3c1602765ef8efaead017dcc1f05082fa2c69fd49
     features/kiosk/components/signals.go: 468ccfeb23709ed5284650eaf8a964bd04f2dd09ef6231fff68f5ad13011e6d9
-    features/kiosk/embed.go: 16bd1f0ce7184f4ad63c0c9433c2f8f672f91bc222ee7140df709c47da19ffd6
-    features/kiosk/handlers/chi.go: 39d371145c61b5cfb1f96c694af415c4105e7c62d3f5b002926b39339581c7a6
-    features/kiosk/handlers/confirm.go: e19004b9b6d18e0663f41c5adc8a6978801636e7e3789931f19acf9e595fd9d2
+    features/kiosk/embed.go: f8fe6e78de2e703bb245e40be61d7fae067411886f0475a0f3e90af2ace75090
+    features/kiosk/handlers/chi.go: ec51d16bdbfb68ee93c02dba53adb6c8cea6456bd22b92f9ae5cc587ea37570c
+    features/kiosk/handlers/confirm.go: f1721e70031fd7682850f06445914ff4d790d1292d77139da09932d548ac31be
     features/kiosk/handlers/genui_panel.go: 4cbeff325be62b1ea13ea2b25885f62cbdc0c35e44e279d682b3d1543ebc75c9
     features/kiosk/handlers/outcome_test.go: df13a73f011dd3cba532e9ba15df99da04de696a4cde3b6c46c1b698269afdfd
-    features/kiosk/handlers/preview.go: 0d67934548312aa520abd8452dd7bc1c4b650b2785552772c3896c0a98d75768
+    features/kiosk/handlers/preview.go: 0a349d13dcda9a561a6546567180953ba4ac5f0bca6774ff328c280640155f3b
     features/kiosk/handlers/recipe.go: 99e9174621e49963a3d8b0352ad768bd9c257a8d6cee5d5da6b097542734350a
     features/kiosk/handlers/recipe_test.go: 17c68b0901c2c4af188cbf8aa37173c135141783feaceecd8c102f23d5e4b293
-    features/kiosk/handlers/register.go: 9f307d222293b8f87cfb9bf1e1f05cfd507b8f75080be2b77934a0cde1044f48
-    features/kiosk/menu.go: eb403c9841da8b4382a80e338e4ca60e1ce352411e5661e372fc4f2256d83323
-    features/kiosk/menu_test.go: 3e3a9437654729e88dacbc45f2cd085831955f34970b85a4aadc7d5952bd6f50
+    features/kiosk/handlers/register.go: f5d7f83c4092f0b5b3d8234df052a07011497a114e54af99a349005ccb2d0d4d
+    features/kiosk/menu.go: 0ec032eaa5842d0e6919b102a90562ed88377d1f15f1024f9881edfc68291378
+    features/kiosk/menu_test.go: cf02d3088e19f747020df634bb714648269b2363d9c14ddfaab07ca8d9845eb0
     features/kiosk/migrations/0001_init.sql: 6b676e8b583003f70af67df35b20996d25f9b27452b83748f39a5ee16a1508a6
     features/kiosk/service/orders.go: 64162efa3be3ad4dc451d1168b05005d952d8272b3ac139560e9f650b39942b1
     features/kiosk/service/orders_test.go: 217b781e1157dadceebfdd8db4304fd47467fea7e4ea3702b4dbf80c9cb9387b
