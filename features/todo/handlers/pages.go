@@ -301,6 +301,9 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	signals.SidebarTab = "queue"
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
+	//nolint:contextcheck // templ threads GeneratedComponentInput.Context into
+	// nested components; contextcheck cannot see that path, and the ctx here IS
+	// the request's (r.Context()).
 	_ = components.Layout(
 		"Todos — gogogo",
 		signals, sess.User.Email, sess.Role,

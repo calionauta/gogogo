@@ -220,7 +220,7 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 										title={ stateTitle() }
 										data-on:click="$panelVisible = !($panelVisible && $panelMode === 'state'); $panelMode = 'state'; fetch('/_ui/demo?on=' + ($panelVisible ? '1' : '0') + '&next=' + encodeURIComponent(window.location.pathname), {credentials: 'same-origin'})">
 										@icon.Icon("material-symbols:tune", "app-demo-icon")
-										<span class="app-demo-label">State</span>
+										<span class="app-demo-label">{ i18n.T(ctx, "shell.state", nil) }</span>
 									</button>
 								}
 								if d.HasStack() {
@@ -234,7 +234,7 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 										title={ stackTitle() }
 										data-on:click="$panelVisible = !($panelVisible && $panelMode === 'stack'); $panelMode = 'stack'; fetch('/_ui/demo?on=' + ($panelVisible ? '1' : '0') + '&next=' + encodeURIComponent(window.location.pathname), {credentials: 'same-origin'})">
 										@icon.Icon("material-symbols:stack", "app-demo-icon")
-										<span class="app-demo-label">Stack</span>
+										<span class="app-demo-label">{ i18n.T(ctx, "shell.stack", nil) }</span>
 									</button>
 								}
 								@authviews.CommandPalette(d.Role, d.Email == "")
@@ -258,7 +258,7 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 								// (components.TechStack), so naming it here would print the
 								// same word twice, one line apart.
 								if d.HasState() {
-									<p class="app-state-panel-head" data-show="$panelMode === 'state'">STATE</p>
+									<p class="app-state-panel-head" data-show="$panelMode === 'state'">{ i18n.T(ctx, "shell.stateUpper", nil) }</p>
 								}
 								<button
 									type="button"
@@ -318,7 +318,7 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 								}
 							}
 							if entries := visibleNav(ctx, d.Role); len(entries) > 0 {
-								<p class="app-rail-group">Recipes</p>
+								<p class="app-rail-group">{ i18n.T(ctx, "shell.recipes", nil) }</p>
 								for _, e := range entries {
 									@railEntry(e)
 								}
@@ -509,7 +509,7 @@ templ AppDock(module string, role string) {
 			// points up when the drawer is closed and rotates to point down
 			// when it opens, so the icon says what the next tap does.
 			@icon.Icon("material-symbols:keyboard-arrow-up", "app-dock-icon app-dock-chevron")
-			<span class="dock-label">Menu</span>
+			<span class="dock-label">{ i18n.T(ctx, "shell.menu", nil) }</span>
 		</button>
 	</nav>
 }

@@ -6,7 +6,10 @@
 // a pinned contract (controls_test.go).
 package authviews
 
-import "github.com/calionauta/gogogo/internal/icon"
+import (
+	"github.com/calionauta/gogogo/internal/icon"
+	"github.com/calionauta/gogogo/internal/i18n"
+)
 
 // ThemeToggle flips $theme and mirrors it to localStorage. The icon pair is
 // CSS-switched (icon-dark-mode / icon-light-mode), so the same markup serves
@@ -77,21 +80,21 @@ templ UserMenu(userEmail string, userRole string, prefs templ.Component, lang te
 				<span class="app-account-identity">
 					<span class="app-user-email">{ userEmail }</span>
 					if userRole == "admin" {
-						<span class="badge badge-sm badge-primary">Admin</span>
+						<span class="badge badge-sm badge-primary">{ i18n.T(ctx, "common.admin", nil) }</span>
 					}
 				</span>
 				<span class="app-account-caret" aria-hidden="true"></span>
 			</summary>
 			<ul class="app-dropdown-menu">
 				<li class="app-menu-title">
-					<span>Signed in as</span>
+					<span>{ i18n.T(ctx, "common.signedInAs", nil) }</span>
 				</li>
 				<li>
 					<span class="font-mono text-xs break-all">{ userEmail }</span>
 				</li>
 				if userRole != "" {
 					<li>
-						<span class="text-xs text-base-content/60">Role: <strong class="font-mono">{ userRole }</strong></span>
+						<span class="text-xs text-base-content/60">{ i18n.T(ctx, "common.roleLabel", nil) } <strong class="font-mono">{ userRole }</strong></span>
 					</li>
 				}
 				<li>

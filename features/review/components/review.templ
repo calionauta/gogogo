@@ -113,7 +113,7 @@ templ reviewBody(signals Signals) {
 								<span style="display:none" data-show="$review_pending" class="loading loading-spinner loading-sm" aria-hidden="true"></span>
 								<span style="display:none" data-show="$review_pending">{ i18n.T(ctx, "review.reviewing", nil) }</span>
 							</button>
-							<span style="display:none" data-show="$review_pending" class="text-sm text-base-content/60">Phase: <span data-text="$review_phase"></span></span>
+							<span style="display:none" data-show="$review_pending" class="text-sm text-base-content/60">{ i18n.T(ctx, "review.phase", nil) } <span data-text="$review_phase"></span></span>
 						</div>
 					</form>
 				} else {
@@ -150,18 +150,18 @@ templ ReviewResult(decision string, rationale string, proposal string, critique 
 			</h2>
 			if needsHuman {
 				<div class="alert mt-2" role="status">
-					<span>A human should decide — approve the proposal below or revise and re-run.</span>
+					<span>{ i18n.T(ctx, "review.humanDecision", nil) }</span>
 				</div>
 			}
 			<div class="chat chat-start mt-3">
-				<div class="chat-header">Judge</div>
+				<div class="chat-header">{ i18n.T(ctx, "review.judge", nil) }</div>
 				<div class="chat-bubble">
 					<p class="text-sm">{ rationale }</p>
 				</div>
 			</div>
 			if criticVerdict == criticRevised {
 				<div class="chat chat-start">
-					<div class="chat-header">Critic</div>
+					<div class="chat-header">{ i18n.T(ctx, "review.critic", nil) }</div>
 					<div class="chat-bubble">
 						<p class="text-sm whitespace-pre-wrap">{ critique }</p>
 					</div>
@@ -169,7 +169,7 @@ templ ReviewResult(decision string, rationale string, proposal string, critique 
 			}
 			if proposal != "" {
 				<div class="chat chat-end">
-					<div class="chat-header">Writer</div>
+					<div class="chat-header">{ i18n.T(ctx, "review.writer", nil) }</div>
 					<div class="chat-bubble chat-bubble-primary">
 						// The proposal stays a <pre>: it is the artifact, and the
 						// reviewed content may be a diff — the critique and the
@@ -194,7 +194,7 @@ const criticRevised = "revised"
 templ ReviewPending() {
 	<div id="review-result" class="ui-card" aria-busy="true">
 		<div class="ui-card-body">
-			<p class="text-sm text-base-content/60">Reviewing… the verdict replaces this.</p>
+			<p class="text-sm text-base-content/60">{ i18n.T(ctx, "review.reviewingNote", nil) }</p>
 		</div>
 	</div>
 }
@@ -208,7 +208,7 @@ templ ReviewError(message string) {
 			<div class="alert alert-error" role="alert">
 				<span>{ message }</span>
 			</div>
-			<p class="text-sm text-base-content/60 mt-2">Edit the content above and run again.</p>
+			<p class="text-sm text-base-content/60 mt-2">{ i18n.T(ctx, "review.editAndRerun", nil) }</p>
 		</div>
 	</div>
 }

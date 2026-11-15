@@ -1,6 +1,8 @@
 package components
 
 import (
+	"context"
+
 	"github.com/calionauta/gogogo/internal/ui"
 	"encoding/json"
 	"strconv"
@@ -56,7 +58,8 @@ templ TodoList(signals todo.Signals) {
 						<div class="ui-card-head">
 
 							<h2 class="ui-title">{ i18n.T(ctx, "todo.tasks", nil) }</h2>
-							<span class="badge badge-sm" data-text="$itemCount + ' items'"></span>
+							{{ itemsExpr := "$itemCount + ' " + i18n.T(ctx, "common.items", nil) + "'" }}
+							<span class="badge badge-sm" data-text={ itemsExpr }></span>
 						</div>
 						<div class="ui-card-body ui-stack">
 
@@ -74,17 +77,17 @@ templ TodoList(signals todo.Signals) {
 									title="Which todos to list"
 									data-on:change={ ui.TodoScopeSelectOn() }>
 									<option value="all" selected?={ signals.Scope == "" || signals.Scope == "all" }>All</option>
-									<option value="mine" selected?={ signals.Scope == "mine" }>Mine</option>
-									<option value="shared" selected?={ signals.Scope == "shared" }>Shared</option>
+									<option value="mine" selected?={ signals.Scope == "mine" }>{ i18n.T(ctx, "todo.mine", nil) }</option>
+									<option value="shared" selected?={ signals.Scope == "shared" }>{ i18n.T(ctx, "common.shared", nil) }</option>
 								</select>
 								@createdFilter()
 							</div>
 							<div class="alert alert-warning mt-2" role="alert" style="display:none" data-show="$permDenied">
-								<span>You cannot delete this todo — its author or an admin can. Keep adding.</span>
+								<span>{ i18n.T(ctx, "todo.cannotDelete", nil) }</span>
 								<button type="button" class="btn btn-ghost btn-sm" data-on:click={ "$permDenied = false" }>dismiss</button>
 							</div>
 							<div class="alert alert-info mt-2" role="status" id="todo-list-offline" style="display:none" data-show="$listOffline">
-								<span>Changing the list needs a connection — the view stays as it is until you reconnect.</span>
+								<span>{ i18n.T(ctx, "todo.offline", nil) }</span>
 								<button type="button" class="btn btn-ghost btn-sm" data-on:click={ "$listOffline = false" }>dismiss</button>
 							</div>
 							// The restored fragment is a CACHED render, so it must say
@@ -167,10 +170,10 @@ templ createForm(signals todo.Signals) {
 		</div>
 		<label class="ui-meta mt-2 flex items-center gap-2 cursor-pointer">
 			<input type="checkbox" name="visibility" value="public" class="checkbox checkbox-xs checkbox-info"/>
-			<span>Shared — every login sees this todo (private by default)</span>
+			<span>{ i18n.T(ctx, "todo.sharedHint", nil) }</span>
 		</label>
 		<div class="alert alert-warning mt-2" role="alert" id="todo-save-error" style="display:none" data-show="$syncFailed">
-			<span>Not saved — the request failed. Your text is still in the box; try again.</span>
+			<span>{ i18n.T(ctx, "todo.notSaved", nil) }</span>
 			<button type="button" class="btn btn-ghost btn-sm" data-on:click="$syncFailed = false">dismiss</button>
 		</div>
 	</form>
@@ -237,7 +240,7 @@ templ searchModeSelect(signals todo.Signals) {
 			data-on:change={ ui.TodoSearchModeOn() }
 		>
 			for _, m := range signals.SearchModes {
-				<option value={ m } selected?={ m == signals.SearchMode }>{ searchModeLabel(m) }</option>
+				<option value={ m } selected?={ m == signals.SearchMode }>{ searchModeLabel(ctx, m) }</option>
 			}
 		</select>
 	}
@@ -246,14 +249,14 @@ templ searchModeSelect(signals todo.Signals) {
 // searchModeLabel names a layer in the user's words. Unknown names fall through
 // as-is rather than being hidden: a fourth layer added to the plugin should
 // appear in the picker immediately, even before it gets a friendly label.
-func searchModeLabel(mode string) string {
+func searchModeLabel(ctx context.Context, mode string) string {
 	switch mode {
 	case "substring":
-		return "exact"
+		return i18n.T(ctx, "todo.searchExact", nil)
 	case "fuzzy":
-		return "typo-tolerant"
+		return i18n.T(ctx, "todo.searchFuzzy", nil)
 	case "bm25":
-		return "relevance"
+		return i18n.T(ctx, "todo.searchRelevance", nil)
 	default:
 		return mode
 	}
@@ -261,14 +264,14 @@ func searchModeLabel(mode string) string {
 
 // searchModeHint says what the selected layer does, so the choice is not a
 // guess. Kept to one short clause per mode.
-func searchModeHint(mode string) string {
+func searchModeHint(ctx context.Context, mode string) string {
 	switch mode {
 	case "substring":
-		return "matches the letters you type"
+		return i18n.T(ctx, "todo.searchExactHint", nil)
 	case "fuzzy":
-		return "tolerates typos and partial words"
+		return i18n.T(ctx, "todo.searchFuzzyHint", nil)
 	case "bm25":
-		return "ranks by relevance, best first"
+		return i18n.T(ctx, "todo.searchRelevanceHint", nil)
 	default:
 		return ""
 	}
@@ -405,7 +408,7 @@ func safeJSString(s string) string {
 templ clearCompletedModal() {
 	<dialog id="confirm-clear-completed" class="modal">
 		<div class="modal-box">
-			<h3 class="ui-title text-error">Clear completed todos?</h3>
+			<h3 class="ui-title text-error">{ i18n.T(ctx, "todo.clearCompleted", nil) }</h3>
 			<p class="py-4 text-sm">
 				This permanently removes every completed todo in the current view. It can't be undone.
 			</p>
@@ -481,7 +484,7 @@ templ deleteConfirmModal(spec deleteModalSpec) {
 					data-attr:disabled="!!$deleting"
 					data-on:click={ "$deleting = true; document.getElementById(" + safeJSString(spec.ID) + ").close(); " + spec.ConfirmExpr }>
 					<span class="inline-flex items-center gap-2">
-						<span>Delete</span>
+						<span>{ i18n.T(ctx, "common.delete", nil) }</span>
 						<span class="loading loading-spinner loading-xs" style="display:none" data-show="$deleting"></span>
 					</span>
 				</button>
@@ -565,7 +568,7 @@ templ createdFilter() {
 		>clear</button>
 	</div>
 	<div id="created-filter-popover" popover class="app-date-popover bg-base-100 text-base-content border border-base-300 rounded-box shadow-lg p-3">
-		<p class="ui-meta">Created since</p>
+		<p class="ui-meta">{ i18n.T(ctx, "todo.createdSince", nil) }</p>
 		<calendar-date
 			class="cally mt-1"
 			aria-label="Created since"
@@ -580,7 +583,7 @@ templ createdFilter() {
 			<calendar-month></calendar-month>
 		</calendar-date>
 		<div class="flex flex-wrap gap-1 mt-2">
-			<button type="button" class="btn btn-ghost btn-sm" data-on:click={ `$createdAfter = new Date().toISOString().slice(0, 10); $noMatches = false; document.getElementById('created-filter-popover').hidePopover()` }>Today</button>
+			<button type="button" class="btn btn-ghost btn-sm" data-on:click={ `$createdAfter = new Date().toISOString().slice(0, 10); $noMatches = false; document.getElementById('created-filter-popover').hidePopover()` }>{ i18n.T(ctx, "todo.today", nil) }</button>
 			<button type="button" class="btn btn-ghost btn-sm" data-on:click={ `$createdAfter = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10); $noMatches = false; document.getElementById('created-filter-popover').hidePopover()` }>7 days</button>
 			<button type="button" class="btn btn-ghost btn-sm" data-on:click={ `$createdAfter = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10); $noMatches = false; document.getElementById('created-filter-popover').hidePopover()` }>30 days</button>
 		</div>

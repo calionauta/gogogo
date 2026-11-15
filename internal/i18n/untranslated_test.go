@@ -1,21 +1,20 @@
-// The i18n ratchet: the untranslated debt is counted, and it can only shrink.
+// The i18n gate: no untranslated prose in markup.
 //
-// WHY A RATCHET AND NOT A HARD GATE. Every check in this repo that says "no
-// literal copy" is one-directional: it proves "every key you asked for exists",
-// never "every English string was asked for". Twelve feature templates contain
-// zero i18n calls and still pass, which is exactly the report that shipped
-// (sidebar in pt-BR, every screen's body in English). A hard gate today would
-// fail on ~190 pre-existing literals and would be disabled on day one.
+// WHY THIS EXISTS. Every other check here is one-directional: it proves "every
+// key you asked for exists", never "every English string was asked for". Twelve
+// feature templates contained zero i18n calls and still passed — which is
+// exactly the report that shipped (sidebar in pt-BR, every screen's body in
+// English).
 //
-// So the debt is a number in a checked-in file. The test fails when a file grows
-// past its count; it never fails because a file is still above zero. Removing a
-// literal means lowering the number, which is the migration.
+// It began as a ratchet because ~210 pre-existing literals would have failed a
+// hard gate on day one. The debt is now ZERO (the checked-in file is `{}`), so
+// this is a hard gate: any new literal prose node fails the build. Keep the file
+// empty; the `-update-untranslated` flag exists only to re-measure a tree that
+// legitimately shrank a count.
 //
-// The scan is deliberately narrow: a text node that starts with an uppercase
-// letter and holds at least 4 characters, excluding entities, code, paths, and
-// the volatile bits a template interpolates. It is a heuristic, and it is
-// documented as one — a missed literal costs a new English word, a false
-// positive costs one allowlist line.
+// The scan is deliberate about what it ignores — entities, code spans, paths,
+// URLs, acronyms, env settings, template interpolations and product names — so
+// the only thing that can trip it is copy a person would expect translated.
 package i18n_test
 
 import (
@@ -42,12 +41,34 @@ var updateBaseline = flag.Bool("update-untranslated", false,
 
 // literalText matches a text node that reads as prose: it starts uppercase,
 // has at least four letters, and contains no template expression or markup.
-var literalText = regexp.MustCompile(`>([A-Z][A-Za-z][A-Za-z ,.'!?—–-]{2,})<`)
+//
+// MULTILINE ON PURPOSE. A wrapped sentence —
+//
+//	<p>Every note is shared: anyone signed in can open and edit it. Only its
+//	author can delete it.</p>
+//
+// — is one text node split across lines by the formatter. A line-based scan saw
+// neither half (the second line starts lowercase and the first has no closing
+// ">"), so ~20 sentences looked translated when they were not. `(?s)` plus a
+// non-greedy body over <> allows the newline.
+var literalText = regexp.MustCompile(`(?s)>([A-Z][^<>{}]{3,}?)<`)
 
 // notProse are the node contents that are data, not copy: an entity, a path, a
-// URL, a bare acronym, or something a template interpolates.
+// URL, a bare acronym, an env-var setting, a proper noun, or something a
+// template interpolates.
 var notProse = regexp.MustCompile(
-	`^(&|https?:|/|[A-Z0-9]{1,3}$|[A-Za-z]+\(|.*\{.*\}.*$|[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)`)
+	`^(&|https?:|/|[A-Z0-9]{1,3}$|` +
+		`[A-Z][A-Z0-9_]{2,}=|` + // RBAC_ENABLED=true — a setting, not a sentence
+		`[A-Za-z]+\(|.*\{.*\}.*$|[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)`)
+
+// properNouns are product and protocol names that read as text but are never
+// translated: they are the same word in every locale.
+var properNouns = map[string]bool{
+	"DagNats": true, "GoAkt": true, "Loro": true, "NATS": true, "JetStream": true,
+	"Turso": true, "Templ": true, "Datastar": true, "Genkit": true, "GoAI": true,
+	"Casbin": true, "DaisyUI": true, "PostHog": true, "Todo": true, "MCP": true,
+	"GitHub": true, "PostgreSQL": true, "SQLite": true,
+}
 
 // scannedTrees are the trees whose markup must be translatable.
 var scannedTrees = []string{"features", "internal"}
@@ -55,18 +76,16 @@ var scannedTrees = []string{"features", "internal"}
 // countLiteralText returns the prose text nodes of one file.
 func countLiteralText(src string) int {
 	n := 0
-	for line := range strings.SplitSeq(src, "\n") {
-		trimmed := strings.TrimSpace(line)
-		// A comment is documentation, not copy.
-		if strings.HasPrefix(trimmed, "//") || strings.HasPrefix(trimmed, "{{/*") {
+	// Comments are documentation, not copy: strip them first so a sentence in a
+	// Go/templ comment is not counted as shippable prose.
+	cleaned := regexp.MustCompile(`(?m)^\s*(//.*|\{\{/\*.*?\*/\}\})\s*$`).ReplaceAllString(src, "")
+	for _, m := range literalText.FindAllStringSubmatch(cleaned, -1) {
+		body := strings.TrimSpace(m[1])
+		body = strings.Join(strings.Fields(body), " ")
+		if notProse.MatchString(body) || properNouns[body] {
 			continue
 		}
-		for _, m := range literalText.FindAllStringSubmatch(line, -1) {
-			if notProse.MatchString(strings.TrimSpace(m[1])) {
-				continue
-			}
-			n++
-		}
+		n++
 	}
 	return n
 }

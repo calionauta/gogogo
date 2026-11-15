@@ -14,6 +14,7 @@ package components
 import (
 	"strconv"
 	"strings"
+	"github.com/calionauta/gogogo/internal/i18n"
 )
 
 // stateRow is one label/state pair: the dot is decoration, the word carries the
@@ -32,16 +33,16 @@ templ stateRow(label string, state string, dotClass string, hint string) {
 templ StatePanel(data PageData) {
 	<div class="app-state-panel-inner">
 		<section aria-label="Delivery pipeline">
-			<h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-1">Pipeline</h3>
+			<h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-1">{ i18n.T(ctx, "notifications.pipeline", nil) }</h3>
 			@stateRow("Durable engine", engineWord(data.Wired), engineTone(data.Wired),
 				"DagNats owns the sleep step: a restart between schedule and delivery resumes the run")
 			@stateRow("Channels", channelWord(data.Channels), channelTone(data.Channels),
 				"in-app is always written; an external channel appears only when its transport is configured and the account has an address")
 		</section>
 		<section aria-label="Delivery rows" class="mt-4">
-			<h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-1">Deliveries</h3>
+			<h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-1">{ i18n.T(ctx, "notifications.deliveries", nil) }</h3>
 			if len(data.Deliveries) == 0 {
-				<p class="text-sm text-base-content/70">No delivery row yet. Schedule a reminder to write the first one.</p>
+				<p class="text-sm text-base-content/70">{ i18n.T(ctx, "notifications.noDelivery", nil) }</p>
 			} else {
 				for _, d := range data.Deliveries {
 					@stateRow(deliveryLabel(d), strconv.Itoa(d.Count), deliveryTone(d.Status),

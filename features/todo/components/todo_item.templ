@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/calionauta/gogogo/features/todo"
+	"github.com/calionauta/gogogo/internal/i18n"
 )
 
 // TodoItem renders a single todo row. Important wiring notes:
@@ -71,7 +72,7 @@ templ TodoItem(item todo.Todo, actions TodoRowActions) {
 		<span class="todo-title flex-1">{ item.Title }</span>
 	}
 		if item.IsShared() {
-			<span class="badge badge-info badge-xs" title="Shared: every login sees this todo">Shared</span>
+			<span class="badge badge-info badge-xs" title="Shared: every login sees this todo">{ i18n.T(ctx, "common.shared", nil) }</span>
 			if !item.IsMine && item.OwnerEmail != "" {
 				<span class="todo-author text-xs text-base-content/40" title="Author">by { item.OwnerEmail }</span>
 			}

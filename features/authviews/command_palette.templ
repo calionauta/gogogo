@@ -1,6 +1,9 @@
 package authviews
 
-import "github.com/calionauta/gogogo/internal/rbac"
+import (
+	"github.com/calionauta/gogogo/internal/rbac"
+	"github.com/calionauta/gogogo/internal/i18n"
+)
 
 // CommandPalette is the keyboard-first jump menu (Ctrl/Cmd+K). It is a
 // Datastar-native combobox/listbox: the input owns the filter signal, every
@@ -50,7 +53,7 @@ templ CommandPalette(userRole string, guest bool) {
 			<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-50" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
 				<path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"></path>
 			</svg>
-			<span class="grow text-left opacity-70 hidden sm:inline">Search</span>
+			<span class="grow text-left opacity-70 hidden sm:inline">{ i18n.T(ctx, "common.search", nil) }</span>
 			<kbd class="kbd kbd-xs hidden sm:inline-flex">⌘</kbd>
 			<kbd class="kbd kbd-xs hidden sm:inline-flex">K</kbd>
 		</button>

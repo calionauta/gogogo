@@ -109,6 +109,7 @@ import templruntime "github.com/a-h/templ/runtime"
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"github.com/calionauta/gogogo/internal/i18n"
 	"strconv"
 	"strings"
 )
@@ -222,7 +223,7 @@ func OfflineBanner(offlineSync bool, userEmail string) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatBool(offlineSync))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 145, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 146, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -235,7 +236,7 @@ func OfflineBanner(offlineSync bool, userEmail string) templ.Component {
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(ownerKey(userEmail))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 146, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 147, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
@@ -248,7 +249,7 @@ func OfflineBanner(offlineSync bool, userEmail string) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(bannerClassExpr())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 147, Col: 32}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 148, Col: 32}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {
@@ -261,7 +262,7 @@ func OfflineBanner(offlineSync bool, userEmail string) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(outboxEventExpr)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 152, Col: 49}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 153, Col: 49}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 		if templ_7745c5c3_Err != nil {
@@ -274,7 +275,7 @@ func OfflineBanner(offlineSync bool, userEmail string) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(bannerTextExpr(offlineSync))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 156, Col: 103}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 157, Col: 103}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 		if templ_7745c5c3_Err != nil {
@@ -287,39 +288,52 @@ func OfflineBanner(offlineSync bool, userEmail string) templ.Component {
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(`'/login?next=' + encodeURIComponent(location.pathname + location.search)`)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 161, Col: 94}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 162, Col: 94}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\" href=\"/login\">Sign in</a> <span id=\"offline-banner-drop\" class=\"hidden\" data-class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\" href=\"/login\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var8 string
-		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(`{'hidden': !($bannerDrop > 0)}`)
+		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "common.signIn", nil))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 164, Col: 93}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 164, Col: 38}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\"><span data-text=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</a> <span id=\"offline-banner-drop\" class=\"hidden\" data-class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var9 string
-		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(dropTextExpr)
+		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(`{'hidden': !($bannerDrop > 0)}`)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 165, Col: 33}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 165, Col: 93}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\"></span> <button type=\"button\" class=\"btn btn-ghost btn-xs\" data-on:click=\"$bannerDrop = 0; window.GogogoOffline && window.GogogoOffline.forgetDrop()\">dismiss</button></span></div><style>\n\t\t#offline-banner.is-online {\n\t\t\t\tdisplay: none;\n\t\t\t}\n\t\t#offline-banner.is-syncing {\n\t\t\t\tdisplay: block;\n\t\t\t\tbackground-color: #3b82f6;\n\t\t\t\tcolor: #ffffff;\n\t\t\t}\n\t\t#offline-banner.is-queued,\n\t\t#offline-banner.is-needs-auth {\n\t\t\t\tdisplay: block;\n\t\t\t\tbackground-color: #f59e0b;\n\t\t\t\tcolor: #ffffff;\n\t\t\t}\n\t\t#offline-banner.is-offline {\n\t\t\t\tdisplay: block;\n\t\t\t\tbackground-color: #f59e0b;\n\t\t\t\tcolor: #ffffff;\n\t\t\t}\n\t\t#offline-banner.is-dropped {\n\t\t\t\tdisplay: block;\n\t\t\t\tbackground-color: #dc2626;\n\t\t\t\tcolor: #ffffff;\n\t\t\t}\n\t</style>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\"><span data-text=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var10 string
+		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(dropTextExpr)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 166, Col: 33}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\"></span> <button type=\"button\" class=\"btn btn-ghost btn-xs\" data-on:click=\"$bannerDrop = 0; window.GogogoOffline && window.GogogoOffline.forgetDrop()\">dismiss</button></span></div><style>\n\t\t#offline-banner.is-online {\n\t\t\t\tdisplay: none;\n\t\t\t}\n\t\t#offline-banner.is-syncing {\n\t\t\t\tdisplay: block;\n\t\t\t\tbackground-color: #3b82f6;\n\t\t\t\tcolor: #ffffff;\n\t\t\t}\n\t\t#offline-banner.is-queued,\n\t\t#offline-banner.is-needs-auth {\n\t\t\t\tdisplay: block;\n\t\t\t\tbackground-color: #f59e0b;\n\t\t\t\tcolor: #ffffff;\n\t\t\t}\n\t\t#offline-banner.is-offline {\n\t\t\t\tdisplay: block;\n\t\t\t\tbackground-color: #f59e0b;\n\t\t\t\tcolor: #ffffff;\n\t\t\t}\n\t\t#offline-banner.is-dropped {\n\t\t\t\tdisplay: block;\n\t\t\t\tbackground-color: #dc2626;\n\t\t\t\tcolor: #ffffff;\n\t\t\t}\n\t</style>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -346,26 +360,26 @@ func OutboxRetireScript(enabled bool) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var10 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var10 == nil {
-			templ_7745c5c3_Var10 = templ.NopComponent
+		templ_7745c5c3_Var11 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var11 == nil {
+			templ_7745c5c3_Var11 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		if !enabled {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<script nonce=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<script nonce=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var11 string
-			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
+			var templ_7745c5c3_Var12 string
+			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 202, Col: 37}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 203, Col: 37}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "\">\n\t\t\tif ('serviceWorker' in navigator) {\n\t\t\t\tnavigator.serviceWorker.getRegistrations().then(function (regs) {\n\t\t\t\t\tregs.forEach(function (reg) { reg.unregister(); });\n\t\t\t\t}).catch(function () {});\n\t\t\t}\n\t\t\tif (window.caches) {\n\t\t\t\tcaches.keys().then(function (keys) {\n\t\t\t\t\tkeys.forEach(function (key) { caches.delete(key); });\n\t\t\t\t}).catch(function () {});\n\t\t\t}\n\t\t</script>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\">\n\t\t\tif ('serviceWorker' in navigator) {\n\t\t\t\tnavigator.serviceWorker.getRegistrations().then(function (regs) {\n\t\t\t\t\tregs.forEach(function (reg) { reg.unregister(); });\n\t\t\t\t}).catch(function () {});\n\t\t\t}\n\t\t\tif (window.caches) {\n\t\t\t\tcaches.keys().then(function (keys) {\n\t\t\t\t\tkeys.forEach(function (key) { caches.delete(key); });\n\t\t\t\t}).catch(function () {});\n\t\t\t}\n\t\t</script>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

@@ -64,12 +64,12 @@ templ LoginPage(next string, errMsg string, demoAccounts bool, totpUser string, 
 							<input type="hidden" name="next" value={ next }/>
 							<label class="flex flex-col gap-1 w-full">
 								<div class="label">
-									<span>Authenticator code</span>
+									<span>{ i18n.T(ctx, "login.authenticatorCode", nil) }</span>
 								</div>
 								<input type="text" name="totp_code" class="input input-sm" required
 									inputmode="numeric" autocomplete="one-time-code" autofocus/>
 							</label>
-							<button type="submit" class="btn btn-primary w-full">Verify code</button>
+							<button type="submit" class="btn btn-primary w-full">{ i18n.T(ctx, "login.verifyCode", nil) }</button>
 						</form>
 					} else {
 					<form method="POST" action="/login" class="space-y-4">
@@ -109,7 +109,7 @@ templ LoginPage(next string, errMsg string, demoAccounts bool, totpUser string, 
 
 						if demoAccounts {
 							<div class="text-xs text-center text-base-content/40 mt-4">
-								Demo 1 prefilled — click <strong>Sign in</strong> to enter.
+								Demo 1 prefilled — click <strong>{ i18n.T(ctx, "login.signIn", nil) }</strong> to enter.
 							</div>
 						}
 					</form>
@@ -129,25 +129,25 @@ templ LoginPage(next string, errMsg string, demoAccounts bool, totpUser string, 
 								<input type="hidden" name="next" value={ next }/>
 								<input type="email" name="email" class="input input-sm w-full" required
 									placeholder="you@example.com" autocomplete="email"/>
-								<button type="submit" class="btn btn-ghost btn-sm w-full">Send link</button>
+								<button type="submit" class="btn btn-ghost btn-sm w-full">{ i18n.T(ctx, "login.sendLink", nil) }</button>
 							</form>
 						</details>
 						<details>
-							<summary class="cursor-pointer">Forgot password?</summary>
+							<summary class="cursor-pointer">{ i18n.T(ctx, "login.forgotPassword", nil) }</summary>
 							<form method="POST" action="/login" class="space-y-2 mt-2">
 								<input type="hidden" name="intent" value="forgot"/>
 								<input type="email" name="email" class="input input-sm w-full" required
 									placeholder="you@example.com" autocomplete="email"/>
-								<button type="submit" class="btn btn-ghost btn-sm w-full">Send reset link</button>
+								<button type="submit" class="btn btn-ghost btn-sm w-full">{ i18n.T(ctx, "login.sendResetLink", nil) }</button>
 							</form>
 						</details>
 						<details>
-							<summary class="cursor-pointer">Resend verification email</summary>
+							<summary class="cursor-pointer">{ i18n.T(ctx, "login.resendVerification", nil) }</summary>
 							<form method="POST" action="/login" class="space-y-2 mt-2">
 								<input type="hidden" name="intent" value="verify"/>
 								<input type="email" name="email" class="input input-sm w-full" required
 									placeholder="you@example.com" autocomplete="email"/>
-								<button type="submit" class="btn btn-ghost btn-sm w-full">Send verification</button>
+								<button type="submit" class="btn btn-ghost btn-sm w-full">{ i18n.T(ctx, "login.sendVerification", nil) }</button>
 							</form>
 						</details>
 					</div>
@@ -157,28 +157,28 @@ templ LoginPage(next string, errMsg string, demoAccounts bool, totpUser string, 
 						<div class="grid grid-cols-2 gap-2">
 							<div class="rounded-lg border border-base-300 p-3">
 								<div class="flex items-center gap-1.5 mb-1">
-									<span class="badge badge-primary badge-sm">Demo 1</span>
+									<span class="badge badge-primary badge-sm">{ i18n.T(ctx, "login.demo1", nil) }</span>
 									<span class="badge badge-outline badge-sm">admin</span>
 									</div>
 								<code class="text-xs font-mono break-all">demo1@demo.app</code>
-								<p class="text-xs text-base-content/60 mt-1">Full access + <code>/config</code> + Dashboard menu.</p>
+								<p class="text-xs text-base-content/60 mt-1">{ i18n.T(ctx, "login.fullAccess", nil) } <code>/config</code> + Dashboard menu.</p>
 							</div>
 							<div class="rounded-lg border border-base-300 p-3">
 								<div class="flex items-center gap-1.5 mb-1">
-									<span class="badge badge-secondary badge-sm">Demo 2</span>
+									<span class="badge badge-secondary badge-sm">{ i18n.T(ctx, "login.demo2", nil) }</span>
 									<span class="badge badge-outline badge-sm">viewer</span>
 									</div>
 								<code class="text-xs font-mono break-all">demo2@demo.app</code>
-								<p class="text-xs text-base-content/60 mt-1">Full rights over own todos; reads, creates, toggles shared. No paid actions.</p>
+								<p class="text-xs text-base-content/60 mt-1">{ i18n.T(ctx, "login.demo2Rights", nil) }</p>
 							</div>
 						</div>
 						<div class="rounded-lg bg-base-200/60 p-3 text-xs space-y-1.5">
-							<p><strong>Password for both:</strong> <code>demo1234456</code></p>
-							<p><strong>Prove collab:</strong> open a <strong>second browser or incognito window</strong>, sign in as the other demo, toggle a shared todo — both screens update live.</p>
+							<p><strong>{ i18n.T(ctx, "login.passwordForBoth", nil) }</strong> <code>demo1234456</code></p>
+							<p><strong>{ i18n.T(ctx, "login.proveCollab", nil) }</strong> open a <strong>second browser or incognito window</strong>, sign in as the other demo, toggle a shared todo — both screens update live.</p>
 						</div>
 						<details class="text-xs text-base-content/60">
-							<summary class="cursor-pointer font-medium">How permissions work (Casbin)</summary>
-							<p class="mt-1">Per-request decision over a <code>users.role</code> column (<code>internal/rbac</code>, see <code>docs/rbac.md</code>). Enforce with <code>RBAC_ENABLED=true</code>; re-map addresses without a rebuild via <code>ADMIN_EMAILS</code> / <code>VIEWER_EMAILS</code>.</p>
+							<summary class="cursor-pointer font-medium">{ i18n.T(ctx, "login.howPermissions", nil) }</summary>
+							<p class="mt-1">{ i18n.T(ctx, "login.rbacNote", nil) }</p>
 						</details>
 					</div>
 					}

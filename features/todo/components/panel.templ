@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/calionauta/gogogo/features/todo"
+	"github.com/calionauta/gogogo/internal/i18n"
 )
 
 // Panel renders the viewer's own todos for the AI answer surfaces: the app's
@@ -30,7 +31,7 @@ templ Panel(id string, filter string, rows []todo.Todo, extras []todo.RowAction)
 	<div id={ id } class="rounded-box border border-base-300 p-4">
 		<div class="flex items-baseline justify-between gap-2 mb-2">
 			<h3 class="font-semibold">{ todoListHeading(filter) }</h3>
-			<a href="/todo" class="link link-hover text-xs">Open in Todos</a>
+			<a href="/todo" class="link link-hover text-xs">{ i18n.T(ctx, "todo.openInTodos", nil) }</a>
 		</div>
 		@panelTabs(id, filter)
 		if len(rows) == 0 {
@@ -57,9 +58,9 @@ templ Panel(id string, filter string, rows []todo.Todo, extras []todo.RowAction)
 // the class flips with the rows, no client signal to keep in step.
 templ panelTabs(panelID, filter string) {
 	<div class="tabs tabs-box tabs-xs mb-2" role="tablist" aria-label="Todo slice">
-		<button type="button" role="tab" class={ panelTabClass(filter, "open") } data-on:click={ panelFilterExpr(panelID, "open") }>Open</button>
+		<button type="button" role="tab" class={ panelTabClass(filter, "open") } data-on:click={ panelFilterExpr(panelID, "open") }>{ i18n.T(ctx, "common.open", nil) }</button>
 		<button type="button" role="tab" class={ panelTabClass(filter, "all") } data-on:click={ panelFilterExpr(panelID, "all") }>All</button>
-		<button type="button" role="tab" class={ panelTabClass(filter, "done") } data-on:click={ panelFilterExpr(panelID, "done") }>Done</button>
+		<button type="button" role="tab" class={ panelTabClass(filter, "done") } data-on:click={ panelFilterExpr(panelID, "done") }>{ i18n.T(ctx, "todo.done", nil) }</button>
 	</div>
 }
 

@@ -199,9 +199,9 @@ templ dashboardSound() {
 templ dashboardBody(data PageData) {
 	<div class="ui-page ui-stack" data-signals={ MarshalSignals(data.signals()) }>
 		<div class="flex flex-wrap items-baseline justify-between gap-2">
-			<h2 class="ui-title">Welcome back</h2>
+			<h2 class="ui-title">{ i18n.T(ctx, "dashboard.welcome", nil) }</h2>
 			if data.Scope == "all" {
-				<span class="badge badge-ghost badge-sm">All users</span>
+				<span class="badge badge-ghost badge-sm">{ i18n.T(ctx, "dashboard.allUsers", nil) }</span>
 			}
 		</div>
 		// The dashboard is a summary surface: one card per destination
@@ -271,7 +271,7 @@ templ dashboardBody(data PageData) {
 			} else {
 				<div class="ui-card md:col-span-2 xl:col-span-3">
 					<div class="ui-card-body text-center">
-						<p class="text-base-content/70">No metrics yet. Add a todo or check your inbox.</p>
+						<p class="text-base-content/70">{ i18n.T(ctx, "dashboard.noMetrics", nil) }</p>
 					</div>
 				</div>
 			}

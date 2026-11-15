@@ -9,6 +9,7 @@ import (
 	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/internal/components"
 	"github.com/calionauta/gogogo/internal/ui"
+	"github.com/calionauta/gogogo/internal/i18n"
 )
 
 // ChatIndex renders the conversation page: composer, live message list fed by
@@ -110,7 +111,7 @@ templ chatBody(msgs []store.MessageView, llmReady bool, catalogOn bool, customOn
 					<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
 						<path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
 					</svg>
-					<span>New chat</span>
+					<span>{ i18n.T(ctx, "chat.newChat", nil) }</span>
 				</button>
 			</div>
 		} else {
@@ -125,7 +126,7 @@ templ chatBody(msgs []store.MessageView, llmReady bool, catalogOn bool, customOn
 					<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
 						<path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
 					</svg>
-					<span>New chat</span>
+					<span>{ i18n.T(ctx, "chat.newChat", nil) }</span>
 				</button>
 			</div>
 		}
@@ -153,7 +154,7 @@ templ chatBody(msgs []store.MessageView, llmReady bool, catalogOn bool, customOn
 			data-cuelume="send"
 		>
 			<div class="mb-2 space-y-1" role="group" aria-label="Answer components">
-				<span class="block text-xs text-base-content/60">Answer components</span>
+				<span class="block text-xs text-base-content/60">{ i18n.T(ctx, "chat.answerComponents", nil) }</span>
 				<div class="flex flex-wrap items-center gap-x-4 gap-y-1">
 					<input type="hidden" name="surfaces" value=""/>
 					<label class="label cursor-pointer gap-1.5 p-0" title="Fixed components: notes, cards, tables, charts">
@@ -170,7 +171,7 @@ templ chatBody(msgs []store.MessageView, llmReady bool, catalogOn bool, customOn
 					</label>
 				</div>
 			</div>
-			<label for="chat-prompt" class="sr-only">Message</label>
+			<label for="chat-prompt" class="sr-only">{ i18n.T(ctx, "chat.message", nil) }</label>
 			<div class="join w-full">
 				<input
 					id="chat-prompt"
@@ -189,22 +190,22 @@ templ chatBody(msgs []store.MessageView, llmReady bool, catalogOn bool, customOn
 					class="input input-md sm:input-sm join-item grow"
 				/>
 				<button type="submit" class="btn btn-primary btn-md sm:btn-sm join-item" data-attr:disabled="!!($chat_thinking || !$chat_ready)">
-					<span style="display:none" data-show="!$chat_thinking && $chat_ready">Send</span>
-					<span data-show="!$chat_thinking && !$chat_ready">Wait</span>
+					<span style="display:none" data-show="!$chat_thinking && $chat_ready">{ i18n.T(ctx, "chat.send", nil) }</span>
+					<span data-show="!$chat_thinking && !$chat_ready">{ i18n.T(ctx, "chat.wait", nil) }</span>
 					<span style="display:none" data-show="$chat_thinking" class="loading loading-spinner loading-xs" aria-hidden="true"></span>
 				</button>
 			</div>
 		</form>
 		<div data-show="!$chat_ready && !$chat_error" class="flex items-center gap-2 text-xs text-base-content/60" role="status">
 			<span class="loading loading-spinner loading-xs" aria-hidden="true"></span>
-			<span>Connecting to the live stream…</span>
-			<button type="button" class="btn btn-ghost btn-xs" data-on:click="window.__gogogoSSERefresh && window.__gogogoSSERefresh('chat-stream-opener')">Reconnect</button>
+			<span>{ i18n.T(ctx, "chat.connecting", nil) }</span>
+			<button type="button" class="btn btn-ghost btn-xs" data-on:click="window.__gogogoSSERefresh && window.__gogogoSSERefresh('chat-stream-opener')">{ i18n.T(ctx, "chat.reconnect", nil) }</button>
 		</div>
 		<div style="display:none" data-show="$chat_error" class="alert alert-error alert-soft mt-2" role="alert">
 			<span class="text-sm" data-text="$chat_error"></span>
 			<div class="flex gap-1">
-				<button type="submit" form="chat-composer" class="btn btn-xs">Try again</button>
-				<button type="button" class="btn btn-ghost btn-xs" data-on:click="window.__gogogoSSERefresh && window.__gogogoSSERefresh('chat-stream-opener')">Reconnect</button>
+				<button type="submit" form="chat-composer" class="btn btn-xs">{ i18n.T(ctx, "chat.tryAgain", nil) }</button>
+				<button type="button" class="btn btn-ghost btn-xs" data-on:click="window.__gogogoSSERefresh && window.__gogogoSSERefresh('chat-stream-opener')">{ i18n.T(ctx, "chat.reconnect", nil) }</button>
 			</div>
 		</div>
 		@components.StreamOpener("chat-stream-opener", "/api/chat/stream", false)
@@ -222,7 +223,7 @@ templ chatBody(msgs []store.MessageView, llmReady bool, catalogOn bool, customOn
 templ newChatModal() {
 	<dialog id="confirm-new-chat" class="modal">
 		<div class="modal-box">
-			<h3 class="font-bold text-lg">Start a new chat?</h3>
+			<h3 class="font-bold text-lg">{ i18n.T(ctx, "chat.startNew", nil) }</h3>
 			<p class="py-4 text-sm">
 				This clears your current conversation. It can't be undone.
 			</p>
@@ -263,13 +264,13 @@ templ ChatList(msgs []store.MessageView, errMsg string) {
 	<div id="chat-messages" class="flex flex-col gap-3 pb-6" aria-live="polite">
 		if len(msgs) == 0 {
 			<div id="chat-empty" data-show="$chat_empty" class="chat-hero">
-				<h2>Ask your app anything</h2>
-				<p>Ask in plain words — answers render as visuals, tables, plans, or your own data when that's what you asked for.</p>
+				<h2>{ i18n.T(ctx, "chat.placeholder", nil) }</h2>
+				<p>{ i18n.T(ctx, "chat.help", nil) }</p>
 			</div>
 		} else {
 			<div id="chat-empty" style="display:none" data-show="$chat_empty" class="chat-hero">
-				<h2>Ask your app anything</h2>
-				<p>Ask in plain words — answers render as visuals, tables, plans, or your own data when that's what you asked for.</p>
+				<h2>{ i18n.T(ctx, "chat.placeholder", nil) }</h2>
+				<p>{ i18n.T(ctx, "chat.help", nil) }</p>
 			</div>
 		}
 		@ChatThread(msgs, errMsg)
@@ -284,7 +285,7 @@ templ ChatThinking() {
 	<div id="chat-thinking" style="display:none" data-show="$chat_thinking" class="chat chat-start">
 		<div class="chat-bubble flex items-center gap-2">
 			<span class="loading loading-dots loading-sm" aria-hidden="true"></span>
-			<span class="text-sm" data-text="$chat_working || 'Thinking…'">Thinking…</span>
+			<span class="text-sm" data-text="$chat_working || 'Thinking…'">{ i18n.T(ctx, "chat.thinking", nil) }</span>
 		</div>
 	</div>
 }

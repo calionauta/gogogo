@@ -1,6 +1,8 @@
 // Optimistic pending-row prototype (server-owned markup).
 package components
 
+import "github.com/calionauta/gogogo/internal/i18n"
+
 // pendingRowShow is the visibility contract for a row that exists only in the
 // browser. A server row is filtered by the QUERY (status/scope/search are three
 // different SQL shapes), so its data-show only compares the creation date. The
@@ -51,7 +53,7 @@ templ TodoPendingRow() {
 				title="Shared: every login sees this todo"
 				data-pending-shared="1"
 				hidden
-			>Shared</span>
+			>{ i18n.T(ctx, "common.shared", nil) }</span>
 			<span class="todo-age text-xs text-base-content/40">now</span>
 			<button
 				type="button"

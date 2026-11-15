@@ -423,6 +423,9 @@ func (h *Handler) handleFragment(w http.ResponseWriter, r *http.Request) {
 	signals := h.displaySignals(r, todos, filter, scope)
 	signals.SearchMode = h.activeSearchMode(searchModeOf(r))
 	var buf bytes.Buffer
+	//nolint:contextcheck // templ threads GeneratedComponentInput.Context into
+	// nested components; contextcheck cannot see that path, and the ctx here IS
+	// the request's (r.Context()).
 	if err := components.TodoListRegion(signals).Render(r.Context(), &buf); err != nil {
 		h.fail(r.Context(), w, "todo: fragment render failed", err, "error rendering list")
 		return

@@ -1,6 +1,8 @@
 // The shared stack key every feature shows in its demo panel.
 package components
 
+import "github.com/calionauta/gogogo/internal/i18n"
+
 // TechItem is one stack tag plus its one-line role note: what the
 // layer DOES in the feature rendering it (not what the layer is in
 // the abstract). Keep Name to 2-3 words and Note to one clause so
@@ -36,7 +38,7 @@ type TechItem struct {
 // docs/scope-taxonomy.md#demo-only-markup).
 templ TechStack(items []TechItem) {
 	<section class="app-stack-key" data-demo="stack-key" aria-label="Stack this page demonstrates">
-		<p class="app-state-panel-head">STACK</p>
+		<p class="app-state-panel-head">{ i18n.T(ctx, "common.stack", nil) }</p>
 		<dl class="app-stack-list">
 			for _, it := range items {
 				<div class="app-stack-row">

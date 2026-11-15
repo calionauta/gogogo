@@ -17,6 +17,7 @@ import (
 	"context"
 	"database/sql"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/calionauta/gogogo/features/dashboard/components"
 	"github.com/calionauta/gogogo/internal/auth"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/i18n"
 	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/rbac"
 	"github.com/calionauta/gogogo/internal/recipe"
@@ -154,7 +156,7 @@ func (h *Handler) render(
 		// Every recipe that reports data gets a card, whatever the role:
 		// the grid is a summary of the instance, not a menu. The button is
 		// the role's business (see buildCards).
-		Cards:          buildCards(ui.Modules, ui.Reachable(sess.Role), c, all),
+		Cards:          buildCards(r.Context(), ui.Modules, ui.Reachable(sess.Role), c, all),
 		DashboardCards: cards,
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -369,7 +371,19 @@ func metricSignal(recipeID, label string) string {
 //
 // Landing/account/config/dashboard are platform, not recipes with data, and
 // never appear here.
-func buildCards(mods []ui.Module, reach map[string]bool, c counts, all bool) []components.Card {
+
+// metricLabel translates a declared metric label when the catalog knows it.
+// Declared labels are data, so an unknown one falls through unchanged — a
+// recipe from another tree must not have its wording replaced by a key.
+func metricLabel(ctx context.Context, label string) string {
+	key := "metric." + strings.ToLower(label)
+	if s, ok := i18n.CatalogFromContext(ctx).Lookup(i18n.Locale(ctx), key); ok {
+		return s
+	}
+	return label
+}
+
+func buildCards(ctx context.Context, mods []ui.Module, reach map[string]bool, c counts, all bool) []components.Card {
 	cards := make([]components.Card, 0, len(mods))
 	for _, m := range mods {
 		switch m.ID {
@@ -378,11 +392,17 @@ func buildCards(mods []ui.Module, reach map[string]bool, c counts, all bool) []c
 				continue
 			}
 			cards = append(cards, components.Card{
-				Title: m.Title, URL: m.URL, Cta: cardCta(m, reach, "Open"),
+				Title: ui.ModuleLabel(ctx, m), URL: m.URL, Cta: cardCta(m, reach, i18n.T(ctx, "common.open", nil)),
 				Locked: !reach[m.ID],
 				Metrics: []components.Metric{
-					{Kind: recipe.MetricActivity, Label: "Messages", Value: c.chatTotal, Signal: "chatTotal"},
-					{Kind: recipe.MetricActivity, Label: "Human", Value: c.chatHuman, Signal: "chatHuman"},
+					{
+						Kind: recipe.MetricActivity, Label: i18n.T(ctx, "dashboard.messages", nil),
+						Value: c.chatTotal, Signal: "chatTotal",
+					},
+					{
+						Kind: recipe.MetricActivity, Label: i18n.T(ctx, "dashboard.human", nil),
+						Value: c.chatHuman, Signal: "chatHuman",
+					},
 				},
 			})
 		default:
@@ -390,8 +410,15 @@ func buildCards(mods []ui.Module, reach map[string]bool, c counts, all bool) []c
 			if !ok {
 				continue
 			}
+			// A declared label is recipe DATA (it may say anything), so it is
+			// translated only when the catalog has a `metric.<label>` entry.
+			// The fallback keeps a third-party recipe's own wording intact
+			// instead of rendering a dotted key.
+			for i := range metrics {
+				metrics[i].Label = metricLabel(ctx, metrics[i].Label)
+			}
 			cards = append(cards, components.Card{
-				Title: m.Title, URL: m.URL, Cta: cardCta(m, reach, "Open"),
+				Title: ui.ModuleLabel(ctx, m), URL: m.URL, Cta: cardCta(m, reach, i18n.T(ctx, "common.open", nil)),
 				Locked: !reach[m.ID], Metrics: metrics,
 			})
 		}

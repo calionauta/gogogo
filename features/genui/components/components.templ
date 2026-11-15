@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/calionauta/gogogo/web/resources"
+	"github.com/calionauta/gogogo/internal/i18n"
 )
 
 // DiagramAssets loads the Mermaid renderer (Pele, vendored) plus the mount
@@ -101,7 +102,7 @@ func actionSlotID(instanceID string, index int) string {
 templ GenuiTextNote(id string, text string) {
 	<div id={ id } class="ui-card">
 		<div class="ui-card-body">
-			<h3 class="ui-title text-base">Note</h3>
+			<h3 class="ui-title text-base">{ i18n.T(ctx, "genui.note", nil) }</h3>
 			<p class="text-sm">{ text }</p>
 		</div>
 	</div>
@@ -122,7 +123,7 @@ templ GenuiHTMLBlock(id string, sanitizedHTML string) {
 // next to the option it acts on).
 templ GenuiPlanCards(id string, plans []Plan) {
 	<div id={ id }>
-		<h3 class="font-semibold mb-2">Plans</h3>
+		<h3 class="font-semibold mb-2">{ i18n.T(ctx, "genui.plans", nil) }</h3>
 		<ul class="flex flex-col gap-2">
 			for i, plan := range plans {
 				<li class="ui-card" id={ planCardID(id, i) }>
@@ -217,9 +218,9 @@ func submitExpr(action Action, target string) string {
 templ PanelUnavailable(id string, component string, homePage string) {
 	<div id={ id } class="rounded-box border border-dashed border-warning/50 p-4" role="status">
 		<div class="flex items-baseline justify-between gap-2 mb-2">
-			<h3 class="font-semibold">Couldn't load this</h3>
+			<h3 class="font-semibold">{ i18n.T(ctx, "genui.loadFailed", nil) }</h3>
 			if homePage != "" {
-				<a href={ homePage } class="link link-hover text-xs">Open the page</a>
+				<a href={ homePage } class="link link-hover text-xs">{ i18n.T(ctx, "genui.openPage", nil) }</a>
 			}
 		</div>
 		<p class="text-sm opacity-70">
@@ -235,7 +236,7 @@ templ PanelUnavailable(id string, component string, homePage string) {
 // elements with scope so screen readers announce them.
 templ GenuiDataTable(id string, headers []string, rows [][]string) {
 	<div id={ id }>
-		<h3 class="font-semibold mb-2">Table</h3>
+		<h3 class="font-semibold mb-2">{ i18n.T(ctx, "genui.table", nil) }</h3>
 		<div class="overflow-x-auto">
 			<table class="table table-sm">
 				<thead>
@@ -272,7 +273,7 @@ templ GenuiDiagram(id string, title string, source string) {
 		<div class="p-4 overflow-x-auto">
 			<pre class="mermaid text-sm" data-diagram="pele">{ source }</pre>
 			<details class="mt-2">
-				<summary class="link link-hover text-xs">View source</summary>
+				<summary class="link link-hover text-xs">{ i18n.T(ctx, "genui.viewSource", nil) }</summary>
 				<pre class="mt-1 text-xs whitespace-pre-wrap opacity-70">{ source }</pre>
 			</details>
 		</div>

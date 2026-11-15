@@ -306,7 +306,7 @@ func TestBuildCardsListsInstalledRecipes(t *testing.T) {
 		},
 		chatTotal: 10, chatHuman: 4,
 	}
-	cards := buildCards(mods, reachAll(mods), c, false)
+	cards := buildCards(context.Background(), mods, reachAll(mods), c, false)
 	if len(cards) != 4 {
 		t.Fatalf("buildCards = %d cards, want 4 (inbox, todo, whiteboard, chat)", len(cards))
 	}
@@ -342,7 +342,7 @@ func TestBuildCardsKeepsUnreachableRecipesWithoutALink(t *testing.T) {
 		},
 	}
 	// The role may open Todo but not the Inbox.
-	cards := buildCards(mods, map[string]bool{"todo": true}, c, false)
+	cards := buildCards(context.Background(), mods, map[string]bool{"todo": true}, c, false)
 	if len(cards) != 2 {
 		t.Fatalf("buildCards = %d cards, want 2 (the role does not hide a recipe)", len(cards))
 	}
@@ -362,7 +362,7 @@ func TestBuildCardsKeepsUnreachableRecipesWithoutALink(t *testing.T) {
 // build with bundled recipes always has cards, so the old message — "no
 // extensions installed" while todo/inbox were on screen — cannot return.
 func TestBuildCardsEmptyPinsTheDegenerateBuild(t *testing.T) {
-	if cards := buildCards(nil, nil, counts{}, false); len(cards) != 0 {
+	if cards := buildCards(context.Background(), nil, nil, counts{}, false); len(cards) != 0 {
 		t.Fatalf("buildCards(nil) = %v, want empty", cards)
 	}
 }

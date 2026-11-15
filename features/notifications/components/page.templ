@@ -5,6 +5,7 @@ import (
 	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/internal/components"
 	"github.com/calionauta/gogogo/internal/ui"
+	"github.com/calionauta/gogogo/internal/i18n"
 )
 
 // Item is one delivery row as the inbox renders it.
@@ -106,7 +107,7 @@ templ remindForm(data PageData) {
 	if data.Wired {
 		<section class="ui-card">
 			<div class="ui-card-body ui-stack">
-				<h2 class="ui-title">Remind me</h2>
+				<h2 class="ui-title">{ i18n.T(ctx, "notifications.remindMe", nil) }</h2>
 				<form
 					id="remind-form"
 					class="w-full"
@@ -123,9 +124,9 @@ templ remindForm(data PageData) {
 							data-bind="remindText"
 						/>
 						<select class="select select-sm join-item" name="delay" aria-label="Delay">
-							<option value="1m">in 1 minute</option>
-							<option value="1h">in 1 hour</option>
-							<option value="24h">in 1 day</option>
+							<option value="1m">{ i18n.T(ctx, "notifications.delay1m", nil) }</option>
+							<option value="1h">{ i18n.T(ctx, "notifications.delay1h", nil) }</option>
+							<option value="24h">{ i18n.T(ctx, "notifications.delay24h", nil) }</option>
 						</select>
 						<button
 							type="submit"
@@ -133,7 +134,7 @@ templ remindForm(data PageData) {
 							data-attr:disabled="!!($reminding || !$remindText.trim())"
 						>
 							<span class="inline-flex items-center gap-2">
-								Schedule
+								{ i18n.T(ctx, "notifications.schedule", nil) }
 								<span class="loading loading-spinner loading-xs" style="display:none" data-show="$reminding"></span>
 							</span>
 						</button>
@@ -141,7 +142,7 @@ templ remindForm(data PageData) {
 				</form>
 				if len(data.Channels) > 0 {
 					<fieldset class="flex flex-wrap items-center gap-4">
-						<legend class="sr-only">Also deliver to</legend>
+						<legend class="sr-only">{ i18n.T(ctx, "notifications.alsoDeliver", nil) }</legend>
 						for _, ch := range data.Channels {
 							<label class="ui-meta flex items-center gap-2 cursor-pointer">
 								<input type="checkbox" name="channels" value={ ch.Channel } class="checkbox checkbox-xs checkbox-info"/>
@@ -159,7 +160,7 @@ templ remindForm(data PageData) {
 		<section class="ui-card">
 			<div class="ui-card-body">
 				<div class="alert alert-info" role="status">
-					<span>Reminders need the durable engine. Set <code>DAGNATS_ENABLED=true</code> (or keep the <code>dagnats</code> unit) to schedule.</span>
+					<span>{ i18n.T(ctx, "notifications.needsEngine", nil) }<code>DAGNATS_ENABLED=true</code> { i18n.T(ctx, "notifications.needsEngineTail", nil) }</span>
 				</div>
 			</div>
 		</section>
@@ -219,12 +220,12 @@ templ Inbox(data PageData) {
 					class="tab"
 					data-on:click="$notificationFilter = 'unread'"
 					data-class="{'tab-active': $notificationFilter === 'unread'}"
-				>Unread</button>
+				>{ i18n.T(ctx, "notifications.unread", nil) }</button>
 			</div>
 			if len(data.Items) == 0 {
 				<div class="ui-empty">
-					<p class="ui-empty-title">Nothing here yet.</p>
-					<p class="ui-empty-body">Schedule a reminder above; it arrives when the delay ends.</p>
+					<p class="ui-empty-title">{ i18n.T(ctx, "notifications.emptyTitle", nil) }</p>
+					<p class="ui-empty-body">{ i18n.T(ctx, "notifications.scheduleHint", nil) }</p>
 				</div>
 			} else {
 				if data.Unread > 0 {
@@ -233,12 +234,12 @@ templ Inbox(data PageData) {
 							type="button"
 							class="btn btn-soft btn-xs"
 							data-on:click={ readAllAction() }
-						>Mark all read</button>
+						>{ i18n.T(ctx, "notifications.markAllRead", nil) }</button>
 					</div>
 				}
 				<div style="display:none" class="ui-empty" data-show="$notificationFilter === 'unread' && $inboxUnread === 0">
-					<p class="ui-empty-title">All caught up.</p>
-					<p class="ui-empty-body">New reminders arrive here when their delay ends.</p>
+					<p class="ui-empty-title">{ i18n.T(ctx, "notifications.allCaughtUp", nil) }</p>
+					<p class="ui-empty-body">{ i18n.T(ctx, "notifications.emptyBody", nil) }</p>
 				</div>
 				<ul class="divide-y divide-base-200">
 					for _, item := range data.Items {
@@ -260,7 +261,7 @@ templ itemRow(item Item) {
 		<div class="grow">
 			<p class="font-medium">
 				if item.Unread {
-					<span class="sr-only">Unread: </span>
+					<span class="sr-only">{ i18n.T(ctx, "common.unreadLabel", nil) } </span>
 				}
 				{ item.Subject }
 			</p>
@@ -272,13 +273,13 @@ templ itemRow(item Item) {
 				type="button"
 				class="btn btn-soft btn-xs"
 				data-on:click={ readAction(item.ID) }
-			>Mark read</button>
+			>{ i18n.T(ctx, "notifications.markRead", nil) }</button>
 		} else {
 			<button
 				type="button"
 				class="btn btn-soft btn-xs"
 				data-on:click={ unreadAction(item.ID) }
-			>Mark unread</button>
+			>{ i18n.T(ctx, "notifications.markUnread", nil) }</button>
 		}
 	</li>
 }

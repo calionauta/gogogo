@@ -15,6 +15,9 @@
 package components
 
 import (
+	"strings"
+
+	"github.com/calionauta/gogogo/internal/i18n"
 	"github.com/calionauta/gogogo/internal/ui"
 	"encoding/json"
 	"net/url"
@@ -174,18 +177,18 @@ templ RoomCard(roomID string, roster appgoakt.Roster, email string) {
 templ RoomCardContent(roomID string, roster appgoakt.Roster, email string) {
 	<div id="room-card-content">
 		<h2 class="ui-title">
-			Presenter: <span id="room-presenter">
+			{ i18n.T(ctx, "room.presenterLabel", nil) } <span id="room-presenter">
 				if roster.Presenter == "" {
-					(none)
+					{ i18n.T(ctx, "common.none", nil) }
 				} else {
 					{ roster.Presenter }
 				}
 			</span>
 		</h2>
-		<p class="text-sm opacity-70">Room generation <span id="room-generation">{ strconv.Itoa(roster.Generation) }</span> (bumps on every restart)</p>
+		<p class="text-sm opacity-70">{ i18n.T(ctx, "room.generation", nil) } <span id="room-generation">{ strconv.Itoa(roster.Generation) }</span> { i18n.T(ctx, "room.generationTail", nil) }</p>
 		<ul id="room-roster" class="ui-stack text-sm">
 			if len(roster.Members) == 0 {
-				<li class="opacity-60">Nobody in this room yet.</li>
+				<li class="opacity-60">{ i18n.T(ctx, "room.nobody", nil) }</li>
 			}
 			for _, m := range roster.Members {
 				if m.Name == email {
@@ -195,13 +198,17 @@ templ RoomCardContent(roomID string, roster appgoakt.Roster, email string) {
 				}
 			}
 		</ul>
-		<p id="room-hint" class="text-sm opacity-70" data-text="$roomLeft ? 'You left this room.' : ($roomHolder === '' ? 'Nobody holds the presenter lock — anyone here can take it.' : ($roomMe !== '' && $roomMe === $roomHolder ? 'You hold the presenter lock.' : 'The lock is held by ' + $roomHolder + '; only they can release it.'))">
+		{{ roomHint := "$roomLeft ? " + strconv.Quote(i18n.T(ctx, "room.hintLeft", nil)) +
+			" : ($roomHolder === '' ? " + strconv.Quote(i18n.T(ctx, "room.hintOpen", nil)) +
+			" : ($roomMe !== '' && $roomMe === $roomHolder ? " + strconv.Quote(i18n.T(ctx, "room.hintMine", nil)) +
+			" : " + strconv.Quote(strings.Replace(i18n.T(ctx, "room.hintHeld", nil), "{{.Holder}}", "' + $roomHolder + '", 1)) + "))" }}
+		<p id="room-hint" class="text-sm opacity-70" data-text={ roomHint }>
 			if roster.Presenter == "" {
-				Nobody holds the presenter lock — anyone here can take it.
+				{ i18n.T(ctx, "room.hintOpen", nil) }
 			} else if roster.Presenter == email {
-				You hold the presenter lock.
+				{ i18n.T(ctx, "room.hintMine", nil) }
 			} else {
-				The lock is held by { roster.Presenter }; only they can release it.
+				{ i18n.T(ctx, "room.hintHeld", map[string]any{"Holder": roster.Presenter}) }
 			}
 		</p>
 		<p id="room-left" style="display:none" class="alert alert-info text-sm" role="status" data-show="$roomLeft">
@@ -216,7 +223,7 @@ templ RoomCardContent(roomID string, roster appgoakt.Roster, email string) {
 				type="button"
 				data-show="$roomLeft !== true && $roomHolder === ''"
 				data-on:click={ "@post('/room/acquire?room=" + url.QueryEscape(roomID) + "&clientID=' + encodeURIComponent(window.__gogogoClientID || ''))" }
-			>Take presenter</button>
+			>{ i18n.T(ctx, "room.takePresenter", nil) }</button>
 			<button
 				id="room-release"
 				style="display:none"
@@ -224,14 +231,14 @@ templ RoomCardContent(roomID string, roster appgoakt.Roster, email string) {
 				type="button"
 				data-show="$roomLeft !== true && $roomMe !== '' && $roomMe === $roomHolder"
 				data-on:click={ "@post('/room/release?room=" + url.QueryEscape(roomID) + "&clientID=' + encodeURIComponent(window.__gogogoClientID || ''))" }
-			>Release</button>
+			>{ i18n.T(ctx, "room.release", nil) }</button>
 			<button
 				id="room-leave"
 				class="btn btn-ghost"
 				type="button"
 				data-show="$roomLeft !== true"
 				data-on:click={ "@post('/room/leave?room=" + url.QueryEscape(roomID) + "&clientID=' + encodeURIComponent(window.__gogogoClientID || ''))" }
-			>Leave</button>
+			>{ i18n.T(ctx, "room.leave", nil) }</button>
 			<button
 				id="room-rejoin"
 				style="display:none"
@@ -239,14 +246,14 @@ templ RoomCardContent(roomID string, roster appgoakt.Roster, email string) {
 				type="button"
 				data-show="$roomLeft === true"
 				data-on:click={ "@post('/room/join?room=" + url.QueryEscape(roomID) + "&clientID=' + encodeURIComponent(window.__gogogoClientID || ''))" }
-			>Rejoin</button>
+			>{ i18n.T(ctx, "room.rejoin", nil) }</button>
 			<button
 				id="room-crash"
 				class="btn btn-error"
 				type="button"
 				data-show="$roomLeft !== true"
 				data-on:click={ "@post('/room/crash?room=" + url.QueryEscape(roomID) + "')" }
-			>Crash room</button>
+			>{ i18n.T(ctx, "room.crash", nil) }</button>
 		</div>
 	</div>
 }

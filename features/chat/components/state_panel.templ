@@ -20,6 +20,7 @@ import (
 	"strconv"
 
 	"github.com/calionauta/gogogo/internal/ui"
+	"github.com/calionauta/gogogo/internal/i18n"
 )
 
 // ChatStatePanel renders the answer pipeline and the facts behind it.
@@ -34,7 +35,7 @@ templ ChatStatePanel(msgs int) {
 								<path fill-rule="evenodd" d="M18 5v8a2 2 0 01-2 2h-5l-5 4v-4H4a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2zM7 8H5v2h2V8zm2 0h2v2H9V8zm6 0h-2v2h2V8z" clip-rule="evenodd"/>
 							</svg>
 						</div>
-						<span class="text-xs font-semibold">Answer pipeline</span>
+						<span class="text-xs font-semibold">{ i18n.T(ctx, "chat.pipeline", nil) }</span>
 					</div>
 					<div class="flex gap-1">
 						<span class="badge badge-xs badge-secondary">goqite</span>
@@ -52,15 +53,15 @@ templ ChatStatePanel(msgs int) {
 				})
 				<div class="stats stats-horizontal shadow-sm border border-base-200 w-full mt-1">
 					<div class="stat px-3 py-2">
-						<div class="stat-title text-xs">Messages</div>
+						<div class="stat-title text-xs">{ i18n.T(ctx, "chat.messages", nil) }</div>
 						<div class="stat-value text-sm font-mono" data-text="$chat_messages">{ strconv.Itoa(msgs) }</div>
 					</div>
 					<div class="stat px-3 py-2">
-						<div class="stat-title text-xs">Transport</div>
+						<div class="stat-title text-xs">{ i18n.T(ctx, "chat.transport", nil) }</div>
 						<div class="stat-value text-sm font-mono">SSE</div>
 					</div>
 					<div class="stat px-3 py-2">
-						<div class="stat-title text-xs">Queue</div>
+						<div class="stat-title text-xs">{ i18n.T(ctx, "chat.queue", nil) }</div>
 						<div class="stat-value text-sm font-mono">goqite</div>
 					</div>
 				</div>
