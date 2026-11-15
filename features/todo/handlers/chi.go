@@ -217,11 +217,6 @@ func (h *Handler) Routes() chi.Router {
 	r.Post("/api/todos/suggest", h.handleSuggest)
 	r.Post("/api/todos/suggest-simulated", h.handleSuggestSimulated)
 	r.Post("/api/todos/retry-demo", h.handleRetryDemo)
-	r.Get("/login", h.handleLoginGet)
-	r.Post("/login", h.handleLoginPost)
-	r.Get("/signup", h.handleSignupGet)
-	r.Post("/signup", h.handleSignupPost)
-	r.Post("/logout", h.handleLogoutPost)
 	r.Get("/todo", h.handleIndex)
 	return r
 }

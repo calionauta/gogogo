@@ -1,8 +1,7 @@
-// HTTP page contract tests (login + index, step 6).
+// Sign-in page contracts: paths, redirects, rendered components.
 //
-// Same red-proof fixture as the data endpoints: real Turso, real auth,
-// driven over HTTP. Contracts: paths, redirects, rendered components.
-package handlers
+// These moved with the handlers: the pages are core, so their tests are too.
+package authpages
 
 import (
 	"context"
@@ -21,7 +20,7 @@ import (
 )
 
 func TestHandlersLoginPage(t *testing.T) {
-	f := newHandlersFixture(t)
+	f := newPageFixture(t)
 
 	rec := f.do(http.MethodGet, "/login", "", nil)
 	if rec.Code != http.StatusOK {
@@ -51,26 +50,28 @@ func TestHandlersLoginPage(t *testing.T) {
 }
 
 func TestHandlersLoginLogoutFlow(t *testing.T) {
-	f := newHandlersFixture(t)
+	f := newPageFixture(t)
 
-	// /todo bounces guests to /login.
-	anon := f.do(http.MethodGet, "/todo", "", nil)
+	// A page behind the session bounces a guest to /login. `/todo` used to be
+	// this fixture's stand-in; it belongs to a slice this package does not
+	// mount, so the guarded page is the fixture's own probe route.
+	anon := f.do(http.MethodGet, guardedProbe, "", nil)
 	if anon.Code != http.StatusSeeOther {
-		t.Fatalf("anon /todo status = %d, want 303", anon.Code)
+		t.Fatalf("anon %s status = %d, want 303", guardedProbe, anon.Code)
 	}
 	if loc := anon.Header().Get("Location"); loc != "/login" {
-		t.Fatalf("anon /todo Location = %q, want /login", loc)
+		t.Fatalf("anon %s Location = %q, want /login", guardedProbe, loc)
 	}
 
-	// Form login sets the cookie and redirects to /todo.
+	// Form login sets the cookie and redirects to the ?next= it was given.
 	f.do(http.MethodPost, "/api/auth/signup/credential",
 		`{"email":"pages@example.com","password":"Correct-horse-99!"}`, nil)
-	login := f.do(http.MethodPost, "/login", "email=pages@example.com&password=Correct-horse-99%21&next=%2Ftodo", nil)
+	login := f.do(http.MethodPost, "/login", "email=pages@example.com&password=Correct-horse-99%21&next=%2Fprobe", nil)
 	if login.Code != http.StatusSeeOther {
 		t.Fatalf("POST /login status = %d (body: %s)", login.Code, login.Body.String())
 	}
-	if loc := login.Header().Get("Location"); loc != "/todo" {
-		t.Fatalf("POST /login Location = %q, want /todo", loc)
+	if loc := login.Header().Get("Location"); loc != guardedProbe {
+		t.Fatalf("POST /login Location = %q, want %s (the ?next= it was given)", loc, guardedProbe)
 	}
 	var cookie *http.Cookie
 	for _, c := range login.Result().Cookies() {
@@ -82,18 +83,10 @@ func TestHandlersLoginLogoutFlow(t *testing.T) {
 		t.Fatalf("POST /login set no %q cookie", auth.CookieName)
 	}
 
-	// The index renders for the session owner.
-	f.do(http.MethodPost, "/api/todos", "title=Page+item&filter=all", cookie)
-	index := f.do(http.MethodGet, "/todo", "", cookie)
-	if index.Code != http.StatusOK {
-		t.Fatalf("GET /todo status = %d", index.Code)
-	}
-	body := index.Body.String()
-	if !strings.Contains(body, "pages@example.com") {
-		t.Fatal("index missing the shell user email")
-	}
-	if !strings.Contains(body, "Page item") {
-		t.Fatal("index missing the created todo")
+	// The session opens a guarded page. What that page renders is the slice's
+	// contract, not this package's: the probe answers 200 for a signed-in user.
+	if page := f.do(http.MethodGet, guardedProbe, "", cookie); page.Code != http.StatusOK {
+		t.Fatalf("signed-in %s = %d, want 200", guardedProbe, page.Code)
 	}
 
 	// Logout clears the cookie and bounces the next page load.
@@ -120,14 +113,14 @@ func TestHandlersLoginLogoutFlow(t *testing.T) {
 			t.Fatalf("logout Clear-Site-Data = %q, want %s", csd, want)
 		}
 	}
-	after := f.do(http.MethodGet, "/todo", "", cookie)
+	after := f.do(http.MethodGet, guardedProbe, "", cookie)
 	if after.Code != http.StatusSeeOther {
-		t.Fatalf("GET /todo after logout status = %d, want 303", after.Code)
+		t.Fatalf("GET %s after logout status = %d, want 303", guardedProbe, after.Code)
 	}
 }
 
 func TestHandlersLoginMagicAndResetForms(t *testing.T) {
-	f := newHandlersFixture(t)
+	f := newPageFixture(t)
 	if err := f.auth.SetAppURL("https://app.example"); err != nil {
 		t.Fatalf("app url: %v", err)
 	}
@@ -158,7 +151,7 @@ func TestHandlersLoginMagicAndResetForms(t *testing.T) {
 }
 
 func TestHandlersTOTPLoginForm(t *testing.T) {
-	f := newHandlersFixture(t)
+	f := newPageFixture(t)
 	if err := f.auth.SetTOTPEncKey(make([]byte, 32)); err != nil {
 		t.Fatalf("totp key: %v", err)
 	}
@@ -225,7 +218,7 @@ func testTOTPCode(t *testing.T, secret string, at time.Time) string {
 // route is not rendered and the login page carries no link to it. Red-proof:
 // drop the SignupEnabled guard in signupAvailable and the 404 rows become 200.
 func TestHandlersSignupPageHiddenWhenDisabled(t *testing.T) {
-	f := newHandlersFixture(t)
+	f := newPageFixture(t)
 	f.h.SignupEnabled = false
 
 	for _, tc := range []struct{ method, target, form string }{
@@ -246,7 +239,7 @@ func TestHandlersSignupPageHiddenWhenDisabled(t *testing.T) {
 // TestHandlersSignupPageAndLink pins the open deployment: /login advertises
 // the page and /signup renders every field the handler reads.
 func TestHandlersSignupPageAndLink(t *testing.T) {
-	f := newHandlersFixture(t)
+	f := newPageFixture(t)
 	f.h.SignupEnabled = true
 
 	login := f.do(http.MethodGet, "/login", "", nil)
@@ -276,7 +269,7 @@ func TestHandlersSignupPageAndLink(t *testing.T) {
 // creates the account, sets the session cookie and lands on the app; every
 // actionable failure renders inline instead of a bare status.
 func TestHandlersSignupFormFlow(t *testing.T) {
-	f := newHandlersFixture(t)
+	f := newPageFixture(t)
 	f.h.SignupEnabled = true
 
 	const good = "Correct-horse-99%21"
@@ -297,8 +290,8 @@ func TestHandlersSignupFormFlow(t *testing.T) {
 	if cookie == nil {
 		t.Fatalf("signup set no %q cookie", auth.CookieName)
 	}
-	if page := f.do(http.MethodGet, "/todo", "", cookie); page.Code != http.StatusOK {
-		t.Fatalf("signed-in /todo = %d, want 200", page.Code)
+	if page := f.do(http.MethodGet, guardedProbe, "", cookie); page.Code != http.StatusOK {
+		t.Fatalf("signed-in %s = %d, want 200", guardedProbe, page.Code)
 	}
 
 	cases := []struct {

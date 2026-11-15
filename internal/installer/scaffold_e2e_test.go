@@ -22,6 +22,7 @@ func writeScaffoldFixture(t *testing.T, dir, mainGo string) {
 const fixtureMainOK = "package main\n\nfunc main() {}\n"
 
 func TestScaffoldKeepAllRealProof(t *testing.T) {
+	requireTemplateIdentity(t)
 	// Full Run: plan, preflight (real go+git), apply, rename, AGENTS.md,
 	// and a REAL `go mod tidy` + `go build ./cmd/web`. Slow on purpose:
 	// this is the one test that breaks when the happy path breaks.
@@ -105,6 +106,7 @@ func TestPreflightRealTools(t *testing.T) {
 // "Rel: can't make gggtest/cmd/desktop/main.go relative to <abs>" and
 // removals silently missed (treeFS refused every path).
 func TestScaffoldRelativeDir(t *testing.T) {
+	requireTemplateIdentity(t)
 	base := t.TempDir()
 	t.Chdir(base)
 	dir := "gggtest"

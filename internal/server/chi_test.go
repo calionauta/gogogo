@@ -122,6 +122,13 @@ func TestServeChiOnListener(t *testing.T) {
 		"application/x-www-form-urlencoded"); resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("form login status = %d", resp.StatusCode)
 	}
+	// The CRUD round-trip is the todo slice's contract. This test is about the
+	// LISTENER (bind, serve, cookies, form login), so it exercises the slice
+	// when the tree carries it and stops before it when a scaffold dropped it.
+	if !hasTodoSlice() {
+		t.Log("features/todo is not installed: skipping the CRUD round-trip")
+		return
+	}
 	if resp := post("/api/todos?filter=all", "title=Served+item",
 		"application/x-www-form-urlencoded"); resp.StatusCode != http.StatusOK {
 		t.Fatalf("create status = %d", resp.StatusCode)
@@ -215,6 +222,7 @@ func TestBuildChiMuxRoomDisabledPinsRouteAbsence(t *testing.T) {
 }
 
 func TestBuildChiMux(t *testing.T) {
+	requireTodo(t)
 	f := buildMuxFixture(t)
 	mux := f.mux
 	body := `{"email":"mux@example.com","password":"Correct-horse-99!"}`
@@ -242,10 +250,12 @@ func TestBuildChiMux(t *testing.T) {
 	if loginRec.Code != http.StatusOK {
 		t.Fatalf("mux GET /login status = %d, want 200", loginRec.Code)
 	}
+	// A guarded shell page bounces a guest. `/dashboard` is always mounted;
+	// `/todo` was the stand-in before the demos became droppable.
 	anonRec := httptest.NewRecorder()
-	mux.ServeHTTP(anonRec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/todo", nil))
+	mux.ServeHTTP(anonRec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/dashboard", nil))
 	if anonRec.Code != http.StatusSeeOther {
-		t.Fatalf("mux anon /todo status = %d, want 303", anonRec.Code)
+		t.Fatalf("mux anon /dashboard status = %d, want 303", anonRec.Code)
 	}
 	// The root is a redirect now: a guest is sent to the login page, which is
 	// the only public entry a tree without a marketing page has.

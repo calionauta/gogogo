@@ -40,12 +40,25 @@ func eventBaseURL(cfg *config.Config) string {
 // A frame means "the list changed somewhere": the window re-lists from the
 // database, the same rule the browser streams follow. No payload parsing, no
 // DOM, no incremental state to get wrong.
+// Scanner bounds for the SSE reader: the first token is small, a frame may
+// carry a full list.
+const (
+	eventScannerInitial = 4096
+	eventScannerMax     = 1 << 20
+)
+
 func watchEvents(ctx context.Context, baseURL, token string, onEvent func()) (bool, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+eventsPath, nil)
 	if err != nil {
 		return false, err
 	}
 	req.Header.Set("Accept", "text/event-stream")
+	// A loopback CLIENT request carrying the session this process already owns.
+	// Secure/HttpOnly/SameSite describe what the SERVER sets on a browser
+	// response; setting Secure here would stop the request over plain
+	// http://127.0.0.1, which is the only transport this window has.
+	//
+	//nolint:gosec // outbound loopback client, not a server-set cookie
 	req.AddCookie(&http.Cookie{Name: auth.CookieName, Value: token})
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -56,7 +69,7 @@ func watchEvents(ctx context.Context, baseURL, token string, onEvent func()) (bo
 		return false, fmt.Errorf("events: status %d", resp.StatusCode)
 	}
 	sc := bufio.NewScanner(resp.Body)
-	sc.Buffer(make([]byte, 0, 4096), 1<<20)
+	sc.Buffer(make([]byte, 0, eventScannerInitial), eventScannerMax)
 	for sc.Scan() {
 		// Comments (`: connected`, `: heartbeat`) keep the connection alive;
 		// only a data frame is a change.

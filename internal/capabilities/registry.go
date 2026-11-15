@@ -109,10 +109,12 @@ var baseUnits = []Capability{
 		ID:      "auth",
 		Kind:    KindCore,
 		Summary: "cookie sessions + middleware (flat auth + shared login UI)",
-		Dirs:    []string{"internal/auth", "features/authviews"},
+		Dirs:    []string{"internal/auth", "internal/authpages", "features/authviews"},
 		Note: "Core middleware; the login page is a removable UI (manual). " +
 			"internal/auth is the owned argon2id stack (gogogo_auth cookie); " +
-			"features/authviews holds the login page and shell controls. " +
+			"features/authviews holds the login page and shell controls; " +
+			"internal/authpages is the HTTP glue that mounts them, so a product " +
+			"that drops a demo still signs people in. " +
 			"No framework middleware remains; the owned stack is the whole story.",
 	},
 	{

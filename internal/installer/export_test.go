@@ -13,6 +13,7 @@ import (
 // test: the owned files land under --to, the recipe lands last, and the
 // template is untouched.
 func TestExportWritesABundleAndNothingElse(t *testing.T) {
+	requireTemplateIdentity(t)
 	root := templateRootDir(t)
 	to := filepath.Join(t.TempDir(), "bundle")
 
@@ -62,6 +63,7 @@ func TestExportWritesABundleAndNothingElse(t *testing.T) {
 // the module known, every copied file that still imports the template module is
 // listed, and the sed line names the substitution.
 func TestExportRecipeNamesTheRewrites(t *testing.T) {
+	requireTemplateIdentity(t)
 	root := templateRootDir(t)
 	to := filepath.Join(t.TempDir(), "bundle")
 

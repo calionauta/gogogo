@@ -430,7 +430,8 @@ func isAuthRoute(pattern string) bool {
 }
 
 func dirExists(dir string) bool {
-	info, err := os.Stat(dir)
+	// dir comes from the receipt's Register, which the caller already resolved.
+	info, err := os.Stat(dir) //nolint:gosec // receipt-derived path inside the checkout
 	return err == nil && info.IsDir()
 }
 

@@ -35,15 +35,15 @@ files:
   features/todo/components/state_panel_templ.go: 0b7d78c11b7817fccb2ea8a4693a963d5fd8f577582a0343e4e2ede525f34a00
   features/todo/components/todo_item.templ: fdfdf8a56344459a9392d8e81d9128b94d86ee0e51994087e2d14fd4fee92006
   features/todo/components/todo_item_templ.go: b90bd80ff4b76c771c1174684d42c7feb73fa75f84c3011a5fbe2bb75fb2c317
-  features/todo/components/todo_list.templ: 027cbf980d7648624052013d72fc694bb2badb47bd89096fbe9ec4c0f3f4d5f3
-  features/todo/components/todo_list_templ.go: dbdedb4d2b61674370e7070674a0fbc8559b541478840d98daae0026a70e6bd7
+  features/todo/components/todo_list.templ: c735e449d5f1f8310882b68ba30bfdbdf3ae5160703068f20e7ab9c4cc420d79
+  features/todo/components/todo_list_templ.go: 503d3c9efff710cc8343e251128c0e0c5042954f8a20f3a7c6647dd944b38192
   features/todo/embed.go: e6ba82d62728258995c1cfbeb21f21490ddc54d9d83e526cae52aa9aa5a93e92
   features/todo/event.go: c5c3bd97a987ee9b71b8f2c22ac46ea4fc561f2d907cb35382dfe3a7c848eb46
   features/todo/handlers/bench_test.go: b9a0a3d6a9fc9e038273f026c9589fe60e23fd9ca04a0bd1d1a2c94149e3a7e3
   features/todo/handlers/bridge.go: 582edc869e5a21194bfcc24ec315cf17a549d66cbc99d7da439cf5dd374ff09b
   features/todo/handlers/bridge_test.go: 37c2b7cb57053e755e88a973db13c7c60da7768346e706240863778c471e452c
   features/todo/handlers/card_action.go: 9a04cc18c09a49d2fa2ad65d852fe40855da2966c1f7b34833f71d99f032cd27
-  features/todo/handlers/chi.go: 0da89ee0d3ff386498869ff69eab403758511201c7889321b9452dbd81f62d04
+  features/todo/handlers/chi.go: de56acd1a8f1864ae748c249de2725773f980dc93a58f721f601f13d7ad69ad2
   features/todo/handlers/composer_signal_test.go: ef11816a6aee425f54fced30fe180ab043d53fa3ef19ff7b2d90f0d6727fd5f0
   features/todo/handlers/dagnats_ui_port_test.go: 99f3051e0478e52dce34ea78204842dc8ceb9944e6a295e7d3529205cea6987f
   features/todo/handlers/dispatch.go: ea68383a178866038ea835349462868400de9a446ee6b1d2fbb2d8bea8d8b8d5
@@ -65,12 +65,11 @@ files:
   features/todo/handlers/mutations.go: 610b766ee658e9f575d1aa941129698a983a958640dc89eea24dd7245d7a5a78
   features/todo/handlers/onboarding.go: 7919892635126df857059cb5c36b8861cc3291a8d195548bfbe3f3b3e93196d5
   features/todo/handlers/onboarding_test.go: f0b6f51c51d9d8c7a84e48ff82895cbc0d767e978b799309a08dc2abf9db40d6
-  features/todo/handlers/pages.go: 0580f71b210b5a6b1ab263c6638a799b386e27d136fb12ed5a4769766ed5d83d
-  features/todo/handlers/pages_test.go: 45710e22e254ffd1f2c78fe9a2ca80d4276a043a3ddee5108fe0b6e409aeacd9
+  features/todo/handlers/pages.go: 4c008cad23726e06f46182aa72b91cd39227ae8b01ccb2e8e9b340c55198d0e3
   features/todo/handlers/panel_action.go: 6f5657564cb6c7f023adab480f8fb4eacb21dc5a280f15de6626397bd83d4992
   features/todo/handlers/panel_action_test.go: 2eaf297f7666935d6c70fd98fef69daa22541a6a0c5e26ab03b9d7bee1d24bf5
   features/todo/handlers/presence_propagation_test.go: a62a4ca0d1a6e8229e6ecc7b097b6a7064de9e0a2dd631aa57fdc10019502ba8
-  features/todo/handlers/recipe.go: 787ee14cc7aeacf9601607d9deb512b4d27ae1421bef515656a1e33d35347605
+  features/todo/handlers/recipe.go: 340c579685d162950f9f638306c7b2db9b883e25d402e167e281748ad8c3b957
   features/todo/handlers/recipe_migration_test.go: 368240e27a6d5fa7dd7d5d9894954a83de5ffc4e5454bf4e6af6c124bfcbb553
   features/todo/handlers/register.go: 4cfd93e53ee5288b5765f5fecbe0321f6dfbc141922de3085e1e8c0ca52ec38d
   features/todo/handlers/replay_propagation_test.go: 0e16618981b67ff9423fe89e5fc0c3a411a44c7e30d463c29e88681af7d45f35
@@ -101,11 +100,15 @@ files:
   features/todo/service/mapping.go: a2d0f4392649e9d932b4fc64656e81375b879fd339e812e4c49d3b298e246b3a
   features/todo/service/mutations.go: e5c4f4fd026aa0cd999e691ce8febcb854c8fbb521653c7757bf734b4ed5478c
   features/todo/service/service.go: 71e5f45e1f6d90c5334f9d9ed78a2cd535b92e529e7c90ae67cb531d1fb62d69
-  features/todo/service/service_test.go: bc098d22c16539b21c6add270cd2f8fe9ba0a955c1928f1d825e24e328fda6f6
+  features/todo/service/service_test.go: 570068663a6bb8cbdb615bfe845738baa35d6397e9167032fbe51dae798c454a
   features/todo/todo_test.go: 4f5de39286fd79f2e52a2a17a12ac63e74e944ef87dff86a37a23f489a89c971
   features/todo/service/ownership_property_test.go: 76ca35e51e7611e0de3caa3fb022fe2279212f92b06a0b75b77deea0bc1dfb49
   internal/db/queries/todos.sql: 7c4584446be0df9c463949b0def908d011c05c29cfdfd928db0b5d212b9569ce
   internal/db/queries/search_visible.sql: 90b199cbbbf7849c965e3daebe92a6e8ceeb9caff24c1fb1e28b0b2a6625b1f2
+  features/todo/service/queries_test.go: d9126b103c151bf2df90a5d3dceeae50839033192f9e9a0fd406b213fd6fd5d5
+  web/resources/static/todo-offline.js: 912c940cf6c1513429817a7d12d576ab87261627374763370c901347f7acea92
+  features/todo/components/list_wire_test.go: e181e999eda9135ead639dcdbf7adf5081de7e0250c9615159871681ad012904
+  features/todo/components/list_wire.go: 5b241565844108cefd31f2b5e6c5dbb7e76c09d6a8de7b40032b96aab638ac62
 declaration:
   metrics:
   - {label: Open, query: "SELECT COUNT(*) FROM ext_todo_todos WHERE (owner = ? OR visibility = 'public') AND completed = 0", signal: openTodos}
@@ -145,16 +148,6 @@ declaration:
     pattern: /api/todos/suggest-simulated
   - method: POST
     pattern: /api/todos/retry-demo
-  - method: GET
-    pattern: /login
-  - method: POST
-    pattern: /login
-  - method: GET
-    pattern: /signup
-  - method: POST
-    pattern: /signup
-  - method: POST
-    pattern: /logout
   - method: GET
     pattern: /todo
   actions:

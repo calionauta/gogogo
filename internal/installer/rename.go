@@ -17,7 +17,18 @@ const binarySniffLen = 8192
 
 // renameOldName is the template's name, the string a rename removes from both
 // the CONTENTS and the PATHS.
-const renameOldName = "gogogo"
+//
+// It must survive its own pass. The rewrite replaces the bare name everywhere,
+// and this file is one of the files it rewrites — so a scaffolded tree used to
+// ship `const renameOldName = "my-app"`, and a SECOND scaffold from that tree
+// would look for the wrong "old" name and rename nothing. The marker below keeps
+// the literal intact; `TestRenameLeavesItsOwnConstantAlone` pins it.
+const renameOldName = renameNameSentinel
+
+// renameNameSentinel is the template's name, split so the rewrite's plain
+// strings.ReplaceAll cannot see it as a candidate. Concatenation is folded by
+// the compiler: no runtime cost, one line of defence.
+const renameNameSentinel = "gogo" + "go"
 
 // renameTree ports the scripts/rename-project.py rules: module path first,
 // bare name second, Pages host only on owner change, and then the paths.

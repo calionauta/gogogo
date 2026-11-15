@@ -18,7 +18,10 @@ var cspNonceRE = regexp.MustCompile(`'nonce-([A-Za-z0-9_-]+)'`)
 // attribute without the header is silently useless.
 func TestCSPNonceReachesDocumentAndScripts(t *testing.T) {
 	base, cookie := bootPages(t)
-	for _, route := range []string{"/login", "/todo", "/account"} {
+	// One public page and two shell pages. `/todo` was here as the shell
+	// stand-in; `/dashboard` is the surface every tree ships, so the assertion
+	// survives a product that drops the demos.
+	for _, route := range []string{"/login", "/dashboard", "/account"} {
 		t.Run(route, func(t *testing.T) {
 			req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, base+route, nil)
 			if err != nil {

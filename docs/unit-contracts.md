@@ -28,10 +28,10 @@ env config (single source of truth for vars + defaults)
 
 cookie sessions + middleware (flat auth + shared login UI)
 
-- **Owned:** `internal/auth`, `features/authviews`
-- **Routes:** `/api/auth/magic`, `/api/auth/magic/request`, `/api/auth/oauth/{provider}`, `/api/auth/oauth/{provider}/callback`, `/api/auth/password`, `/api/auth/password/reset`, `/api/auth/password/reset/request`, `/api/auth/sessions`, `/api/auth/sessions/revoke-all`, `/api/auth/sessions/{id}`, `/api/auth/signin/credential`, `/api/auth/signout`, `/api/auth/signup/credential`, `/api/auth/totp/begin`, `/api/auth/totp/disable`, `/api/auth/totp/login`, `/api/auth/totp/recovery`, `/api/auth/totp/verify`, `/api/auth/verify`, `/api/auth/verify/request`
+- **Owned:** `internal/auth`, `internal/authpages`, `features/authviews`
+- **Routes:** `/api/auth/magic`, `/api/auth/magic/request`, `/api/auth/oauth/{provider}`, `/api/auth/oauth/{provider}/callback`, `/api/auth/password`, `/api/auth/password/reset`, `/api/auth/password/reset/request`, `/api/auth/sessions`, `/api/auth/sessions/revoke-all`, `/api/auth/sessions/{id}`, `/api/auth/signin/credential`, `/api/auth/signout`, `/api/auth/signup/credential`, `/api/auth/totp/begin`, `/api/auth/totp/disable`, `/api/auth/totp/login`, `/api/auth/totp/recovery`, `/api/auth/totp/verify`, `/api/auth/verify`, `/api/auth/verify/request`, `/login`, `/logout`, `/signup`
 - **Store calls:** `dbgen.ClearTOTP`, `dbgen.ConsumeRecoveryCode`, `dbgen.CreateMagicToken`, `dbgen.CreateRecoveryCode`, `dbgen.CreateSession`, `dbgen.CreateUser`, `dbgen.DeleteExpiredMagicTokens`, `dbgen.DeleteExpiredSessions`, `dbgen.DeleteMagicToken`, `dbgen.DeleteMagicTokensForUser`, `dbgen.DeleteMagicTokensForUserPurpose`, `dbgen.DeleteRecoveryCodesForUser`, `dbgen.DeleteSession`, `dbgen.DeleteSessionByID`, `dbgen.DeleteUserSessions`, `dbgen.GetMagicToken`, `dbgen.GetOAuthAccount`, `dbgen.GetSession`, `dbgen.GetUser`, `dbgen.GetUserByEmail`, `dbgen.InsertSecurityEvent`, `dbgen.LatestMagicTokenForUser`, `dbgen.LatestMagicTokenForUserPurpose`, `dbgen.LinkOAuthAccount`, `dbgen.ListSessionsByUser`, `dbgen.SetEmailVerified`, `dbgen.SetTOTPSecret`, `dbgen.UpdateSessionLastSeen`, `dbgen.UpdateUserPassword`, `dbgen.VerifyTOTPFlag`
-- **Note:** Core middleware; the login page is a removable UI (manual). internal/auth is the owned argon2id stack (gogogo_auth cookie); features/authviews holds the login page and shell controls. No framework middleware remains; the owned stack is the whole story.
+- **Note:** Core middleware; the login page is a removable UI (manual). internal/auth is the owned argon2id stack (gogogo_auth cookie); features/authviews holds the login page and shell controls; internal/authpages is the HTTP glue that mounts them, so a product that drops a demo still signs people in. No framework middleware remains; the owned stack is the whole story.
 
 ## `cloudcfg` — core
 
@@ -448,8 +448,8 @@ room presence demo (one grain per room, crash hook included)
 Todo MVC demo (reference implementation)
 
 - **Owned:** `features/todo`
-- **Routes:** `/api/todos`, `/api/todos/completed/delete`, `/api/todos/events`, `/api/todos/fragment`, `/api/todos/retry-demo`, `/api/todos/search`, `/api/todos/stream`, `/api/todos/suggest`, `/api/todos/suggest-simulated`, `/api/todos/{id}/confirm-delete`, `/api/todos/{id}/delete`, `/api/todos/{id}/toggle`, `/login`, `/logout`, `/signup`, `/todo`
-- **Store calls:** `dbgen.ClaimOpReceipt`, `dbgen.CreateTodo`, `dbgen.DeleteCompletedByOwner`, `dbgen.DeleteTodo`, `dbgen.DeleteTodoByID`, `dbgen.GetTodo`, `dbgen.GetTodoByIdemKey`, `dbgen.GetTodoVisible`, `dbgen.GetUser`, `dbgen.GetUserByEmail`, `dbgen.ListCompletedIDsByOwner`, `dbgen.ListTodosByOwner`, `dbgen.ListTodosForIndex`, `dbgen.ListVisibleTodos`, `dbgen.SearchTodosVisible`, `dbgen.SetTodoCompletedByID`
+- **Routes:** `/api/todos`, `/api/todos/completed/delete`, `/api/todos/events`, `/api/todos/fragment`, `/api/todos/retry-demo`, `/api/todos/search`, `/api/todos/stream`, `/api/todos/suggest`, `/api/todos/suggest-simulated`, `/api/todos/{id}/confirm-delete`, `/api/todos/{id}/delete`, `/api/todos/{id}/toggle`, `/todo`
+- **Store calls:** `dbgen.ClaimOpReceipt`, `dbgen.CreateTodo`, `dbgen.DeleteCompletedByOwner`, `dbgen.DeleteTodo`, `dbgen.DeleteTodoByID`, `dbgen.GetTodo`, `dbgen.GetTodoByIdemKey`, `dbgen.GetTodoVisible`, `dbgen.GetUser`, `dbgen.ListCompletedIDsByOwner`, `dbgen.ListTodosByOwner`, `dbgen.ListTodosForIndex`, `dbgen.ListVisibleTodos`, `dbgen.SearchTodosVisible`, `dbgen.SetTodoCompletedByID`
 - **Why that class:** Reference implementation — remove manually later per docs/scope-taxonomy.md.
 
 ## `whiteboard` — feature

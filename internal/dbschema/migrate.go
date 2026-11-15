@@ -13,8 +13,10 @@ package dbschema
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"embed"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -84,13 +86,21 @@ func MigrateWith(sqlDB *sql.DB, extra ...MigrationSet) error {
 		}
 		for _, v := range versions {
 			key := src.key(v)
-			if applied[key] {
+			body, rerr := src.read(v)
+			if rerr != nil {
+				return rerr
+			}
+			sum := checksum(body)
+			if prev, ok := applied[key]; ok {
+				if err := confirmApplied(sqlDB, key, prev, sum); err != nil {
+					return err
+				}
 				continue
 			}
-			if err := applyMigration(sqlDB, src, v, key); err != nil {
+			if err := applyMigration(sqlDB, src, v, key, sum); err != nil {
 				return err
 			}
-			applied[key] = true
+			applied[key] = appliedMigration{checksum: sum}
 			n++
 		}
 	}
@@ -102,32 +112,57 @@ func MigrateWith(sqlDB *sql.DB, extra ...MigrationSet) error {
 
 // ensureMigrationsTable creates the ledger. It is deliberately not a
 // migration itself: the ledger must exist before the first migration runs.
+//
+// `checksum` is what makes "append-only" a fact instead of a convention. The
+// docs promise a migration file is history and is never edited; without a
+// recorded digest nothing could tell an edited file from an untouched one, so an
+// ALTER added to an already-applied 0007 would reach new databases and silently
+// never reach the deployed one — the two schemas would diverge with every gate
+// green. A NULL checksum means "applied before this column existed": it is
+// adopted on the next boot rather than treated as a change.
 func ensureMigrationsTable(sqlDB *sql.DB) error {
 	_, err := sqlDB.ExecContext(context.Background(), `CREATE TABLE IF NOT EXISTS schema_migrations (
     version    TEXT PRIMARY KEY,
-    applied_at TEXT NOT NULL
+    applied_at TEXT NOT NULL,
+    checksum   TEXT
 )`)
 	if err != nil {
 		return fmt.Errorf("dbschema: create schema_migrations: %w", err)
 	}
+	// An older database already has the table; add the column in place. A
+	// duplicate-column error means a concurrent boot won the race, which is the
+	// state we wanted anyway.
+	if _, aerr := sqlDB.ExecContext(context.Background(),
+		`ALTER TABLE schema_migrations ADD COLUMN checksum TEXT`); aerr != nil &&
+		!strings.Contains(aerr.Error(), "duplicate column") {
+		return fmt.Errorf("dbschema: add schema_migrations.checksum: %w", aerr)
+	}
 	return nil
 }
 
+// appliedMigration is one ledger row: the version and the digest of the file
+// that was applied under it. An empty digest is a row from before the column
+// existed and is adopted, not compared.
+type appliedMigration struct {
+	checksum string
+}
+
 // appliedVersions reads the ledger into a set.
-func appliedVersions(sqlDB *sql.DB) (map[string]bool, error) {
-	rows, err := sqlDB.QueryContext(context.Background(), `SELECT version FROM schema_migrations`)
+func appliedVersions(sqlDB *sql.DB) (map[string]appliedMigration, error) {
+	rows, err := sqlDB.QueryContext(context.Background(),
+		`SELECT version, COALESCE(checksum, '') FROM schema_migrations`)
 	if err != nil {
 		return nil, fmt.Errorf("dbschema: read schema_migrations: %w", err)
 	}
 	defer rows.Close()
 
-	applied := map[string]bool{}
+	applied := map[string]appliedMigration{}
 	for rows.Next() {
-		var v string
-		if err := rows.Scan(&v); err != nil {
+		var v, sum string
+		if err := rows.Scan(&v, &sum); err != nil {
 			return nil, fmt.Errorf("dbschema: scan schema_migrations: %w", err)
 		}
-		applied[v] = true
+		applied[v] = appliedMigration{checksum: sum}
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("dbschema: iterate schema_migrations: %w", err)
@@ -218,19 +253,77 @@ func Versions() ([]string, error) {
 // The whole file is sent as a single Exec: tursogo executes every statement in
 // the string, which is why the migrations use semicolon-terminated statements
 // and avoid semicolons inside literals.
-func applyMigration(sqlDB *sql.DB, src migrationSource, version, key string) error {
-	sqlBytes, err := fs.ReadFile(src.fsys, path.Join(src.dir, version+".sql"))
+func applyMigration(sqlDB *sql.DB, src migrationSource, version, key, sum string) error {
+	sqlBytes, err := src.read(version)
 	if err != nil {
-		return fmt.Errorf("dbschema: read migration %s: %w", key, err)
+		return err
 	}
 	return Transact(context.Background(), sqlDB, "migrate "+key, func(ctx context.Context, tx *sql.Tx) error {
 		if _, err := tx.ExecContext(ctx, string(sqlBytes)); err != nil {
 			return fmt.Errorf("dbschema: apply migration %s: %w", key, err)
 		}
 		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)`, key, Now()); err != nil {
+			`INSERT INTO schema_migrations (version, applied_at, checksum) VALUES (?, ?, ?)`,
+			key, Now(), sum); err != nil {
 			return fmt.Errorf("dbschema: record migration %s: %w", key, err)
 		}
 		return nil
 	})
+}
+
+// confirmApplied handles a migration the ledger already knows: it refuses an
+// edited file and adopts a row written before the checksum column existed.
+//
+// An applied file is history. A digest that no longer matches means the file was
+// edited after it ran: new databases would get the new statement, the running
+// one never will, and the two schemas diverge with every gate green. Refusing is
+// the only answer that keeps "the files ARE the schema" true.
+func confirmApplied(sqlDB *sql.DB, key string, prev appliedMigration, sum string) error {
+	switch {
+	case prev.checksum == "":
+		// A row from before the column: record the digest, re-apply nothing.
+		return recordChecksum(sqlDB, key, sum)
+	case prev.checksum != sum:
+		return fmt.Errorf(
+			"dbschema: migration %s changed after it was applied "+
+				"(recorded %s, file %s) — migrations are append-only; add a new file",
+			key, shortSum(prev.checksum), shortSum(sum))
+	}
+	return nil
+}
+
+// read returns one migration's bytes: the one place that knows the file naming.
+func (s migrationSource) read(version string) ([]byte, error) {
+	body, err := fs.ReadFile(s.fsys, path.Join(s.dir, version+".sql"))
+	if err != nil {
+		return nil, fmt.Errorf("dbschema: read migration %s/%s: %w", s.label, version, err)
+	}
+	return body, nil
+}
+
+// checksum digests one migration's bytes. sha256 because it is the same
+// primitive `recipe receipts` uses for file ownership: one idea, two records.
+func checksum(body []byte) string {
+	sum := sha256.Sum256(body)
+	return hex.EncodeToString(sum[:])
+}
+
+// shortSum is the digest prefix an error message shows: enough to tell two
+// versions apart, short enough to read.
+const shortSumLen = 12
+
+func shortSum(sum string) string {
+	if len(sum) <= shortSumLen {
+		return sum
+	}
+	return sum[:shortSumLen]
+}
+
+// recordChecksum adopts a row written before the checksum column existed.
+func recordChecksum(sqlDB *sql.DB, key, sum string) error {
+	if _, err := sqlDB.ExecContext(context.Background(),
+		`UPDATE schema_migrations SET checksum = ? WHERE version = ?`, sum, key); err != nil {
+		return fmt.Errorf("dbschema: adopt checksum for %s: %w", key, err)
+	}
+	return nil
 }

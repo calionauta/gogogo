@@ -114,16 +114,26 @@ func TestMenuOnlyModulesAreAccountOnly(t *testing.T) {
 // surfaces, not members of a themed block.
 func TestGroupedPinsInboxFirst(t *testing.T) {
 	groups := Grouped("user")
-	if len(groups) < 2 {
-		t.Fatalf("grouped user modules = %d, want a pinned block plus Collab", len(groups))
+	// A scaffold that dropped every demo may have only the pinned block: the
+	// assertion is that the pinned block comes FIRST and is unlabelled, not
+	// that some slice happens to be installed.
+	if len(groups) == 0 {
+		t.Fatal("grouped user modules = 0, want at least the pinned block")
 	}
 	if groups[0].Label != "" {
 		t.Errorf("first group label = %q, want \"\" (the pinned block renders no heading)", groups[0].Label)
 	}
-	if len(groups[0].Modules) != 2 || groups[0].Modules[0].ID != ModuleInbox || groups[0].Modules[1].ID != "dashboard" {
+	// The pinned block is the always-on surfaces, in order. Assert the ORDER of
+	// what this tree ships rather than a fixed pair: a scaffold that dropped a
+	// demo still has the inbox and the dashboard, and it may have nothing else
+	// pinned.
+	if len(groups[0].Modules) < 2 ||
+		groups[0].Modules[0].ID != ModuleInbox || groups[0].Modules[1].ID != "dashboard" {
 		t.Errorf("pinned block = %+v, want inbox then dashboard", groups[0].Modules)
 	}
-	if groups[1].Label != GroupCollab {
+	// The Collab heading exists only when a collab slice is installed; a
+	// scaffold that dropped every demo has the pinned block alone.
+	if len(groups) > 1 && groups[1].Label != GroupCollab {
 		t.Errorf("second group = %q, want %q", groups[1].Label, GroupCollab)
 	}
 }
@@ -138,9 +148,14 @@ func TestVisibleViewerSeesCollabOnly(t *testing.T) {
 			ids[m.ID] = true
 		}
 	}
-	for _, want := range []string{"todo", "whiteboard", "notes"} {
-		if !ids[want] {
-			t.Errorf("viewer does not see %q (viewer policy allows it)", want)
+	// Assert every module THIS TREE lists as viewer-visible is offered; a
+	// scaffold that dropped the collab demos legitimately offers fewer.
+	for _, m := range Modules {
+		if m.MenuOnly || m.Admin {
+			continue
+		}
+		if viewerModules[m.ID] && !ids[m.ID] {
+			t.Errorf("viewer does not see %q (viewer policy allows it)", m.ID)
 		}
 	}
 	for _, banned := range []string{"chat", "review", "room", "config", ModuleInbox} {
@@ -155,9 +170,13 @@ func TestVisibleViewerSeesCollabOnly(t *testing.T) {
 			userIDs[m.ID] = true
 		}
 	}
-	for _, want := range []string{"todo", "whiteboard", "notes", "chat", "review", "room", ModuleInbox} {
-		if !userIDs[want] {
-			t.Errorf("user does not see %q", want)
+	// Every non-admin rail module this tree ships must reach the user's rail.
+	for _, m := range Modules {
+		if m.MenuOnly || m.Admin {
+			continue
+		}
+		if !userIDs[m.ID] {
+			t.Errorf("user does not see %q", m.ID)
 		}
 	}
 }

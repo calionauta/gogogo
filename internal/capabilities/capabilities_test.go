@@ -97,6 +97,25 @@ func TestRegistryCoversPackages(t *testing.T) {
 	checkRegistryCoversPackages(t, root)
 }
 
+// trimmedCovers reports whether a path was removed — exactly, or because a
+// REMOVED DIRECTORY contains it. `removed-paths:` lists what the scaffold
+// deleted, and deleting `features/todo` deletes every file under it; comparing
+// only exact strings made a slice's files look missing while its directory was
+// correctly absent.
+func trimmedCovers(trimmed map[string]bool, path string) bool {
+	if len(trimmed) == 0 {
+		return false
+	}
+	path = filepath.ToSlash(filepath.FromSlash(path))
+	for removed := range trimmed {
+		removed = filepath.ToSlash(removed)
+		if path == removed || strings.HasPrefix(path, removed+"/") {
+			return true
+		}
+	}
+	return false
+}
+
 func checkRegistryCoversPackages(t *testing.T, root string) {
 	t.Helper()
 	trimmed := trimmedPaths(root)
@@ -106,7 +125,7 @@ func checkRegistryCoversPackages(t *testing.T, root string) {
 			owned[d] = true
 			full := filepath.Join(root, filepath.FromSlash(d))
 			if st, err := os.Stat(full); err != nil || !st.IsDir() {
-				if trimmed[filepath.FromSlash(d)] {
+				if trimmedCovers(trimmed, d) {
 					continue
 				}
 				t.Errorf("capability %q owns missing dir %q", c.ID, d)
@@ -144,7 +163,7 @@ func checkRegistryFilesExist(t *testing.T, root string) {
 		for _, f := range c.Files {
 			full := filepath.Join(root, filepath.FromSlash(f))
 			if _, err := os.Stat(full); err != nil {
-				if trimmed[filepath.FromSlash(f)] {
+				if trimmedCovers(trimmed, f) {
 					continue
 				}
 				t.Errorf("capability %q owns missing file %q", c.ID, f)
@@ -204,6 +223,11 @@ func TestCapabilityUISignalsWired(t *testing.T) {
 	// signals.<Field>. Otherwise trimming (or env-off) leaves buttons
 	// pointing at gone routes.
 	root := repoRoot(t)
+	if trimmedCovers(trimmedPaths(root), "features/todo") {
+		// The signal model lives in the slice this tree dropped: there is no
+		// UI to check against it, which is the honest answer, not a failure.
+		t.Skip("features/todo is not installed in this tree")
+	}
 	models, err := os.ReadFile(filepath.Join(root, "features", "todo", "models.go"))
 	if err != nil {
 		t.Fatal(err)

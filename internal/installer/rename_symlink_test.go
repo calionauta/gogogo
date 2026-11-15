@@ -24,6 +24,7 @@ import (
 // and the skill directory both carry the project name, both move, and a link's
 // target is a string no content pass can see.
 func TestRenameTreeFollowsTheSymlinkedSkillRegistration(t *testing.T) {
+	requireTemplateIdentity(t)
 	root := t.TempDir()
 
 	realSkill := filepath.Join(root, "skills", "gogogo-coding-standards")

@@ -17,6 +17,12 @@ import (
 // never opens them. What fails later is a test that does, with "no such file",
 // in a project whose own name is the only clue.
 func TestRenameTreeMovesNameBearingPaths(t *testing.T) {
+	requireTemplateIdentity(t)
+	// The rename's source name is the template's, whatever this tree calls
+	// itself: `renameOldName` is the literal a scaffold rewrites. These tests
+	// assert the template's own paths, so they only mean something in the
+	// template — a scaffolded product has already renamed them.
+	requireTemplateIdentity(t)
 	root := t.TempDir()
 
 	files := map[string]string{
@@ -102,5 +108,27 @@ func TestRenameTreeMovesNameBearingPaths(t *testing.T) {
 	}
 	if !strings.Contains(string(readme), "./cmd/my-app") {
 		t.Errorf("the README reference was not rewritten:\n%s", readme)
+	}
+}
+
+// TestRenameLeavesItsOwnConstantAlone is the bug a second scaffold would hit:
+// the rename rewrites the bare template name everywhere, and rename.go carries
+// it in `renameOldName`. A scaffolded tree used to ship
+// `const renameOldName = "my-app"`, so scaffolding FROM that tree looked for
+// the wrong old name and renamed nothing.
+func TestRenameLeavesItsOwnConstantAlone(t *testing.T) {
+	root := t.TempDir()
+	body := "package installer\n\nconst renameOldName = \"gogo\" + \"go\"\n"
+	writeFile(t, filepath.Join(root, "internal/installer/rename.go"), body)
+
+	if err := renameTree(root, "my-app", "me"); err != nil {
+		t.Fatalf("renameTree: %v", err)
+	}
+	got, err := os.ReadFile(filepath.Join(root, "internal/installer/rename.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(got), `"gogo" + "go"`) {
+		t.Fatalf("the rename rewrote its own old-name constant:\n%s", got)
 	}
 }

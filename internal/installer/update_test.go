@@ -162,6 +162,7 @@ func TestCheckUpdateWithoutNetworkOrCacheIsUnknown(t *testing.T) {
 // TestCheckUpdateComparesTheProjectToo is the bug the marker exists to fix: a
 // current binary used to report a months-old tree as current.
 func TestCheckUpdateComparesTheProjectToo(t *testing.T) {
+	requireTemplateIdentity(t)
 	dir := t.TempDir()
 	writeMarkerFixture(t, dir, "calionauta/gogogo@v0.50.0")
 	withCacheRoot(t, t.TempDir())
@@ -183,6 +184,7 @@ func TestCheckUpdateComparesTheProjectToo(t *testing.T) {
 // TestCheckUpdateCurrentTreeNeedsNothing guards the other direction: no false
 // alarm on a project that already records the latest release.
 func TestCheckUpdateCurrentTreeNeedsNothing(t *testing.T) {
+	requireTemplateIdentity(t)
 	dir := t.TempDir()
 	writeMarkerFixture(t, dir, "calionauta/gogogo@v0.54.0")
 	withCacheRoot(t, t.TempDir())
@@ -201,6 +203,7 @@ func TestCheckUpdateCurrentTreeNeedsNothing(t *testing.T) {
 // TestCheckUpdateJSONIsTheAgentContract: --format json is the only surface an
 // agent consumes, so it must parse and carry both halves.
 func TestCheckUpdateJSONIsTheAgentContract(t *testing.T) {
+	requireTemplateIdentity(t)
 	dir := t.TempDir()
 	writeMarkerFixture(t, dir, "calionauta/gogogo@v0.50.0")
 	withCacheRoot(t, t.TempDir())

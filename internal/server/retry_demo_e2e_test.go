@@ -24,6 +24,7 @@ import (
 // fail-twice-then-succeed job, and the tab's stream must carry the
 // completion (the "Queue + retry OK" toast).
 func TestRetryDemoReachesStream(t *testing.T) {
+	requireTodo(t)
 	cfg := config.Load()
 	cfg.Dev = true
 	cfg.SignupEnabled = true

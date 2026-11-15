@@ -32,6 +32,7 @@ import (
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/notifications"
 	"github.com/calionauta/gogogo/internal/auth"
+	"github.com/calionauta/gogogo/internal/authpages"
 	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
@@ -437,6 +438,12 @@ func buildChiMux(
 	// absolute paths, the methods (405 at the router) and the OAuth provider
 	// parameter, so the route table claims each endpoint.
 	r.MountFeature("auth", a.Routes())
+	// The sign-in PAGES are core too. They used to be mounted by the todo
+	// slice, which made a demo the owner of /login: drop the slice and nobody
+	// could sign in. `features/authviews` renders them; this is the glue.
+	demoAccounts := deps.Cfg != nil && deps.Cfg.DemoAccounts
+	signupEnabled := deps.Cfg != nil && deps.Cfg.SignupEnabled
+	r.MountFeature("auth-pages", authpages.New(a, deps.Queries, demoAccounts, signupEnabled).Routes())
 	// The session stream is its own path, not a child of /api/auth: it is a
 	// long-lived SSE the banner holds open and it only hears about changes.
 	MountPath(r, "/api/session/stream", a.SessionStreamHandler())

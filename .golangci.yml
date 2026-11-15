@@ -218,6 +218,12 @@ linters:
       # internal/icon/icons.go is vendored Iconify glyph data: opaque
       # single-line path bodies a human never edits by hand. Length checks
       # are noise there; the catalog's shape is guarded by icons_test.go.
+      # features/todo/components/list_wire.go holds Datastar expressions: one
+      # JS fragment per string literal, and wrapping them would split the
+      # expression a reader has to follow.
+      - path: features/todo/components/list_wire\.go
+        linters:
+          - lll
       - path: internal/icon/icons\.go
         linters:
           - lll

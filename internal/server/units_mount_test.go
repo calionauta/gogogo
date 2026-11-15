@@ -23,6 +23,7 @@ import (
 // TestBundledUnitsMountThroughTheSeam drives the generated registration the way
 // bootRecipes does and requires each entry to arrive as a provider with routes.
 func TestBundledUnitsMountThroughTheSeam(t *testing.T) {
+	requireTodo(t)
 	cfg := config.Load()
 	sqlDB, err := db.OpenAt(t.TempDir() + "/units.db")
 	if err != nil {

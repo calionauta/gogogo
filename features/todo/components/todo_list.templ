@@ -3,7 +3,6 @@ package components
 import (
 	"context"
 
-	"github.com/calionauta/gogogo/internal/ui"
 	"encoding/json"
 	"strconv"
 
@@ -67,15 +66,15 @@ templ TodoList(signals todo.Signals) {
 
 							<div class="flex flex-wrap items-center gap-2" role="toolbar" aria-label="Task filters">
 								<div class="tabs tabs-box tabs-sm" role="tablist" aria-label="Status filter">
-									<button type="button" role="tab" class="tab" data-on:click={ ui.TodoFilterOn("all") } data-class="{'tab-active': ($filter || 'all') === 'all'}">{ i18n.T(ctx, "todo.filter.all", nil) }</button>
-									<button type="button" role="tab" class="tab" data-on:click={ ui.TodoFilterOn("active") } data-class="{'tab-active': ($filter || 'all') === 'active'}">{ i18n.T(ctx, "todo.filter.active", nil) }</button>
-									<button type="button" role="tab" class="tab" data-on:click={ ui.TodoFilterOn("completed") } data-class="{'tab-active': ($filter || 'all') === 'completed'}">{ i18n.T(ctx, "todo.filter.completed", nil) }</button>
+									<button type="button" role="tab" class="tab" data-on:click={ TodoFilterOn("all") } data-class="{'tab-active': ($filter || 'all') === 'all'}">{ i18n.T(ctx, "todo.filter.all", nil) }</button>
+									<button type="button" role="tab" class="tab" data-on:click={ TodoFilterOn("active") } data-class="{'tab-active': ($filter || 'all') === 'active'}">{ i18n.T(ctx, "todo.filter.active", nil) }</button>
+									<button type="button" role="tab" class="tab" data-on:click={ TodoFilterOn("completed") } data-class="{'tab-active': ($filter || 'all') === 'completed'}">{ i18n.T(ctx, "todo.filter.completed", nil) }</button>
 								</div>
 								<select
 									class="select select-sm w-28"
 									aria-label="Listing scope"
 									title="Which todos to list"
-									data-on:change={ ui.TodoScopeSelectOn() }>
+									data-on:change={ TodoScopeSelectOn() }>
 									<option value="all" selected?={ signals.Scope == "" || signals.Scope == "all" }>All</option>
 									<option value="mine" selected?={ signals.Scope == "mine" }>{ i18n.T(ctx, "todo.mine", nil) }</option>
 									<option value="shared" selected?={ signals.Scope == "shared" }>{ i18n.T(ctx, "common.shared", nil) }</option>
@@ -206,7 +205,7 @@ templ searchBox(signals todo.Signals) {
 				aria-label="Search todos"
 				value={ signals.SearchQuery }
 				data-bind="searchQuery"
-				data-on:input__debounce.300ms={ ui.TodoSearchOn() }
+				data-on:input__debounce.300ms={ TodoSearchOn() }
 			/>
 			@searchModeSelect(signals)
 		</div>
@@ -237,7 +236,7 @@ templ searchModeSelect(signals todo.Signals) {
 			class="select select-sm join-item max-w-34"
 			aria-label="How the search matches"
 			title="How the search matches"
-			data-on:change={ ui.TodoSearchModeOn() }
+			data-on:change={ TodoSearchModeOn() }
 		>
 			for _, m := range signals.SearchModes {
 				<option value={ m } selected?={ m == signals.SearchMode }>{ searchModeLabel(ctx, m) }</option>

@@ -100,22 +100,27 @@ func TestMiddlewareEnforcesPinsDecisions(t *testing.T) {
 		return rec.Code
 	}
 
+	// `/dashboard` is the surface every tree ships: it is the shell's home, not
+	// a demo. The middleware decision under test has nothing to do with which
+	// slices are installed.
+	const userSurface = "/dashboard"
+
 	// Disabled is pass-through with the same call shape.
-	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/todo", nil)
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, userSurface, nil)
 	rec := httptest.NewRecorder()
 	Middleware(a, e, false)(next).ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
-		t.Fatalf("disabled anon /todo = %d, want pass-through 200", rec.Code)
+		t.Fatalf("disabled anon %s = %d, want pass-through 200", userSurface, rec.Code)
 	}
 
-	if code := get("/todo", ""); code != http.StatusUnauthorized {
-		t.Errorf("anon /todo (data request) = %d, want 401 sign-in required", code)
+	if code := get(userSurface, ""); code != http.StatusUnauthorized {
+		t.Errorf("anon %s (data request) = %d, want 401 sign-in required", userSurface, code)
 	}
 	if code := get("/login", ""); code != http.StatusOK {
 		t.Errorf("anon /login = %d, want 200 (public surface)", code)
 	}
-	if code := get("/todo", userTok); code != http.StatusOK {
-		t.Errorf("user /todo = %d, want 200", code)
+	if code := get(userSurface, userTok); code != http.StatusOK {
+		t.Errorf("user %s = %d, want 200", userSurface, code)
 	}
 	if code := get("/config", userTok); code != http.StatusForbidden {
 		t.Errorf("user /config = %d, want 403 (admin-only)", code)
