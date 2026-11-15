@@ -28,6 +28,7 @@ files:
   features/whiteboard/handlers/register.go: bc25a6804d953f40048db313b4584030c3a2c329efe6f34764ff6530e7608e83
   features/whiteboard/static/rough.min.js: d5d561189ea0ad7a2818d586dc964d84fa4751124a5270c6b267a41e53796e45
   features/whiteboard/static/whiteboard.js: 576891f40cf7070b95bbcd61e7e4bc2be899f92d5dd632bbc5c57d30892aada3
+  features/whiteboard/handlers/genui_panel.go: 9fb36eba280c5c77f2c6410dc28b8be17842bda86c0fb4aa701a5cc09b6ade68
 declaration:
   metrics:
   - {label: Total, query: "SELECT COUNT(*) FROM boards", signal: boardsTotal, ownerBinds: false}

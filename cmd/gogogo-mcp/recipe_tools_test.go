@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestRecipeToolsRequireDirAndConfirm(t *testing.T) {
@@ -313,4 +317,62 @@ func TestRecipeInvokeForwardsToLoopback(t *testing.T) {
 	if gotCookie != "tok-7" {
 		t.Errorf("cookie = %q, want tok-7", gotCookie)
 	}
+}
+
+// TestRecipeSourceToolReadsWithoutInstalling pins the MCP half of the read
+// primitive: it answers with the recipe's code, refuses a call that names
+// nothing, and leaves no receipt behind.
+func TestRecipeSourceToolReadsWithoutInstalling(t *testing.T) {
+	if _, _, err := handleRecipeSource(context.Background(), nil, recipeSourceArgs{}); err == nil {
+		t.Fatal("a call naming no recipe was accepted")
+	}
+
+	root := t.TempDir()
+	body := "package demo\n"
+	path := filepath.Join(root, "features", "demo", "handlers")
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(path, "chi.go"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	receipt := "id: demo\nfiles:\n  features/demo/handlers/chi.go: \"" + hashOf(body) + "\"\n"
+	if err := os.MkdirAll(filepath.Join(root, ".recipes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".recipes", "demo.yml"), []byte(receipt), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	res, _, err := handleRecipeSource(context.Background(), nil, recipeSourceArgs{ID: "demo", Dir: root})
+	if err != nil {
+		t.Fatalf("recipe_source: %v", err)
+	}
+	text := contentText(t, res)
+	if !strings.Contains(text, "features/demo/handlers/chi.go") || !strings.Contains(text, "package demo") {
+		t.Errorf("the tool did not return the recipe's code:\n%s", text)
+	}
+	if _, statErr := os.Stat(filepath.Join(root, ".recipes", "demo.yml")); statErr != nil {
+		t.Errorf("the receipt changed: %v", statErr)
+	}
+}
+
+// contentText unwraps a tool result to the text a client receives.
+func contentText(t *testing.T, res *mcp.CallToolResult) string {
+	t.Helper()
+	if res == nil || len(res.Content) == 0 {
+		t.Fatal("empty tool result")
+	}
+	text, ok := res.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatalf("content is %T, want text", res.Content[0])
+	}
+	return text.Text
+}
+
+// hashOf mirrors recipe.Hash without importing the package into the test's
+// expectations: the fixture only needs the same digest the tool compares.
+func hashOf(body string) string {
+	sum := sha256.Sum256([]byte(body))
+	return hex.EncodeToString(sum[:])
 }

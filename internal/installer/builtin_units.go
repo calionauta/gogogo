@@ -34,12 +34,12 @@ const (
 // unitCaps maps installer units to registry capability ids.
 var unitCaps = map[string][]string{
 	unitDagnats:    {"dagnats"},
-	unitGoAkt:      {"goakt", "room"},
-	unitWhiteboard: {"whiteboard", "collab", "notes"},
+	unitGoAkt:      {"goakt", recipeRoom},
+	unitWhiteboard: {"whiteboard", "collab", recipeNotes},
 	unitConfigView: {"config-view"},
 	unitCredits:    {"credits"},
 	unitSounds:     {"sounds"},
-	unitGenUI:      {"genui", "chat"},
+	unitGenUI:      {"genui", recipeChat},
 	// Bundle rationale mirrors whiteboard+collab: genkit is the review
 	// loop's only consumer, so one unit is the honest shape. genkit owns
 	// no dirs (external dep); trimming the unit plus `go mod tidy`

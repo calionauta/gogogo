@@ -31,6 +31,7 @@ files:
   features/notes/handlers/register.go: 420e8d6bc4ebfedd24d10a12072bedf737000e6bfea16e676be9e877ffb48713
   features/notes/handlers/wire.go: 02b22755689837bc750680d8ed9507f344ec819f828f89170a3369e065da4072
   features/notes/static/notes.js: fbe9cce1da47a69de1fd7e3eb6687b25dd603809f9b6ddbf34e60cc45b649f51
+  features/notes/handlers/genui_panel.go: 6651c94d7d744a0a38543af339d863f594c39fc110290144398b51ce078590cc
 declaration:
   metrics:
   - {label: Total, query: "SELECT COUNT(*) FROM notes", signal: notesTotal, ownerBinds: false}

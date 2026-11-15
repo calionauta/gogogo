@@ -1,0 +1,14 @@
+# Which bundled slices are worth READING as a base for your own.
+#
+# This is not an install list. The scaffold keeps core, shell and the platform
+# surfaces; every other slice is reference material you consult with
+# `recipe source <id>` and adapt into your own code. Copying one wholesale is a
+# separate, explicit decision (`recipe install`), because it creates a receipt
+# and an update debt that only make sense when you intend to keep editing it.
+#
+# Over time this file is the dial: an id here is pointed at, an id absent is not.
+# Adding or removing one is a review, not a code change, and it never changes
+# what ships.
+recipes:
+  - id: todo
+    why: "the reference slice every recipe derives from"

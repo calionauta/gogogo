@@ -12,6 +12,10 @@ import "github.com/modelcontextprotocol/go-sdk/mcp"
 // in the docs cannot drift away from the guard in the code. The tables in
 // docs/mcp.md and cmd/gogogo-mcp/README.md are generated from this file, so a
 // description that changes here cannot leave the prose behind.
+// literal (cmd/check-docs refuses a const here); the identical string is the
+// point — seven mutating tools carry one safety sentence.
+//
+//nolint:goconst // the effect column is DATA the docs generator reads as a
 var toolCatalog = []toolDef{
 	{
 		name: "capabilities_list",
@@ -61,21 +65,25 @@ var toolCatalog = []toolDef{
 	{
 		name: "scaffold_plan",
 		desc: "Preview scaffolding a checkout (validates name and owner, shows the " +
-			"plan envelope). The scaffold ships the whole template — there is no " +
-			"keep/drop list — and changes nothing. Requires a gogogo checkout at `dir` unless it " +
-			"does not exist yet (then it previews the clone) — on an unrelated project " +
-			"it cannot preview anything, so call advise_stack for guidance instead. " +
-			"`shape` prunes entrypoints (web/api/desktop/gui/mobile); `full` keeps every target.",
-		params: "`name`, `owner?`, `dir?`, `format?`, `shape?`",
+			"plan envelope). Changes nothing. `recipes` (none|all|<ids>) names the demo " +
+			"slices the scaffold will drop (default none) — removal is gated on real " +
+			"imports, so a slice the tree still uses stays and says why. Read a slice " +
+			"with recipe_source; copy one with recipe_install. " +
+			"Requires a gogogo checkout at `dir` unless it does not exist yet (then it " +
+			"previews the clone) — on an unrelated project it cannot preview anything, " +
+			"so call advise_stack for guidance instead. `shape` prunes entrypoints " +
+			"(web/api/desktop/gui/mobile); `full` keeps every target.",
+		params: "`name`, `owner?`, `dir?`, `format?`, `shape?`, `recipes?`",
 		effect: "No",
 		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleScaffoldPlan) },
 	},
 	{
 		name: "scaffold_apply",
-		desc: "Scaffold a checkout (rename, prove with build). Requires " +
-			"confirm:true. Mutates the target tree; only for a gogogo checkout or a " +
-			"path to scaffold into.",
-		params: "`name`, `owner?`, `dir?`, `format?`, `shape?`, `confirm: true`",
+		desc: "Scaffold a checkout (drop the demo slices the tree does not import, " +
+			"rename, apply the shape, prove with build). Requires confirm:true. " +
+			"Mutates the target tree; " +
+			"only for a gogogo checkout or a path to scaffold into.",
+		params: "`name`, `owner?`, `dir?`, `format?`, `shape?`, `recipes?`, `confirm: true`",
 		effect: "Yes (`confirm:true`)",
 		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleScaffoldApply) },
 	},
@@ -112,6 +120,27 @@ var toolCatalog = []toolDef{
 		params: "`name`, `dir`, `confirm: true`, `dryRun?`",
 		effect: "Yes (`confirm:true`)",
 		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleNewFeature) },
+	},
+	{
+		name: "locales",
+		desc: "READ or RECORD the languages this product ships. Without `set` it answers what the tree " +
+			"declares (locales.yml, else SUPPORTED_LOCALES, else the template set) and names the source. " +
+			"With `set` it writes the tracked record and prints it — ask the operator once, before " +
+			"scaffolding features or checking recipes, because `recipe check` and `new feature` grade " +
+			"against this answer. Every product ships English; anything else is the operator's call.",
+		params: "`dir?`, `set?`, `format?`",
+		effect: "Only with `set`",
+		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleLocales) },
+	},
+	{
+		name: "recipe_source",
+		desc: "READ a recipe's code without installing it: the receipt's file set (or a catalog entry, " +
+			"or --src bundle) printed file by file, plus whether each still matches the reviewed bytes. " +
+			"Use this to adapt a slice into your own feature; use recipe_install only when the operator " +
+			"wants the copy owned (receipt + update debt). Changes nothing, anywhere.",
+		params: "`id`, `dir?`, `version?`, `file?`, `src?`, `format?`",
+		effect: "No",
+		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeSource) },
 	},
 	{
 		name: "recipe_install",

@@ -37,8 +37,7 @@ builds:
       - -X github.com/calionauta/gogogo/internal/installer.Version={{.Version}}
 
   - id: gogogo-mcp
-    dir: cmd/gogogo-mcp
-    main: .
+    main: ./cmd/gogogo-mcp
     binary: gogogo-mcp
     env:
       - CGO_ENABLED=0

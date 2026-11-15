@@ -24,6 +24,18 @@ files:
     features/kiosk/service/orders.go: 64162efa3be3ad4dc451d1168b05005d952d8272b3ac139560e9f650b39942b1
     features/kiosk/service/orders_test.go: 217b781e1157dadceebfdd8db4304fd47467fea7e4ea3702b4dbf80c9cb9387b
     internal/db/queries/kiosk.sql: 57393587a037f32068ed6512ae85097b22596bfd553032cce1afbe0df9e87a87
+    features/kiosk/classifier.go: 69fbf6cb2215384b20b3214ea17ce1210f0243d112a0faf11357c4903526fb89
+    features/kiosk/classifier_test.go: 63318ec2622d59120be786a762e0cdf991837ed642006033a4f1982cc663d38e
+    features/kiosk/components/catalogue.go: a9cee9d59c474bfb710d7ee6238387f93069662be3244947d4442066ad8a7d0d
+    features/kiosk/components/catalogue.templ: c676073a0548417762436abead78641d3026050ee98a625894e6ef726fef8d7e
+    features/kiosk/components/catalogue_data.go: 92a05491c86b2f133c531598a5f47e1570b1f73da5c9875777cced80ca3aac0e
+    features/kiosk/components/catalogue_test.go: e92d50713c22a78c5151bc38ebc9ed97f5a783cc303dade1410b4d4375adebba
+    features/kiosk/components/voice_test.go: a6a1b195da5dc5b478226c8eb3502feebc5e3734421719d8df1a83979be6d39e
+    features/kiosk/draft.go: 70f0bd2177da4b9b15cc66106e6ef76e17ec2f7c285d4bfd1f9e71648676c3c3
+    features/kiosk/handlers/engine.go: dd445465e5acccba1a8902cd82f21fe5e7e0b9e80f3aa32e1de0640590d86252
+    features/kiosk/handlers/preview_test.go: e4299e3a9abd3405c348f7c8dc62bb6b2c59db461374f808ad1a0e65f02c09a2
+    features/kiosk/locale/en.json: 519d266a16a2c0d20df4be259a8fbce1c50cd164d70bed6d8c0a2f257403e7cb
+    features/kiosk/locale/pt-BR.json: 2c7743c18746dddf6fb5b67c314d63aa96965e9f63665e46d4605328f2733208
 declaration:
     tables:
         - ext_kiosk_orders
@@ -70,6 +82,12 @@ declaration:
             - label: Orders corrected
               query: SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ? AND corrected = 1
           window: session
+    translations:
+        - locale: pt-BR
+          metrics:
+            Orders confirmed: Pedidos confirmados
+            Orders without repair: Pedidos sem reparo
+            Orders corrected: Pedidos corrigidos
     panel:
         component: kiosk_orders
         prompt: 'kiosk_orders {scope: recent|all} whenever the user asks about their orders'

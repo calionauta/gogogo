@@ -207,7 +207,7 @@ func collectRenameFiles(root string) ([]string, error) {
 		}
 		rel, _ := filepath.Rel(root, p)
 		if info.IsDir() {
-			if rel == ".git" || strings.HasPrefix(rel, ".git"+string(filepath.Separator)) {
+			if rel == gitDirName || strings.HasPrefix(rel, gitDirName+string(filepath.Separator)) {
 				return filepath.SkipDir
 			}
 			if rel == "site/docs" || strings.HasPrefix(rel, "site/docs"+string(filepath.Separator)) {

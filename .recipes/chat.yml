@@ -29,6 +29,9 @@ files:
   features/chat/store/parse_gallery_test.go: 1c85e2c974b7fe394ce200c95e021a7eeb3231903dcd05f06df08d16d469de7f
   features/chat/store/parse_test.go: e06edd57a1c273657f53ba73e52a15acf1517714c96a6fe2479df214b8383f51
   features/chat/store/store.go: a4af74c13c830f21e9469a352e9e3ee09d2d4f916e058063598698fde89d445a
+  features/chat/handlers/catalog_compat.go: be78a8a38feeb2f3ca6674a75ecb635ee220774726ea152a546cb1ce6d3dad79
+  features/chat/handlers/catalog_version_test.go: 7b493f717c8dee32f1ba4e0005cfb5ca630ed2187447728587df7fab66afd5b0
+  features/chat/handlers/genui_panel.go: 1889e091ae987e6dcea7bb649e2f0934ddeefcdc50cf577035a425a647412898
 declaration:
   panel:
     component: "chat_history"

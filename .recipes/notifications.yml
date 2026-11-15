@@ -24,6 +24,8 @@ files:
   features/notifications/handlers/stream.go: 36e4f4eb48bc126f6d3505d428ee79db99f8d0f30c7051a5f74b71e71ee0ebe1
   features/notifications/handlers/stream_test.go: 18316b4b246366572a6a757b520bf63e562d89df7077926270802bf4d573d06e
   features/notifications/handlers/surfaces_test.go: 9801755dc0b909ce0aa91ba0eea4b45053d067dc31244d74bac4f429727ab11c
+  features/notifications/handlers/genui_panel.go: 968a5bc194c4fa270819309faf35532374d51aa68a9163d0b33197ced607be2f
+  features/notifications/handlers/privacy_test.go: 0714a63f4432d39e07401678bd62206d3ed58ec052e8010efed3a406be1d115d
 declaration:
   metrics:
   - {label: Unread, query: "SELECT COUNT(*) FROM notifications WHERE owner = ? AND read_at IS NULL", signal: inboxUnread}

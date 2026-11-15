@@ -30,9 +30,7 @@ import (
 	natsio "github.com/nats-io/nats.go"
 
 	"github.com/calionauta/gogogo/config"
-	"github.com/calionauta/gogogo/features/notes"
 	"github.com/calionauta/gogogo/features/notifications"
-	"github.com/calionauta/gogogo/features/whiteboard"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/db"
@@ -424,6 +422,9 @@ func buildChiMux(
 	a *auth.Auth, deps register.Deps,
 ) *Router {
 	r := NewRouter()
+	// A feature claims its asset subtree through the seam, so this file never
+	// imports a slice to mount one URL prefix.
+	deps.MountStatic = func(prefix string, h http.Handler) { MountSubtree(r, prefix, h) }
 	// The event bus and the shape decide what the tree mounts at all; both
 	// are set before the first feature so every mount sees the same answer.
 	r.events = deps.Events
@@ -460,11 +461,9 @@ func buildChiMux(
 	r.Claim("core", "HEAD", "/sw.js")
 	r.Get("/sw.js", serviceWorkerHandler().ServeHTTP)
 	r.Head("/sw.js", serviceWorkerHandler().ServeHTTP)
-	// Features that embed their OWN assets (whiteboard.js + rough.min.js,
-	// notes.js) register their subtree here; the core /static/ mount never
-	// serves them. A feature trim drops its line and its import.
-	MountSubtree(r, whiteboard.AssetPath, whiteboard.StaticHandler())
-	MountSubtree(r, notes.AssetPath, notes.StaticHandler())
+	// Features that embed their OWN assets registered their subtree through
+	// Deps.MountStatic during bootRecipes: the core /static/ mount never
+	// serves them, and a trimmed feature leaves no line and no import here.
 
 	// Healthcheck: the scratch image runs `app health`, which GETs this path
 	// on 127.0.0.1:PORT. HEAD rides GET per HTTP semantics; any other method

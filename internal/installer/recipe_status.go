@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/calionauta/gogogo/internal/projectlocales"
 	"github.com/calionauta/gogogo/internal/recipe"
 )
 
@@ -38,12 +39,9 @@ func parseRecipeLookupArgs(command string, args []string) (recipeLookupArgs, err
 	fs.StringVar(&opt.dir, "dir", ".", "checkout to inspect")
 	fs.StringVar(&opt.catalog, "catalog", "", "catalog directory (default: <checkout>/catalog)")
 	fs.StringVar(&opt.format, "format", planFormatText, "output format: text|json")
-	localesRaw := os.Getenv("SUPPORTED_LOCALES")
-	if strings.TrimSpace(localesRaw) == "" {
-		localesRaw = "en,pt-BR"
-	}
-	fs.StringVar(&localesRaw, "locales", localesRaw,
-		"comma-separated locale tags required by this instance (default: SUPPORTED_LOCALES or en,pt-BR)")
+	localesRaw := ""
+	fs.StringVar(&localesRaw, "locales", "",
+		"comma-separated locale tags required by this tree (default: locales.yml, then SUPPORTED_LOCALES)")
 	fs.BoolVar(&opt.strictLocales, "strict-locales", false,
 		"treat a recipe with no locale catalog as an error")
 	fs.BoolVar(&opt.strictHeadless, "strict-headless", false,
@@ -66,6 +64,14 @@ func parseRecipeLookupArgs(command string, args []string) (recipeLookupArgs, err
 	}
 	if opt.format != planFormatText && opt.format != planFormatJSON {
 		return opt, &ExitError{code: 1, msg: fmt.Sprintf("unknown --format %q (want text|json)", opt.format)}
+	}
+	// Resolve AFTER parsing: the tags come from the tree being graded, and
+	// `--dir` is only known now. The precedence is the boot's — the record,
+	// then the env, then the template set — so `recipe check` never grades
+	// against a set the app does not serve.
+	if strings.TrimSpace(localesRaw) == "" {
+		tags, _ := projectlocales.Resolve(opt.dir, os.Getenv("SUPPORTED_LOCALES"))
+		localesRaw = strings.Join(tags, ",")
 	}
 	for tag := range strings.SplitSeq(localesRaw, ",") {
 		if tag = strings.TrimSpace(tag); tag != "" {

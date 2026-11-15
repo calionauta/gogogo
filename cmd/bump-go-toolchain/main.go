@@ -1,7 +1,7 @@
 // Bump the pinned Go toolchain across every file that names it.
 //
 // Why this exists: the pin lives in every file that names the toolchain —
-// go.mod, cmd/gogogo-mcp/go.mod, bin/install-go-toolchain.sh, both Dockerfiles,
+// go.mod, bin/install-go-toolchain.sh, both Dockerfiles,
 // the coding-standards skill, docs/troubleshooting.md and the pin test's own
 // table (surface.go lists all of them). Consistency between them is a TEST,
 // not a script: internal/toolchain_pin_test.go catches a missed pin, but only

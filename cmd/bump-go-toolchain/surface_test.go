@@ -12,8 +12,7 @@ import (
 // Every surface entry needs an entry here: a new file in the surface without
 // a fixture fails the test loudly, so the two never drift apart.
 var fixtureContent = map[string]string{
-	"go.mod":                "module example\n\ngo 1.27.3\n",
-	"cmd/gogogo-mcp/go.mod": "module example/mcp\n\ngo 1.27.3\n",
+	"go.mod": "module example\n\ngo 1.27.3\n",
 	"bin/install-go-toolchain.sh": "#   GO_VERSION=1.27.3 is the default\n" +
 		"VERSION=\"${GO_VERSION:-1.27.3}\"\n",
 	"Dockerfile": "#   1. builder  — golang:1.27.3-alpine\n" +
@@ -101,7 +100,6 @@ func TestBumpKeepsThePinsInTheirOwnShape(t *testing.T) {
 		want string
 	}{
 		{"go.mod", "\ngo 1.27.4\n"},
-		{"cmd/gogogo-mcp/go.mod", "\ngo 1.27.4\n"},
 		{"bin/install-go-toolchain.sh", `GO_VERSION:-1.27.4`},
 		{"bin/install-go-toolchain.sh", `GO_VERSION=1.27.4 is the default`},
 		{"Dockerfile", "FROM golang:1.27.4-alpine AS builder"},

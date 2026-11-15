@@ -13,6 +13,8 @@ import (
 	"log/slog"
 	"slices"
 	"strings"
+
+	"github.com/calionauta/gogogo/internal/projectlocales"
 )
 
 // I18NConfig selects the localization plugin surface.
@@ -22,7 +24,8 @@ type I18NConfig struct {
 	// binary on English markup (the same templates, English keys), which is the
 	// opt-out for a tree that deleted the servant.
 	Enabled bool
-	// Supported is SUPPORTED_LOCALES (default "en,pt-BR"):
+	// Supported is SUPPORTED_LOCALES (default: the tracked locales.yml record,
+	// then "en,pt-BR"):
 	// the tags the catalog loader must find. Invalid entries
 	// warn and are skipped.
 	Supported []string
@@ -40,7 +43,15 @@ type I18NConfig struct {
 // loadI18NEnv fills I18n from env.
 func (c *Config) loadI18NEnv() {
 	enabled := envBool("I18N_ENABLED", true)
-	supported := parseI18NSupported(getEnv("SUPPORTED_LOCALES", "en,pt-BR"))
+	// The tracked record answers "what does this product ship"; the env var
+	// answers "what does THIS deployment ship". Env wins, because a deploy must
+	// override without editing a tracked file. A tree with neither gets the
+	// template's own set.
+	supported := parseI18NSupported(getEnv("SUPPORTED_LOCALES", ""))
+	if strings.TrimSpace(getEnv("SUPPORTED_LOCALES", "")) == "" {
+		tags, _ := projectlocales.Resolve(".", "")
+		supported = tags
+	}
 	def := strings.TrimSpace(getEnv("DEFAULT_LOCALE", "en"))
 	if def == "" {
 		def = "en"

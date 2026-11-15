@@ -47,19 +47,27 @@ The rule that follows, and it is the one thing to get right:
 
 ## Before you write: does it already exist?
 
-Check in this order, and stop at the first hit:
+Check in this order, and stop at the first hit. **READ before you copy** — these are
+three different acts and only the last two write anything:
 
-1. **The official catalog** — install it instead of writing it. One command, and you get
-   a receipt you can update.
+1. **Read a slice** — `gogogo recipe source <id>` prints a recipe's code file by file
+   (receipt file set, or a catalog entry, or `--src <bundle>`), and says which files
+   still match the reviewed bytes. No receipt, no copy, nothing to update later. Use
+   this to learn the shape and then write your own. MCP: `recipe_source`.
 2. **The reference slice** — `features/todo` is the living in-tree example every recipe
    is derived from: handler shape, page shape, signals, policy rows, the receipt.
-   Copy it rather than inventing a structure. (`features/kiosk` is the worked
-   instrumentation example — one table, one page, one declared outcome — and a
-   bundle (a directory with `.recipe.yml`) is what you point `recipe install` at when
-   the code must travel to ANOTHER tree; the template ships none.)
-3. **The scaffold** — `go run ./cmd/gogogo new feature <name>` writes a handler, a page,
-   the wiring, the capability entry, the policy rows, locale stubs, then proves the build.
-   Use it as the starting point; a hand-rolled slice will miss a gate.
+   `features/kiosk` is the worked instrumentation example — one table, one page, one
+   declared outcome. Read either with `recipe source`.
+3. **The official catalog** — `recipe install <id>` copies it and writes a receipt you
+   can update. Do this only when the operator wants the copy OWNED: a receipt is an
+   update debt, and copying code you are about to rewrite is worse than reading it.
+4. **The scaffold** — `go run ./cmd/gogogo new feature <name>` writes a handler, a page,
+   the wiring, the capability entry, the policy rows, locale stubs for every language
+   this product ships, then proves the build. Use it as the starting point; a hand-rolled
+   slice will miss a gate.
+
+A bundle (a directory with `.recipe.yml`) is what you point `recipe install` at when the
+code must travel to ANOTHER tree; the template ships none.
 
 When a recipe is derived from others, record `basedOn: [id, …]` in the receipt and the
 manifest. It is provenance, not a dependency: one primary slice is copied, and the others
@@ -204,6 +212,27 @@ Rules:
   word in JS is the one string the catalog cannot reach.
 - **Keep the core keys out of the recipe.** `nav.*`, `prefs.*`, `login.*` belong
   to the app; a recipe translating them would shadow core copy the operator owns.
+- **Declared labels are strings too.** A metric `label` is data the declaration
+  shows on the dashboard, so it does not live in `locale/*.json` (that map is
+  for page copy). Translate it in the declaration's own `translations:` block,
+  one entry per shipped tag:
+
+  ```yaml
+  metrics:
+    - label: Orders confirmed
+      query: SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ?
+  translations:
+    - locale: pt-BR
+      metrics:
+        Orders confirmed: Pedidos confirmados
+  ```
+
+  `en` needs no entry — the declared label *is* the English spelling. Every
+  other tag this product ships does: `recipe check` blocks a declaration that
+  translates one language and not another (a mixed-language metric grid is the
+  failure the check exists for), and `make check-locales` runs that gate on the
+  tree. The wording travels with the slice, so an uninstall takes the words
+  with the code and a third-party recipe keeps its own language.
 
 ### The chat panel is yours; the shared catalog is not
 

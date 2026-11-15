@@ -35,7 +35,6 @@ var surface = []struct {
 	Why  string
 }{
 	{goModPath, "the authoritative pin"},
-	{"cmd/gogogo-mcp/go.mod", "the second module builds in the same CI job"},
 	{"bin/install-go-toolchain.sh", "the toolchain every CI job installs"},
 	{"Dockerfile", "the dev/desktop image builder"},
 	{"deploy/Dockerfile.prod", "the production image builder promoted by digest"},

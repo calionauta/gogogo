@@ -12,7 +12,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/calionauta/gogogo/internal/recipe"
 )
@@ -263,10 +265,116 @@ func checkRegistryFresh() doctorCheck {
 	return doctorCheck{ID: "registry.fresh", Name: "unit-contracts freshness", Status: checkPass}
 }
 
+// checkDrift answers the one question it can answer READ-ONLY: is every
+// generated file newer than the source that produces it? It used to be a
+// permanent `skip`, which made `doctor` claim a check it never performed — and
+// a skip inside an "ok: true" report reads as a pass to anyone scanning it.
+//
+// It does NOT regenerate (that is `gogogo generate --check`, which rewrites and
+// compares): a preflight must be safe to run mid-edit. The source sets are the
+// ones the Makefile owns.
 func checkDrift() doctorCheck {
-	// Do not run templ/sqlc generate here (read-only). Warn if generated files predate .templ
-	// Caller should run `gogogo generate --check` for the hard gate.
-	return doctorCheck{ID: "generate.drift", Name: "generated drift (templ/sqlc)", Status: checkSkip, Required: "gogogo generate --check", Fix: "gogogo generate --check"}
+	stale, err := staleGenerated(".")
+	if err != nil {
+		return doctorCheck{
+			ID: "generate.drift", Name: "generated drift (templ/sqlc/css/docs)",
+			Status: checkSkip, Fix: "gogogo generate --check",
+		}
+	}
+	if len(stale) > 0 {
+		return doctorCheck{
+			ID: "generate.drift", Name: "generated drift (templ/sqlc/css/docs)",
+			Status: checkWarn, Version: fmt.Sprintf("%d stale", len(stale)),
+			Fix: "gogogo generate --check, then commit (stale: " + strings.Join(firstN(stale, 3), ", ") + ")",
+		}
+	}
+	return doctorCheck{ID: "generate.drift", Name: "generated drift (templ/sqlc/css/docs)", Status: checkPass}
+}
+
+// staleGenerated lists generated outputs older than their sources. A pair whose
+// source or output is absent is skipped: a tree without the generator has no
+// drift to report.
+func staleGenerated(root string) ([]string, error) {
+	var stale []string
+	// templ: every <name>.templ owns the <name>_templ.go beside it.
+	walkErr := filepath.WalkDir(root, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.IsDir() {
+			if skipDriftDir(d.Name()) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(path, ".templ") {
+			return nil
+		}
+		out := strings.TrimSuffix(path, ".templ") + "_templ.go"
+		older, oerr := olderThan(path, out)
+		if oerr == nil && older {
+			stale = append(stale, out)
+		}
+		return nil
+	})
+	if walkErr != nil {
+		return nil, walkErr
+	}
+	// sqlc: any query file newer than the newest generated file.
+	newest, err := newestIn("internal/db/sqlcgen")
+	if err == nil && newest != "" {
+		queryNewest, qerr := newestIn("internal/db/queries")
+		if qerr == nil && queryNewest != "" && queryNewest > newest {
+			stale = append(stale, "internal/db/sqlcgen")
+		}
+	}
+	sort.Strings(stale)
+	return stale, nil
+}
+
+// skipDriftDir is the noise a freshness scan must not walk.
+func skipDriftDir(name string) bool {
+	switch name {
+	case gitDirName, dirNodeModules, dirData, dirSite, dirVendor, dirTmp, "dist":
+		return true
+	}
+	return false
+}
+
+// olderThan reports whether out is missing or older than src.
+func olderThan(src, out string) (bool, error) {
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return false, err
+	}
+	outInfo, oerr := os.Stat(out)
+	if oerr != nil {
+		// Never generated: stale by definition. Not an error for the caller —
+		// the freshness question is answered, and the answer is "missing".
+		return true, nil //nolint:nilerr // a missing output IS the verdict
+	}
+	return srcInfo.ModTime().After(outInfo.ModTime()), nil
+}
+
+// newestIn returns the newest modification stamp under dir ("" when empty).
+func newestIn(dir string) (string, error) {
+	var newest time.Time
+	err := filepath.WalkDir(dir, func(_ string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil || d.IsDir() {
+			return walkErr
+		}
+		if info, ierr := d.Info(); ierr == nil && info.ModTime().After(newest) {
+			newest = info.ModTime()
+		}
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	if newest.IsZero() {
+		return "", nil
+	}
+	return newest.Format(time.RFC3339Nano), nil
 }
 
 func checkRecipes() doctorCheck {

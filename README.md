@@ -99,25 +99,45 @@ from a handler that runs and refuses. `/api`, `/health` and the static assets
 keep working. Enum, record and the `check-shape` gate:
 [docs/shape.md](docs/shape.md).
 
-## Recipes: slices you copy and own
+## Recipes: read one, then own one
 
 A recipe is a working slice — pages, handlers, tables, jobs, policy rows — not a
-package you depend on. You get the code, and a receipt that remembers where it
-came from.
+package you depend on. Two modes, and the difference is a receipt:
+
+| Read (default) | Own (explicit) |
+|---|---|
+| `recipe source <id>` prints the code | `recipe install <id>` copies it in |
+| No receipt, no copy, no update debt | Receipt at `.recipes/<id>.yml` |
+| Adapt the pattern into your own slice | Your edits survive: pristine hashes + `git merge` |
 
 | | |
 |---|---|
-| **Install / update / uninstall** | `gogogo recipe install` · `update` · `uninstall` |
-| **Your edits survive** | pristine hashes + `git merge` — never overwritten |
-| **Receipt** | `.recipes/<id>.yml` — provenance, file hashes, declaration |
-| **What it declares** | routes, tables, jobs, slots, metrics, panel |
 | **Checked, not trusted** | `recipe check` scores it; `recipe test` runs its tests |
+| **What it declares** | routes, tables, jobs, slots, metrics, panel |
+| **Reviewed versions** | [`catalog/`](catalog) — bytes, not names |
+| **What to read first** | [`catalog/reference.yml`](catalog/reference.yml) |
+| **What is installed here** | `go run ./cmd/gogogo recipe list` |
 
-- **Reference slice:** `features/todo` — what every recipe derives from.
-- **Instrumented example:** `features/kiosk` — declares an outcome metric.
-- **What can be installed:** [`catalog/`](catalog) for reviewed versions, and
-  [`recommended.yml`](catalog/recommended.yml) for what the scaffold advises.
-- **What is installed here:** `go run ./cmd/gogogo recipe list`.
+A fresh scaffold drops the demo slices (`--recipes none` is the default):
+`chat`, `kiosk`, `notes`, `review`, `room`, `whiteboard`. `--recipes all` keeps
+them, `--recipes <ids>` drops exactly those. `todo` is removable on the same
+terms but stays today: `internal/desktopboot` (the native shells' shared boot),
+`cmd/gui` and two test files import it, and the plan prints that list rather than
+removing a package something still uses. Read one with `recipe source`; copy one
+with `recipe install` when you want it owned.
+
+Languages are one tracked record, not a flag per command:
+
+```bash
+go run ./cmd/gogogo locales            # what this product ships, and why
+go run ./cmd/gogogo locales --set en,pt-BR
+```
+
+`new feature` seeds one catalog per recorded tag, `recipe check` grades coverage
+against it, and `make check-locales` fails a branch where a recipe translates
+one shipped language but not another. A metric label is translated in the
+declaration's own `translations:` block (it is data, so it cannot live in the
+app catalog), and `en` is the fallback spelling — never a required entry.
 
 Contract: [skills/gogogo-recipe-authoring](skills/gogogo-recipe-authoring/SKILL.md) ·
 Taxonomy: [docs/scope-taxonomy](docs/scope-taxonomy.md).

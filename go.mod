@@ -28,6 +28,7 @@ require (
 	github.com/gogpu/ui v0.1.54
 	github.com/google/uuid v1.6.0
 	github.com/mattn/go-jev v0.0.3
+	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/nats-io/nats-server/v2 v2.15.1
 	github.com/nats-io/nats.go v1.54.0
 	github.com/ncruces/go-sqlite3 v0.35.6
@@ -92,6 +93,7 @@ require (
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/dotprompt/go v0.0.0-20260708220100-73beb993ac95 // indirect
 	github.com/google/go-tpm v0.9.8 // indirect
+	github.com/google/jsonschema-go v0.4.3 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.31.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
@@ -124,6 +126,8 @@ require (
 	github.com/reugn/go-quartz v0.15.2 // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529 // indirect
+	github.com/segmentio/asm v1.1.3 // indirect
+	github.com/segmentio/encoding v0.5.4 // indirect
 	github.com/synadia-io/orbit.go/pcgroups v0.2.2 // indirect
 	github.com/tidwall/btree v1.8.2 // indirect
 	github.com/tidwall/match v1.2.0 // indirect

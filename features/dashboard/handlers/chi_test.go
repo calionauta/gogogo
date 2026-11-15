@@ -20,6 +20,7 @@ import (
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
+	"github.com/calionauta/gogogo/internal/i18n"
 	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/recipe"
 	"github.com/calionauta/gogogo/internal/ui"
@@ -30,14 +31,15 @@ import (
 // stubProvider is a minimal recipe.Provider for the generic dashboard
 // path: it declares metrics and outcomes (no routes served).
 type stubProvider struct {
-	id      string
-	metrics []recipe.Metric
+	id           string
+	metrics      []recipe.Metric
+	translations []recipe.Translations
 }
 
 func (s *stubProvider) ID() string { return s.id }
 
 func (s *stubProvider) Declaration() recipe.Declaration {
-	return recipe.Declaration{Metrics: s.metrics}
+	return recipe.Declaration{Metrics: s.metrics, Translations: s.translations}
 }
 
 func (s *stubProvider) Routes() chi.Router { return chi.NewRouter() }
@@ -455,5 +457,39 @@ func TestDeclaredMetricsExecutesCounts(t *testing.T) {
 	}
 	if _, ok := got["broken"]; ok {
 		t.Fatalf("broken provider must be omitted, got %v", got["broken"])
+	}
+}
+
+// TestDeclaredMetricsUsesTheDeclarationsOwnTranslations: a metric label is the
+// recipe author's data, so its pt-BR spelling travels in the declaration. The
+// dashboard must read it there — the app catalog cannot own a third-party
+// recipe's wording, and an unlisted locale must fall back to the declared word.
+func TestDeclaredMetricsUsesTheDeclarationsOwnTranslations(t *testing.T) {
+	f := newFixture(t)
+	owner := "owner-1"
+	if _, err := f.sqlDB.ExecContext(context.Background(),
+		"INSERT INTO users (id, email, password_hash, created, updated) VALUES (?, ?, ?, ?, ?)",
+		owner, "owner@example.com", "x", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"); err != nil {
+		t.Fatalf("insert user: %v", err)
+	}
+	reg := &recipe.Registry{}
+	reg.Add(&stubProvider{
+		id: "todo",
+		metrics: []recipe.Metric{
+			{Label: "Open", Query: "SELECT COUNT(*) FROM users WHERE id = ?"},
+		},
+		translations: []recipe.Translations{
+			{Locale: "pt-BR", Metrics: map[string]string{"Open": "Abertas"}},
+		},
+	})
+	h := NewHandler(f.h.cfg, f.auth, f.q, nil)
+	h.SetRegistry(reg, f.sqlDB)
+
+	pt := i18n.WithLocale(context.Background(), "pt-BR")
+	if got := h.declaredMetrics(pt, owner, false)["todo"]; len(got) != 1 || got[0].Label != "Abertas" {
+		t.Fatalf("pt-BR label = %+v, want Abertas", got)
+	}
+	if got := h.declaredMetrics(context.Background(), owner, false)["todo"]; len(got) != 1 || got[0].Label != "Open" {
+		t.Fatalf("default locale label = %+v, want Open", got)
 	}
 }

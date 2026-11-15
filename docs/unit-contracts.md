@@ -273,10 +273,10 @@ panorama graph (capabilities + recipes)
 
 localization seam (embedded catalogs, locale resolution, number/date formatting)
 
-- **Owned:** `internal/i18n`
+- **Owned:** `internal/i18n`, `internal/projectlocales`
 - **Runtime off:** `I18N_ENABLED=false`
 - **Why that class:** Phase one owns lookup and formatting; CLDR depth is a documented revisit trigger, not an upfront dependency.
-- **Note:** Removable seam: delete internal/i18n plus this entry and the I18n config; the shell keeps rendering the English fallback. Runtime-off is the blessed path until a phase converts markup.
+- **Note:** Removable seam: delete internal/i18n and internal/projectlocales plus this entry and the I18n config; the shell keeps rendering the English fallback and `gogogo locales` goes with the record it reads. Runtime-off is the blessed path until a phase converts markup.
 - **Warning:** With the servant off, markup stays on English strings and the account panel offers no language picker (there is no catalog to offer), so no page depends on the locale context to render.
 
 ## `license-activation` — servant

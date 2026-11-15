@@ -201,6 +201,13 @@ linters:
       - path: ^(cmd|scripts)/
         linters:
           - gocritic
+      # The MCP tools' jsonschema tags and the tool catalog are the served
+      # surface: both are single-line by construction (a struct tag cannot
+      # wrap; a tool description is one string the agent reads), so the line
+      # limit would only push meaning out of the schema.
+      - path: ^cmd/gogogo-mcp/
+        linters:
+          - lll
       # Ignore length checks in templ-generated files
       - path: (.+)_templ\.go
         linters:

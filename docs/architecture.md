@@ -110,6 +110,9 @@ absolute patterns, and `MountFeature` flattens that table onto the root
   `Routes() chi.Router` with absolute patterns and the router decides the
   method. Static/asset handlers mount through `MountSubtree`, which leaves
   the request path unrewritten because those handlers trim their own prefix.
+  A slice that embeds its OWN assets claims its subtree through
+  `register.Deps.MountStatic` during `Register`, so the root needs no import
+  for it and a dropped slice leaves no line behind.
   `GET /` is a core redirect (`internal/server/home.go`): /login for a guest,
   the signed-in home otherwise. There is no catch-all page.
 - Serve static assets through `web/resources.AssetHandler` (`/static/` plus

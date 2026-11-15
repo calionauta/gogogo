@@ -153,6 +153,11 @@ type Declaration struct {
 	// because both answer "is it working" at different strengths, and two
 	// parallel fields made the reader guess which one to trust.
 	Metrics []Metric `yaml:"metrics,omitempty"`
+	// Translations carries the localized spelling of every string this
+	// declaration shows — metric labels today. It lives beside the data so the
+	// wording and the number cannot drift into two files, and it travels with
+	// the slice (an uninstall removes the words with the code).
+	Translations []Translations `yaml:"translations,omitempty"`
 	// Panel is the chat answer slice this recipe offers (optional — a
 	// recipe with no list-shaped data declares none). The component
 	// name, prompt and writable props live here so the dashboard,

@@ -220,10 +220,15 @@ func (h *Handler) declaredMetrics(ctx context.Context, owner string, all bool) m
 	}
 	for _, p := range h.registry.Providers() {
 		id := p.ID()
-		for _, m := range p.Declaration().Metrics {
+		decl := p.Declaration()
+		for _, m := range decl.Metrics {
 			item, ok := h.readMetric(ctx, id, m, owner, all)
 			if !ok {
 				continue
+			}
+			item.Label = metricLabel(ctx, decl, item.Label)
+			for i := range item.CounterMetrics {
+				item.CounterMetrics[i].Label = metricLabel(ctx, decl, item.CounterMetrics[i].Label)
 			}
 			out[id] = append(out[id], item)
 		}
@@ -372,10 +377,19 @@ func metricSignal(recipeID, label string) string {
 // Landing/account/config/dashboard are platform, not recipes with data, and
 // never appear here.
 
-// metricLabel translates a declared metric label when the catalog knows it.
-// Declared labels are data, so an unknown one falls through unchanged — a
-// recipe from another tree must not have its wording replaced by a key.
-func metricLabel(ctx context.Context, label string) string {
+// metricLabel translates a declared metric label. Two sources, in order:
+//
+//  1. the DECLARATION's own translations (the author's wording, travelling with
+//     the slice — see recipe.Declaration.LabelFor), then
+//  2. the app catalog's `metric.<label>` key, for the demo slices whose labels
+//     are spelled by the template.
+//
+// An unknown label falls through unchanged: a recipe from another tree must not
+// have its wording replaced by a dotted key.
+func metricLabel(ctx context.Context, d recipe.Declaration, label string) string {
+	if s := d.LabelFor(label, i18n.Locale(ctx)); s != label {
+		return s
+	}
 	key := "metric." + strings.ToLower(label)
 	if s, ok := i18n.CatalogFromContext(ctx).Lookup(i18n.Locale(ctx), key); ok {
 		return s
@@ -410,13 +424,8 @@ func buildCards(ctx context.Context, mods []ui.Module, reach map[string]bool, c 
 			if !ok {
 				continue
 			}
-			// A declared label is recipe DATA (it may say anything), so it is
-			// translated only when the catalog has a `metric.<label>` entry.
-			// The fallback keeps a third-party recipe's own wording intact
-			// instead of rendering a dotted key.
-			for i := range metrics {
-				metrics[i].Label = metricLabel(ctx, metrics[i].Label)
-			}
+			// Labels are already translated where the declaration was in hand
+			// (declaredMetrics), so the renderer never re-guesses the wording.
 			cards = append(cards, components.Card{
 				Title: ui.ModuleLabel(ctx, m), URL: m.URL, Cta: cardCta(m, reach, i18n.T(ctx, "common.open", nil)),
 				Locked: !reach[m.ID], Metrics: metrics,

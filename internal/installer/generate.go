@@ -8,11 +8,16 @@ package installer
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -21,7 +26,97 @@ const (
 	generateTail40 = 40
 )
 
+// generateOutputs are the paths the steps above rewrite. `--check` scopes to
+// them: a gate that reacts to a README edit is a gate nobody can run.
+var generateOutputs = []string{
+	"internal/db/sqlcgen",
+	"web/resources/static/app.min.css",
+	"docs/api-routes.md",
+	"docs/unit-contracts.md",
+	"*_templ.go",
+}
+
 func marshalJSON(v any) ([]byte, error) { return json.MarshalIndent(v, "", "  ") }
+
+// changedOutputs lists the owned files whose bytes the run changed.
+func changedOutputs(before map[string]string, patterns []string) ([]string, error) {
+	var dirty []string
+	for _, pattern := range patterns {
+		files, err := expandPattern(pattern)
+		if err != nil {
+			return nil, err
+		}
+		for _, path := range files {
+			now, rerr := fileHash(path)
+			if rerr != nil {
+				return nil, rerr
+			}
+			if was, ok := before[path]; ok && was != now {
+				dirty = append(dirty, path)
+			}
+		}
+	}
+	sort.Strings(dirty)
+	return dirty, nil
+}
+
+// snapshotOutputs records the bytes of every owned file before the run.
+func snapshotOutputs(patterns []string) (map[string]string, error) {
+	out := map[string]string{}
+	for _, pattern := range patterns {
+		files, err := expandPattern(pattern)
+		if err != nil {
+			return nil, err
+		}
+		for _, path := range files {
+			sum, rerr := fileHash(path)
+			if rerr != nil {
+				return nil, rerr
+			}
+			out[path] = sum
+		}
+	}
+	return out, nil
+}
+
+// expandPattern resolves one owned path: a FILE is itself, a DIRECTORY is every
+// Go file under it (the generated output a step rewrites).
+func expandPattern(pattern string) ([]string, error) {
+	info, err := os.Stat(pattern)
+	if err == nil && !info.IsDir() {
+		return []string{pattern}, nil
+	}
+	if err != nil && !strings.Contains(pattern, "*") {
+		return nil, nil // the step did not produce it (a tree without sqlc)
+	}
+	matches, gerr := filepath.Glob(pattern)
+	if gerr != nil {
+		return nil, gerr
+	}
+	var out []string
+	for _, match := range matches {
+		entries, rerr := os.ReadDir(match)
+		if rerr != nil {
+			out = append(out, match)
+			continue
+		}
+		for _, e := range entries {
+			if !e.IsDir() && strings.HasSuffix(e.Name(), ".go") {
+				out = append(out, filepath.Join(match, e.Name()))
+			}
+		}
+	}
+	return out, nil
+}
+
+func fileHash(path string) (string, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(raw)
+	return hex.EncodeToString(sum[:]), nil
+}
 
 func runGenerate(ctx context.Context, args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("generate", flag.ContinueOnError)
@@ -33,6 +128,10 @@ func runGenerate(ctx context.Context, args []string, stdout io.Writer) error {
 		return err
 	}
 	_ = exec.CommandContext(ctx, "true") // keep ctx used
+	before, snapErr := snapshotOutputs(generateOutputs)
+	if snapErr != nil {
+		return &ExitError{code: 2, msg: "generate: " + snapErr.Error()}
+	}
 	steps := []string{"templ", "sqlc", "css", "docs"}
 	var ran []string
 	runOnly := map[string]bool{}
@@ -72,11 +171,21 @@ func runGenerate(ctx context.Context, args []string, stdout io.Writer) error {
 		}
 		ran = append(ran, "docs")
 	}
-	// --check: fail on drift (git diff)
+	// --check asks ONE question: did generation change the files it owns?
+	//
+	// Not `git diff --exit-code` (with or without paths): that compares the
+	// working tree against HEAD, so a branch with any unrelated edit — the
+	// normal state while working — reported "drift", and a committed tree whose
+	// generator was already applied looked clean for the wrong reason. Hashing
+	// before and after answers the real question and needs no git.
 	if *check {
-		out, err := runIn(ctx, ".", "git", "diff", "--exit-code")
-		if err != nil {
-			return &ExitError{code: 1, msg: "generate --check: drift detected\n" + tailLines(string(out), generateTail40)}
+		dirty, derr := changedOutputs(before, generateOutputs)
+		if derr != nil {
+			return &ExitError{code: 2, msg: "generate --check: " + derr.Error()}
+		}
+		if len(dirty) > 0 {
+			return &ExitError{code: 1, msg: "generate --check: generation changed " +
+				strings.Join(dirty, ", ") + "\n  commit the regenerated files (they are checked in)"}
 		}
 	}
 	if *jsonOut {

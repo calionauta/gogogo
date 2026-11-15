@@ -377,6 +377,23 @@ check-shape:
 # owns, what it does not, the words it uses and the rules its code keeps. Text
 # only — the gate checks that the parts exist and are non-empty; review judges
 # the prose, because a gate that guessed at meaning would be a second truth.
+# check-locales is the language gate: every installed recipe must ship the tags
+# this product declares in locales.yml (or SUPPORTED_LOCALES). `recipe check
+# --strict-locales` already grades one recipe; this runs it over all of them, so
+# a slice that renders an English word inside a Portuguese page fails the branch.
+check-locales:
+	@echo "→ check-locales (a recipe that ships translations ships ALL declared languages)..."
+	@go run ./cmd/gogogo locales
+	@go run ./cmd/gogogo recipe check
+	@go run ./cmd/gogogo recipe check --strict-locales --format json 2>/dev/null | \
+		node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const rs=[].concat(JSON.parse(s));const bad=rs.filter(r=>r.locales&&r.locales.missing);if(bad.length){console.log("  ⚠ "+bad.length+" recipe(s) ship no catalog for the declared languages: "+bad.map(r=>r.id).join(", ")+" (run `make check-locales-strict` to require them)");}})' || true
+	@echo "✅ no recipe ships a partial translation (untagged slices are listed above)"
+
+# check-locales-strict is the opt-in the operator takes when every slice must be
+# translated: it fails on a recipe that ships no catalog at all.
+check-locales-strict:
+	@go run ./cmd/gogogo recipe check --strict-locales
+
 check-domains:
 	@echo "→ check-domains (every feature has its card)..."
 	@go run ./cmd/check-domains -dir . -quiet
@@ -415,13 +432,14 @@ check-secrets-env:
 	@go run ./cmd/check-secrets-env
 	@echo "✅ secret env stays on the rails"
 
-# check-mcp runs the MCP module's tests: cmd/gogogo-mcp is a separate module, so
-# the root `go test ./...` and the race suite never see it (that is how
-# add_unit/new_feature shipped passing a flag their subcommands never defined).
+# check-mcp runs the MCP server's tests. It shares the root module (so
+# `go install github.com/calionauta/gogogo/cmd/gogogo-mcp@latest` works without a
+# checkout), but the tools are the surface a third party drives, so they keep a
+# scoped gate: a flag the subcommand does not define fails every call silently.
 check-mcp:
-	@echo "→ check-mcp (separate module tests)..."
-	@cd cmd/gogogo-mcp && go test -count=1 ./...
-	@echo "✅ MCP module tests pass"
+	@echo "→ check-mcp (MCP tool tests)..."
+	@go test -count=1 ./cmd/gogogo-mcp/...
+	@echo "✅ MCP tool tests pass"
 
 # check-dagnats-pin keeps docs/dagnats.md honest: the capability table is
 # verified against the go.mod pin, so a version bump without a doc update
@@ -473,7 +491,7 @@ cover-diff:
 #   make go-bump              # newest patch of the tree's line
 #   make go-bump DRY=1        # report what would move, write nothing
 #   make go-bump TO=1.27.4    # name the target explicitly
-.PHONY: all build desktop desktop-smoke desktop-sync-smoke mobile run-desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui gui-build gui-test run-gui lint-gui check-generated install-sh-guard check-classes check-ci-scripts check-docs docs-index
+.PHONY: check-locales check-locales-strict all build desktop desktop-smoke desktop-sync-smoke mobile run-desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui gui-build gui-test run-gui lint-gui check-generated install-sh-guard check-classes check-ci-scripts check-docs docs-index
 go-bump:
 	@go run ./cmd/bump-go-toolchain $(if $(TO),--to $(TO)) $(if $(DRY),--dry-run)
 
@@ -617,7 +635,7 @@ check-no-jsx:
 # so a CSS or installer tweak would otherwise pay for the whole suite. This
 # narrows on the changed packages, falling back to all packages when a shared
 # file (go.mod, config/, db/) changed.
-ci-local-fast: check-fast-capacity reap-stale check-generated check-shape check-recipes check-sizes datastar-lint css-check check-no-jsx check-ci-scripts check-classes daisyui-lint check-flatdeps check-product-boundary check-typed-states check-domains check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard check-prompts
+ci-local-fast: check-fast-capacity reap-stale check-generated check-shape check-recipes check-locales check-sizes datastar-lint css-check check-no-jsx check-ci-scripts check-classes daisyui-lint check-flatdeps check-product-boundary check-typed-states check-domains check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard check-prompts
 # Pre-flight: check-fast-capacity refuses a wedged box (use CI instead).
 # Budget: more than $FAST_MAX_PARALLEL_PKGS (default 8) changed packages
 # runs serially (-p 1) to bound shared-host load.

@@ -45,8 +45,8 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 | Variable | Default | Purpose |
 |---|---|---|
 | `I18N_ENABLED` | `true` | Master switch for the localization servant. `true` resolves the request locale (query `lang`, the `gogogo_locale` cookie, then `Accept-Language`) and renders the translated strings in the account panel's language picker; `false` keeps English markup and hides the picker. |
-| `SUPPORTED_LOCALES` | `en,pt-BR` | Comma-separated locale tags the catalog loader must find. Invalid entries are skipped; the fallback must be in this list or it resets to `en`. |
-| `DEFAULT_LOCALE` | `en` | Fallback locale when no preference matches. Must be one of `SUPPORTED_LOCALES`. |
+| `SUPPORTED_LOCALES` | `locales.yml`, then `en,pt-BR` | Comma-separated locale tags the catalog loader must find. Invalid entries are skipped; the fallback must be in this list or it resets to `en`. |
+| `DEFAULT_LOCALE` | `en` (`en` is always first in `locales.yml`) | Fallback locale when no preference matches. Must be one of `SUPPORTED_LOCALES`. |
 | `I18N_REQUIRE_RECIPE_COVERAGE` | `false` | Fail the boot when an installed recipe ships translations but misses one of `SUPPORTED_LOCALES` (or ships none). Off by default because the fallback still renders; `recipe check --strict-locales` applies the same rule before deploy. |
 
 ### Realtime and workflows

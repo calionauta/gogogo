@@ -13,6 +13,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -73,11 +74,17 @@ func buildServer() *mcp.Server {
 	return server
 }
 
-// --- tool argument shapes (JSON in, validated like CLI flags) ---
+// The CLI spellings the tools pass through. Named once so a flag rename in the
+// installer fails in one place, not in six string literals.
+const (
+	cliRecipe   = "recipe"
+	flagDir     = "--dir"
+	flagFormat  = "--format"
+	flagEntry   = "--entry"
+	flagCatalog = "--catalog"
+)
 
-type dirArgs struct {
-	Dir string `json:"dir,omitempty" jsonschema:"absolute path of the target checkout (required)"`
-}
+// --- tool argument shapes (JSON in, validated like CLI flags) ---
 
 type versionArgs struct {
 	Dir    string `json:"dir,omitempty" jsonschema:"optional: a scaffolded project checkout, so the answer also compares its recorded template revision"`
@@ -90,6 +97,7 @@ type scaffoldArgs struct {
 	Dir     string `json:"dir,omitempty" jsonschema:"target checkout directory (default ./<name>)"`
 	Format  string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
 	Shape   string `json:"shape,omitempty" jsonschema:"product shape: full|web|api|desktop|gui|mobile (which entrypoints the tree ships; default full)"`
+	Recipes string `json:"recipes,omitempty" jsonschema:"demo slices to drop: none|all|<ids> (default none). A slice your tree still imports stays, with the importer named"`
 	Confirm bool   `json:"confirm,omitempty" jsonschema:"scaffold_apply only: must be true (preview with scaffold_plan first)"`
 }
 
@@ -162,6 +170,9 @@ func scaffoldCLIArgs(a scaffoldArgs, extra ...string) []string {
 	if a.Shape != "" {
 		args = append(args, "--shape", a.Shape)
 	}
+	if a.Recipes != "" {
+		args = append(args, "--recipes", a.Recipes)
+	}
 	format := a.Format
 	if format == "" {
 		format = defaultFormat
@@ -182,7 +193,7 @@ func handleScaffoldApply(
 	ctx context.Context, _ *mcp.CallToolRequest, args scaffoldArgs,
 ) (*mcp.CallToolResult, any, error) {
 	if !args.Confirm {
-		return nil, nil, fmt.Errorf("refusing without confirm:true — preview with scaffold_plan first")
+		return nil, nil, errors.New("refusing without confirm:true — preview with scaffold_plan first")
 	}
 	var buf bytes.Buffer
 	err := installer.Run(ctx, append(scaffoldCLIArgs(args), "--yes"), strings.NewReader(""), &buf)
@@ -196,7 +207,7 @@ func handleVersionStatus(
 	if format == "" {
 		format = defaultFormat
 	}
-	cli := []string{"--check-update", "--format", format}
+	cli := []string{"--check-update", flagFormat, format}
 	if args.Dir != "" {
 		cli = append(cli, "--dir", args.Dir)
 	}
@@ -218,14 +229,14 @@ func handleMigratePlan(
 	if format == "" {
 		format = defaultFormat
 	}
-	cli := []string{"migrate", "--format", format}
+	cli := []string{"migrate", flagFormat, format}
 	if args.Files {
 		cli = append(cli, "--files")
 	}
 	for _, kv := range [][2]string{
 		{"--from", args.From},
 		{"--to", args.To},
-		{"--dir", args.Dir},
+		{flagDir, args.Dir},
 		{"--changelog", args.Changelog},
 	} {
 		if kv[1] != "" {
@@ -241,81 +252,24 @@ func handleNewFeature(
 	ctx context.Context, _ *mcp.CallToolRequest, args newFeatureArgs,
 ) (*mcp.CallToolResult, any, error) {
 	if args.Name == "" || args.Dir == "" {
-		return nil, nil, fmt.Errorf("name and dir are both required")
+		return nil, nil, errors.New("name and dir are both required")
 	}
 	format := args.Format
 	if format == "" {
 		format = defaultFormat
 	}
-	cli := []string{"new", "feature", args.Name, "--dir", args.Dir, "--format", format}
+	cli := []string{"new", "feature", args.Name, flagDir, args.Dir, flagFormat, format}
 	if args.DryRun {
 		cli = append(cli, "--dry-run")
 	} else {
 		if !args.Confirm {
-			return nil, nil, fmt.Errorf("refusing without confirm:true (or dryRun:true to preview)")
+			return nil, nil, errors.New("refusing without confirm:true (or dryRun:true to preview)")
 		}
 		cli = append(cli, "--yes")
 	}
 	var buf bytes.Buffer
 	err := installer.Run(ctx, cli, strings.NewReader(""), &buf)
 	return runResult(buf.String(), err)
-}
-
-func recipeCLIArgs(subcommand string, args recipeArgs) ([]string, error) {
-	if args.Dir == "" {
-		return nil, fmt.Errorf("dir is required")
-	}
-	format := args.Format
-	if format == "" {
-		format = defaultFormat
-	}
-	cli := []string{"recipe", subcommand}
-	switch subcommand {
-	case "install", "update":
-		if args.Src == "" {
-			return nil, fmt.Errorf("src is required (recipe directory, catalog contents directory, or recipe id)")
-		}
-		cli = append(cli, args.Src, "--dir", args.Dir, "--format", format)
-		if args.Entry != "" {
-			cli = append(cli, "--entry", args.Entry)
-		}
-	case "status":
-		if args.ID != "" {
-			cli = append(cli, args.ID)
-		}
-		cli = append(cli, "--dir", args.Dir, "--format", format)
-		if args.Catalog != "" {
-			cli = append(cli, "--catalog", args.Catalog)
-		}
-	case "outdated":
-		if args.ID != "" {
-			cli = append(cli, args.ID)
-		}
-		cli = append(cli, "--dir", args.Dir, "--format", format)
-		if args.Catalog != "" {
-			cli = append(cli, "--catalog", args.Catalog)
-		}
-	case "uninstall":
-		if args.ID == "" {
-			return nil, fmt.Errorf("id is required")
-		}
-		cli = append(cli, args.ID, "--dir", args.Dir)
-	}
-	if !args.DryRun {
-		if subcommand != "status" && subcommand != "outdated" {
-			if !args.Confirm {
-				return nil, fmt.Errorf("refusing without confirm:true (or dryRun:true to preview)")
-			}
-			cli = append(cli, "--yes")
-		}
-	} else if subcommand != "status" && subcommand != "outdated" {
-		// `recipe uninstall` has no --dry-run; preview through status. Only
-		// install/update can honor a dry run.
-		if subcommand == "uninstall" {
-			return nil, fmt.Errorf("uninstall has no dry-run; use recipe_status, then confirm:true")
-		}
-	}
-	return cli, nil
 }
 
 func handleRecipeInstall(
@@ -354,6 +308,35 @@ func handleRecipeUninstall(
 	return runResult(buf.String(), err)
 }
 
+type localesArgs struct {
+	Dir    string `json:"dir,omitempty" jsonschema:"checkout whose locales.yml to read or write (default: current directory)"`
+	Set    string `json:"set,omitempty" jsonschema:"comma-separated tags to record (e.g. en,pt-BR,es); omit to read"`
+	Format string `json:"format,omitempty" jsonschema:"text or json (default json)"`
+}
+
+// handleLocales is the operator question as a tool: read what this tree ships,
+// or record the answer once so every later gate grades against it.
+func handleLocales(
+	ctx context.Context, _ *mcp.CallToolRequest, args localesArgs,
+) (*mcp.CallToolResult, any, error) {
+	format := args.Format
+	if format == "" {
+		format = defaultFormat
+	}
+	cli := []string{"locales", flagFormat, format}
+	if args.Dir != "" {
+		cli = append(cli, flagDir, args.Dir)
+	}
+	if args.Set != "" {
+		cli = append(cli, "--set", args.Set)
+	}
+	var buf bytes.Buffer
+	if err := installer.Run(ctx, cli, strings.NewReader(""), &buf); err != nil {
+		return runResult(buf.String(), err)
+	}
+	return textResult(buf.String()), nil, nil
+}
+
 func handleRecipeStatus(
 	ctx context.Context, _ *mcp.CallToolRequest, args recipeArgs,
 ) (*mcp.CallToolResult, any, error) {
@@ -390,9 +373,9 @@ func handleRecipeList(
 	if format == "" {
 		format = defaultFormat
 	}
-	cli := []string{"recipe", "list", "--dir", args.Dir, "--format", format}
+	cli := []string{cliRecipe, "list", flagDir, args.Dir, flagFormat, format}
 	if args.Dir == "" {
-		cli = []string{"recipe", "list", "--format", format}
+		cli = []string{cliRecipe, "list", flagFormat, format}
 	}
 	var buf bytes.Buffer
 	err := installer.Run(ctx, cli, strings.NewReader(""), &buf)
@@ -406,7 +389,7 @@ func handleRecipeDescribe(
 	if format == "" {
 		format = defaultFormat
 	}
-	cli := []string{"recipe", "describe", "--format", format}
+	cli := []string{cliRecipe, "describe", "--format", format}
 	dir := args.Dir
 	if dir == "" {
 		dir = "."
@@ -438,7 +421,7 @@ func handleExportUnit(
 	ctx context.Context, _ *mcp.CallToolRequest, args exportArgs,
 ) (*mcp.CallToolResult, any, error) {
 	if args.Unit == "" || args.Dir == "" || args.To == "" {
-		return nil, nil, fmt.Errorf("unit, dir and to are all required")
+		return nil, nil, errors.New("unit, dir and to are all required")
 	}
 	format := args.Format
 	if format == "" {

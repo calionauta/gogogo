@@ -169,12 +169,18 @@ pre-commit:
       run: bin/check-api-routes.sh
       glob: "*.{templ,js,go}"
 
-    # cmd/gogogo-mcp is a SEPARATE module, so the root `go test ./...` never
-    # sees it — which is how its two mutating tools shipped passing a flag the
-    # subcommands do not define (every call failed at parse) while every local
-    # gate stayed green. ~1s incremental, so it stays in the blocking path.
+    # The MCP server is part of the root module (it must install with
+    # `go install .../cmd/gogogo-mcp@latest`), so this is a scoped run of the
+    # tests the root suite also covers — kept because the tools are the surface
+    # a third party drives, and a parse-level regression there is silent.
+    # The language gate: a recipe that ships translations must ship ALL the
+    # languages this product declares, or a page mixes languages silently.
+    - name: check-locales
+      run: make check-locales
+      glob: "{.recipes/*.yml,features/**/locale/*.json,locales.yml}"
+
     - name: mcp-tests
-      run: cd cmd/gogogo-mcp && go test -count=1 ./...
+      run: go test -count=1 ./cmd/gogogo-mcp/...
       glob: "cmd/gogogo-mcp/**"
 
     # Every package under internal/ + features/ must be owned by a

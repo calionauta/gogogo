@@ -171,13 +171,23 @@ func routeFor(intent, tree, dir string) []adviseStep {
 				{Why: "new scaffolds INTO a gogogo checkout (it rewires the router and " +
 					"the capability registry), so it refuses a foreign tree"},
 				{
+					Run: "gogogo recipe source todo --dir <template>",
+					Why: "READ the reference slice first: the whole file set, no receipt, " +
+						"no copy. Adapt the pattern into your own packages",
+				},
+				{
 					Run: "gogogo export todo --dir <template> --to /tmp/port-todo",
-					Why: "take the reference slice instead, and copy its shape: handler + " +
-						"page + store + test, wired by hand",
+					Why: "or take the port bundle with its measured wiring (routes, " +
+						"imports to rewrite, what you write by hand) and a proof command",
 				},
 			}
 		}
 		return []adviseStep{
+			{
+				Run: "gogogo recipe source todo --dir " + where,
+				Why: "read the reference slice before writing one (a slice is consulted, " +
+					"not installed: no receipt, no copy)",
+			},
 			{
 				Run: "gogogo new feature <name> --dir " + where + " --dry-run --format json",
 				Why: "preview the plan: handler + page, wiring, capability unit, RBAC rows",

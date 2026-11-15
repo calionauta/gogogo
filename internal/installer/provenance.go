@@ -81,7 +81,9 @@ func readTrimProvenance(root string) trimProvenance {
 // repo-relative dirs and files the dropped units owned, sorted for a stable
 // AGENTS.md. The registry conformance tests skip exactly these paths, so a
 // deliberately trimmed tree does not report its own removals as missing.
-func removedPaths(drop []builtinUnit) string {
+// droppedPaths is the same list, unsplit: callers that need the set (not the
+// AGENTS.md line) read it here instead of parsing their own output back.
+func droppedPaths(drop []builtinUnit) []string {
 	seen := map[string]bool{}
 	var out []string
 	for _, u := range drop {
@@ -94,10 +96,16 @@ func removedPaths(drop []builtinUnit) string {
 		}
 	}
 	sort.Strings(out)
-	if len(out) == 0 {
+	return out
+}
+
+// joinOrNone renders a provenance list, or the "none" marker an empty one needs
+// so the line is always present and parseable.
+func joinOrNone(items []string) string {
+	if len(items) == 0 {
 		return keepNone
 	}
-	return strings.Join(out, ", ")
+	return strings.Join(items, ", ")
 }
 
 // removedIDs extracts the unit ids from a trim plan, sorted for a stable

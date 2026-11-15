@@ -11,7 +11,7 @@ import (
 // TestRenameTreeMovesNameBearingPaths is the guard for the half-renamed tree.
 //
 // The content pass rewrites every REFERENCE to a name-bearing path (`go run
-// ./cmd/gogogo`, `cmd/gogogo-mcp/go.mod`, `skills/gogogo-coding-standards/
+// ./cmd/gogogo`, `cmd/gogogo-mcp/README.md`, `skills/gogogo-coding-standards/
 // SKILL.md`). If the directories keep the template name, every one of those
 // references points at nothing — and nothing notices, because the build proof
 // never opens them. What fails later is a test that does, with "no such file",
@@ -20,11 +20,11 @@ func TestRenameTreeMovesNameBearingPaths(t *testing.T) {
 	root := t.TempDir()
 
 	files := map[string]string{
-		"go.mod":                "module github.com/calionauta/gogogo\n\ngo 1.27\n",
-		"README.md":             "run `go run ./cmd/gogogo`, then `cd cmd/gogogo-mcp`\n",
-		"cmd/gogogo/main.go":    "package main\n\nfunc main() {}\n",
-		"cmd/gogogo-mcp/go.mod": "module github.com/calionauta/gogogo/cmd/gogogo-mcp\n",
-		"cmd/web/main.go":       "package main\n",
+		"go.mod":                   "module github.com/calionauta/gogogo\n\ngo 1.27\n",
+		"README.md":                "run `go run ./cmd/gogogo`, then `cd cmd/gogogo-mcp`\n",
+		"cmd/gogogo/main.go":       "package main\n\nfunc main() {}\n",
+		"cmd/gogogo-mcp/README.md": "the MCP server\n",
+		"cmd/web/main.go":          "package main\n",
 		"skills/gogogo-coding-standards/SKILL.md": "# skill\n",
 		// Vendored upstream skills keep their upstream names in every
 		// checkout: only gogogo-coding-standards carries the project name.
@@ -55,7 +55,7 @@ func TestRenameTreeMovesNameBearingPaths(t *testing.T) {
 	}
 	for _, want := range []string{
 		"cmd/my-app/main.go",
-		"cmd/my-app-mcp/go.mod",
+		"cmd/my-app-mcp/README.md",
 		"skills/my-app-coding-standards/SKILL.md",
 		"cmd/web/main.go",
 	} {

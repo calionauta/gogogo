@@ -103,6 +103,7 @@ files:
   features/todo/service/service.go: 71e5f45e1f6d90c5334f9d9ed78a2cd535b92e529e7c90ae67cb531d1fb62d69
   features/todo/service/service_test.go: bc098d22c16539b21c6add270cd2f8fe9ba0a955c1928f1d825e24e328fda6f6
   features/todo/todo_test.go: 4f5de39286fd79f2e52a2a17a12ac63e74e944ef87dff86a37a23f489a89c971
+  features/todo/service/ownership_property_test.go: 76ca35e51e7611e0de3caa3fb022fe2279212f92b06a0b75b77deea0bc1dfb49
 declaration:
   metrics:
   - {label: Open, query: "SELECT COUNT(*) FROM ext_todo_todos WHERE (owner = ? OR visibility = 'public') AND completed = 0", signal: openTodos}

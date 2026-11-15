@@ -14,6 +14,8 @@ import (
 	"go/token"
 	"os"
 	"strings"
+
+	"github.com/calionauta/gogogo/internal/projectlocales"
 )
 
 // newHandlerSource renders features/<name>/handlers/chi.go. module is the
@@ -85,19 +87,11 @@ func newLocaleSource(name string) string {
 // config ships. A scaffold writes one catalog per tag so the recipe passes
 // `recipe check` on day one; the author replaces the English values.
 func newLocaleTags() []string {
-	raw := os.Getenv("SUPPORTED_LOCALES")
-	if strings.TrimSpace(raw) == "" {
-		raw = "en,pt-BR"
-	}
-	var out []string
-	for tag := range strings.SplitSeq(raw, ",") {
-		if tag = strings.TrimSpace(tag); tag != "" {
-			out = append(out, tag)
-		}
-	}
-	if len(out) == 0 {
+	tags, _ := projectlocales.Resolve(".", os.Getenv("SUPPORTED_LOCALES"))
+	if len(tags) == 0 {
 		return []string{"en"}
 	}
+	out := tags
 	return out
 }
 

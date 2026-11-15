@@ -19,12 +19,15 @@
 
 - New feature or product plan: docs/overview.md, docs/features.md
 - Creating a feature or extension (recipe contract — what a recipe may own, what it must never touch, slots, metrics, update path): skills/gogogo-recipe-authoring/SKILL.md; reference slice: features/todo (in-tree); instrumented example: features/kiosk (bundled, declares an outcome metric)
+- **Working without a checkout (the third-party path).** Nothing here requires cloning the template: `go install github.com/calionauta/gogogo/cmd/gogogo@latest` (or `.../cmd/gogogo-mcp@latest`, or `curl install.sh`) gives the whole evolution surface. Then, in order: `advise --need "..."` → `recipe source <id>` (read a slice's code; no receipt, no copy) → write your own, or `recipe install <id>` only when the copy must be owned and updatable. `capabilities_list` / `advise_stack` / `recipe_describe` answer "what exists" over MCP without any tree. Do NOT copy the template to read a pattern.
+- **Languages the product ships**: `gogogo locales` (reads `locales.yml`, names the source), `gogogo locales --set en,pt-BR,es` (records it once). Everything downstream — `new feature` catalogs, `recipe check`, `make check-locales` — grades against that answer, so ask it before scaffolding a slice in a second language.
 - Adding a dependency, or writing something a library could do (write-vs-rent,
   the ordered procedure, the four human-gated cases): docs/dependency-principles.md
 - Search layers (substring / fuzzy / BM25), the runtime picker, how the layer degrades when removed: docs/search.md
 - What a unit owns (routes, generated queries, removal path): docs/unit-contracts.md
   (generated; scaffold with `gogogo new feature <name>`)
 - Editing a feature slice (its written boundary — owns / does not own / language / invariants, gated by `make check-domains`): docs/domain-cards.md and docs/domain/<id>.md
+- Languages (what the product ships; one tracked record read by the boot, `new feature` and `recipe check`; `gogogo locales --set en,pt-BR`; metric labels translated in the declaration's `translations:` block; gate `make check-locales`): docs/configuration.md (SUPPORTED_LOCALES / DEFAULT_LOCALE) and skills/gogogo-recipe-authoring/SKILL.md § Strings
 - Removing a unit, or deciding what is safe to delete (removal class core/servant/feature — the registry's `Kind`; features via `recipe uninstall`, servants by hand, core never): docs/scope-taxonomy.md
 - Architecture details: docs/architecture.md, docs/architecture-decision.md
 - Config and env vars: docs/configuration.md

@@ -544,7 +544,7 @@ by hand, so when a step is added to one, add it to the other:
 | DagNats doc pin vs go.mod | ✓ `check-dagnats-pin` | ✓ |
 | SKILL.md frontmatter | ✓ | ✓ |
 | install.sh bootstrap contract | ✓ | ✓ |
-| MCP module tests (`cmd/gogogo-mcp` is a separate module: the root `./...` cannot see it) | ✓ `check-mcp` | ✓ (same script; also a pre-commit hook on `cmd/gogogo-mcp/**`) |
+| MCP tool tests (`cmd/gogogo-mcp` shares the root module; scoped for a fast, readable failure) | ✓ `check-mcp` | ✓ (same script; also a pre-commit hook on `cmd/gogogo-mcp/**`) |
 | datastar-lint | ✓ | ✓ |
 | vendored stelow skill matches its pin | ✓ `check-stelow-drift` | ✅ `stelow-drift.yml` (weekly, `--strict`) |
 | the upgrade loop works against real releases | — | ✅ `update-loop.yml` (weekly: scaffold the previous tag, expect "behind" and the range) |
@@ -773,8 +773,8 @@ the same way: `go get -tool <pkg>@<version>`, then call it as `go tool <name>`.
 
 ### Raising the Go toolchain pin
 
-The pin is not one version string: `go.mod`, `cmd/gogogo-mcp/go.mod`,
-`bin/install-go-toolchain.sh`, both Dockerfiles, the coding-standards skill,
+The pin is not one version string: `go.mod`, `bin/install-go-toolchain.sh`, both
+Dockerfiles, the coding-standards skill,
 `docs/troubleshooting.md` and the pin test's own table all name it, and
 `internal/toolchain_pin_test.go` fails when one of them lags. So the bump is
 one command, never a hand edit:

@@ -17,10 +17,10 @@ to them.
 curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh | sh -s -- --run
 ```
 
-Or build from source (needs Go):
+Or install without cloning the template (needs Go):
 
 ```bash
-cd cmd/gogogo-mcp && go build -o gogogo-mcp .
+go install github.com/calionauta/gogogo/cmd/gogogo-mcp@latest
 ```
 
 Check it: `gogogo-mcp --help` prints the catalog.
@@ -65,11 +65,13 @@ JSON-config clients take the Claude Code block verbatim.
 | `build_prerequisites` | No | `platform?` | Read-only: how to build the desktop shell or the Android target on this host. |
 | `sync_prerequisites` | No | — | Read-only: what a desktop build needs to sync with a server (a reachable NATS leaf listener, NATS_TOKEN, CLOUD_SYNC_URL, account identity, a private overlay first). |
 | `version_status` | No | `dir?`, `format?` | Read-only version check: compares this tool AND the project's recorded template revision (the scaffolded-from: line in its AGENTS.md) against the latest release. |
-| `scaffold_plan` | No | `name`, `owner?`, `dir?`, `format?`, `shape?` | Preview scaffolding a checkout (validates name and owner, shows the plan envelope). |
-| `scaffold_apply` | Yes (`confirm:true`) | `name`, `owner?`, `dir?`, `format?`, `shape?`, `confirm: true` | Scaffold a checkout (rename, prove with build). |
+| `scaffold_plan` | No | `name`, `owner?`, `dir?`, `format?`, `shape?`, `recipes?` | Preview scaffolding a checkout (validates name and owner, shows the plan envelope). |
+| `scaffold_apply` | Yes (`confirm:true`) | `name`, `owner?`, `dir?`, `format?`, `shape?`, `recipes?`, `confirm: true` | Scaffold a checkout (drop the demo slices the tree does not import, rename, apply the shape, prove with build). |
 | `migrate_plan` | No | `from?`, `to?`, `dir?`, `changelog?`, `files?`, `format?` | Read-only migration list: every release between the project's recorded base revision (the scaffolded-from: line in its AGENTS.md) and the latest, plus the gates that prove a migrated tree conforms. |
 | `export_unit` | Only writes `to` | `unit`, `dir`, `to`, `module?`, `format?` | Read-only PORT BUNDLE for a tree that is not a gogogo checkout (a tree this build does not scaffold): copies the unit's owned files into the scratch `to` directory and writes PORTING.md with the measured wiring — routes it registers, imports to rewrite, what YOU must write by hand — plus the proof commands. |
 | `new_feature` | Yes (`confirm:true`) | `name`, `dir`, `confirm: true`, `dryRun?` | Scaffold one new feature inside a gogogo checkout: handler + page, composition-root wiring, capability unit, RBAC rows, then templ generate, generated docs, registry conformance, check-flatdeps and a build proof. |
+| `locales` | Only with `set` | `dir?`, `set?`, `format?` | READ or RECORD the languages this product ships. |
+| `recipe_source` | No | `id`, `dir?`, `version?`, `file?`, `src?`, `format?` | READ a recipe's code without installing it: the receipt's file set (or a catalog entry, or --src bundle) printed file by file, plus whether each still matches the reviewed bytes. |
 | `recipe_install` | Yes (`confirm:true`) | `src`, `dir`, `confirm: true`, `dryRun?`, `entry?`, `format?` | Install a recipe package (tree plus .recipe.yml) into a gogogo checkout: copy, receipt, generated registration, schema/policy/codegen and proof. |
 | `recipe_update` | Yes (`confirm:true`) | `src`, `dir`, `confirm: true`, `dryRun?`, `entry?`, `format?` | Update an already-installed recipe from a recipe directory or catalog entry. |
 | `recipe_uninstall` | Yes (`confirm:true`) | `id`, `dir`, `confirm: true`, `format?` | Uninstall one installed recipe by id: removes only pristine files, keeps edited or derived state, updates registration/policy/schema surfaces and marks the receipt removed. |

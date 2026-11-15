@@ -13,7 +13,6 @@
 // THE BUMP SURFACE, in one place. Raising the version means editing all of:
 //
 //	go.mod                                  go 1.27.4        (authoritative)
-//	cmd/gogogo-mcp/go.mod                   go 1.27.4
 //	bin/install-go-toolchain.sh             GO_VERSION:-1.27.4
 //	Dockerfile                              golang:1.27.4-alpine
 //	deploy/Dockerfile.prod                  golang:1.27.4-alpine
@@ -75,7 +74,6 @@ func TestGoToolchainPinIsConsistent(t *testing.T) {
 		want string
 		why  string
 	}{
-		{"cmd/gogogo-mcp/go.mod", goDirectiveRE, full, "the second module in the repo builds in the same CI job"},
 		{"bin/install-go-toolchain.sh", goVersionEnvRE, full, "this is the toolchain every CI job installs"},
 		{"Dockerfile", golangImageRE, full, "the dev/desktop image builder"},
 		{"deploy/Dockerfile.prod", golangImageRE, full, "the production image builder promoted by digest"},

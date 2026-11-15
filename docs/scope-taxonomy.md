@@ -63,20 +63,41 @@ Three clarifications the table alone does not carry:
   but the unit exists to render answers for chat, todo panels and review, so it
   is classified `servant` (and bundled with `features/chat`).
 
-## Recommendation (installer advisory)
+## Reference slices (what to read, not what to install)
 
-ONE file answers "what does this template advise at install":
-[`catalog/recommended.yml`](../catalog/recommended.yml) — a list of
-`{id, why}` pairs, embedded by the `recipes` package. It used to be a bool on
-each capability row **and** a `recommended:` field on every catalog entry; two
+ONE file answers "which bundled slice should I read first":
+[`catalog/reference.yml`](../catalog/reference.yml) — a list of `{id, why}`
+pairs, embedded by the `catalog` package. It used to be a bool on each
+capability row **and** a `recommended:` field on every catalog entry; two
 switches for one decision meant the scaffold and the catalog could disagree, so
 both were removed.
 
-The installer prints `recommend:` in `--dry-run`; nothing installs without
-explicit acceptance (`--install-recommended` or `--install <ids>`). Bundled
-recipes ship in the default set (they *are* the template), so acceptance is
-recorded in the plan. Over time this file is the dial: an id here is advised, an
-id absent is not, and changing it never changes what ships.
+This is a reading list, not an install list. `gogogo recipe source <id>` prints
+a recipe's code (and `recipe_source` does the same over MCP) so an agent can
+adapt the pattern into new code without copying the slice. Copying is a separate
+decision: `recipe install <id>` writes a receipt and an update debt, which only
+makes sense when the operator intends to keep editing that exact code.
+
+Scaffold drops the demo slices by default. `--recipes none` (the default)
+removes `chat`, `kiosk`, `notes`, `review`, `room` and `whiteboard`;
+`--recipes <ids>` drops exactly those; `--recipes all` keeps the tree whole.
+A slice leaves as a unit: its receipt's file set, its policy block, its nav
+entry, its domain card and its generated registration entry — the receipt is
+the file set, so `TestDemoReceiptsCoverTheirSlice` fails when one file under
+`features/<id>` is not declared.
+
+Removal is gated on real imports, not on a list of names. Before anything is
+deleted, `sliceImporters` parses every kept Go file (generated files exempt,
+because the prune regenerates them); a demo slice something still imports stays
+in the tree with the importer named, and an explicit `--recipes <id>` for it is
+an error. That is what makes the default safe: the product always builds, and
+the reason a slice stayed is printed rather than guessed.
+
+Two seams keep the core from importing a slice: routes mount through the
+generated `units.gen.go`, and a slice's own asset subtree mounts through
+`Deps.MountStatic` in `register`. Platform surfaces (`account`, `dashboard`,
+`config`, `credits`, `license`, notifications, auth views) are not demos — the
+shell calls them, so they are not in the removable set.
 
 ## Installer scope (scaffold prompt retired)
 

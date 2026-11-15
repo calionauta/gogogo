@@ -2,9 +2,10 @@
 
 This repository is a **GitHub template**. The recommended path is the guided
 installer — it asks for a project name, clones the template and renames it.
-(The old keep/drop menus are retired: scaffold now ships the whole template; to
-share a smaller tree, remove features with `recipe uninstall <id>` and servants
-by hand, guided by the registry's per-unit `Reason`.)
+(The old interactive keep/drop menus are retired: the installer drops the demo
+slices by itself (`--recipes`, default `none`), gated on real imports, and
+leaves the rest of the tree alone. A servant still goes by hand, guided by the
+registry's per-unit `Reason`.)
 Manual `gh repo create` + `make rename` still works and is documented below
 as the fallback.
 
