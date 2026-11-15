@@ -8059,6 +8059,10 @@
     width: var(--spacing);
     height: var(--spacing);
   }
+  .size-4 {
+    width: calc(var(--spacing) * 4);
+    height: calc(var(--spacing) * 4);
+  }
   @layer daisyui.l1.l2 {
     .status-sm {
       width: 0.25rem;

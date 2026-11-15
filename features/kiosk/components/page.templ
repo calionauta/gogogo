@@ -21,6 +21,7 @@ import (
 
 	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/internal/i18n"
+	"github.com/calionauta/gogogo/internal/icon"
 	"github.com/calionauta/gogogo/internal/ui"
 )
 
@@ -139,10 +140,18 @@ templ kioskHead() {
 			var resultCount = 0;
 
 			function say(text) { status.textContent = text; }
+			// The button's state is ONE attribute, on the button, read by CSS:
+			// the glyph swap and the live ring are styling, not text. aria-pressed
+			// is the same state for assistive tech, and data-listening is the
+			// hook the stylesheet selects on (an aria attribute in a selector is
+			// legal but a data one says "this is presentation").
+			function setListening(on) {
+				listening = on;
+				mic.setAttribute("aria-pressed", on ? "true" : "false");
+				mic.setAttribute("data-listening", on ? "true" : "false");
+			}
 			function idle() {
-				listening = false;
-				mic.setAttribute("aria-pressed", "false");
-				mic.textContent = mic.getAttribute("data-label-idle") || "Microphone";
+				setListening(false);
 			}
 
 			// armWatchdog bounds a silent session. A known browser bug
@@ -167,10 +176,12 @@ templ kioskHead() {
 				// resetting the button of a session that is still live.
 				var rec = recognition;
 				recognition = null;
-				listening = false;
 				if (rec) {
 					try { rec.abort(); } catch (_) { /* already ended */ }
 				}
+				// One transition, one place: idle() writes the same attribute the
+				// start path does, so a missed assignment cannot leave the button
+				// claiming a state the recognizer is not in.
 				idle();
 			}
 
@@ -366,9 +377,7 @@ templ kioskHead() {
 					committed = (input.value || "").trim();
 					lastFinal = 0;
 					resultCount = 0;
-					listening = true;
-					mic.setAttribute("aria-pressed", "true");
-					mic.textContent = mic.getAttribute("data-label-live") || "Stop";
+					setListening(true);
 					say("Listening on device…");
 					lastResultAt = Date.now();
 					try {
@@ -445,57 +454,62 @@ templ kioskBody(data PageData) {
 				<p class="ui-meta">{ i18n.T(ctx, "kiosk.sayOrderHelp", nil) }</p>
 				<form
 					id="kiosk-form"
-					class="ui-row"
+					class="ui-stack"
 					data-on:submit__prevent="@post('/api/kiosk/preview', {contentType: 'form'})"
 					data-on:kiosk-clear="window.__kioskVoice && window.__kioskVoice.forget(); var i = document.getElementById('kiosk-text'); i.value = ''; $kioskText = ''; $kioskDrink = ''; $kioskSize = ''; $kioskMilk = ''; $kioskExtras = ''; $kioskPrice = ''; $kioskNeed = ''; $kioskPreview = ''; $kioskNotice = ''; i.focus()"
 				>
-					<input
-						id="kiosk-text"
-						name="text"
-						class="input input-sm grow"
-						autocomplete="off"
-						placeholder={ i18n.T(ctx, "kiosk.orderPlaceholder", nil) }
-						aria-label={ i18n.T(ctx, "kiosk.orderLabel", nil) }
-						maxlength="240"
-						data-bind="kioskText"
-						data-on:input__debounce.350ms="!$kioskBusy ? ($kioskBusy = true, @post('/api/kiosk/preview', {contentType: 'form'}).finally(() => { $kioskBusy = false; if ($kioskQueued) { $kioskQueued = false; el.dispatchEvent(new CustomEvent('kiosk-retry', { bubbles: true })) } })) : ($kioskQueued = true)"
-						data-on:kiosk-retry="!$kioskBusy ? ($kioskBusy = true, @post('/api/kiosk/preview', {contentType: 'form'}).finally(() => { $kioskBusy = false; })) : null"
-					/>
+					{{/* The microphone lives INSIDE the field, at its right edge: the
+					     pattern every shipping composer uses (ChatGPT, Claude,
+					     Perplexity), because it says "this writes into the field"
+					     rather than "this is another action". The wrapper carries the
+					     `input` class — DaisyUI's documented shape for an input that
+					     holds more than one element — so the border, focus ring and
+					     height stay the component's, and the button is a round ghost
+					     inside it.
+
+					     The toggle keeps its state in aria-pressed and in the
+					     data-listening attribute the voice script sets. Both are read
+					     by CSS, so the affordance says "live" without a second label:
+					     a filled accent circle with a stop glyph, instead of a grey
+					     hairline mic. */}}
+					<div class="input input-sm w-full kiosk-field">
+						<input
+							id="kiosk-text"
+							name="text"
+							class="grow"
+							autocomplete="off"
+							placeholder={ i18n.T(ctx, "kiosk.orderPlaceholder", nil) }
+							aria-label={ i18n.T(ctx, "kiosk.orderLabel", nil) }
+							maxlength="240"
+							data-bind="kioskText"
+							data-on:input__debounce.350ms="!$kioskBusy ? ($kioskBusy = true, @post('/api/kiosk/preview', {contentType: 'form'}).finally(() => { $kioskBusy = false; if ($kioskQueued) { $kioskQueued = false; el.dispatchEvent(new CustomEvent('kiosk-retry', { bubbles: true })) } })) : ($kioskQueued = true)"
+							data-on:kiosk-retry="!$kioskBusy ? ($kioskBusy = true, @post('/api/kiosk/preview', {contentType: 'form'}).finally(() => { $kioskBusy = false; })) : null"
+						/>
+						<button
+							type="button"
+							id="kiosk-mic"
+							class="btn btn-circle btn-ghost btn-xs kiosk-mic"
+							aria-pressed="false"
+							data-listening="false"
+							aria-label={ i18n.T(ctx, "kiosk.microphone", nil) }
+							title={ i18n.T(ctx, "kiosk.micToggleHint", nil) }
+							data-state-idle={ i18n.T(ctx, "kiosk.microphone", nil) }
+							data-state-live={ i18n.T(ctx, "kiosk.stop", nil) }
+							data-on:click="window.__kioskVoice && window.__kioskVoice.toggle()"
+						>
+							<span class="kiosk-mic-idle">@icon.Icon("material-symbols:mic", "size-4")</span>
+							<span class="kiosk-mic-live">@icon.Icon("material-symbols:stop", "size-4")</span>
+						</button>
+					</div>
 					<input type="hidden" name="previewed" data-attr:value="$kioskPreview"/>
-					{{/* No "Interpret" button: the field IS interpreted. The debounce
-					     posts what was typed or spoken, the server parses it, and the
-					     decision engine runs only when the menu could not settle it —
-					     the customer never has to tell the page to understand them.
-					     Reset is the counter's "customer changed their mind". It is
-					     disabled while a request is in flight, because clearing
-					     mid-answer would let the late patch land on a cleared form. */}}
-					<button
-						type="button"
-						id="kiosk-clear"
-						class="btn btn-ghost btn-sm"
-						title={ i18n.T(ctx, "kiosk.resetHint", nil) }
-						data-attr:disabled="!!$kioskBusy"
-						data-on:click="el.dispatchEvent(new CustomEvent('kiosk-clear', { bubbles: true }))"
-					>
-						{ i18n.T(ctx, "kiosk.reset", nil) }
-					</button>
+
+					{{/* The status line is the ONLY place the microphone explains itself,
+					     so it is quiet when idle (one short hint, no paragraph) and
+					     loud only when something needs the customer to act. */}}
+					<p id="kiosk-voice-status" class="ui-meta kiosk-voice-status" role="status">
+						{ i18n.T(ctx, "kiosk.micIdleHint", nil) }
+					</p>
 				</form>
-				<div class="ui-row">
-					<button
-						type="button"
-						id="kiosk-mic"
-						class="btn btn-sm"
-						aria-pressed="false"
-						data-label-idle={ i18n.T(ctx, "kiosk.microphone", nil) }
-						data-label-live={ i18n.T(ctx, "kiosk.stop", nil) }
-						data-on:click="window.__kioskVoice && window.__kioskVoice.toggle()"
-					>
-						{ i18n.T(ctx, "kiosk.microphone", nil) }
-					</button>
-					<span id="kiosk-voice-status" class="ui-meta" role="status">
-						{ i18n.T(ctx, "kiosk.micOptional", nil) }
-					</span>
-				</div>
 			</div>
 		</section>
 
@@ -508,7 +522,7 @@ templ kioskBody(data PageData) {
 				<div class="flex items-baseline justify-between gap-3">
 					<h2 class="ui-title">{ i18n.T(ctx, "kiosk.preview", nil) }</h2>
 					<span class="ui-meta" data-show="!!$kioskBusy">{ i18n.T(ctx, "kiosk.pricing", nil) }</span>
-				</div>
+					</div>
 				{{/* The preview is a receipt, not a form: what the customer is
 				     about to buy, read top to bottom, with the total set apart —
 				     the same shape a paper ticket has, so it is understood at a
@@ -536,14 +550,33 @@ templ kioskBody(data PageData) {
 					</div>
 				</dl>
 				<p class="ui-meta" data-show="!!$kioskNeed" data-text="$kioskNeed"></p>
-				<button
-					type="button"
-					class="btn btn-primary btn-sm"
-					data-attr:disabled="!!($kioskBusy || !$kioskDrink || $kioskNeed)"
-					data-on:click="$kioskBusy = true; @post('/api/kiosk/confirm', {contentType: 'form', selector: '#kiosk-form'}).finally(() => { $kioskBusy = false; })"
-				>
-					{ i18n.T(ctx, "kiosk.confirm", nil) }
-				</button>
+				{{/* Confirm is the primary action; Start over sits BESIDE it as a
+				     quiet secondary. It belongs to the receipt, not the field: a
+				     customer restarts when the ticket in front of them is wrong,
+				     and that is where their eyes already are. It is disabled while
+				     a request is in flight, because clearing mid-answer would let
+				     the late patch land on a cleared form. */}}
+				<div class="flex flex-wrap items-center gap-2">
+					<button
+						type="button"
+						class="btn btn-primary btn-sm"
+						data-attr:disabled="!!($kioskBusy || !$kioskDrink || $kioskNeed)"
+						data-on:click="$kioskBusy = true; @post('/api/kiosk/confirm', {contentType: 'form', selector: '#kiosk-form'}).finally(() => { $kioskBusy = false; })"
+					>
+						{ i18n.T(ctx, "kiosk.confirm", nil) }
+					</button>
+					<button
+						type="button"
+						id="kiosk-clear"
+						class="btn btn-ghost btn-sm gap-1.5"
+						title={ i18n.T(ctx, "kiosk.resetHint", nil) }
+						data-attr:disabled="!!$kioskBusy"
+						data-on:click="el.dispatchEvent(new CustomEvent('kiosk-clear', { bubbles: true }))"
+					>
+						@icon.Icon("material-symbols:restart-alt", "size-4")
+						{ i18n.T(ctx, "kiosk.reset", nil) }
+					</button>
+				</div>
 				<p class="ui-meta" data-show="!!$kioskNotice" data-text="$kioskNotice"></p>
 			</div>
 		</section>
