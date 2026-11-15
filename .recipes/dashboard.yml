@@ -9,7 +9,7 @@ files:
   features/dashboard/components/page.templ: b013f198f2514a475bcf3c06170e3232bf0a7ef8f8965ea4d8b3f770291312fa
   features/dashboard/components/page_templ.go: 914dfffd10e293c7903e3e3ac14060d63aa170f69128d67f27f6a51ba66042fc
   features/dashboard/handlers/chi.go: c8ec8fc83832a118efb243767062bea6924a92757ce2602918eaa2d9671a3a7e
-  features/dashboard/handlers/chi_test.go: bac4ea439e9c99b35d074953627831aff1c65f243a8bada207553532c379caa1
+  features/dashboard/handlers/chi_test.go: 6dbb33f492986a0bc6fa1c5080d1087dd79913a838dec1c9da82e92579d45503
   features/dashboard/handlers/register.go: 4a5494a2798d083b0934639d93bb1731fa9361d29a8627a1874ba0e2e4939c45
 declaration:
   routes:

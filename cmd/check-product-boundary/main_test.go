@@ -85,3 +85,75 @@ func TestCleanTreePasses(t *testing.T) {
 		t.Fatalf("problems = %v, want none", problems)
 	}
 }
+
+// TestInfrastructureMustNotNameARemovableSlice pins invariant 3: a package
+// under internal/ that a shell boots must not import a slice the operator is
+// allowed to drop. `internal/desktopboot` did, and the effect was that the
+// reference slice could never leave a product.
+func TestInfrastructureMustNotNameARemovableSlice(t *testing.T) {
+	root := t.TempDir()
+	writeTree(t, root, map[string]string{
+		"internal/desktopboot/boot.go": "package desktopboot\n\nimport (\n\t_ \"github.com/calionauta/" +
+			"gogogo/features/todo\"\n)\n",
+	})
+
+	problems, err := check(root)
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	if len(problems) != 1 || !strings.Contains(problems[0], "removable slice") {
+		t.Fatalf("problems = %v, want the infrastructure import", problems)
+	}
+}
+
+// TestShellMayImportAFeature is the other half: cmd/gui renders todos, so it
+// names the slice. Forbidding that would forbid the example.
+func TestShellMayImportAFeature(t *testing.T) {
+	root := t.TempDir()
+	writeTree(t, root, map[string]string{
+		"cmd/gui/main.go": "package main\n\nimport (\n\t_ \"github.com/calionauta/gogogo/features/" +
+			"todo\"\n)\n\nfunc main() {}\n",
+	})
+	problems, err := check(root)
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	if len(problems) != 0 {
+		t.Fatalf("a shell was refused: %v", problems)
+	}
+}
+
+// TestCompositionRootMayNameEveryUnit: internal/server builds the mux, so it
+// names units by design — the exemption the rule would be useless without.
+func TestCompositionRootMayNameEveryUnit(t *testing.T) {
+	root := t.TempDir()
+	writeTree(t, root, map[string]string{
+		"internal/server/chi.go": "package server\n\nimport (\n\t_ \"github.com/calionauta/gogogo/" +
+			"features/todo\"\n)\n",
+	})
+	problems, err := check(root)
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	if len(problems) != 0 {
+		t.Fatalf("the composition root was refused: %v", problems)
+	}
+}
+
+// TestCoreClassifiedDirectoryIsNotARemovableSlice: `features/authviews` is half
+// of the core `auth` capability, so the shell may name it. The gate reads that
+// class from the registry rather than guessing from the path.
+func TestCoreClassifiedDirectoryIsNotARemovableSlice(t *testing.T) {
+	root := t.TempDir()
+	writeTree(t, root, map[string]string{
+		"internal/ui/shell.go": "package ui\n\nimport (\n\t_ \"github.com/calionauta/gogogo/features/" +
+			"authviews\"\n)\n",
+	})
+	problems, err := check(root)
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	if len(problems) != 0 {
+		t.Fatalf("a core-classified directory was refused: %v", problems)
+	}
+}

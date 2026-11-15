@@ -21,8 +21,6 @@ import (
 	"strconv"
 
 	"github.com/calionauta/gogogo/config"
-	"github.com/calionauta/gogogo/features/todo"
-	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 	"github.com/calionauta/gogogo/internal/auth"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
@@ -30,14 +28,34 @@ import (
 	"github.com/calionauta/gogogo/internal/instance"
 )
 
-// MigrateAll runs the core ledger migration, then the todo unit's schema.
-func MigrateAll(sqlDB *sql.DB) error {
+// MigrateAll runs the core ledger migration, then every migration set the
+// CALLER passes.
+//
+// WHY THE SETS ARE AN ARGUMENT. This used to name the todo unit directly, which
+// made the shared native boot import one feature slice — the only place in the
+// tree where core code named a demo. A shell that renders todos passes the todo
+// set (cmd/gui does); a shell that does not passes nothing and boots. The web
+// composition root has always worked this way (`registry.MigrationSets()`), so
+// a slice now owns its storage through one path whether the surface is a page or
+// a native window.
+//
+// A nil entry is skipped rather than applied: a shell with no slices is a valid
+// product, not a bug.
+func MigrateAll(sqlDB *sql.DB, sets ...dbschema.MigrationSet) error {
 	if err := dbschema.Migrate(sqlDB); err != nil {
 		return fmt.Errorf("migrate: %w", err)
 	}
-	todoSet := dbschema.MigrationSet{ID: todohandlers.RecipeID, FS: todo.Migrations, Dir: "migrations"}
-	if err := dbschema.MigrateWith(sqlDB, todoSet); err != nil {
-		return fmt.Errorf("todo migrate: %w", err)
+	live := make([]dbschema.MigrationSet, 0, len(sets))
+	for _, set := range sets {
+		if set.FS != nil {
+			live = append(live, set)
+		}
+	}
+	if len(live) == 0 {
+		return nil
+	}
+	if err := dbschema.MigrateWith(sqlDB, live...); err != nil {
+		return fmt.Errorf("recipe migrate: %w", err)
 	}
 	return nil
 }

@@ -15,7 +15,6 @@ import (
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/dashboard/components"
-	"github.com/calionauta/gogogo/features/todo"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
@@ -62,7 +61,7 @@ func newFixture(t *testing.T) *fixture {
 	if merr := dbschema.Migrate(sqlDB); merr != nil {
 		t.Fatalf("migrate: %v", merr)
 	}
-	set := dbschema.MigrationSet{ID: "todo", FS: todo.Migrations, Dir: "migrations"}
+	set := dbschema.MigrationSet{ID: "todo", FS: db.RecipeSchema("todo")}
 	if merr := dbschema.MigrateWith(sqlDB, set); merr != nil {
 		t.Fatalf("todo migrate: %v", merr)
 	}
