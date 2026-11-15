@@ -9,8 +9,10 @@
 package installer
 
 import (
+	"encoding/json"
 	"go/parser"
 	"go/token"
+	"os"
 	"strings"
 )
 
@@ -51,6 +53,63 @@ func newRecipeSource(name, module string) string {
 		"{{name}}", name,
 		"{{module}}", module,
 	).Replace(newRecipeTemplate)
+}
+
+// newEmbedSource renders features/<name>/embed.go. Package name is `feature`
+// (not the kebab-case directory) so the file compiles for any valid recipe id;
+// the handler imports it with an explicit alias.
+func newEmbedSource() string {
+	return "// The recipe's own locale catalogs, embedded in its package.\n" +
+		"package feature\n\n" +
+		"import (\n\t\"embed\"\n\t\"io/fs\"\n)\n\n" +
+		"//go:embed locale/*.json\n" +
+		"var localeFS embed.FS\n\n" +
+		"// Translations is the seam's string half: locale/<tag>.json, with\n" +
+		"// UNPREFIXED keys (the engine prefixes them with the recipe id).\n" +
+		"var Translations fs.FS = localeFS\n"
+}
+
+// newLocaleSource renders one locale/<tag>.json. Values start in English and
+// are the author's to translate; the check reports a tag the recipe does not
+// ship, not the quality of the words inside it.
+func newLocaleSource(name string) string {
+	values := map[string]string{
+		"title": name,
+		"ping":  "ok",
+	}
+	raw, _ := json.MarshalIndent(values, "", "  ")
+	return string(raw) + "\n"
+}
+
+// newLocaleTags is the instance's supported locale set, with the same default
+// config ships. A scaffold writes one catalog per tag so the recipe passes
+// `recipe check` on day one; the author replaces the English values.
+func newLocaleTags() []string {
+	raw := os.Getenv("SUPPORTED_LOCALES")
+	if strings.TrimSpace(raw) == "" {
+		raw = "en,pt-BR"
+	}
+	var out []string
+	for tag := range strings.SplitSeq(raw, ",") {
+		if tag = strings.TrimSpace(tag); tag != "" {
+			out = append(out, tag)
+		}
+	}
+	if len(out) == 0 {
+		return []string{"en"}
+	}
+	return out
+}
+
+// newNextSteps is what the scaffold deliberately leaves to the author.
+func newNextSteps(name string) []string {
+	return []string{
+		"Add a sidebar entry in internal/ui/modules.go and vendor its icon in " +
+			"internal/icon/icons.go (the shell has no navbar).",
+		"Replace the page body in features/" + name + "/components/page.templ; run `make css` for new Tailwind classes.",
+		"Read docs/unit-contracts.md for the routes/state your unit now owns.",
+		"Run `gogogo recipe check " + name + " --dir .` — warnings are the work list; errors block `doctor` and CI.",
+	}
 }
 
 // newReceiptSource renders .recipes/<name>.yml: the install receipt for a
@@ -338,8 +397,11 @@ const newRecipeTemplate = `// The {{name}} unit declares its surface to the reci
 package handlers
 
 import (
+	"io/fs"
+
 	"github.com/go-chi/chi/v5"
 
+	featurelocale "{{module}}/features/{{name}}"
 	"{{module}}/internal/prompts"
 	"{{module}}/internal/recipe"
 )
@@ -386,4 +448,8 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 }
 
 func (p recipeProvider) Routes() chi.Router { return p.h.Routes() }
+
+// Translations is the optional seam's string half. The keys are unprefixed:
+// the engine prefixes them with this recipe's id.
+func (p recipeProvider) Translations() fs.FS { return featurelocale.Translations }
 `

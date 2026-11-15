@@ -1,5 +1,11 @@
 # Recipe outcomes: the job, declared as two counts
 
+> **Historical note (2026-11-14).** The decision below stands, but the shape did
+> not: `Declaration.Outcomes` was folded into the single `Declaration.Metrics`
+> list with `kind: outcome`, and `counterSignals` became `counterMetrics`. This
+> page records why the pair-of-counts model was chosen; the current contract is
+> `skills/gogogo-recipe-authoring/references/metrics.md`.
+
 Reviewed: 2026-11-12
 
 This note records the decision behind `Declaration.Outcomes`. It follows

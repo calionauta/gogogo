@@ -5,6 +5,7 @@
 package server
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"log/slog"
@@ -200,23 +201,38 @@ func hostnameOf(hostport string) string {
 //
 // accessLog emits one structured line per request after the handler returns.
 // It logs streams at close, with their real duration.
-func accessLog(log *slog.Logger, next http.Handler) http.Handler {
+//
+// A capability-owned request is always logged, even when HTTP_ACCESS_LOG is
+// off: "every recipe interaction leaves a structural line" is a contract, not
+// an opt-in. The `always` argument keeps the opt-in for core/unknown paths.
+func accessLog(log *slog.Logger, always bool, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
+		// The holder travels down to MountFeature's wrapper and back up to
+		// this line; a pointer is what survives the handler's context.
+		holder := &routeOwnerHolder{}
+		r = r.WithContext(context.WithValue(r.Context(), routeOwnerKey{}, holder))
 		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 		next.ServeHTTP(ww, r)
 		status := ww.Status()
 		if status == 0 {
 			status = http.StatusOK
 		}
-		log.Info("http: request",
+		if !always && holder.id == "" {
+			return
+		}
+		args := []any{
 			"method", r.Method,
-			"path", r.URL.Path,
+			fieldPath, r.URL.Path,
 			"status", status,
 			"bytes", ww.BytesWritten(),
 			"duration_ms", time.Since(start).Milliseconds(),
 			"stream", strings.HasPrefix(ww.Header().Get("Content-Type"), "text/event-stream"),
-		)
+		}
+		if holder.id != "" {
+			args = append(args, "capability", holder.id)
+		}
+		log.Info("http: request", args...)
 	})
 }
 
@@ -225,10 +241,9 @@ func accessLog(log *slog.Logger, next http.Handler) http.Handler {
 // and the router's 404, and nothing here buffers a response.
 func edgeHandler(cfg *config.Config, log *slog.Logger, next http.Handler) http.Handler {
 	next = sameOriginGuard(next)
-	if cfg.HTTPAccessLog {
-		// Outside the guard on purpose: a rejected cross-origin write is
-		// exactly the request an operator wants to see in the log.
-		next = accessLog(log, next)
-	}
+	// Outside the guard on purpose: a rejected cross-origin write is exactly the
+	// request an operator wants to see. `always` is the HTTP_ACCESS_LOG opt-in;
+	// a capability-owned request logs regardless.
+	next = accessLog(log, cfg.HTTPAccessLog, next)
 	return securityHeaders(cfg, next)
 }

@@ -81,9 +81,9 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 					Label: "Orders confirmed",
 					Query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ?",
 				},
-				// The counterbalance is a READING, not a token: the same count a
+				// The counterMetrics is a READING, not a token: the same count a
 				// dashboard can show, so the tension is visible beside the ratio.
-				Counterbalance: []recipe.Count{{
+				CounterMetrics: []recipe.Count{{
 					Label: "Orders corrected",
 					Query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ? AND corrected = 1",
 				}},

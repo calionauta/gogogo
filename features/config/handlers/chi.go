@@ -22,6 +22,7 @@ import (
 	"github.com/calionauta/gogogo/internal/auth"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
+	"github.com/calionauta/gogogo/internal/events"
 	"github.com/calionauta/gogogo/internal/rbac"
 	"github.com/calionauta/gogogo/internal/recipe"
 )
@@ -38,6 +39,12 @@ type Handler struct {
 	// mounted set at render time. Nil (tests built without it) means
 	// every recipe reads "in" (see MarkRemovedUnits).
 	providers *recipe.Registry
+	// installed is every recipe id the generated registration knows, including
+	// a recipe that is disabled and therefore not in providers.
+	installed []string
+	// bus publishes domain events after a successful mutation. Nil-safe: a test
+	// handler built without one emits into nothing.
+	bus *events.Bus
 }
 
 // SetSlots attaches the slot registry the composition root owns. A setter rather
@@ -49,6 +56,14 @@ func (h *Handler) SetSlots(s *recipe.SlotRegistry) { h.slots = s }
 // mounted set at render time (post-boot — the full tree, not the partial
 // state Register sees mid-boot).
 func (h *Handler) SetProviders(r *recipe.Registry) { h.providers = r }
+
+// SetInstalled records the build's installed recipe ids (enabled or not), so
+// the Units table still lists a recipe the runtime switch has disabled.
+func (h *Handler) SetInstalled(ids []string) { h.installed = append([]string(nil), ids...) }
+
+// SetEvents attaches the domain-event bus the root owns. A setter keeps the
+// existing constructor and every test fixture unchanged.
+func (h *Handler) SetEvents(bus *events.Bus) { h.bus = bus }
 
 // NewHandler builds the chi config handler. Nil deps panic: wire errors
 // surface at boot, not per request. queries serves the role lookup for
@@ -71,6 +86,7 @@ func (h *Handler) Routes() chi.Router {
 	r.With(gate).Get("/config", h.handleIndex)
 	r.With(gate).Post("/config/users/role", h.handleRole)
 	r.With(gate).Post("/config/users/revoke", h.handleRevokeSessions)
+	r.With(gate).Post("/config/recipes/toggle", h.handleRecipeToggle)
 	r.With(gate).Get("/config/audit.csv", h.handleAuditCSV)
 	return r
 }
@@ -90,13 +106,7 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	data := components.BuildPageData(h.cfg)
 	data.ComponentFilter = strings.TrimSpace(r.URL.Query().Get("components"))
 	applyComponentFilter(&data)
-	if h.providers != nil {
-		mounted := make(map[string]bool, len(h.providers.Providers()))
-		for _, p := range h.providers.Providers() {
-			mounted[p.ID()] = true
-		}
-		components.MarkRemovedUnits(&data, mounted)
-	}
+	h.applyRecipeStates(r.Context(), &data)
 	// Admin mutations require a fresh proof. An OAuth-only admin without a
 	// verified factor has nothing VerifyStepUp can accept; the forms say so
 	// instead of silently failing.
@@ -437,4 +447,10 @@ func (h *Handler) actorID(r *http.Request) string {
 // the first (Runtime) tab with the notice stranded out of view.
 func redirectConfig(w http.ResponseWriter, r *http.Request, key, msg string) {
 	http.Redirect(w, r, "/config?"+key+"="+url.QueryEscape(msg)+"#users", http.StatusSeeOther)
+}
+
+// redirectConfigTab lands on the Units → Recipes tab, where the runtime
+// switch lives.
+func redirectConfigTab(w http.ResponseWriter, r *http.Request, key, msg string) {
+	http.Redirect(w, r, "/config?"+key+"="+url.QueryEscape(msg)+"#units-recipes", http.StatusSeeOther)
 }

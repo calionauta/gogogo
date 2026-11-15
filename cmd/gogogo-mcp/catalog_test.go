@@ -56,6 +56,8 @@ func TestMutatingToolsAreTheKnownSet(t *testing.T) {
 		"recipe_install":   true,
 		"recipe_update":    true,
 		"recipe_uninstall": true,
+		"recipe_enable":    true,
+		"recipe_disable":   true,
 	}
 	for name := range want {
 		if !mutating[name] {

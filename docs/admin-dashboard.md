@@ -101,13 +101,30 @@ a link that 403s, and a build without the engine offers no link at all
 (the console mount stays as the scaffold anchor, so a config-only gate would
 advertise a proxy with no upstream).
 
-## The dashboard grid (`/dashboard`)
+## The dashboard grid (`/dashboard`, `/admin/dashboard`)
 
 The dashboard is the summary page: **one card per rail destination that
 reports data**, plus the cells recipes contribute through the
 `dashboard.card` slot. A bundled recipe joins the grid by declaring its
 metrics — the generic path, so it appears with zero dashboard edits; an
 out-of-tree recipe joins through the `dashboard.card` slot:
+
+Two scopes share the page. `/dashboard` counts the signed-in owner's rows.
+`/admin/dashboard` (admin-only, reached from the account menu next to Config)
+counts the whole instance. It is a separate **path** because RBAC is
+path-based; a query parameter cannot be a policy row. An admin reading uses
+the declaration's `allQuery` when one exists and is omitted when it does not —
+never by summing per-user counts, which would double-count shared rows and
+leak one user's data shape. The page names its scope ("All users").
+
+### Recipe runtime switch
+
+`/config` → Units shows a `Runtime` action per feature recipe. Disable stops
+the recipe from mounting **and from starting its workers** on the next boot;
+the code and its data stay in the tree, so Enable restores it without a
+reinstall. The durable state is the core `recipe_state` table; `RECIPES_DISABLED`
+is the deploy-time fallback. Each toggle is an admin mutation: step-up proof +
+audit event.
 
 ```go
 Metrics: []recipe.Metric{
@@ -135,17 +152,21 @@ Three rules the grid keeps:
 
 A metric says how much happened. An **outcome** says whether the job got
 done: one declared job, as a success count over the eligible count, plus
-the counterbalance readings that limit how the ratio may be read.
+the counterMetrics readings that limit how the ratio may be read.
 
 ```go
-Outcomes: []recipe.Outcome{{
+Metrics: []recipe.Metric{{
+    Kind:        recipe.MetricOutcome,
     ID:          "order_without_repair",
     Job:         "Receive the order you asked for without fixing a misread order",
     Beneficiary: "user",
-    Success:     recipe.Metric{Label: "Orders without repair", Query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ? AND corrected = 0"},
-    Total:       recipe.Metric{Label: "Orders confirmed",     Query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ?"},
-    CounterSignals: []string{"corrected"},
-    Window:         "session",
+    Success:     &recipe.Count{Label: "Orders without repair", Query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ? AND corrected = 0"},
+    Total:       &recipe.Count{Label: "Orders confirmed",     Query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ?"},
+    CounterMetrics: []recipe.Count{{
+        Label: "Orders corrected",
+        Query: "SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ? AND corrected = 1",
+    }},
+    Window: "session",
 }},
 ```
 
@@ -165,7 +186,7 @@ the recipe's own code: the state the ratio is limited by would not exist,
 so the success count could never move for the reason the outcome claims.
 Boot never applies that rule, so an older receipt keeps running. The
 declaration contract is in
-`skills/gogogo-recipe-authoring/references/outcomes.md`; the reasoning
+`skills/gogogo-recipe-authoring/references/metrics.md`; the reasoning
 (why a pair of counts and not an event stream) is in
 `docs/research/recipe-outcomes-2026-11.md`.
 

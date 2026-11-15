@@ -70,8 +70,8 @@ func runRecipe(ctx context.Context, args []string, stdout, stderr io.Writer) err
 	if len(args) == 0 {
 		return &ExitError{code: 1, msg: "recipe needs a subcommand: " +
 			"`recipe install <dir>`, `recipe check [id]`, `recipe test [id]`, `recipe status [id]`, " +
-			"`recipe outdated [id]`, `recipe uninstall <id>`, `recipe list`, `recipe describe <id>` " +
-			"or `recipe invoke <id> <verb>`"}
+			"`recipe outdated [id]`, `recipe uninstall <id>`, `recipe enable <id>`, `recipe disable <id>`, " +
+			"`recipe list`, `recipe describe <id>` or `recipe invoke <id> <verb>`"}
 	}
 	switch args[0] {
 	case "install":
@@ -88,15 +88,24 @@ func runRecipe(ctx context.Context, args []string, stdout, stderr io.Writer) err
 		return runRecipeOutdated(args[1:], stdout)
 	case "uninstall":
 		return runRecipeUninstall(args[1:], stdout)
+	case "enable":
+		//nolint:contextcheck // CLI DB open at command start; no request context to carry.
+		return runRecipeEnable(args[1:], stdout)
+	case "disable":
+		//nolint:contextcheck // CLI DB open at command start; no request context to carry.
+		return runRecipeDisable(args[1:], stdout)
 	case "list":
+		//nolint:contextcheck // CLI DB open at command start; no request context to carry.
 		return runRecipeList(args[1:], stdout)
 	case "describe", "show":
+		//nolint:contextcheck // CLI DB open at command start; no request context to carry.
 		return runRecipeDescribe(args[1:], stdout)
 	case "invoke":
 		return runRecipeInvoke(ctx, args[1:], stdout)
 	}
 	return &ExitError{code: 1, msg: fmt.Sprintf(
-		"unknown recipe subcommand %q (want install|check|test|status|outdated|uninstall|list|describe|invoke)", args[0])}
+		"unknown recipe subcommand %q (want install|check|test|status|outdated|uninstall|"+
+			"enable|disable|list|describe|invoke)", args[0])}
 }
 
 // loadRecipeSource reads and validates a recipe directory: the manifest first

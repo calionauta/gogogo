@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/calionauta/gogogo/features/sounds"
+	"github.com/calionauta/gogogo/internal/capabilities"
 	"github.com/calionauta/gogogo/internal/ui"
 )
 
@@ -233,6 +234,7 @@ templ configBody(data PageData) {
 									<th>Unit</th>
 									<th>Status</th>
 									<th class="hidden md:table-cell">Summary</th>
+									<th>Runtime</th>
 								</tr>
 							</thead>
 							<tbody>
@@ -247,6 +249,24 @@ templ configBody(data PageData) {
 											}
 										</td>
 										<td class="hidden md:table-cell text-sm text-base-content/70">{ row.Summary }</td>
+										<td>
+											if row.Kind == capabilities.KindFeature {
+												<form method="POST" action="/config/recipes/toggle" class="flex flex-wrap items-center gap-1">
+													<input type="hidden" name="id" value={ row.ID }/>
+													<input type="hidden" name="enabled" value={ strconv.FormatBool(!data.RecipeEnabled(row.ID)) }/>
+													if data.AdminStepUp {
+														<input type="password" name="proof" autocomplete="current-password" placeholder="proof" class="input input-xs w-24" aria-label={ "Admin proof for " + row.ID }/>
+													}
+													<button type="submit" class="btn btn-xs" title="Takes effect on the next boot.">
+														if data.RecipeEnabled(row.ID) {
+															Disable
+														} else {
+															Enable
+														}
+													</button>
+												</form>
+											}
+										</td>
 									</tr>
 								}
 							</tbody>

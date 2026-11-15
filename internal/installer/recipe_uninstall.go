@@ -103,6 +103,22 @@ func printRecipeUninstallReceipt(stdout io.Writer, id string, res recipe.ApplyRe
 	}
 	fmt.Fprintf(stdout, "  receipt kept: %s (marked removed) — it still records the data owner\n",
 		recipe.ReceiptPath(r.ID))
+	// The code leaves, the data does not. Migrations are append-only, so an
+	// uninstall that dropped a table would rewrite history under the operator's
+	// feet; naming what stays is the difference between "removed" and "gone".
+	if len(r.Declaration.Tables) > 0 {
+		fmt.Fprintf(stdout, "  data:     tables left in place: %s\n",
+			strings.Join(r.Declaration.Tables, ", "))
+		fmt.Fprintln(stdout, "            reason: migrations are append-only; drop them with a new"+
+			" migration if the data must go")
+	}
+	if len(r.Declaration.Jobs) > 0 {
+		fmt.Fprintf(stdout, "  jobs:     stop with the code: %s\n",
+			strings.Join(r.Declaration.Jobs, ", "))
+	}
+	if len(r.Declaration.Metrics) > 0 {
+		fmt.Fprintln(stdout, "  metrics:  its dashboard readings disappear with the declaration")
+	}
 	if d.Policy {
 		fmt.Fprintf(stdout, "  policy:   dropped its block from %s\n", recipePolicyFile)
 	}

@@ -49,12 +49,15 @@ type CatalogEntry struct {
 	// required (an entry nobody owns is not reviewable); the address is
 	// optional. `released` is the date the version was published, distinct from
 	// `reviewedAt` (when this catalog reviewed it).
-	Author   Author            `yaml:"author"`
-	Released string            `yaml:"released"`
-	Source   Upstream          `yaml:"source"`
-	Files    map[string]string `yaml:"files"`
-	License  string            `yaml:"license"`
-	MinCore  string            `yaml:"minCore"`
+	Author   Author `yaml:"author"`
+	Released string `yaml:"released"`
+	// BasedOn is the provenance a reviewed entry records: the recipes this one
+	// was derived from (patterns copied and edited, not dependencies).
+	BasedOn []string          `yaml:"basedOn,omitempty"`
+	Source  Upstream          `yaml:"source"`
+	Files   map[string]string `yaml:"files"`
+	License string            `yaml:"license"`
+	MinCore string            `yaml:"minCore"`
 	// Register is the repo-relative package exporting `Register`, when the
 	// entry's code mounts through the seam. Empty is a data-only recipe.
 	Register string `yaml:"register,omitempty"`
@@ -216,8 +219,9 @@ func (e CatalogEntry) surfaceProblems() []string {
 	out = append(out, ActionProblems(decl)...)
 	out = append(out, OmissionProblems(decl)...)
 	out = append(out, ActionDocProblems(decl)...)
+	out = append(out, routeRoleProblems(e.Routes)...)
 	out = append(out, MetricProblems(decl)...)
-	out = append(out, OutcomeTableProblems(decl)...)
+	out = append(out, MetricTableProblems(decl)...)
 	out = append(out, PanelProblems(decl)...)
 	for _, w := range e.WorksWith {
 		if w == "" {

@@ -121,6 +121,22 @@ templ kioskHead() {
 			var listening = false;
 			var lastResultAt = 0;
 			var watchdog = 0;
+			// silenceMs bounds a silent session (see armWatchdog). Speech
+			// recognition can detect a voice and never fire a result, so the
+			// page must not claim to be listening forever; it must also be
+			// long enough that a person reading the menu is not cut off.
+			var silenceMs = 30000;
+			// The recognizer accumulates every final result for the whole
+			// session (continuous = true), so rebuilding the field from index 0
+			// replayed words the customer had already cleared — the "old order
+			// comes back" bug. `committed` is the accepted final text and
+			// `lastFinal` the first result index not yet folded into it.
+			var committed = "";
+			var lastFinal = 0;
+			// resultCount is how many results the recognizer has delivered so
+			// far; a clear uses it to forget the utterance in flight, not only
+			// the finished ones.
+			var resultCount = 0;
 
 			function say(text) { status.textContent = text; }
 			function idle() {
@@ -129,9 +145,32 @@ templ kioskHead() {
 				mic.textContent = mic.getAttribute("data-label-idle") || "Microphone";
 			}
 
+			// armWatchdog bounds a silent session. A known browser bug
+			// (Chromium 579050368) detects speech and never fires a result;
+			// silence must become an instruction, not a spinner that never
+			// ends. It is re-armed on every result, so a long order is never
+			// cut off mid-sentence, and half a minute is long enough to read a menu.
+			function armWatchdog() {
+				clearTimeout(watchdog);
+				watchdog = setTimeout(function () {
+					if (listening && Date.now() - lastResultAt >= silenceMs - 500) {
+						say("I did not catch that — type the order.");
+						stop();
+					}
+				}, silenceMs);
+			}
+
 			function stop() {
 				clearTimeout(watchdog);
-				if (recognition && listening) recognition.stop();
+				// Drop the reference BEFORE aborting: the discarded session's
+				// onend/onerror then fail the staleness guard instead of
+				// resetting the button of a session that is still live.
+				var rec = recognition;
+				recognition = null;
+				listening = false;
+				if (rec) {
+					try { rec.abort(); } catch (_) { /* already ended */ }
+				}
 				idle();
 			}
 
@@ -143,44 +182,68 @@ templ kioskHead() {
 			}
 
 			function prepare(next) {
-				if (recognition) return recognition;
-				recognition = new SR();
-				recognition.lang = lang;
-				recognition.continuous = true;
-				recognition.interimResults = true;
-				recognition.maxAlternatives = 1;
-				recognition.processLocally = true;
-				bias(recognition);
-				recognition.onresult = function (event) {
+				// A NEW recognizer per session. Reusing the object that had just
+				// stopped raced its onend against the next start(): the old
+				// session's onend ran after the restart and put the button back
+				// to "Microphone" while the microphone was live — the reported
+				// "mic looks on but the app does nothing". A fresh instance has
+				// no state to race, and the staleness guard below turns every
+				// event from a discarded session into a no-op.
+				var rec = new SR();
+				recognition = rec;
+				rec.lang = lang;
+				rec.continuous = true;
+				rec.interimResults = true;
+				rec.maxAlternatives = 1;
+				rec.processLocally = true;
+				bias(rec);
+				rec.onresult = function (event) {
+					if (recognition !== rec) return;
 					lastResultAt = Date.now();
-					var text = "";
-					for (var i = 0; i < event.results.length; i++) {
-						text += event.results[i][0].transcript + " ";
+					armWatchdog();
+					// Start at the first result THIS event changed and fold in only
+					// results the buffer has not seen: that is what makes a cleared
+					// transcript stay cleared.
+					resultCount = event.results.length;
+					var interim = "";
+					var finished = false;
+					for (var i = event.resultIndex; i < event.results.length; i++) {
+						if (i < lastFinal) continue;
+						var result = event.results[i];
+						if (result.isFinal) {
+							committed = (committed + " " + result[0].transcript).trim();
+							lastFinal = i + 1;
+							finished = true;
+						} else {
+							interim = (interim + " " + result[0].transcript).trim();
+						}
 					}
-					input.value = text.trim();
+					var text = (committed + " " + interim).trim();
+					input.value = text;
 					input.dispatchEvent(new Event("input", { bubbles: true }));
-					// A finished utterance is exactly when the decision engine
-					// earns its round trip: the menu has had its chance, and a
-					// person is waiting for the order to settle. Typing keeps the
-					// parser-only path (see the input's debounce).
-					if (event.results[event.results.length - 1].isFinal) {
-						var said = text.trim().toLowerCase();
+					// A finished utterance only needs to have dispatched `input`
+					// above: the page's debounce posts it, and the server decides
+					// whether the decision engine is worth a round trip (a
+					// correction or an order already in play yes, a plain order
+					// no). Typing and speaking share that one path.
+					if (finished) {
+						var said = text.toLowerCase();
 						var wantsReset = resetPhrases.some(function (p) { return said.indexOf(p) !== -1; });
 						if (wantsReset) {
 							// Dispatch, so ONE definition of "clear" serves the
 							// button and the voice command.
 							input.dispatchEvent(new CustomEvent("kiosk-clear", { bubbles: true }));
 							say("Order cleared — say or type a new one.");
-							return;
 						}
-						input.dispatchEvent(new CustomEvent("kiosk-decide", { bubbles: true }));
 					}
 				};
-				recognition.onerror = function (event) {
+				rec.onerror = function (event) {
+					if (recognition !== rec) return;
 					say("Microphone: " + (event.error || "error") + " — type the order.");
 					stop();
 				};
-				recognition.onend = function () {
+				rec.onend = function () {
+					if (recognition !== rec) return;
 					// The browser ends a session on its own after silence. Leave it
 					// stopped and say so rather than pretending it is still listening.
 					if (listening) {
@@ -188,7 +251,7 @@ templ kioskHead() {
 						idle();
 					}
 				};
-				return next(recognition);
+				return next(rec);
 			}
 
 			// bias supplies the menu as phrases. Contextual biasing is the cheap half
@@ -294,22 +357,30 @@ templ kioskHead() {
 			// startRecognition begins a listening session, assuming the language
 			// pack is present and the microphone is allowed.
 			function startRecognition() {
+				if (listening) return;
 				prepare(function (rec) {
+					// A new session starts with an empty result list; whatever the
+					// field already holds is treated as committed, so stopping and
+					// resuming the microphone continues the order instead of losing
+					// the words spoken before the pause.
+					committed = (input.value || "").trim();
+					lastFinal = 0;
+					resultCount = 0;
 					listening = true;
 					mic.setAttribute("aria-pressed", "true");
 					mic.textContent = mic.getAttribute("data-label-live") || "Stop";
 					say("Listening on device…");
 					lastResultAt = Date.now();
-					rec.start();
-					// A known browser bug (Chromium 579050368) detects speech and
-					// never fires a result. Silence must become an instruction,
-					// not a spinner that never ends.
-					watchdog = setTimeout(function () {
-						if (listening && Date.now() - lastResultAt > 4000) {
-							say("I did not catch that — type the order.");
-							stop();
-						}
-					}, 4500);
+					try {
+						rec.start();
+					} catch (_) {
+						// A start that throws would otherwise leave the button
+						// saying Stop on a session that never began.
+						say("Could not start the microphone — tap it again.");
+						stop();
+						return;
+					}
+					armWatchdog();
 				});
 			}
 
@@ -318,11 +389,41 @@ templ kioskHead() {
 			// rather than parsed server-side: it is a command, not an order.
 			var resetPhrases = ["start over", "start again", "clear", "cancel order", "recomeçar", "limpar", "cancelar"];
 
+			// Clear means forget, not only empty the box. The Datastar handler
+			// empties the field; the recognizer's buffer is what put the old
+			// order back on the next word, so the voice wiring drops it on the
+			// same event — including the utterance still in flight, which is a
+			// phrase the customer just cancelled. Listening keeps running: on a
+			// counter, "start over" is almost always followed by a new order.
+			//
+			// This is published on the global rather than added as a listener:
+			// the markup owns the event with data-on:kiosk-clear, so the guard
+			// that keeps behavior out of vanilla JS sees no island.
+			window.__kioskVoice = Object.assign(window.__kioskVoice || {}, {
+				forget: function () {
+					committed = "";
+					lastFinal = resultCount;
+				}
+			});
+
+			// The counter is voice-first: arriving on the page IS the intent to
+			// speak, so the microphone starts without a second tap. start()
+			// still triggers the browser's permission prompt (never a silent
+			// grant), and a refusal stays a message instead of a retry loop.
+			function autoStart() {
+				if (!localSupport()) return;
+				if (listening) return;
+				start();
+			}
+			autoStart();
+
 			// ONE handler: the markup's data-on:click calls __kioskVoice.toggle.
 			// An addEventListener here would fire on the same click as well, so
 			// the two toggles cancelled out — the button flipped to Stop and
 			// straight back to Microphone, and recognition never stayed on.
-			window.__kioskVoice = { toggle: function () { if (listening) stop(); else start(); } };
+			window.__kioskVoice = Object.assign(window.__kioskVoice || {}, {
+				toggle: function () { if (listening) stop(); else start(); }
+			});
 		}
 
 		// The body is not parsed yet when this script runs (it is in <head>), so
@@ -346,7 +447,7 @@ templ kioskBody(data PageData) {
 					id="kiosk-form"
 					class="ui-row"
 					data-on:submit__prevent="@post('/api/kiosk/preview', {contentType: 'form'})"
-					data-on:kiosk-clear="var i = document.getElementById('kiosk-text'); i.value = ''; $kioskText = ''; $kioskDrink = ''; $kioskSize = ''; $kioskMilk = ''; $kioskExtras = ''; $kioskPrice = ''; $kioskNeed = ''; $kioskPreview = ''; $kioskNotice = ''; i.focus()"
+					data-on:kiosk-clear="window.__kioskVoice && window.__kioskVoice.forget(); var i = document.getElementById('kiosk-text'); i.value = ''; $kioskText = ''; $kioskDrink = ''; $kioskSize = ''; $kioskMilk = ''; $kioskExtras = ''; $kioskPrice = ''; $kioskNeed = ''; $kioskPreview = ''; $kioskNotice = ''; i.focus()"
 				>
 					<input
 						id="kiosk-text"
@@ -439,7 +540,7 @@ templ kioskBody(data PageData) {
 					type="button"
 					class="btn btn-primary btn-sm"
 					data-attr:disabled="!!($kioskBusy || !$kioskDrink || $kioskNeed)"
-					data-on:click="$kioskBusy = true; @post('/api/kiosk/confirm', {contentType: 'form'}).finally(() => { $kioskBusy = false; })"
+					data-on:click="$kioskBusy = true; @post('/api/kiosk/confirm', {contentType: 'form', selector: '#kiosk-form'}).finally(() => { $kioskBusy = false; })"
 				>
 					{ i18n.T(ctx, "kiosk.confirm", nil) }
 				</button>

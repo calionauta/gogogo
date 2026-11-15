@@ -83,6 +83,10 @@ type PageData struct {
 	// shipped) or the unit's RuntimeOff switch text (opt-out); whether a
 	// switch is currently off is the Runtime tab's job, not guessed here.
 	Units []UnitGroup
+	// RecipeStates is the durable runtime switch per recipe id (recipe_state).
+	// A missing id means enabled; false renders the "disabled" badge and the
+	// Enable action.
+	RecipeStates map[string]bool
 	// Users is the admin-only account table. Empty in BuildPageData; the
 	// handler fills it from the user store.
 	Users            []UserRow
@@ -161,6 +165,9 @@ const (
 	UnitStatusRemoved UnitStatus = "removed"
 	// UnitStatusOptOut prefixes the runtime switch that disables the unit.
 	UnitStatusOptOut UnitStatus = "opt-out: "
+	// UnitStatusDisabled is an installed feature whose runtime switch is off.
+	// The code is present; the composition root skips it and its workers.
+	UnitStatusDisabled UnitStatus = "disabled"
 )
 
 // UnitRow is one unit in the inventory: its id, a one-line summary and its
@@ -170,23 +177,6 @@ type UnitRow struct {
 	Summary string
 	Status  UnitStatus
 	Kind    capabilities.Kind
-}
-
-// MarkRemovedUnits corrects the registry's default for what the binary
-// actually mounted: a recipe with no provider in this build is not "in" —
-// it was uninstalled (its registry row stays as removal-class data) or
-// switched off at boot. Switch-gated rows keep their opt-out text: for
-// them, unmounted is the documented off state, not a removal. Features only —
-// Core/Servants are always wired when the row exists.
-func MarkRemovedUnits(data *PageData, mounted map[string]bool) {
-	for i := range data.Units {
-		for j := range data.Units[i].Rows {
-			row := &data.Units[i].Rows[j]
-			if row.Kind == capabilities.KindFeature && !mounted[row.ID] && row.Status == UnitStatusIn {
-				row.Status = UnitStatusRemoved
-			}
-		}
-	}
 }
 
 // buildUnits inventories the capability registry by removal class. A unit

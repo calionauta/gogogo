@@ -29,10 +29,17 @@ const (
 )
 
 type recipeDescriptor struct {
-	ID               string              `json:"id"`
-	Version          string              `json:"version,omitempty"`
-	Author           recipe.Author       `json:"author,omitzero"`
-	Released         string              `json:"released,omitempty"`
+	ID       string        `json:"id"`
+	Version  string        `json:"version,omitempty"`
+	Author   recipe.Author `json:"author,omitzero"`
+	Released string        `json:"released,omitempty"`
+	BasedOn  []string      `json:"basedOn,omitempty"`
+	// Components are the recipe's own UI files, so an agent looking for a
+	// reusable shape can find one without walking the tree.
+	Components []string `json:"components,omitempty"`
+	// Enabled is the durable runtime switch. Nil means no recipe_state row
+	// (the recipe is enabled by default).
+	Enabled          *bool               `json:"enabled,omitempty"`
 	Kind             string              `json:"kind"`
 	Summary          string              `json:"summary"`
 	Origin           string              `json:"origin"`
@@ -59,33 +66,28 @@ type recipeDescriptor struct {
 	InvokeDescriptions map[string]string            `json:"invokeDescriptions,omitempty"`
 	InvokeParamHelp    map[string]map[string]string `json:"invokeParamHelp,omitempty"`
 	Actions            []string                     `json:"actions,omitempty"`
-	// Metrics and Outcomes are the instrumentation half of the declaration.
-	// Discovery shows them because an agent asked to measure a recipe must
-	// find what is already counted before declaring a second definition — and
+	// Metrics is the instrumentation half of the declaration, one list.
+	// Discovery shows it because an agent asked to measure a recipe must find
+	// what is already counted before declaring a second definition — and
 	// because a job sentence is the operator's decision, not the agent's.
-	Metrics  []metricDescriptor  `json:"metrics,omitempty"`
-	Outcomes []outcomeDescriptor `json:"outcomes,omitempty"`
+	Metrics []metricDescriptor `json:"metrics,omitempty"`
 }
 
-// metricDescriptor is one declared count: the label a reader sees and the SQL
-// that produces it, so a caller can tell two metrics apart without opening the
-// receipt.
+// metricDescriptor is one declared reading. Kind is empty for activity (the
+// pre-kind spelling) and "outcome" for a ratio; the outcome fields are only
+// present on that kind. One struct, one list: a caller never has to merge two
+// arrays to learn what a recipe measures.
 type metricDescriptor struct {
-	Label string `json:"label"`
-	Query string `json:"query"`
-}
-
-// outcomeDescriptor is one declared job. The two queries are deliberately not
-// published here: what a caller needs is which pair answers the job and which
-// states limit it, and the SQL already reaches discovery through the metrics.
-type outcomeDescriptor struct {
-	ID             string   `json:"id"`
-	Job            string   `json:"job"`
-	Beneficiary    string   `json:"beneficiary"`
+	Kind           string   `json:"kind,omitempty"`
+	Label          string   `json:"label,omitempty"`
+	Query          string   `json:"query,omitempty"`
+	ID             string   `json:"id,omitempty"`
+	Job            string   `json:"job,omitempty"`
+	Beneficiary    string   `json:"beneficiary,omitempty"`
 	Window         string   `json:"window,omitempty"`
-	Counterbalance []string `json:"counterbalance,omitempty"`
-	SuccessLabel   string   `json:"successLabel"`
-	TotalLabel     string   `json:"totalLabel"`
+	CounterMetrics []string `json:"counterMetrics,omitempty"`
+	SuccessLabel   string   `json:"successLabel,omitempty"`
+	TotalLabel     string   `json:"totalLabel,omitempty"`
 }
 
 // RecipeState is where a recipe sits in this tree. It is the JSON `state`
@@ -121,6 +123,8 @@ func applyReceiptSurface(desc *recipeDescriptor, r recipe.Receipt) {
 	desc.Version = r.Version
 	desc.Author = r.Author
 	desc.Released = r.Released
+	desc.BasedOn = append([]string(nil), r.BasedOn...)
+	desc.Components = recipeComponents(r)
 	desc.Tables = append([]string(nil), r.Declaration.Tables...)
 	desc.Jobs = append([]string(nil), r.Declaration.Jobs...)
 	desc.Slots = append([]string(nil), r.Declaration.Slots...)
@@ -139,37 +143,48 @@ func applyReceiptSurface(desc *recipeDescriptor, r recipe.Receipt) {
 	applyReceiptInstrumentation(desc, r.Declaration)
 }
 
-// applyReceiptInstrumentation copies the declared metrics and outcomes onto the
-// descriptor. Kept beside applyReceiptSurface so the discovery surface stays one
-// flat list of assignments, and it COPIES: a descriptor must not alias the
+// applyReceiptInstrumentation copies the declared metrics onto the descriptor
+// in one list. Kept beside applyReceiptSurface so the discovery surface stays
+// one flat list of assignments, and it COPIES: a descriptor must not alias the
 // receipt the caller still holds.
 func applyReceiptInstrumentation(desc *recipeDescriptor, d recipe.Declaration) {
 	desc.Metrics = desc.Metrics[:0]
 	for _, m := range d.Metrics {
-		if m.ResolvedKind() != recipe.MetricActivity {
-			continue
+		item := metricDescriptor{
+			Kind:  string(m.ResolvedKind()),
+			Label: m.Label,
+			Query: m.Query,
 		}
-		desc.Metrics = append(desc.Metrics, metricDescriptor{Label: m.Label, Query: m.Query})
+		if m.ResolvedKind() == recipe.MetricOutcome {
+			if m.Success == nil || m.Total == nil {
+				continue
+			}
+			item.ID = m.ID
+			item.Job = m.Job
+			item.Beneficiary = m.Beneficiary
+			item.Window = m.Window
+			item.SuccessLabel = m.Success.Label
+			item.TotalLabel = m.Total.Label
+			for _, c := range m.CounterMetrics {
+				item.CounterMetrics = append(item.CounterMetrics, c.Label)
+			}
+		}
+		desc.Metrics = append(desc.Metrics, item)
 	}
-	desc.Outcomes = desc.Outcomes[:0]
-	for _, o := range d.Outcomes() {
-		if o.Success == nil || o.Total == nil {
-			continue
+}
+
+// recipeComponents lists the recipe's UI files under a components/ directory.
+// The receipt already has the path set, so discovery never walks the tree: one
+// source, the same hashes the install recorded.
+func recipeComponents(r recipe.Receipt) []string {
+	var out []string
+	for path := range r.Files {
+		if strings.Contains(path, "/components/") {
+			out = append(out, path)
 		}
-		labels := make([]string, 0, len(o.Counterbalance))
-		for _, c := range o.Counterbalance {
-			labels = append(labels, c.Label)
-		}
-		desc.Outcomes = append(desc.Outcomes, outcomeDescriptor{
-			ID:             o.ID,
-			Job:            o.Job,
-			Beneficiary:    o.Beneficiary,
-			Window:         o.Window,
-			Counterbalance: labels,
-			SuccessLabel:   o.Success.Label,
-			TotalLabel:     o.Total.Label,
-		})
 	}
+	sort.Strings(out)
+	return out
 }
 
 // applyReceiptActions replaces the descriptor's verbs with the receipt's
@@ -291,11 +306,15 @@ func runRecipeList(args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
+	applyRuntimeStates(*dir, exts)
 	if *format == planFormatJSON {
 		return json.NewEncoder(stdout).Encode(exts)
 	}
 	for _, e := range exts {
 		line := fmt.Sprintf("%s\t%s\t%s\t%s", e.ID, e.Kind, e.Origin, e.Summary)
+		if e.Enabled != nil {
+			line += "\t" + map[bool]string{true: recipeEnabledWord, false: recipeDisabledWord}[*e.Enabled]
+		}
 		if len(e.Invoke) > 0 {
 			line += "\tinvoke: " + strings.Join(e.Invoke, ",")
 		}
@@ -334,6 +353,7 @@ func runRecipeDescribe(args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
+	applyRuntimeStates(*dir, exts)
 	for _, e := range exts {
 		if e.ID != id {
 			continue
@@ -347,23 +367,24 @@ func runRecipeDescribe(args []string, stdout io.Writer) error {
 	return &ExitError{code: 1, msg: "recipe " + id + " not found"}
 }
 
-// printInstrumentation renders the declared counts and jobs: what the recipe
-// already measures, which an agent must read before proposing a second metric.
+// printInstrumentation renders the declared readings: what the recipe already
+// measures, which an agent must read before proposing a second metric.
 //
-// An outcome prints as "success label / total label — job (beneficiary, window;
-// counter: …)" so the pair is legible without a table.
+// An outcome metric prints as "success label / total label — job (beneficiary,
+// window; counterMetrics: …)" so the pair is legible without a table.
 func printInstrumentation(stdout io.Writer, e recipeDescriptor) {
 	for _, m := range e.Metrics {
-		fmt.Fprintf(stdout, "  metric: %s — %s\n", m.Label, m.Query)
-	}
-	for _, o := range e.Outcomes {
-		line := fmt.Sprintf("  outcome: %s — %s / %s — %s (%s",
-			o.ID, o.SuccessLabel, o.TotalLabel, o.Job, o.Beneficiary)
-		if o.Window != "" {
-			line += ", " + o.Window
+		if m.Kind != string(recipe.MetricOutcome) {
+			fmt.Fprintf(stdout, "  metric: %s — %s\n", m.Label, m.Query)
+			continue
 		}
-		if len(o.Counterbalance) > 0 {
-			line += "; counterbalance: " + strings.Join(o.Counterbalance, ", ")
+		line := fmt.Sprintf("  metric: %s — %s / %s — %s (%s",
+			m.ID, m.SuccessLabel, m.TotalLabel, m.Job, m.Beneficiary)
+		if m.Window != "" {
+			line += ", " + m.Window
+		}
+		if len(m.CounterMetrics) > 0 {
+			line += "; counterMetrics: " + strings.Join(m.CounterMetrics, ", ")
 		}
 		fmt.Fprintf(stdout, "%s)\n", line)
 	}
@@ -384,6 +405,19 @@ func printCredit(stdout io.Writer, e recipeDescriptor) {
 	}
 	if e.Released != "" {
 		fmt.Fprintf(stdout, "  released: %s\n", e.Released)
+	}
+	if len(e.BasedOn) > 0 {
+		fmt.Fprintf(stdout, "  based on: %v\n", e.BasedOn)
+	}
+	if e.Enabled != nil {
+		state := recipeEnabledWord
+		if !*e.Enabled {
+			state = recipeDisabledWord
+		}
+		fmt.Fprintf(stdout, "  runtime: %s (takes effect on the next boot)\n", state)
+	}
+	if len(e.Components) > 0 {
+		fmt.Fprintf(stdout, "  components: %v\n", e.Components)
 	}
 }
 

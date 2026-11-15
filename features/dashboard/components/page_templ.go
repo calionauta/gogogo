@@ -36,70 +36,71 @@ import (
 
 // PageData is everything the dashboard shows: the session, the grid of
 // installed-recipe metric cards, and the fragments recipes declared for
-// this page.
+// this page. Scope names who the numbers cover: "" or "mine" is the signed-in
+// user, "all" is the admin dashboard.
 type PageData struct {
 	Email          string
 	Role           string
+	Scope          string
 	Cards          []Card
 	DashboardCards []recipe.Fragment
 }
 
-// Metric is one labeled count a recipe reports for the dashboard. The
-// label is the user's word (from the recipe's Declaration); Value feeds
-// the odometer; Signal drives it after the first paint.
+// Metric is one reading a recipe reports for the dashboard. Kind decides how
+// it renders: an activity metric shows a single count, an outcome metric shows
+// its success/total ratio plus the counter metrics that qualify it. There is
+// one list and one type — the dashboard never learns a second "outcome"
+// concept.
 type Metric struct {
-	Label  string
-	Value  int
+	Kind  recipe.MetricKind
+	Label string
+	Value int
+	// Signal drives the odometer after the first paint (activity only).
 	Signal string
-}
 
-// Outcome is one declared job, as its success count over the eligible count.
-// It is rendered as a ratio ("3/5 · 60%") and never as a percentage alone:
-// 1/1 and 100/100 are the same 100% and very different evidence. A zero
-// denominator renders an em dash, because "no data" is not "0%".
-type Outcome struct {
-	Label   string
+	// Outcome halves. Both come from COUNT queries the declaration owns.
 	Success int
 	Total   int
-	// Counterbalance are the readings that qualify the ratio: the state that
+	// CounterMetrics are the readings that qualify the ratio: the state that
 	// says the success number is not the whole story (orders corrected, retries,
-	// abandonments). Rendered beside the ratio, never folded into it — a rise in
-	// corrections must not be averageable away by a rise in volume.
-	Counterbalance []Counterbalance
+	// abandonments). Rendered beside the ratio, never folded into it.
+	CounterMetrics []CounterMetric
 }
 
-// Counterbalance is one qualifying reading: a label and its count.
-type Counterbalance struct {
+// CounterMetric is one qualifying reading: a label and its count.
+type CounterMetric struct {
 	Label string
 	Value int
 }
 
 // Ratio is the display string: counts first, percentage second, "—" when
-// nothing was eligible yet.
-func (o Outcome) Ratio() string {
-	if o.Total == 0 {
+// nothing was eligible yet. 1/1 and 100/100 are the same 100% and very
+// different evidence, which is why the counts stay.
+func (m Metric) Ratio() string {
+	if m.Total == 0 {
 		return "—"
 	}
-	pct := int(math.Round(float64(o.Success) / float64(o.Total) * 100))
-	return strconv.Itoa(o.Success) + "/" + strconv.Itoa(o.Total) + " · " + strconv.Itoa(pct) + "%"
+	pct := int(math.Round(float64(m.Success) / float64(m.Total) * 100))
+	return strconv.Itoa(m.Success) + "/" + strconv.Itoa(m.Total) + " · " + strconv.Itoa(pct) + "%"
 }
 
-// Card is one installed recipe in the dashboard grid. Metrics carries its
-// labeled counts (empty renders a static link card). Outcomes carries the
-// declared jobs as ratios, beside the counts rather than folded into them.
-// The Title and URL come from the shell's module registry, so a trimmed
-// build loses the card together with its rail destination.
+// IsOutcome reports whether this reading is a ratio.
+func (m Metric) IsOutcome() bool { return m.Kind == recipe.MetricOutcome }
+
+// Card is one installed recipe in the dashboard grid. Metrics carries every
+// declared reading (activity and outcome alike); an empty list renders a
+// static link card. The Title and URL come from the shell's module registry,
+// so a trimmed build loses the card together with its rail destination.
 //
 // Locked marks a card whose destination the viewer's role cannot open: the
 // numbers still show (the grid summarizes the instance), the button does
 // not — a link that 403s is a broken promise.
 type Card struct {
-	Title    string
-	URL      string
-	Metrics  []Metric
-	Outcomes []Outcome
-	Cta      string
-	Locked   bool
+	Title   string
+	URL     string
+	Metrics []Metric
+	Cta     string
+	Locked  bool
 }
 
 // Page renders the /dashboard module inside the shared shell.
@@ -173,7 +174,7 @@ func dashboardHead() templ.Component {
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 105, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 106, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
@@ -248,217 +249,236 @@ func dashboardBody(data PageData) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(MarshalSignals(data.signals()))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 199, Col: 76}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 200, Col: 76}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\"><h2 class=\"ui-title\">Welcome back</h2><section class=\"grid grid-cols-1 md:grid-cols-2 gap-4\" aria-label=\"Your recipes\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\"><div class=\"flex flex-wrap items-baseline justify-between gap-2\"><h2 class=\"ui-title\">Welcome back</h2>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if data.Scope == "all" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<span class=\"badge badge-ghost badge-sm\">All users</span>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div><section class=\"grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 auto-rows-fr items-stretch gap-4\" aria-label=\"Your recipes\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if len(data.Cards) > 0 || len(data.DashboardCards) > 0 {
 			for _, c := range data.Cards {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div class=\"ui-card\" data-slot=\"dashboard.card\"><div class=\"ui-card-body\"><div class=\"stat\"><div class=\"stat-title\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<article class=\"ui-card dashboard-card\" data-slot=\"dashboard.card\"><div class=\"ui-card-body dashboard-card-body\"><header class=\"dashboard-card-head\"><h3 class=\"ui-title\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var7 string
 				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(c.Title)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 210, Col: 41}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 216, Col: 38}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</h3>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				if c.Cta != "" {
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<a href=\"")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					var templ_7745c5c3_Var8 templ.SafeURL
+					templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinURLErrs(c.URL)
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 218, Col: 24}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\" class=\"btn btn-primary btn-xs\">")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					var templ_7745c5c3_Var9 string
+					templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(c.Cta)
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 218, Col: 65}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</a>")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</header>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if len(c.Metrics) > 0 {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div class=\"grid grid-cols-2 gap-3 mt-3\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<div class=\"dashboard-metrics\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					for _, m := range c.Metrics {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<div><div class=\"text-xs uppercase tracking-wide text-base-content/50\">")
-						if templ_7745c5c3_Err != nil {
-							return templ_7745c5c3_Err
-						}
-						var templ_7745c5c3_Var8 string
-						templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(m.Label)
-						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 216, Col: 86}
-						}
-						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
-						if templ_7745c5c3_Err != nil {
-							return templ_7745c5c3_Err
-						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</div><div class=\"stat-value\">")
-						if templ_7745c5c3_Err != nil {
-							return templ_7745c5c3_Err
-						}
-						templ_7745c5c3_Err = Odo(m.Value, m.Signal).Render(ctx, templ_7745c5c3_Buffer)
-						if templ_7745c5c3_Err != nil {
-							return templ_7745c5c3_Err
-						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</div></div>")
-						if templ_7745c5c3_Err != nil {
-							return templ_7745c5c3_Err
-						}
-					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</div>")
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-				}
-				if len(c.Outcomes) > 0 {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<div class=\"mt-3\" aria-label=\"Outcomes\">")
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					for _, o := range c.Outcomes {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<div class=\"flex items-baseline justify-between gap-3\"><span class=\"text-xs uppercase tracking-wide text-base-content/50\">")
-						if templ_7745c5c3_Err != nil {
-							return templ_7745c5c3_Err
-						}
-						var templ_7745c5c3_Var9 string
-						templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(o.Label)
-						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 226, Col: 87}
-						}
-						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
-						if templ_7745c5c3_Err != nil {
-							return templ_7745c5c3_Err
-						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</span> <span class=\"text-sm\">")
-						if templ_7745c5c3_Err != nil {
-							return templ_7745c5c3_Err
-						}
-						var templ_7745c5c3_Var10 string
-						templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(o.Ratio())
-						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 227, Col: 44}
-						}
-						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
-						if templ_7745c5c3_Err != nil {
-							return templ_7745c5c3_Err
-						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</span></div>")
-						if templ_7745c5c3_Err != nil {
-							return templ_7745c5c3_Err
-						}
-						for _, c := range o.Counterbalance {
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"flex items-baseline justify-between gap-3 pl-3\"><span class=\"text-xs text-base-content/50\">↳ ")
+						if m.IsOutcome() {
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<div class=\"dashboard-metric dashboard-metric-wide\"><div class=\"dashboard-metric-top\"><span class=\"dashboard-metric-label\">")
+							if templ_7745c5c3_Err != nil {
+								return templ_7745c5c3_Err
+							}
+							var templ_7745c5c3_Var10 string
+							templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(m.Label)
+							if templ_7745c5c3_Err != nil {
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 227, Col: 59}
+							}
+							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
+							if templ_7745c5c3_Err != nil {
+								return templ_7745c5c3_Err
+							}
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</span> <span class=\"dashboard-metric-ratio\">")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
 							var templ_7745c5c3_Var11 string
-							templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(c.Label)
+							templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(m.Ratio())
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 231, Col: 68}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 228, Col: 61}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</span> <span class=\"text-sm text-base-content/70\">")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</span></div>")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
-							var templ_7745c5c3_Var12 string
-							templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(c.Value))
-							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 232, Col: 78}
+							if len(m.CounterMetrics) > 0 {
+								templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<div class=\"dashboard-counters\">")
+								if templ_7745c5c3_Err != nil {
+									return templ_7745c5c3_Err
+								}
+								for _, cm := range m.CounterMetrics {
+									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<span class=\"dashboard-counter\">↳ ")
+									if templ_7745c5c3_Err != nil {
+										return templ_7745c5c3_Err
+									}
+									var templ_7745c5c3_Var12 string
+									templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(cm.Label)
+									if templ_7745c5c3_Err != nil {
+										return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 233, Col: 61}
+									}
+									_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
+									if templ_7745c5c3_Err != nil {
+										return templ_7745c5c3_Err
+									}
+									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, " <strong>")
+									if templ_7745c5c3_Err != nil {
+										return templ_7745c5c3_Err
+									}
+									var templ_7745c5c3_Var13 string
+									templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(cm.Value))
+									if templ_7745c5c3_Err != nil {
+										return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 233, Col: 96}
+									}
+									_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
+									if templ_7745c5c3_Err != nil {
+										return templ_7745c5c3_Err
+									}
+									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</strong></span>")
+									if templ_7745c5c3_Err != nil {
+										return templ_7745c5c3_Err
+									}
+								}
+								templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</div>")
+								if templ_7745c5c3_Err != nil {
+									return templ_7745c5c3_Err
+								}
 							}
-							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</div>")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</span></div>")
+						} else {
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<div class=\"dashboard-metric\"><span class=\"dashboard-metric-label\">")
+							if templ_7745c5c3_Err != nil {
+								return templ_7745c5c3_Err
+							}
+							var templ_7745c5c3_Var14 string
+							templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(m.Label)
+							if templ_7745c5c3_Err != nil {
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 240, Col: 58}
+							}
+							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
+							if templ_7745c5c3_Err != nil {
+								return templ_7745c5c3_Err
+							}
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</span> <span class=\"dashboard-metric-value\">")
+							if templ_7745c5c3_Err != nil {
+								return templ_7745c5c3_Err
+							}
+							templ_7745c5c3_Err = Odo(m.Value, m.Signal).Render(ctx, templ_7745c5c3_Buffer)
+							if templ_7745c5c3_Err != nil {
+								return templ_7745c5c3_Err
+							}
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</span></div>")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
 						}
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</div>")
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-				}
-				if c.Cta != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<div class=\"stat-actions mt-3\"><a href=\"")
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					var templ_7745c5c3_Var13 templ.SafeURL
-					templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinURLErrs(c.URL)
-					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 240, Col: 24}
-					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "\" class=\"btn btn-primary btn-sm\">")
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					var templ_7745c5c3_Var14 string
-					templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(c.Cta)
-					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 240, Col: 65}
-					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</a></div>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "</div>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
 				if c.Locked {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<p class=\"text-xs text-base-content/50 mt-3\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<p class=\"dashboard-locked\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var15 string
 					templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "dashboard.card.locked", nil))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 244, Col: 96}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 248, Col: 79}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</p>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</p>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</div></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "</div></article>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 			for _, f := range data.DashboardCards {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<div class=\"ui-card\" data-slot=\"dashboard.card\"><div class=\"ui-card-body\"><h3 class=\"ui-title\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<article class=\"ui-card dashboard-card\" data-slot=\"dashboard.card\"><div class=\"ui-card-body dashboard-card-body\"><header class=\"dashboard-card-head\"><h3 class=\"ui-title\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var16 string
 				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(f.Title)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 252, Col: 37}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/dashboard/components/page.templ`, Line: 257, Col: 38}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</h3>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "</h3></header><div class=\"dashboard-slot\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -466,18 +486,18 @@ func dashboardBody(data PageData) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</div></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "</div></div></article>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<div class=\"ui-card md:col-span-2\"><div class=\"ui-card-body text-center\"><p class=\"text-base-content/70\">No metrics yet. Add a todo or check your inbox.</p></div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<div class=\"ui-card md:col-span-2 xl:col-span-3\"><div class=\"ui-card-body text-center\"><p class=\"text-base-content/70\">No metrics yet. Add a todo or check your inbox.</p></div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "</section></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "</section></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -485,14 +505,14 @@ func dashboardBody(data PageData) templ.Component {
 	})
 }
 
-// signals derives the odometer seeds from every metric on the page. The key
-// is the metric's own signal name, so a recipe that declares one gets its
-// counter without this file knowing anything about it.
+// signals derives the odometer seeds from every activity metric on the page.
+// The key is the metric's own signal name, so a recipe that declares one gets
+// its counter without this file knowing anything about it.
 func (d PageData) signals() Signals {
 	b := Signals{}
 	for _, c := range d.Cards {
 		for _, m := range c.Metrics {
-			if m.Signal == "" {
+			if m.Signal == "" || m.IsOutcome() {
 				continue
 			}
 			b[m.Signal] = m.Value

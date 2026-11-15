@@ -1106,6 +1106,9 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
 .ui-stack { display: flex; flex-direction: column; gap: 1rem; }
 .ui-row { display: flex; align-items: center; gap: 0.5rem; }
 .ui-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   background: var(--color-base-100);
   border: 1px solid var(--color-base-300);
   border-radius: 0.75rem;
@@ -1118,7 +1121,92 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   padding: 0.875rem 1.25rem;
   border-bottom: 1px solid var(--color-base-300);
 }
-.ui-card-body { padding: 1.25rem; }
+.ui-card-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 1.25rem;
+}
+
+/* ---------- Dashboard cards ----------
+   One anatomy for every card so a grid row reads as a row: a header with a
+   fixed line height, a metric tile grid with a reserved tile height, and a
+   footer that sticks to the bottom. Cards no longer stretch a neighbour
+   because one recipe declared four readings and another declared one. */
+.dashboard-card-body { gap: 1rem; }
+.dashboard-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 1.75rem;
+}
+.dashboard-card-head .ui-title {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dashboard-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+.dashboard-metric {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.25rem;
+  min-height: 4.25rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.5rem;
+  background: var(--color-base-200);
+}
+.dashboard-metric-wide { grid-column: 1 / -1; }
+.dashboard-metric-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
+}
+.dashboard-metric-value {
+  font-size: 1.5rem;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.dashboard-metric-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.dashboard-metric-ratio {
+  font-size: 1.25rem;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.dashboard-counters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.125rem 0.75rem;
+}
+.dashboard-counter {
+  font-size: 0.75rem;
+  color: color-mix(in oklab, var(--color-base-content) 65%, transparent);
+}
+.dashboard-counter strong { font-variant-numeric: tabular-nums; }
+.dashboard-locked {
+  margin-top: auto;
+  font-size: 0.75rem;
+  color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
+}
+.dashboard-slot { flex: 1 1 auto; }
 .ui-title { font-size: 0.9375rem; font-weight: 650; letter-spacing: -0.01em; }
 /* Inbox rows: a fixed left column keeps every subject on one vertical line.
    Unread is a DaisyUI `status` dot in that column, read is the empty column —
@@ -1230,6 +1318,28 @@ input[type="search"]::-webkit-search-cancel-button { cursor: pointer; }
     padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
   }
   .app-dock-icon { font-size: 1.375rem; }
+  /* daisyUI stacks every dock child in a column (icon above label), which is
+     right for a destination but wrong for the drawer toggle: "Menu" is a word
+     with an icon beside it, not a second destination. */
+  .app-dock > .app-dock-menu {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+  }
+  /* The toggle glyph is the accordion chevron: it points up while the drawer
+     is closed and rotates to point down once it opens, so the icon says what
+     the next tap does. `aria-expanded` is the state the button already
+     publishes, so the rotation cannot disagree with the drawer. */
+  .app-dock > .app-dock-menu .app-dock-chevron {
+    transition: transform 0.18s ease;
+  }
+  .app-dock > .app-dock-menu[aria-expanded="true"] .app-dock-chevron {
+    transform: rotate(180deg);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .app-dock > .app-dock-menu .app-dock-chevron { transition: none; }
+  }
   /* Toasts ride above the bar instead of behind it. */
   #toast-container {
     bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));

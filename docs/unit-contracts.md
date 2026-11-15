@@ -12,8 +12,8 @@ of the file you are about to touch.
 
 ## Registry at a glance
 
-- **Units:** 49 — 17 core · 21 servant · 11 feature
-- **Manual removal:** 32 (core units are never removed)
+- **Units:** 52 — 17 core · 24 servant · 11 feature
+- **Manual removal:** 35 (core units are never removed)
 - **Source of truth:** `internal/capabilities/registry.go`; this doc is
   regenerated from it, so the counts above cannot drift.
 
@@ -143,6 +143,16 @@ one app shell (sidebar + module header + work area), the theme catalog, and the 
 - **Store calls:** `dbgen.DeleteMagicTokensForUser`, `dbgen.DeleteUserSessions`, `dbgen.GetUserByEmail`, `dbgen.SetEmailVerified`, `dbgen.SetUserRole`, `dbgen.UpdateUserPassword`
 - **Note:** Core: every module page renders a body inside ui.Shell, and the shell renders the DaisyUI asset block on every page. Visual variants are DaisyUI themes (docs/ui-themes.md), not bundles.
 
+## `analytics` — servant
+
+analytics provider sink for the event bus (PostHog, default none)
+
+- **Owned:** `internal/analytics`, `internal/server/analytics.go`
+- **Runtime off:** `ANALYTICS_PROVIDER=none`
+- **Depends on:** events
+- **Why that class:** Removal is manual: delete the provider and internal/server/analytics.go (the beacon route and the sink wiring), then the ANALYTICS_* keys in config/events.go. It needs the events servant: without a bus there is no event to capture, which is why the dependency points that way.
+- **Note:** Off by default and key-gated: a provider with no key falls back to none, so a typo never sends events somewhere unexpected.
+
 ## `app` — servant
 
 AppContext (dependency bundle for the native window)
@@ -155,6 +165,7 @@ AppContext (dependency bundle for the native window)
 capability registry + installer engine (CLI and MCP share it)
 
 - **Owned:** `internal/capabilities`, `internal/installer`, `internal/shape`
+- **Store calls:** `dbgen.ListRecipeStates`, `dbgen.SetRecipeState`
 - **Note:** Meta-capability: deleting it breaks cmd/gogogo, not the web binary. internal/shape reads the shape record from the developer CLI, never cmd/web.
 
 ## `collab` — servant
@@ -215,6 +226,14 @@ shared native-shell boot (migrations, auth+TOTP, demo, instance-id, webview URL)
 
 - **Owned:** `internal/desktopboot`
 - **Note:** Servant, not core: only cmd/desktop (Wails) and cmd/gui (gogpu/ui) and future native shells read it — cmd/web boots through internal/server. Deleting it drops the shared boot, not the web app.
+
+## `events` — servant
+
+in-process domain event bus + outbound sinks (webhook, analytics)
+
+- **Owned:** `internal/events`, `internal/server/event_sinks.go`
+- **Why that class:** Delete this unit and the bus, then its sinks and their wiring in internal/server/event_sinks.go (the constructor the root calls) plus EVENTS_*/ANALYTICS_* in config/events.go. A producer's `d.Events.Emit` becomes a nil method and stops at the seam, so no slice has to be edited to compile. security_events remains the durable audit trail either way.
+- **Note:** Best-effort delivery in this cut: a durable outbox is the next step, and this package is the seam that turns that into a sink, not a rewrite (docs/hooks-analytics.md).
 
 ## `genkit` — servant
 
@@ -304,6 +323,16 @@ opt-in operator diagnostics: statsviz dashboard + stdlib pprof
 - **Note:** Fenced like /console: session + admin + an ADMIN_EMAILS match. statsviz is net/http only (no second HTTP stack); pprof is stdlib. The installer drops the dependency with the unit.
 - **Warning:** One-way removal: it is a hand edit and re-adding is manual.
 
+## `recipestate` — servant
+
+runtime recipe enable/disable: the one reader of recipe_state
+
+- **Owned:** `internal/recipestate`
+- **Store calls:** `dbgen.ListRecipeStates`
+- **Depends on:** recipe
+- **Why that class:** Removal is manual: delete the reader, internal/server/recipe_state.go (boot switch + admin toggle), the SetRecipeState query and the recipe_state table's migration becomes append-only residue (migrations are append-only). Without it every installed recipe mounts, which is the pre-switch behavior.
+- **Note:** The boot switch and the admin Units table read the same predicate, so a disabled recipe cannot be shown as enabled. Evaluated once at boot on purpose: a disabled unit must not start its workers or tickers.
+
 ## `search` — servant
 
 search layers (substring, fuzzy, BM25) behind one seam
@@ -346,8 +375,8 @@ conversation demo (persisted history + catalog answers on genui)
 admin-only /config view + user role/session actions
 
 - **Owned:** `features/config`
-- **Routes:** `/config`, `/config/audit.csv`, `/config/users/revoke`, `/config/users/role`
-- **Store calls:** `dbgen.CountAdmins`, `dbgen.GetUserByEmail`, `dbgen.ListSecurityEventNames`, `dbgen.ListSecurityEventsByEvent`, `dbgen.ListSecurityEventsPage`, `dbgen.ListUsers`, `dbgen.SecurityEventCountsSince`, `dbgen.SetUserRole`
+- **Routes:** `/config`, `/config/audit.csv`, `/config/recipes/toggle`, `/config/users/revoke`, `/config/users/role`
+- **Store calls:** `dbgen.CountAdmins`, `dbgen.GetUserByEmail`, `dbgen.ListSecurityEventNames`, `dbgen.ListSecurityEventsByEvent`, `dbgen.ListSecurityEventsPage`, `dbgen.ListUsers`, `dbgen.SecurityEventCountsSince`, `dbgen.SetRecipeState`, `dbgen.SetUserRole`
 - **Depends on:** sounds
 - **Why that class:** Delete the dir and its routes with the account-menu Config entry.
 - **Warning:** The Config rail and account-menu entries are removed by hand with the unit.
@@ -357,7 +386,7 @@ admin-only /config view + user role/session actions
 signed-in summary page; the dashboard.card slot host
 
 - **Owned:** `features/dashboard`
-- **Routes:** `/dashboard`
+- **Routes:** `/admin/dashboard`, `/dashboard`
 - **Depends on:** sounds
 - **Why that class:** Host page for dashboard.card: one unit mounts itself through the recipe seam. Remove manually (delete the unit, its two policy rows, its Modules entry).
 

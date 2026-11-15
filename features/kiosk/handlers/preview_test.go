@@ -81,7 +81,7 @@ func TestEngineRunsOnlyWhenItCanHelp(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			parsed := kiosk.Parse(tc.text)
-			if got := engineWorthAsking(parsed, tc.text); got != tc.want {
+			if got := engineWorthAsking(parsed, kiosk.Order{}, tc.text); got != tc.want {
 				t.Fatalf("engineWorthAsking(%q) = %v, want %v", tc.text, got, tc.want)
 			}
 		})
@@ -91,8 +91,30 @@ func TestEngineRunsOnlyWhenItCanHelp(t *testing.T) {
 // TestAmbiguousParseSkipsTheEngine: two drinks matched, and asking a model which
 // one the CUSTOMER meant is the guess the parser refused to make.
 func TestAmbiguousParseSkipsTheEngine(t *testing.T) {
-	if engineWorthAsking(kiosk.Parse("latte mocha"), "latte mocha") {
+	if engineWorthAsking(kiosk.Parse("latte mocha"), kiosk.Order{}, "latte mocha") {
 		t.Error("the engine was asked about an ambiguous order")
+	}
+}
+
+// TestEngineRunsForAShortCorrection is the reported conversation: "sem canela"
+// is two words, and the additive parser would otherwise ADD what the customer
+// is removing. A correction cue or an extra in play must reach the engine.
+func TestEngineRunsForAShortCorrection(t *testing.T) {
+	for _, text := range []string{"sem canela", "remove cinnamon", "não, sem canela"} {
+		parsed := kiosk.Parse(text)
+		if !engineWorthAsking(parsed, kiosk.Order{}, text) {
+			t.Errorf("engineWorthAsking(%q) = false; a correction never reached the engine", text)
+		}
+	}
+}
+
+// TestEngineRunsAgainstAnExistingOrder: once a draft is on screen, a short
+// follow-up ("com aveia") is a change, not a fresh two-word fragment.
+func TestEngineRunsAgainstAnExistingOrder(t *testing.T) {
+	draft := kiosk.Order{Drink: "latte", Size: "large"}
+	parsed := kiosk.MergeDraft(kiosk.Parse("com aveia"), draft)
+	if !engineWorthAsking(parsed, draft, "com aveia") {
+		t.Error("a correction against an existing order was left to the parser alone")
 	}
 }
 

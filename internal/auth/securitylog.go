@@ -65,6 +65,7 @@ const (
 	// filter and the table cannot drift.
 	EventAdminRoleChanged     = "admin role changed"
 	EventAdminSessionsRevoked = "admin sessions revoked"
+	EventAdminRecipeToggled   = "admin recipe toggled"
 	EventStepUpRejected       = "step-up rejected"
 )
 

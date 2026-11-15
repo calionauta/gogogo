@@ -31,6 +31,10 @@ func TestParseSettlesTheCommonOrder(t *testing.T) {
 			"two extras", "medium tea with cinnamon and syrup",
 			Order{Drink: "tea", Size: "medium", Extras: []string{"syrup", "cinnamon"}},
 		},
+		{
+			"portuguese aliases", "grande latte com leite de aveia e canela",
+			Order{Drink: "latte", Size: "large", Milk: "oat", Extras: []string{"cinnamon"}},
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -128,6 +132,64 @@ func TestSerializeDistinguishesThePreview(t *testing.T) {
 	first := Serialize(a.Order)
 	if first != Serialize(a.Order) {
 		t.Fatal("serialization is not stable for one order")
+	}
+}
+
+// TestDeserializeRoundTripsSerialize is what lets the page carry the order on
+// screen into the next utterance: the token it posts must read back exactly.
+func TestDeserializeRoundTripsSerialize(t *testing.T) {
+	o := Order{Drink: "latte", Size: "large", Milk: "oat", Extras: []string{"extra_shot", "cinnamon"}}
+	got := Deserialize(Serialize(o))
+	if got.Drink != o.Drink || got.Size != o.Size || got.Milk != o.Milk {
+		t.Fatalf("Deserialize(Serialize(%+v)) = %+v", o, got)
+	}
+	if !slices.Equal(got.Extras, o.Extras) {
+		t.Fatalf("extras = %v, want %v", got.Extras, o.Extras)
+	}
+	if empty := Deserialize(""); !empty.Empty() {
+		t.Fatalf("an empty token must be an empty order, got %+v", empty)
+	}
+}
+
+// TestMergeDraftCarriesWhatTheParseLeftOpen is the conversational base: "with
+// cinnamon" alone keeps the drink, size and milk already chosen.
+func TestMergeDraftCarriesWhatTheParseLeftOpen(t *testing.T) {
+	draft := Order{Drink: "latte", Size: "large", Milk: "oat", Extras: []string{"syrup"}}
+	got := MergeDraft(Parse("with cinnamon"), draft)
+
+	if got.Order.Drink != "latte" || got.Order.Size != "large" || got.Order.Milk != "oat" {
+		t.Fatalf("a draft field was lost: %+v", got.Order)
+	}
+	for _, want := range []string{"syrup", "cinnamon"} {
+		if !slices.Contains(got.Order.Extras, want) {
+			t.Errorf("extras = %v, missing %q", got.Order.Extras, want)
+		}
+	}
+}
+
+// TestMergeDraftDoesNotResolveAmbiguity: two drinks matched, and carrying a
+// draft must not turn that into a confident order.
+func TestMergeDraftDoesNotResolveAmbiguity(t *testing.T) {
+	got := MergeDraft(Parse("latte mocha"), Order{Drink: "latte", Size: "large"})
+	if !got.Ambiguous || got.Order.Drink != "" {
+		t.Fatalf("MergeDraft resolved an ambiguity: %+v", got)
+	}
+}
+
+// TestLooksLikeCorrection is the trigger the preview uses to spend a decision
+// round trip on a short phrase the parser would otherwise read as an addition.
+func TestLooksLikeCorrection(t *testing.T) {
+	for _, text := range []string{
+		"sem canela", "não quero", "remove the syrup", "deixe só um expresso", "actually a mocha",
+	} {
+		if !LooksLikeCorrection(text) {
+			t.Errorf("LooksLikeCorrection(%q) = false, want true", text)
+		}
+	}
+	for _, text := range []string{"large latte", "with oat milk", "um cafe grande"} {
+		if LooksLikeCorrection(text) {
+			t.Errorf("LooksLikeCorrection(%q) = true, want false", text)
+		}
 	}
 }
 

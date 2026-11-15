@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/a-h/templ"
+	"github.com/go-chi/chi/v5"
 
 	"github.com/calionauta/gogogo/config"
 )
@@ -112,7 +113,7 @@ func newTestLogger(buf *bytes.Buffer) *slog.Logger {
 
 func TestAccessLogPreservesFlusher(t *testing.T) {
 	var buf bytes.Buffer
-	h := accessLog(newTestLogger(&buf), http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	h := accessLog(newTestLogger(&buf), true, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		flusher, ok := w.(http.Flusher)
 		if !ok {
 			t.Error("access log stripped http.Flusher")
@@ -138,7 +139,7 @@ func TestAccessLogPreservesFlusher(t *testing.T) {
 // 401/403 the RBAC wrapper answers before any feature runs.
 func TestAccessLogRecordsStatus(t *testing.T) {
 	var buf bytes.Buffer
-	h := accessLog(newTestLogger(&buf), http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	h := accessLog(newTestLogger(&buf), true, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "no", http.StatusUnauthorized)
 	}))
 	rec := httptest.NewRecorder()
@@ -147,6 +148,29 @@ func TestAccessLogRecordsStatus(t *testing.T) {
 	for _, want := range []string{"path=/private", "status=401"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("log line missing %q: %s", want, out)
+		}
+	}
+}
+
+// TestCapabilityInteractionLogsWithoutTheAccessFlag is the recipe contract: a
+// request that reached a mounted capability leaves one line with its owner even
+// when HTTP_ACCESS_LOG is off. Red-proof: drop withRouteOwner from MountFeature
+// and the capability field disappears.
+func TestCapabilityInteractionLogsWithoutTheAccessFlag(t *testing.T) {
+	var buf bytes.Buffer
+	root := NewRouter()
+	child := chi.NewRouter()
+	child.Get("/timer", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	root.MountFeature("timer", child)
+	h := accessLog(newTestLogger(&buf), false, root)
+	h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequestWithContext(
+		context.Background(), http.MethodGet, "/timer", nil))
+	out := buf.String()
+	for _, want := range []string{"path=/timer", "status=200", "capability=timer"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("capability interaction log missing %q: %s", want, out)
 		}
 	}
 }
@@ -164,7 +188,7 @@ func TestEdgeKeepsStreamFlushable(t *testing.T) {
 		called = true
 	})
 	var buf bytes.Buffer
-	chain := securityHeaders(&config.Config{Dev: true}, accessLog(newTestLogger(&buf), stream))
+	chain := securityHeaders(&config.Config{Dev: true}, accessLog(newTestLogger(&buf), true, stream))
 	spy := &flushSpy{ResponseRecorder: httptest.NewRecorder()}
 	chain.ServeHTTP(spy, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/events", nil))
 	if !called {

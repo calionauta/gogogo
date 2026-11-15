@@ -40,6 +40,8 @@ Claude Code (`~/.claude.json`) / Cursor (`~/.cursor/mcp.json`) / BB:
 | `recipe_install` | `src`, `dir`, `confirm: true`, `dryRun?`, `entry?`, `format?` | Yes (`confirm:true`) |
 | `recipe_update` | `src`, `dir`, `confirm: true`, `dryRun?`, `entry?`, `format?` | Yes (`confirm:true`) |
 | `recipe_uninstall` | `id`, `dir`, `confirm: true`, `format?` | Yes (`confirm:true`) |
+| `recipe_enable` | `id`, `dir`, `confirm: true`, `db?`, `format?` | Yes (`confirm:true`) |
+| `recipe_disable` | `id`, `dir`, `confirm: true`, `db?`, `format?` | Yes (`confirm:true`) |
 | `recipe_status` | `dir`, `id?`, `catalog?`, `format?` | No |
 | `recipe_outdated` | `dir`, `id?`, `catalog?`, `format?` | No |
 | `recipe_list` | `dir?`, `format?` | No |

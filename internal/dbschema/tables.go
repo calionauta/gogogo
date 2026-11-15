@@ -23,6 +23,10 @@ var coreTables = []string{
 	"notifications",
 	"oauth_accounts",
 	"op_receipts",
+	// recipe_state is the runtime enable/disable switch the admin toggle writes
+	// and internal/recipestate reads. Core on purpose: a recipe must never own
+	// the switch that controls another recipe.
+	"recipe_state",
 	"recovery_codes",
 	// schema_migrations is the ledger itself: created by Migrate, owned by core,
 	// and never claimable by a recipe for the same reason as the rest.

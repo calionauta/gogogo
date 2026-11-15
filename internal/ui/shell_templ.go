@@ -217,6 +217,38 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
+		if Analytics(ctx) {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<script nonce=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var7 string
+			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 125, Col: 39}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\" defer src=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var8 string
+			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(resources.StaticURL("analytics.js"))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 125, Col: 89}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\"></script>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
 		templ_7745c5c3_Err = authviews.ThemeHead().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -231,56 +263,56 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</head><body class=\"bg-base-200 min-h-screen\" data-module=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var7 string
-		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(d.Module)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 133, Col: 25}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\" data-on:datastar-fetch__document=\"evt.detail.type === 'error' ? (evt.detail.argsRaw && evt.detail.argsRaw.status === '401' ? window.location.assign('/login?next=' + encodeURIComponent(location.pathname + location.search)) : $loading = false) : null\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		if d.StreamPage {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, " data-stream-page=\"1\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "><div class=\"app-shell drawer lg:drawer-open\" data-signals=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var8 string
-		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(shellSignals(InboxUnread(ctx)))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 144, Col: 49}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\" data-on:datastar-signal-patch__document=\"window.__gogogoUnreadChanged && window.__gogogoUnreadChanged($inboxUnread)\" data-on:keydown__window=\"if (evt.key === 'Escape' && window.matchMedia('(max-width: 1023px)').matches) { $railOpen = false; window.__gogogoDrawerReturn(); }\"><div data-effect=\"window.__gogogoDrawerFocus($railOpen)\" hidden aria-hidden=\"true\"></div><input id=\"app-rail-toggle\" type=\"checkbox\" class=\"drawer-toggle\" tabindex=\"-1\" aria-hidden=\"true\" data-attr:checked=\"$railOpen\"><div class=\"drawer-content app-content\"><div class=\"app-main\"><header class=\"app-module-header\"><button type=\"button\" class=\"app-rail-toggle\" aria-label=\"Open navigation\" aria-controls=\"app-rail\" data-attr:aria-expanded=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</head><body class=\"bg-base-200 min-h-screen\" data-module=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var9 string
-		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue("$railOpen ? 'true' : 'false'")
+		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(d.Module)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 171, Col: 64}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 139, Col: 25}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\" data-on:click=\"$railOpen = true\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\" data-on:datastar-fetch__document=\"evt.detail.type === 'error' ? (evt.detail.argsRaw && evt.detail.argsRaw.status === '401' ? window.location.assign('/login?next=' + encodeURIComponent(location.pathname + location.search)) : $loading = false) : null\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if d.StreamPage {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, " data-stream-page=\"1\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "><div class=\"app-shell drawer lg:drawer-open\" data-signals=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var10 string
+		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(shellSignals(InboxUnread(ctx)))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 150, Col: 49}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\" data-on:datastar-signal-patch__document=\"window.__gogogoUnreadChanged && window.__gogogoUnreadChanged($inboxUnread)\" data-on:keydown__window=\"if (evt.key === 'Escape' && window.matchMedia('(max-width: 1023px)').matches) { $railOpen = false; window.__gogogoDrawerReturn(); }\"><div data-effect=\"window.__gogogoDrawerFocus($railOpen)\" hidden aria-hidden=\"true\"></div><input id=\"app-rail-toggle\" type=\"checkbox\" class=\"drawer-toggle\" tabindex=\"-1\" aria-hidden=\"true\" data-attr:checked=\"$railOpen\"><div class=\"drawer-content app-content\"><div class=\"app-main\"><header class=\"app-module-header\"><button type=\"button\" class=\"app-rail-toggle\" aria-label=\"Open navigation\" aria-controls=\"app-rail\" data-attr:aria-expanded=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var11 string
+		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue("$railOpen ? 'true' : 'false'")
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 177, Col: 64}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "\" data-on:click=\"$railOpen = true\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -288,20 +320,20 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</button><button type=\"button\" class=\"app-rail-collapse btn btn-square btn-ghost drawer-button\" aria-label=\"Collapse or expand navigation\" aria-controls=\"app-rail\" title=\"Collapse or expand the sidebar\" data-class=\"{'is-collapsed': !$railOpen}\" data-attr:aria-expanded=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</button><button type=\"button\" class=\"app-rail-collapse btn btn-square btn-ghost drawer-button\" aria-label=\"Collapse or expand navigation\" aria-controls=\"app-rail\" title=\"Collapse or expand the sidebar\" data-class=\"{'is-collapsed': !$railOpen}\" data-attr:aria-expanded=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var10 string
-		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue("$railOpen ? 'true' : 'false'")
+		var templ_7745c5c3_Var12 string
+		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue("$railOpen ? 'true' : 'false'")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 185, Col: 64}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 191, Col: 64}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\" data-on:click=\"$railOpen = !$railOpen; window.__gogogoSetRail($railOpen, true)\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "\" data-on:click=\"$railOpen = !$railOpen; window.__gogogoSetRail($railOpen, true)\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -313,141 +345,141 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</button><div class=\"app-module-titles\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</button><div class=\"app-module-titles\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if d.CrumbLabel != "" && d.CrumbURL != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<nav class=\"app-crumb\" aria-label=\"Breadcrumb\"><a href=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<nav class=\"app-crumb\" aria-label=\"Breadcrumb\"><a href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var11 templ.SafeURL
-			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(d.CrumbURL))
+			var templ_7745c5c3_Var13 templ.SafeURL
+			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(d.CrumbURL))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 197, Col: 45}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "\" title=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var12 string
-			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue("Back to " + d.CrumbLabel)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 197, Col: 81}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "\">&#8249; ")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var13 string
-			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(d.CrumbLabel)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 197, Col: 106}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 203, Col: 45}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</a></nav>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "\" title=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<h1>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var14 string
-		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(d.HeadingLabel(ctx))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 200, Col: 33}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</h1>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		if d.Context != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<p class=\"app-module-context\">")
+			var templ_7745c5c3_Var14 string
+			templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue("Back to " + d.CrumbLabel)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 203, Col: 81}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "\">&#8249; ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var15 string
-			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(d.Context)
+			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(d.CrumbLabel)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 202, Col: 50}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 203, Col: 106}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</a></nav>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</div><div class=\"app-module-actions\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<h1>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if d.HasState() {
-			var templ_7745c5c3_Var16 = []any{templ.Classes("app-demo-toggle", map[string]bool{"is-on": d.Demo && d.HasState()})}
-			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var16...)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<button type=\"button\" class=\"")
+		var templ_7745c5c3_Var16 string
+		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(d.HeadingLabel(ctx))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 206, Col: 33}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</h1>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if d.Context != "" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<p class=\"app-module-context\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var17 string
-			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var16).String())
+			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(d.Context)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 1, Col: 0}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 208, Col: 50}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "\" data-panel-mode=\"state\" data-class=\"{'is-on': $panelVisible && $panelMode === 'state'}\" data-attr:aria-pressed=\"$panelVisible && $panelMode === 'state' ? 'true' : 'false'\" aria-pressed=\"")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var18 string
-			templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.ResolveAttributeValue(ariaPressed(d.Demo && d.HasState()))
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 213, Col: 60}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var18)
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "\" title=\"")
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</div><div class=\"app-module-actions\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if d.HasState() {
+			var templ_7745c5c3_Var18 = []any{templ.Classes("app-demo-toggle", map[string]bool{"is-on": d.Demo && d.HasState()})}
+			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var18...)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<button type=\"button\" class=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var19 string
-			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.ResolveAttributeValue(stateTitle())
+			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var18).String())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 214, Col: 30}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 1, Col: 0}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var19)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "\" data-on:click=\"$panelVisible = !($panelVisible && $panelMode === 'state'); $panelMode = 'state'; fetch('/_ui/demo?on=' + ($panelVisible ? '1' : '0') + '&next=' + encodeURIComponent(window.location.pathname), {credentials: 'same-origin'})\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "\" data-panel-mode=\"state\" data-class=\"{'is-on': $panelVisible && $panelMode === 'state'}\" data-attr:aria-pressed=\"$panelVisible && $panelMode === 'state' ? 'true' : 'false'\" aria-pressed=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var20 string
+			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.ResolveAttributeValue(ariaPressed(d.Demo && d.HasState()))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 219, Col: 60}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "\" title=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var21 string
+			templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.ResolveAttributeValue(stateTitle())
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 220, Col: 30}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "\" data-on:click=\"$panelVisible = !($panelVisible && $panelMode === 'state'); $panelMode = 'state'; fetch('/_ui/demo?on=' + ($panelVisible ? '1' : '0') + '&next=' + encodeURIComponent(window.location.pathname), {credentials: 'same-origin'})\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -455,57 +487,57 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<span class=\"app-demo-label\">State</span></button> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<span class=\"app-demo-label\">State</span></button> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		if d.HasStack() {
-			var templ_7745c5c3_Var20 = []any{templ.Classes("app-demo-toggle", map[string]bool{"is-on": d.Demo && !d.HasState() && d.HasStack()})}
-			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var20...)
+			var templ_7745c5c3_Var22 = []any{templ.Classes("app-demo-toggle", map[string]bool{"is-on": d.Demo && !d.HasState() && d.HasStack()})}
+			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var22...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<button type=\"button\" class=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var21 string
-			templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var20).String())
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 1, Col: 0}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "\" data-panel-mode=\"stack\" data-class=\"{'is-on': $panelVisible && $panelMode === 'stack'}\" data-attr:aria-pressed=\"$panelVisible && $panelMode === 'stack' ? 'true' : 'false'\" aria-pressed=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var22 string
-			templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.ResolveAttributeValue(ariaPressed(d.Demo && !d.HasState() && d.HasStack()))
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 227, Col: 77}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var22)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "\" title=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "<button type=\"button\" class=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var23 string
-			templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.ResolveAttributeValue(stackTitle())
+			templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var22).String())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 228, Col: 30}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 1, Col: 0}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "\" data-on:click=\"$panelVisible = !($panelVisible && $panelMode === 'stack'); $panelMode = 'stack'; fetch('/_ui/demo?on=' + ($panelVisible ? '1' : '0') + '&next=' + encodeURIComponent(window.location.pathname), {credentials: 'same-origin'})\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "\" data-panel-mode=\"stack\" data-class=\"{'is-on': $panelVisible && $panelMode === 'stack'}\" data-attr:aria-pressed=\"$panelVisible && $panelMode === 'stack' ? 'true' : 'false'\" aria-pressed=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var24 string
+			templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.ResolveAttributeValue(ariaPressed(d.Demo && !d.HasState() && d.HasStack()))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 233, Col: 77}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "\" title=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var25 string
+			templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.ResolveAttributeValue(stackTitle())
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 234, Col: 30}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var25)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "\" data-on:click=\"$panelVisible = !($panelVisible && $panelMode === 'stack'); $panelMode = 'stack'; fetch('/_ui/demo?on=' + ($panelVisible ? '1' : '0') + '&next=' + encodeURIComponent(window.location.pathname), {credentials: 'same-origin'})\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -513,7 +545,7 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<span class=\"app-demo-label\">Stack</span></button>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "<span class=\"app-demo-label\">Stack</span></button>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -528,7 +560,7 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "</div></header>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "</div></header>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -544,25 +576,25 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var24 = []any{templ.Classes("app-body", map[string]bool{"app-body-flush": d.FullBleed, "app-body-flush-bottom": d.FlushBottom})}
-		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var24...)
+		var templ_7745c5c3_Var26 = []any{templ.Classes("app-body", map[string]bool{"app-body-flush": d.FullBleed, "app-body-flush-bottom": d.FlushBottom})}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var26...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "<main class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "<main class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var25 string
-		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var24).String())
+		var templ_7745c5c3_Var27 string
+		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var26).String())
 		if templ_7745c5c3_Err != nil {
 			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 1, Col: 0}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var25)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var27)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -570,40 +602,40 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "</main></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "</main></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if d.HasDemo() {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "<aside id=\"state-panel\" style=\"display:none\" class=\"app-state-panel\" aria-label=\"Demo panel\" data-signals=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<aside id=\"state-panel\" style=\"display:none\" class=\"app-state-panel\" aria-label=\"Demo panel\" data-signals=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var26 string
-			templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.ResolveAttributeValue(panelVisibilitySignals(d.Demo, d.HasState(), d.HasStack()))
+			var templ_7745c5c3_Var28 string
+			templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.ResolveAttributeValue(panelVisibilitySignals(d.Demo, d.HasState(), d.HasStack()))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 248, Col: 172}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 254, Col: 172}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var26)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var28)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "\" data-show=\"$panelVisible\"><div class=\"app-state-panel-head-row\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "\" data-show=\"$panelVisible\"><div class=\"app-state-panel-head-row\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if d.HasState() {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "<p class=\"app-state-panel-head\" data-show=\"$panelMode === 'state'\">STATE</p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "<p class=\"app-state-panel-head\" data-show=\"$panelMode === 'state'\">STATE</p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<button type=\"button\" class=\"btn btn-ghost btn-xs app-state-panel-close\" aria-label=\"Close panel\" title=\"Close panel\" data-on:click=\"$panelVisible = false; fetch('/_ui/demo?on=0&next=' + encodeURIComponent(window.location.pathname), {credentials: 'same-origin'})\">✕</button></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "<button type=\"button\" class=\"btn btn-ghost btn-xs app-state-panel-close\" aria-label=\"Close panel\" title=\"Close panel\" data-on:click=\"$panelVisible = false; fetch('/_ui/demo?on=0&next=' + encodeURIComponent(window.location.pathname), {credentials: 'same-origin'})\">✕</button></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if d.Panel != nil {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "<section class=\"app-panel-section\" aria-label=\"State\" data-show=\"$panelMode === 'state'\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "<section class=\"app-panel-section\" aria-label=\"State\" data-show=\"$panelMode === 'state'\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -611,13 +643,13 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "</section>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "</section>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 			if len(d.Stack) > 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "<section class=\"app-panel-section\" aria-label=\"Stack\" data-show=\"$panelMode === 'stack'\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "<section class=\"app-panel-section\" aria-label=\"Stack\" data-show=\"$panelMode === 'stack'\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -625,53 +657,53 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "</section>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "</section>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "</aside>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "</aside>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "</div><div class=\"drawer-side app-rail-side is-drawer-close:overflow-visible\"><div class=\"drawer-overlay\" aria-hidden=\"true\" data-on:click=\"$railOpen = false; window.__gogogoDrawerReturn()\"></div><aside id=\"app-rail\" class=\"app-rail\" aria-label=\"Modules\"><div class=\"app-rail-brand\"><a href=\"/\" class=\"app-rail-brand-link\" aria-label=\"gogogo home\"><span class=\"app-rail-brand-word\">gogogo</span> <span class=\"app-rail-brand-mark\" aria-hidden=\"true\">g</span></a> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "</div><div class=\"drawer-side app-rail-side is-drawer-close:overflow-visible\"><div class=\"drawer-overlay\" aria-hidden=\"true\" data-on:click=\"$railOpen = false; window.__gogogoDrawerReturn()\"></div><aside id=\"app-rail\" class=\"app-rail\" aria-label=\"Modules\"><div class=\"app-rail-brand\"><a href=\"/\" class=\"app-rail-brand-link\" aria-label=\"gogogo home\"><span class=\"app-rail-brand-word\">gogogo</span> <span class=\"app-rail-brand-mark\" aria-hidden=\"true\">g</span></a> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if d.BuildLabel != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "<span class=\"app-nav-badge\" id=\"gogogo-build-badge\" title=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "<span class=\"app-nav-badge\" id=\"gogogo-build-badge\" title=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var27 string
-			templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.ResolveAttributeValue(d.BuildCommit + " · built " + d.BuildLabel + " (syncing from /health)")
+			var templ_7745c5c3_Var29 string
+			templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.ResolveAttributeValue(d.BuildCommit + " · built " + d.BuildLabel + " (syncing from /health)")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 294, Col: 139}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 300, Col: 139}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var27)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "\">")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var29)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var28 string
-			templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(d.BuildLabel)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 294, Col: 156}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "</span> ")
+			var templ_7745c5c3_Var30 string
+			templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(d.BuildLabel)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 300, Col: 156}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "</span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "<span class=\"app-rail-brand-spacer\"></span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "<span class=\"app-rail-brand-spacer\"></span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -685,26 +717,26 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "</div><nav class=\"app-rail-nav\" data-on:click=\"if (evt.target.closest('a') && window.matchMedia('(max-width: 1023px)').matches) $railOpen = false\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "</div><nav class=\"app-rail-nav\" data-on:click=\"if (evt.target.closest('a') && window.matchMedia('(max-width: 1023px)').matches) $railOpen = false\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		for _, group := range Grouped(d.Role) {
 			if group.Label != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "<p class=\"app-rail-group\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "<p class=\"app-rail-group\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var29 string
-				templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(group.Label)
+				var templ_7745c5c3_Var31 string
+				templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(group.Label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 308, Col: 48}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 314, Col: 48}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "</p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "</p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -717,7 +749,7 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 			}
 		}
 		if entries := visibleNav(ctx, d.Role); len(entries) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "<p class=\"app-rail-group\">Recipes</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "<p class=\"app-rail-group\">Recipes</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -728,7 +760,7 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 				}
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "</nav><div class=\"app-rail-foot\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "</nav><div class=\"app-rail-foot\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -736,7 +768,7 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "</div></aside></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "</div></aside></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -746,20 +778,20 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "<script nonce=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "<script nonce=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var30 string
-		templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
+		var templ_7745c5c3_Var32 string
+		templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 332, Col: 39}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 338, Col: 39}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var30)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var32)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "\">\n\t\t\t\t\t// Rail state glue. Datastar owns $railOpen and every dismissal\n\t\t\t\t\t// path (Escape, overlay, destination tap, collapse button); the\n\t\t\t\t\t// drawer's checkbox mirrors it (data-attr:checked above) because\n\t\t\t\t\t// daisyUI's drawer and its is-drawer-open/is-drawer-close variants\n\t\t\t\t\t// read :checked, not a signal.\n\t\t\t\t\t//\n\t\t\t\t\t// Desktop compact preference: the head script already put it on\n\t\t\t\t\t// <html data-rail>, which is what the CSS paints from. Here the\n\t\t\t\t\t// signal follows that attribute and the checkbox mirrors the\n\t\t\t\t\t// signal, so one stored value drives all three. Below the drawer\n\t\t\t\t\t// breakpoint nothing is restored: an offcanvas drawer open on\n\t\t\t\t\t// load would cover the page it just opened.\n\t\t\t\t\t// One writer for the rail preference: the attribute the CSS\n\t\t\t\t\t// reads, the storage the next load reads, and (when asked) the\n\t\t\t\t\t// signal the checkbox mirrors. Convention over a second state.\n\t\t\t\t\twindow.__gogogoSetRail = function (open, persist) {\n\t\t\t\t\t\tdocument.documentElement.dataset.rail = open ? \"expanded\" : \"compact\";\n\t\t\t\t\t\tif (persist) {\n\t\t\t\t\t\t\ttry { localStorage.setItem(\"railCompact\", open ? \"0\" : \"1\"); } catch (e) { /* private mode */ }\n\t\t\t\t\t\t}\n\t\t\t\t\t};\n\t\t\t\t\tvar __gogogoShell = document.querySelector(\".app-shell\");\n\t\t\t\t\tvar __gogogoRailInput = document.getElementById(\"app-rail-toggle\");\n\t\t\t\t\tif (__gogogoShell && __gogogoRailInput && window.matchMedia(\"(min-width: 1024px)\").matches) {\n\t\t\t\t\t\tvar __gogogoSeed = {};\n\t\t\t\t\t\ttry {\n\t\t\t\t\t\t\t__gogogoSeed = JSON.parse(__gogogoShell.dataset.signals || \"{}\") || {};\n\t\t\t\t\t\t} catch (e) {\n\t\t\t\t\t\t\t__gogogoSeed = {};\n\t\t\t\t\t\t}\n\t\t\t\t\t\t// The head script already decided; the signal follows it.\n\t\t\t\t\t\t__gogogoSeed.railOpen = document.documentElement.dataset.rail !== \"compact\";\n\t\t\t\t\t\t__gogogoShell.dataset.signals = JSON.stringify(__gogogoSeed);\n\t\t\t\t\t\t// Attribute, never the .checked property: assigning the\n\t\t\t\t\t\t// property sets the dirty-checkedness flag, after which no\n\t\t\t\t\t\t// later data-attr:checked update moves the box — the rail\n\t\t\t\t\t\t// then ignores the collapse button until a reload.\n\t\t\t\t\t\tif (__gogogoSeed.railOpen) {\n\t\t\t\t\t\t\t__gogogoRailInput.setAttribute(\"checked\", \"\");\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t__gogogoRailInput.removeAttribute(\"checked\");\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t\t// Drawer focus trap: no Datastar primitive cycles Tab inside an\n\t\t\t\t\t// open drawer or moves focus across the boundary, so this island\n\t\t\t\t\t// owns focus only. Pinned in vanillaAllow (the keydown listener\n\t\t\t\t\t// below). The ≤1023px matchMedia mirrors the drawer breakpoint in\n\t\t\t\t\t// chrome.css and daisyUI's `lg:drawer-open` — on desktop the rail\n\t\t\t\t\t// is a persistent column and the trap stays out of the way.\n\t\t\t\t\t// Plain script on purpose (see realtime.templ): data-effect\n\t\t\t\t\t// evaluates at Datastar init, after deferred modules load, so the\n\t\t\t\t\t// globals must exist on window before then.\n\t\t\t\t\twindow.__gogogoDrawerFocus = function (open) {\n\t\t\t\t\t\tif (!open) return;\n\t\t\t\t\t\tvar rail = document.getElementById(\"app-rail\");\n\t\t\t\t\t\tif (!rail || !window.matchMedia(\"(max-width: 1023px)\").matches) return;\n\t\t\t\t\t\tvar toggle = document.querySelector(\".app-rail-toggle\");\n\t\t\t\t\t\trail.__gogogoOpener = (document.activeElement && document.activeElement !== document.body) ? document.activeElement : toggle;\n\t\t\t\t\t\tvar first = rail.querySelector(\"a[href], button:not([disabled]), summary\");\n\t\t\t\t\t\tif (!first) return;\n\t\t\t\t\t\t// The effect can run a frame before Datastar's own morph\n\t\t\t\t\t\t// lands the drawer's :checked (which flips visibility), and\n\t\t\t\t\t\t// focus() on a visibility:hidden element is a silent no-op —\n\t\t\t\t\t\t// so retry until focus sticks. requestAnimationFrame is not\n\t\t\t\t\t\t// a guarded marker (vanillaAllow covers listeners only).\n\t\t\t\t\t\tvar tries = 0;\n\t\t\t\t\t\t(function tryFocus() {\n\t\t\t\t\t\t\tfirst.focus();\n\t\t\t\t\t\t\tif (document.activeElement !== first && tries++ < 5) {\n\t\t\t\t\t\t\t\twindow.requestAnimationFrame(tryFocus);\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t})();\n\t\t\t\t\t};\n\t\t\t\t\twindow.__gogogoDrawerReturn = function () {\n\t\t\t\t\t\tvar rail = document.getElementById(\"app-rail\");\n\t\t\t\t\t\tvar opener = rail && rail.__gogogoOpener;\n\t\t\t\t\t\tif (opener && opener.isConnected) opener.focus();\n\t\t\t\t\t\tif (rail) rail.__gogogoOpener = null;\n\t\t\t\t\t};\n\t\t\t\t\tvar __gogogoRail = document.getElementById(\"app-rail\");\n\t\t\t\t\tif (__gogogoRail) __gogogoRail.addEventListener(\"keydown\", function (e) {\n\t\t\t\t\t\tif (e.key !== \"Tab\") return;\n\t\t\t\t\t\tvar rail = e.currentTarget;\n\t\t\t\t\t\tif (!__gogogoRailInput || !__gogogoRailInput.checked) return;\n\t\t\t\t\t\tif (!window.matchMedia(\"(max-width: 1023px)\").matches) return;\n\t\t\t\t\t\tvar items = Array.prototype.slice.call(rail.querySelectorAll(\"a[href], button:not([disabled]), summary\"));\n\t\t\t\t\t\tif (!items.length) return;\n\t\t\t\t\t\tvar first = items[0], last = items[items.length - 1];\n\t\t\t\t\t\tif (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }\n\t\t\t\t\t\telse if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }\n\t\t\t\t\t});\n\t\t\t\t\t// Version badge sync: fetch /health live build evidence.\n\t\t\t\t\t// Static BuildLabel is fallback when offline; /health is truth.\n\t\t\t\t\t// The live tag is the X-Gogogo-Build HEADER (the body is\n\t\t\t\t\t// always \"ok\" for the container probe). Pinned in\n\t\t\t\t\t// shell_badge_test.go.\n\t\t\t\t\twindow.__gogogoSyncBadge = function () {\n\t\t\t\t\t\tvar el = document.getElementById(\"gogogo-build-badge\");\n\t\t\t\t\t\tif (!el) return;\n\t\t\t\t\t\tfetch(\"/health\", { cache: \"no-store\" })\n\t\t\t\t\t\t\t.then(function (r) { return r.headers.get(\"X-Gogogo-Build\") || \"\"; })\n\t\t\t\t\t\t\t.then(function (t) {\n\t\t\t\t\t\t\t\tvar b = (t || \"\").trim();\n\t\t\t\t\t\t\t\tif (!b) return;\n\t\t\t\t\t\t\t\tvar m = b.match(/^([^-]+)-/);\n\t\t\t\t\t\t\t\tif (m) el.textContent = m[1];\n\t\t\t\t\t\t\t\tel.title = b + \" (deployed, synced via /health)\";\n\t\t\t\t\t\t\t})\n\t\t\t\t\t\t\t.catch(function () { /* keep static label */ });\n\t\t\t\t\t};\n\t\t\t\t\twindow.__gogogoSyncBadge();\n\t\t\t\t\twindow.addEventListener(\"online\", window.__gogogoSyncBadge);\n\t\t\t\t\twindow.addEventListener(\"focus\", window.__gogogoSyncBadge);\n\t\t\t\t</script></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "\">\n\t\t\t\t\t// Rail state glue. Datastar owns $railOpen and every dismissal\n\t\t\t\t\t// path (Escape, overlay, destination tap, collapse button); the\n\t\t\t\t\t// drawer's checkbox mirrors it (data-attr:checked above) because\n\t\t\t\t\t// daisyUI's drawer and its is-drawer-open/is-drawer-close variants\n\t\t\t\t\t// read :checked, not a signal.\n\t\t\t\t\t//\n\t\t\t\t\t// Desktop compact preference: the head script already put it on\n\t\t\t\t\t// <html data-rail>, which is what the CSS paints from. Here the\n\t\t\t\t\t// signal follows that attribute and the checkbox mirrors the\n\t\t\t\t\t// signal, so one stored value drives all three. Below the drawer\n\t\t\t\t\t// breakpoint nothing is restored: an offcanvas drawer open on\n\t\t\t\t\t// load would cover the page it just opened.\n\t\t\t\t\t// One writer for the rail preference: the attribute the CSS\n\t\t\t\t\t// reads, the storage the next load reads, and (when asked) the\n\t\t\t\t\t// signal the checkbox mirrors. Convention over a second state.\n\t\t\t\t\twindow.__gogogoSetRail = function (open, persist) {\n\t\t\t\t\t\tdocument.documentElement.dataset.rail = open ? \"expanded\" : \"compact\";\n\t\t\t\t\t\tif (persist) {\n\t\t\t\t\t\t\ttry { localStorage.setItem(\"railCompact\", open ? \"0\" : \"1\"); } catch (e) { /* private mode */ }\n\t\t\t\t\t\t}\n\t\t\t\t\t};\n\t\t\t\t\tvar __gogogoShell = document.querySelector(\".app-shell\");\n\t\t\t\t\tvar __gogogoRailInput = document.getElementById(\"app-rail-toggle\");\n\t\t\t\t\tif (__gogogoShell && __gogogoRailInput && window.matchMedia(\"(min-width: 1024px)\").matches) {\n\t\t\t\t\t\tvar __gogogoSeed = {};\n\t\t\t\t\t\ttry {\n\t\t\t\t\t\t\t__gogogoSeed = JSON.parse(__gogogoShell.dataset.signals || \"{}\") || {};\n\t\t\t\t\t\t} catch (e) {\n\t\t\t\t\t\t\t__gogogoSeed = {};\n\t\t\t\t\t\t}\n\t\t\t\t\t\t// The head script already decided; the signal follows it.\n\t\t\t\t\t\t__gogogoSeed.railOpen = document.documentElement.dataset.rail !== \"compact\";\n\t\t\t\t\t\t__gogogoShell.dataset.signals = JSON.stringify(__gogogoSeed);\n\t\t\t\t\t\t// Attribute, never the .checked property: assigning the\n\t\t\t\t\t\t// property sets the dirty-checkedness flag, after which no\n\t\t\t\t\t\t// later data-attr:checked update moves the box — the rail\n\t\t\t\t\t\t// then ignores the collapse button until a reload.\n\t\t\t\t\t\tif (__gogogoSeed.railOpen) {\n\t\t\t\t\t\t\t__gogogoRailInput.setAttribute(\"checked\", \"\");\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t__gogogoRailInput.removeAttribute(\"checked\");\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t\t// Drawer focus trap: no Datastar primitive cycles Tab inside an\n\t\t\t\t\t// open drawer or moves focus across the boundary, so this island\n\t\t\t\t\t// owns focus only. Pinned in vanillaAllow (the keydown listener\n\t\t\t\t\t// below). The ≤1023px matchMedia mirrors the drawer breakpoint in\n\t\t\t\t\t// chrome.css and daisyUI's `lg:drawer-open` — on desktop the rail\n\t\t\t\t\t// is a persistent column and the trap stays out of the way.\n\t\t\t\t\t// Plain script on purpose (see realtime.templ): data-effect\n\t\t\t\t\t// evaluates at Datastar init, after deferred modules load, so the\n\t\t\t\t\t// globals must exist on window before then.\n\t\t\t\t\twindow.__gogogoDrawerFocus = function (open) {\n\t\t\t\t\t\tif (!open) return;\n\t\t\t\t\t\tvar rail = document.getElementById(\"app-rail\");\n\t\t\t\t\t\tif (!rail || !window.matchMedia(\"(max-width: 1023px)\").matches) return;\n\t\t\t\t\t\tvar toggle = document.querySelector(\".app-rail-toggle\");\n\t\t\t\t\t\trail.__gogogoOpener = (document.activeElement && document.activeElement !== document.body) ? document.activeElement : toggle;\n\t\t\t\t\t\tvar first = rail.querySelector(\"a[href], button:not([disabled]), summary\");\n\t\t\t\t\t\tif (!first) return;\n\t\t\t\t\t\t// The effect can run a frame before Datastar's own morph\n\t\t\t\t\t\t// lands the drawer's :checked (which flips visibility), and\n\t\t\t\t\t\t// focus() on a visibility:hidden element is a silent no-op —\n\t\t\t\t\t\t// so retry until focus sticks. requestAnimationFrame is not\n\t\t\t\t\t\t// a guarded marker (vanillaAllow covers listeners only).\n\t\t\t\t\t\tvar tries = 0;\n\t\t\t\t\t\t(function tryFocus() {\n\t\t\t\t\t\t\tfirst.focus();\n\t\t\t\t\t\t\tif (document.activeElement !== first && tries++ < 5) {\n\t\t\t\t\t\t\t\twindow.requestAnimationFrame(tryFocus);\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t})();\n\t\t\t\t\t};\n\t\t\t\t\twindow.__gogogoDrawerReturn = function () {\n\t\t\t\t\t\tvar rail = document.getElementById(\"app-rail\");\n\t\t\t\t\t\tvar opener = rail && rail.__gogogoOpener;\n\t\t\t\t\t\tif (opener && opener.isConnected) opener.focus();\n\t\t\t\t\t\tif (rail) rail.__gogogoOpener = null;\n\t\t\t\t\t};\n\t\t\t\t\tvar __gogogoRail = document.getElementById(\"app-rail\");\n\t\t\t\t\tif (__gogogoRail) __gogogoRail.addEventListener(\"keydown\", function (e) {\n\t\t\t\t\t\tif (e.key !== \"Tab\") return;\n\t\t\t\t\t\tvar rail = e.currentTarget;\n\t\t\t\t\t\tif (!__gogogoRailInput || !__gogogoRailInput.checked) return;\n\t\t\t\t\t\tif (!window.matchMedia(\"(max-width: 1023px)\").matches) return;\n\t\t\t\t\t\tvar items = Array.prototype.slice.call(rail.querySelectorAll(\"a[href], button:not([disabled]), summary\"));\n\t\t\t\t\t\tif (!items.length) return;\n\t\t\t\t\t\tvar first = items[0], last = items[items.length - 1];\n\t\t\t\t\t\tif (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }\n\t\t\t\t\t\telse if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }\n\t\t\t\t\t});\n\t\t\t\t\t// Version badge sync: fetch /health live build evidence.\n\t\t\t\t\t// Static BuildLabel is fallback when offline; /health is truth.\n\t\t\t\t\t// The live tag is the X-Gogogo-Build HEADER (the body is\n\t\t\t\t\t// always \"ok\" for the container probe). Pinned in\n\t\t\t\t\t// shell_badge_test.go.\n\t\t\t\t\twindow.__gogogoSyncBadge = function () {\n\t\t\t\t\t\tvar el = document.getElementById(\"gogogo-build-badge\");\n\t\t\t\t\t\tif (!el) return;\n\t\t\t\t\t\tfetch(\"/health\", { cache: \"no-store\" })\n\t\t\t\t\t\t\t.then(function (r) { return r.headers.get(\"X-Gogogo-Build\") || \"\"; })\n\t\t\t\t\t\t\t.then(function (t) {\n\t\t\t\t\t\t\t\tvar b = (t || \"\").trim();\n\t\t\t\t\t\t\t\tif (!b) return;\n\t\t\t\t\t\t\t\tvar m = b.match(/^([^-]+)-/);\n\t\t\t\t\t\t\t\tif (m) el.textContent = m[1];\n\t\t\t\t\t\t\t\tel.title = b + \" (deployed, synced via /health)\";\n\t\t\t\t\t\t\t})\n\t\t\t\t\t\t\t.catch(function () { /* keep static label */ });\n\t\t\t\t\t};\n\t\t\t\t\twindow.__gogogoSyncBadge();\n\t\t\t\t\twindow.addEventListener(\"online\", window.__gogogoSyncBadge);\n\t\t\t\t\twindow.addEventListener(\"focus\", window.__gogogoSyncBadge);\n\t\t\t\t</script></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -771,20 +803,20 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "<script nonce=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "<script nonce=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var31 string
-		templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
+		var templ_7745c5c3_Var33 string
+		templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 459, Col: 38}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 465, Col: 38}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var31)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var33)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "\">\n\t\t\t\t(function () {\n\t\t\t\t\tvar header = document.querySelector(\".app-module-header\");\n\t\t\t\t\tif (!header || !window.ResizeObserver) return;\n\t\t\t\t\tvar publish = function () {\n\t\t\t\t\t\tdocument.documentElement.style.setProperty(\n\t\t\t\t\t\t\t\"--app-header-h\", header.getBoundingClientRect().height + \"px\");\n\t\t\t\t\t};\n\t\t\t\t\tnew ResizeObserver(publish).observe(header);\n\t\t\t\t\tpublish();\n\t\t\t\t})();\n\t\t\t</script></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "\">\n\t\t\t\t(function () {\n\t\t\t\t\tvar header = document.querySelector(\".app-module-header\");\n\t\t\t\t\tif (!header || !window.ResizeObserver) return;\n\t\t\t\t\tvar publish = function () {\n\t\t\t\t\t\tdocument.documentElement.style.setProperty(\n\t\t\t\t\t\t\t\"--app-header-h\", header.getBoundingClientRect().height + \"px\");\n\t\t\t\t\t};\n\t\t\t\t\tnew ResizeObserver(publish).observe(header);\n\t\t\t\t\tpublish();\n\t\t\t\t})();\n\t\t\t</script></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -818,12 +850,12 @@ func AppDock(module string, role string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var32 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var32 == nil {
-			templ_7745c5c3_Var32 = templ.NopComponent
+		templ_7745c5c3_Var34 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var34 == nil {
+			templ_7745c5c3_Var34 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "<nav class=\"app-dock dock\" aria-label=\"Primary\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "<nav class=\"app-dock dock\" aria-label=\"Primary\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -846,15 +878,28 @@ func AppDock(module string, role string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "<button type=\"button\" aria-label=\"Open navigation\" data-on:click=\"$railOpen = true\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "<button type=\"button\" class=\"app-dock-menu\" aria-label=\"Open navigation\" aria-controls=\"app-rail\" data-attr:aria-expanded=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = icon.Icon("material-symbols:menu", "app-dock-icon").Render(ctx, templ_7745c5c3_Buffer)
+		var templ_7745c5c3_Var35 string
+		templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.ResolveAttributeValue("$railOpen ? 'true' : 'false'")
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 505, Col: 59}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var35)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "<span class=\"dock-label\">Menu</span></button></nav>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "\" data-on:click=\"$railOpen = true\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = icon.Icon("material-symbols:keyboard-arrow-up", "app-dock-icon app-dock-chevron").Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "<span class=\"dock-label\">Menu</span></button></nav>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -880,56 +925,56 @@ func dockLink(current string, id string, href string, iconName string, label str
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var33 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var33 == nil {
-			templ_7745c5c3_Var33 = templ.NopComponent
+		templ_7745c5c3_Var36 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var36 == nil {
+			templ_7745c5c3_Var36 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var34 = []any{templ.Classes(map[string]bool{"dock-active": current == id})}
-		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var34...)
+		var templ_7745c5c3_Var37 = []any{templ.Classes(map[string]bool{"dock-active": current == id})}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var37...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "<a href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "<a href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var35 templ.SafeURL
-		templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(href))
+		var templ_7745c5c3_Var38 templ.SafeURL
+		templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(href))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 509, Col: 28}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 521, Col: 28}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "\" class=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var36 string
-		templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var34).String())
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 72, "\" class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var39 string
+		templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var37).String())
 		if templ_7745c5c3_Err != nil {
 			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 1, Col: 0}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var36)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var39)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "\" aria-current=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 73, "\" aria-current=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var37 string
-		templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.ResolveAttributeValue(activeCurrent(current == id))
+		var templ_7745c5c3_Var40 string
+		templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.ResolveAttributeValue(activeCurrent(current == id))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 511, Col: 45}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 523, Col: 45}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var37)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var40)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -937,20 +982,20 @@ func dockLink(current string, id string, href string, iconName string, label str
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "<span class=\"dock-label\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "<span class=\"dock-label\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var38 string
-		templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(label)
+		var templ_7745c5c3_Var41 string
+		templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 514, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 526, Col: 34}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 72, "</span></a>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "</span></a>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -982,59 +1027,72 @@ func railEntry(e NavEntry) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var39 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var39 == nil {
-			templ_7745c5c3_Var39 = templ.NopComponent
+		templ_7745c5c3_Var42 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var42 == nil {
+			templ_7745c5c3_Var42 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 73, "<a href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, "<a href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var40 templ.SafeURL
-		templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(e.Href))
+		var templ_7745c5c3_Var43 templ.SafeURL
+		templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(e.Href))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 528, Col: 30}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 540, Col: 30}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "\" class=\"app-rail-item\" title=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var41 string
-		templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.ResolveAttributeValue(e.Label)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 530, Col: 17}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var41)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "\" class=\"app-rail-item\" data-analytics-event=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "\" data-cuelume-hover=\"tick\" data-cuelume-press=\"toggle\">")
+		var templ_7745c5c3_Var44 string
+		templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.ResolveAttributeValue(NavEventName(e.Href))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 542, Col: 45}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var44)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = icon.Icon("material-symbols:stack", "app-rail-icon").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, "\" title=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "<span class=\"app-rail-label is-drawer-close:hidden\">")
+		var templ_7745c5c3_Var45 string
+		templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.ResolveAttributeValue(e.Label)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 543, Col: 17}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var45)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var42 string
-		templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(e.Label)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 534, Col: 63}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var42))
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, "\" data-cuelume-hover=\"tick\" data-cuelume-press=\"toggle\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, "</span></a>")
+		templ_7745c5c3_Err = icon.Icon(navEntryIcon(e), "app-rail-icon").Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 81, "<span class=\"app-rail-label is-drawer-close:hidden\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var46 string
+		templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(e.Label)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 547, Col: 63}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, "</span></a>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -29,6 +29,17 @@ router, reactive frontend, task queue… — and the project stalls at the
 This template answers those decisions once, ships them wired together, and
 documents how to change or remove each piece.
 
+## One template, five products
+
+A product shape is a row of the enum, not a fork: `full`, `web`, `api`,
+`desktop`, `gui`, `mobile`. `APP_SHAPE` — or the committed
+`.gogogo/shape.yml` record — decides which entrypoints ship and which surfaces
+answer. The `api` shape is the one that changes behaviour: page routes are not
+mounted (a page path answers 404 from the tree), while `/api`, `/health`, the
+auth API and the assets keep serving from the same binary — no build tags, no
+second boot path. The enum, the record and the `check-shape` gate live in
+[App shape](shape.md).
+
 ## Not a framework
 
 Frameworks call your code and keep you on their release train. This template

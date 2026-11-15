@@ -101,6 +101,13 @@ type OpReceipt struct {
 	Created string
 }
 
+type RecipeState struct {
+	ID        string
+	Enabled   int64
+	UpdatedBy string
+	UpdatedAt string
+}
+
 type RecoveryCode struct {
 	CodeHash string
 	UserID   string

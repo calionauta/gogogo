@@ -151,7 +151,7 @@ declaration:
     total:
       label: Probe rows
       query: "SELECT COUNT(*) FROM ext_probe_cards WHERE owner = ?"
-    counterbalance:
+    counterMetrics:
     - label: Corrected rows
       query: "SELECT COUNT(*) FROM ext_probe_cards WHERE owner = ? AND corrected = 1"
     window: session
@@ -188,14 +188,15 @@ declaration:
 		if !slices.Contains(e.InvokeParams["create"], "title") {
 			t.Errorf("probe create params missing: %v", e.InvokeParams)
 		}
-		if len(e.Metrics) != 1 || e.Metrics[0].Label != "Probe rows" {
-			t.Errorf("probe metrics missing: %v", e.Metrics)
+		if len(e.Metrics) != 2 {
+			t.Fatalf("probe metrics missing: %v", e.Metrics)
 		}
-		if len(e.Outcomes) != 1 {
-			t.Fatalf("probe outcomes missing: %v", e.Outcomes)
+		if e.Metrics[0].Label != "Probe rows" {
+			t.Errorf("probe activity metric drifted: %+v", e.Metrics[0])
 		}
-		if o := e.Outcomes[0]; o.ID != "probe_without_repair" || o.TotalLabel != "Probe rows" ||
-			o.SuccessLabel != "Rows without repair" || !slices.Contains(o.Counterbalance, "Corrected rows") {
+		if o := e.Metrics[1]; o.Kind != "outcome" || o.ID != "probe_without_repair" ||
+			o.TotalLabel != "Probe rows" || o.SuccessLabel != "Rows without repair" ||
+			!slices.Contains(o.CounterMetrics, "Corrected rows") {
 			t.Errorf("probe outcome drifted: %+v", o)
 		}
 		if e.InvokeDescriptions["create"] != "Create one probe row." {

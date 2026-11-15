@@ -29,6 +29,10 @@ import (
 	"github.com/calionauta/gogogo/internal/recipe"
 )
 
+// newStaticCreateCount is the number of files a scaffold writes besides its
+// per-locale catalogs (the preallocation budget for printNewPlan).
+const newStaticCreateCount = 9
+
 // newNameRE is the kebab-case id every capability, directory and route shares:
 // no leading/trailing hyphen, no double hyphen, lowercase only.
 var newNameRE = regexp.MustCompile(`^[a-z][a-z0-9]*(-[a-z0-9]+)*$`)
@@ -48,6 +52,7 @@ type newOptions struct {
 type newPaths struct {
 	handler  string
 	page     string
+	embed    string
 	card     string
 	prompt   string
 	chi      string
@@ -59,6 +64,7 @@ func newProjectPaths(name string) newPaths {
 	return newPaths{
 		handler:  filepath.ToSlash(filepath.Join("features", name, "handlers", "chi.go")),
 		page:     filepath.ToSlash(filepath.Join("features", name, "components", "page.templ")),
+		embed:    filepath.ToSlash(filepath.Join("features", name, "embed.go")),
 		card:     filepath.ToSlash(filepath.Join(capabilities.CardDir, name+".md")),
 		prompt:   filepath.ToSlash(filepath.Join(prompts.Dir, "panels", name+".prompt")),
 		chi:      "internal/server/chi.go",
@@ -304,15 +310,21 @@ func confirmNew(stdout io.Writer, stdin io.Reader, name string) bool {
 // printNewPlan renders the plan in text or JSON. Both shapes name every file
 // written and every file edited, so a dry run is the review.
 func printNewPlan(w io.Writer, opt newOptions, plan newPlan) error {
-	creates := []string{
-		"features/" + opt.name + "/handlers/chi.go",
-		"features/" + opt.name + "/components/page.templ",
-		"features/" + opt.name + "/handlers/register.go",
-		"features/" + opt.name + "/handlers/recipe.go",
-		"features/" + opt.name + "/handlers/genui_panel.go",
-		".recipes/" + opt.name + ".yml",
-		capabilities.CardDir + "/" + opt.name + ".md",
-		prompts.Dir + "/panels/" + opt.name + ".prompt",
+	tags := newLocaleTags()
+	creates := make([]string, 0, newStaticCreateCount+len(tags))
+	creates = append(creates,
+		"features/"+opt.name+"/handlers/chi.go",
+		"features/"+opt.name+"/components/page.templ",
+		"features/"+opt.name+"/embed.go",
+		"features/"+opt.name+"/handlers/register.go",
+		"features/"+opt.name+"/handlers/recipe.go",
+		"features/"+opt.name+"/handlers/genui_panel.go",
+		".recipes/"+opt.name+".yml",
+		capabilities.CardDir+"/"+opt.name+".md",
+		prompts.Dir+"/panels/"+opt.name+".prompt",
+	)
+	for _, tag := range tags {
+		creates = append(creates, "features/"+opt.name+"/locale/"+tag+".json")
 	}
 	if opt.format == planFormatJSON {
 		enc := json.NewEncoder(w)
@@ -340,17 +352,6 @@ func printNewPlan(w io.Writer, opt newOptions, plan newPlan) error {
 	return nil
 }
 
-// newNextSteps is what the scaffold deliberately leaves to the author.
-func newNextSteps(name string) []string {
-	return []string{
-		"Add a sidebar entry in internal/ui/modules.go and vendor its icon in " +
-			"internal/icon/icons.go (the shell has no navbar).",
-		"Replace the page body in features/" + name + "/components/page.templ; run `make css` for new Tailwind classes.",
-		"Read docs/unit-contracts.md for the routes/state your unit now owns.",
-		"Run `gogogo recipe check " + name + " --dir .` — warnings are the work list; errors block `doctor` and CI.",
-	}
-}
-
 // applyNew writes the files, applies the prepared edits, and runs the proof.
 func applyNew(ctx context.Context, opt newOptions, plan newPlan, stdout io.Writer) error {
 	root, err := filepath.Abs(opt.dir)
@@ -368,10 +369,14 @@ func applyNew(ctx context.Context, opt newOptions, plan newPlan, stdout io.Write
 	files := map[string]string{
 		plan.paths.handler: newHandlerSource(opt.name, plan.module),
 		plan.paths.page:    newPageSource(opt.name, plan.module),
+		plan.paths.embed:   newEmbedSource(),
 		plan.paths.prompt:  newPanelPromptSource(opt.name),
 		"features/" + opt.name + "/handlers/register.go":    newRegisterSource(opt.name, plan.module),
 		"features/" + opt.name + "/handlers/recipe.go":      newRecipeSource(opt.name, plan.module),
 		"features/" + opt.name + "/handlers/genui_panel.go": newPanelSource(opt.name, plan.module),
+	}
+	for _, tag := range newLocaleTags() {
+		files["features/"+opt.name+"/locale/"+tag+".json"] = newLocaleSource(opt.name)
 	}
 	for rel, src := range files {
 		full := filepath.Join(root, filepath.FromSlash(rel))
@@ -485,7 +490,8 @@ func proveNewFeature(ctx context.Context, root, name string, stdout io.Writer) e
 	}
 	fmt.Fprintln(stdout, "gogogo: prove: build OK")
 	fmt.Fprintf(stdout, "gogogo: prove: recipe check %s …\n", name)
-	if out, err := runIn(ctx, root, "go", "run", "./cmd/gogogo", "recipe", "check", name, "--dir", "."); err != nil {
+	if out, err := runIn(ctx, root, "go", "run", "./cmd/gogogo", "recipe", "check", name,
+		"--dir", ".", "--strict-headless"); err != nil {
 		return &ExitError{code: 2, msg: "recipe check failed — the scaffold is applied but blocked:\n" +
 			tailLines(string(out), proofBuildTailLines)}
 	}

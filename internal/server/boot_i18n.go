@@ -54,8 +54,12 @@ func bootI18N(cfg *config.Config, recipes []recipe.TranslationSet) (*i18n.Catalo
 	// A recipe that ships only some locales is not an error (the fallback
 	// answers), but it must be visible: the gap shows as an English word inside
 	// a translated page and nothing else notices.
-	for _, gap := range i18n.CheckRecipeCoverage(supported, sets) {
+	gaps := i18n.CheckRecipeCoverage(supported, sets)
+	for _, gap := range gaps {
 		slog.Warn("server: i18n coverage gap", "detail", gap)
+	}
+	if cfg.I18n.RequireRecipeCoverage && len(gaps) > 0 {
+		return nil, fmt.Errorf("server: i18n coverage required but %d gap(s) exist", len(gaps))
 	}
 	return merged, nil
 }

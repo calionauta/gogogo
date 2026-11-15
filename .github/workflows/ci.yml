@@ -8,6 +8,11 @@ on:
     # CI at all: the required `ci` status never appeared, and the change
     # under it could only be judged by reading the diff (PR #154 shipped
     # that way). A PR against any base now gets the same gates.
+  merge_group:
+    # GitHub merge queue tests the COMBINED tree before it lands, which is
+    # the only way to catch a semantic conflict between two green PRs. The
+    # classifier fails open to a full run here (there is no PR base), and the
+    # aggregate `ci` job below is the required status.
   workflow_dispatch:
     inputs:
       scope_packages:
@@ -55,6 +60,12 @@ jobs:
     # pushes diff before...after, anything else (dispatch, shallow
     # weirdness) fails open to a full run.
     runs-on: ubuntu-latest
+    # One ceiling per job, on purpose: a step that never returns otherwise
+    # holds a runner until GitHub's 6-hour default, and a gate that cannot
+    # fail is not a gate. The browser job's own fence (30) is the longest
+    # because its suites are the slowest; every value is well above the
+    # measured cost, so this is a hung-runner backstop, not a deadline.
+    timeout-minutes: 10
     outputs:
       docs_only: ${{ steps.filter.outputs.docs_only }}
       # pkgs: the packages the race suite must run, newline-separated, already
@@ -228,6 +239,7 @@ jobs:
     needs: [changes]
     if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     env:
       GOTOOLCHAIN: local
     steps:
@@ -519,6 +531,7 @@ jobs:
         shard: [0, 1, 2]
     name: race shard ${{ matrix.shard }}
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     env:
       GOTOOLCHAIN: local
     steps:
@@ -798,6 +811,7 @@ jobs:
     # Committed sources + Dockerfile only (no Go/Node): a broken image
     # fails fast in parallel instead of after the whole suite.
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
       - name: Production image boot smoke test
@@ -821,6 +835,7 @@ jobs:
     # because those skip every other job by design and they are exactly the
     # changes that can break the site.
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - name: Set up Node (Playwright)
@@ -860,6 +875,7 @@ jobs:
     # a name instead of a plausible PR with a green tick.
     if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'release-please--branches--')
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - name: Proposed version stays inside 0.x
@@ -896,6 +912,7 @@ jobs:
     needs: [changes, checks, race, browser, prod-image, site, release-guard]
     if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: All gates green
         run: |

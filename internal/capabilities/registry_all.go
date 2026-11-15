@@ -11,6 +11,9 @@ var All = append(baseUnits, append(
 	),
 	append(
 		append(append(perfUnits, dashboardUnits...), i18nUnit),
-		append(append(graphUnits, kioskUnits...), promptUnits...)...,
+		append(
+			append(append(graphUnits, kioskUnits...), promptUnits...),
+			eventsUnits...,
+		)...,
 	)...,
 )...)

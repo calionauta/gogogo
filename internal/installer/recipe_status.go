@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -21,6 +22,12 @@ type recipeLookupArgs struct {
 	dir     string
 	catalog string
 	format  string
+	// locales is the instance's SUPPORTED_LOCALES set, used by `recipe check`
+	// to grade a recipe's locale coverage. strictLocales promotes "ships no
+	// catalog" from a warning to an error.
+	locales        []string
+	strictLocales  bool
+	strictHeadless bool
 }
 
 // parseRecipeLookupArgs parses that shared surface; `command` names the
@@ -31,6 +38,16 @@ func parseRecipeLookupArgs(command string, args []string) (recipeLookupArgs, err
 	fs.StringVar(&opt.dir, "dir", ".", "checkout to inspect")
 	fs.StringVar(&opt.catalog, "catalog", "", "catalog directory (default: <checkout>/catalog)")
 	fs.StringVar(&opt.format, "format", planFormatText, "output format: text|json")
+	localesRaw := os.Getenv("SUPPORTED_LOCALES")
+	if strings.TrimSpace(localesRaw) == "" {
+		localesRaw = "en,pt-BR"
+	}
+	fs.StringVar(&localesRaw, "locales", localesRaw,
+		"comma-separated locale tags required by this instance (default: SUPPORTED_LOCALES or en,pt-BR)")
+	fs.BoolVar(&opt.strictLocales, "strict-locales", false,
+		"treat a recipe with no locale catalog as an error")
+	fs.BoolVar(&opt.strictHeadless, "strict-headless", false,
+		"treat an invisible mutating route (no action, no omission) and an undescribed verb as errors")
 	fs.SetOutput(io.Discard)
 
 	rest := args
@@ -49,6 +66,14 @@ func parseRecipeLookupArgs(command string, args []string) (recipeLookupArgs, err
 	}
 	if opt.format != planFormatText && opt.format != planFormatJSON {
 		return opt, &ExitError{code: 1, msg: fmt.Sprintf("unknown --format %q (want text|json)", opt.format)}
+	}
+	for tag := range strings.SplitSeq(localesRaw, ",") {
+		if tag = strings.TrimSpace(tag); tag != "" {
+			opt.locales = append(opt.locales, tag)
+		}
+	}
+	if len(opt.locales) == 0 {
+		opt.locales = []string{"en"}
 	}
 	return opt, nil
 }

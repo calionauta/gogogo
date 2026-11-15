@@ -5,84 +5,143 @@
 </p>
 
 <p align="center">
+  <b>Your product structure is ready. Summon your agent to evolve.</b>
+</p>
+
+<p align="center">
   <a href="https://calionauta.github.io/gogogo/">Landing page</a> ·
   <a href="https://calionauta.github.io/gogogo/docs/">Docs</a> ·
+  <a href="https://gogogo.calionauta.com/">Live demo</a> ·
   <a href="https://github.com/calionauta/gogogo/releases">Releases</a> ·
   <a href="https://github.com/calionauta/gogogo/actions">CI</a>
 </p>
 
-> **Your stack is ready. Come build.** Every decision favors practical outcomes
-> over abstract ideals. The stack optimizes for simplicity, consistency, and
-> shipping software with minimal friction.
+---
 
-A Go product structure: backend + frontend + DB + auth + LLM + deploy in one
-binary, plus the CLI and MCP server an agent uses to evolve it. Not a framework
-— you own the code, so nothing is versioned out from under you. The scaffold
-copies the tree; the evolution engine (`gogogo`) and the headless runtime
-(`POST /api/ext/invoke`) are for building on it, not for running it.
+A complete Go product — backend, frontend, database, auth, jobs, realtime,
+durable workflows and offline writes — that compiles to **one binary**. Every
+slice is code you own and can delete; every heavy dependency has an off switch.
+A CLI and an MCP server let an agent change the tree and prove the build
+instead of guessing at it.
 
-Full manual: **[Docs](https://calionauta.github.io/gogogo/docs/)**
-(`docs/` is the source, `site/` publishes it).
+**Not a framework.** Nothing is versioned out from under you: the scaffold
+copies the tree, and `git` is the update path.
 
 ## Quick start
 
-Use this template to create your own copy, then rename it — don't build
-inside a clone of the template itself:
-
 ```bash
 curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh | sh -s -- --run
-# Open http://localhost:8080 (demo: demo1@demo.app / demo1234456)
+# Open http://localhost:8080  ·  demo1@demo.app / demo1234456
 ```
 
-Manual fallback: `gh repo create my-app --template calionauta/gogogo --clone`,
-then `make rename NAME=my-app`, `make dev`.
+Manual: `gh repo create my-app --template calionauta/gogogo --clone`, then
+`make rename NAME=my-app`, `make dev`.
 
-## Stack (snapshot)
+## Try it live
 
-Go 1.27 · Templ + Datastar (SSE) + Tailwind/DaisyUI · Turso (sqlc) +
-argon2id sessions + Casbin RBAC · goqite + DagNats + NATS JetStream ·
-GoAkt (rooms) · Loro CRDT (whiteboard/notes) · GoAI (any provider). One
-`make build` compiles everything; opt out at runtime with env vars.
+| | |
+|---|---|
+| **Todo & Whiteboard** | <https://gogogo.calionauta.com/> |
+| **DagNats console** | <https://gogogo.calionauta.com/dagnats/> |
 
-## Recipes
+## What ships
 
-Product slices are recipes: copied code you own, with a receipt
-(`.recipes/<id>.yml`) recording where it came from. Install, update,
-and uninstall with `gogogo recipe install|update|uninstall` — user edits
-are kept (three-way via git). References: `features/todo` (the slice every
-recipe derives from) and `features/kiosk` (the instrumented one). Contract:
-[`skills/gogogo-recipe-authoring`](skills/gogogo-recipe-authoring/SKILL.md).
-Taxonomy: [scope-taxonomy](docs/scope-taxonomy.md).
-What can be installed — and what was reviewed — is [`catalog/`](catalog): one
-`<id>/<version>.yaml` per released recipe, plus
-[`recommended.yml`](catalog/recommended.yml), the one list the scaffold advises
-from. What ships in this tree (feature per row, with its runtime opt-out):
-[docs/features](docs/features.md). What is installed right now, read from the
-receipts: `go run ./cmd/gogogo recipe list`.
+One row per thing you get. The **opt out** column is the runtime switch — flip
+it and the binary still builds.
+
+| Capability | Technology | Opt out |
+|---|---|---|
+| **Web UI** | Templ + Datastar (SSE), DaisyUI palettes | — |
+| **Persistence** | Turso/SQLite via sqlc | — |
+| **Auth** | Owned argon2id sessions, magic link, TOTP | — |
+| **Access control** | Casbin v3 policy over `users.role` | `RBAC_ENABLED=false` (prod) |
+| **Background jobs** | goqite + retry, queue-backed | — |
+| **Durable workflows** | DagNats over NATS JetStream | `DAGNATS_ENABLED=false` |
+| **Realtime fan-out** | SSE Hub + NATS JetStream | `NATS_ENABLED=false` |
+| **Offline writes** | Write-ahead outbox, app-shell cache, leaf node | `OFFLINE_SYNC_ENABLED=false` |
+| **Collaboration** | Loro CRDT (notes, whiteboard) | delete by hand |
+| **Entity actors** | GoAkt grains (rooms, presence) | `GOAKT_ENABLED=false` |
+| **AI** | GoAI (any provider) + Genkit flows | `GOAI_API_KEY` unset |
+| **Metering** | Credits + BYOK | `CREDITS_ENABLED=false` |
+| **Search** | Own layers: substring, fuzzy, BM25 | delete by hand |
+| **Admin** | `/config`: audit trail, users, runtime switches | — |
+
+Details per row, with the removal class of each unit and its exact removal
+path: [docs/features](docs/features.md).
+
+## Stack
+
+```text
+language   Go 1.27
+frontend   Templ · Datastar (SSE) · Tailwind v4 + DaisyUI v5
+data       Turso/SQLite · sqlc · DB-backed sessions
+security   argon2id · Casbin RBAC · security_events audit trail
+async      goqite · DagNats · NATS JetStream · GoAkt · Loro CRDT
+ai         GoAI (any provider) · Genkit flows · jev-like classifier seam
+shipping   one binary · make build · env-var opt-outs
+```
+
+One `make build` compiles all of it: no build tags, no second boot path, no
+matrix, no runtime CSS or JS build, no service to operate.
+
+## App shapes: one template, five products
+
+The same `cmd/web` binary ships as a full product, a web app, an API-only
+backend, or the server behind the desktop and mobile shells. `APP_SHAPE` (or the
+committed `.gogogo/shape.yml` record) picks the entrypoints and the surfaces.
+
+```bash
+APP_SHAPE=api make build   # one binary; page routes answer 404
+```
+
+`api` prunes page routes at mount, so the 404 comes from the route tree, not
+from a handler that runs and refuses. `/api`, `/health` and the static assets
+keep working. Enum, record and the `check-shape` gate:
+[docs/shape.md](docs/shape.md).
+
+## Recipes: slices you copy and own
+
+A recipe is a working slice — pages, handlers, tables, jobs, policy rows — not a
+package you depend on. You get the code, and a receipt that remembers where it
+came from.
+
+| | |
+|---|---|
+| **Install / update / uninstall** | `gogogo recipe install` · `update` · `uninstall` |
+| **Your edits survive** | pristine hashes + `git merge` — never overwritten |
+| **Receipt** | `.recipes/<id>.yml` — provenance, file hashes, declaration |
+| **What it declares** | routes, tables, jobs, slots, metrics, panel |
+| **Checked, not trusted** | `recipe check` scores it; `recipe test` runs its tests |
+
+- **Reference slice:** `features/todo` — what every recipe derives from.
+- **Instrumented example:** `features/kiosk` — declares an outcome metric.
+- **What can be installed:** [`catalog/`](catalog) for reviewed versions, and
+  [`recommended.yml`](catalog/recommended.yml) for what the scaffold advises.
+- **What is installed here:** `go run ./cmd/gogogo recipe list`.
+
+Contract: [skills/gogogo-recipe-authoring](skills/gogogo-recipe-authoring/SKILL.md) ·
+Taxonomy: [docs/scope-taxonomy](docs/scope-taxonomy.md).
 
 ## For AI agents
 
 - [`llms.txt`](llms.txt) — what to read per task.
-- `go run ./cmd/gogogo advise|doctor|generate|recipe|export|new feature` —
-  same evolution engine as the MCP server (`cmd/gogogo-mcp`). These tools are
-  for building/evolving a checkout; a product's users and agents use the
-  running server's routes (`POST /api/ext/invoke`), not the installer MCP.
-  See [docs/mcp.md](docs/mcp.md#installer-surface-vs-product-surface).
-
-## Try it live
-
-- [Todo & Whiteboard demo](https://gogogo.calionauta.com/)
-- [DagNats console](https://gogogo.calionauta.com/dagnats/)
+- `go run ./cmd/gogogo advise|doctor|generate|shape|recipe|export|new feature` —
+  the same evolution engine the MCP server (`cmd/gogogo-mcp`) exposes.
+- Those tools build and evolve a checkout. A product's users and their agents
+  call the running server (`POST /api/ext/invoke`) under session and RBAC, never
+  the installer MCP. See
+  [docs/mcp.md](docs/mcp.md#installer-surface-vs-product-surface).
 
 ## Commands
 
 ```bash
-make dev      # live reload
-make ci-local # full gate (= CI)
-make site     # rebuild the docs site
+make dev       # live reload
+make build     # one binary
+make ci-local  # the full gate (= CI)
+make site      # rebuild the docs site
 ```
 
-Details: [getting-started](docs/getting-started.md#commands).
+More: [getting-started](docs/getting-started.md#commands).
 
 ## License
 

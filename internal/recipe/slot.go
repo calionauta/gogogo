@@ -182,6 +182,10 @@ type Fragment struct {
 type Entry struct {
 	Label string
 	Href  string
+	// Icon names a glyph from the shell's catalog (internal/icon), so a
+	// destination reads as what it is instead of the rail's generic glyph.
+	// Optional: empty keeps the default, and the shell never guesses.
+	Icon  string
 	Admin bool
 }
 

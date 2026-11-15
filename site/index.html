@@ -26,6 +26,7 @@
   </a>
   <nav class="nav-links" aria-label="Primary">
     <a href="#descent">Stack</a>
+    <a href="#app-shapes">Shapes</a>
     <a href="#async-layers">Async</a>
     <a href="#agents">Agents</a>
     <a href="#install">Install</a>
@@ -57,8 +58,8 @@
 <section class="hero">
   <div class="hero-copy">
     <p class="kicker">Full-stack Go · one binary · nothing to operate</p>
-    <h1>Your stack is ready.<br><em>Summon</em> your AI agent <span class="nowrap">to build.</span></h1>
-    <p class="hero-sub">A product structure your agent can evolve — not a framework. One binary, and a CLI/MCP the agent drives it with.</p>
+    <h1>Your product structure <span class="nowrap">is ready.</span><br><em>Summon</em> your AI agent to evolve.</h1>
+    <p class="hero-sub">One binary, and a CLI/MCP the agent drives it with.</p>
     <div class="hero-ctas">
       <a class="btn primary" href="#install">Get started</a>
       <a class="btn" href="https://gogogo.calionauta.com/" rel="noopener">Try it live</a>
@@ -114,23 +115,23 @@
 
           <a class="band band-recipes" href="#layer-recipes" data-layer="recipes" style="--w:100%">
             <span class="band-line"><span class="band-num">02</span><span class="band-name">Recipes</span></span>
-            <span class="band-chips"><span>todo</span><span>notes</span><span>board</span></span>
+            <span class="band-chips"><span>todo</span><span>notes</span><span>board</span><span class="band-more" title="11 total">+8</span></span>
           </a>
           <a class="band band-servants" href="#layer-servants" data-layer="servants" style="--w:93%">
             <span class="band-line"><span class="band-num">03</span><span class="band-name">Servants</span></span>
-            <span class="band-chips"><span>nats</span><span>dagnats</span><span>goakt</span></span>
+            <span class="band-chips"><span>nats</span><span>dagnats</span><span>goakt</span><span class="band-more" title="24 total">+21</span></span>
           </a>
           <a class="band band-core" href="#layer-core" data-layer="core" style="--w:86%">
             <span class="band-line"><span class="band-num">04</span><span class="band-name">Core</span></span>
-            <span class="band-chips"><span>db</span><span>auth</span><span>router</span></span>
+            <span class="band-chips"><span>db</span><span>auth</span><span>router</span><span class="band-more" title="17 total">+14</span></span>
           </a>
           <a class="band band-tests" href="#layer-tests" data-layer="tests" style="--w:79%">
             <span class="band-line"><span class="band-num">05</span><span class="band-name">Tests</span></span>
-            <span class="band-chips"><span>race</span><span>smoke</span><span>layout</span></span>
+            <span class="band-chips"><span>race</span><span>smoke</span><span>layout</span><span class="band-more" title="5 total">+2</span></span>
           </a>
           <a class="band band-gates" href="#layer-gates" data-layer="gates" style="--w:72%">
             <span class="band-line"><span class="band-num">06</span><span class="band-name">Gates</span></span>
-            <span class="band-chips"><span>lint</span><span>scope</span><span>docs</span></span>
+            <span class="band-chips"><span>lint</span><span>scope</span><span>docs</span><span class="band-more" title="37 total">+34</span></span>
           </a>
           <a class="band band-go" href="#layer-go" data-layer="go" style="--w:65%">
             <span class="band-line"><span class="band-num">07</span><span class="band-name">Go</span></span>
@@ -188,7 +189,7 @@
                 <li><code>recipe install</code><span>Copy a recipe in: code + declaration + receipt.</span></li>
                 <li><code>recipe list</code><span>What is installed, built-in, or removed.</span></li>
                 <li><code>recipe check</code><span>Evaluator: score, errors, warnings — blocks an unrecorded claim.</span></li>
-                <li><code>recipe describe</code><span>One recipe: verbs, params, metrics, outcomes.</span></li>
+                <li><code>recipe describe</code><span>One recipe: verbs, params, and the metrics it declares.</span></li>
                 <li><code>recipe test</code><span>Run the tests THAT recipe ships (scope from its receipt).</span></li>
                 <li><code>advise</code><span>Which lib or language fits the use case.</span></li>
                 <li><code>--dry-run</code><span>Preview the plan as JSON, zero changes.</span></li>
@@ -236,9 +237,8 @@
         <li>Copied with a receipt: pages, handlers, tables, jobs, policy rows.</li>
         <li>Your edits survive: pristine hashes + <code>git merge</code>, never overwrite.</li>
         <li>Receipt keeps it honest: <code>recipe status</code>, <code>update</code>, <code>uninstall</code>.</li>
-        <li>Measured, not asserted: declared metrics and one outcome (success over total) count the rows the recipe already owns.</li>
+        <li>Declares its own metrics: <code>COUNT(*)</code> readings over tables it already owns, so a number on the dashboard is a fact, not a claim.</li>
       </ul>
-      <p class="chapter-lede">Reference: <code>features/todo</code>. Try: <code>gogogo recipe install ./_recipes/pomodoro --yes</code> · instrumentation example: <code>features/kiosk</code></p>
 
       <div class="viz tiles">
         <!--FEATURES:START-->
@@ -293,6 +293,15 @@
           <span class="tile-desc">room presence demo (one grain per room, crash hook included)</span>
           <span class="tile-note">roster · presenter lock</span>
         </a>
+        <a class="tile" href="./docs/features/#what-each-capability-does">
+          <span class="tile-top"><span class="tile-dot live"></span> Kiosk<span class="tile-arrow" aria-hidden="true">↗</span></span>
+          <span class="tile-ui kiosk-ui">
+            <span class="kiosk-said">“só um expresso”</span>
+            <span class="kiosk-ticket"><i>Espresso</i><b>…</b></span>
+          </span>
+          <span class="tile-desc">voice-first kiosk order demo (closed menu, on-device voice, one declared outcome)</span>
+          <span class="tile-note">voice · decided menu</span>
+        </a>
         <a class="tile" href="./docs/notifications/">
           <span class="tile-top"><span class="tile-dot live"></span> Inbox<span class="tile-arrow" aria-hidden="true">↗</span></span>
           <span class="tile-ui generic-ui"><svg viewBox="0 0 24 24"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 18a2 2 0 0 0 4 0"/></svg></span>
@@ -313,17 +322,6 @@
         </a>
         <!--FEATURES:END-->
       </div>
-
-      <details class="viz slots" id="slots">
-        <summary class="plan-group">How a recipe plugs in</summary>
-        <p class="plan-note">The page owns the frame; the recipe supplies content. Only slots with a host page in this build can be filled.</p>
-        <div class="slot-table">
-          <p><code>settings.section</code><span>Form section in <code>/config</code>.</span></p>
-          <p><code>nav.sidebar</code><span>Destination in the shell rail.</span></p>
-          <p><code>record.row-actions</code><span>Declarative row actions on the todo row.</span></p>
-          <p><code>dashboard.card</code><span>One metric cell on <code>/dashboard</code>.</span></p>
-        </div>
-      </details>
 
       <!--WEIGHTS:START-->
         <div class="weights">
@@ -358,7 +356,7 @@
         <!--PLUGINS:START-->
         <div class="trim-head">
           <span class="trim-title">Switches — runtime opt-outs</span>
-          <span class="trim-count" id="trim-count" aria-live="polite">21 of 21 kept</span>
+          <span class="trim-count" id="trim-count" aria-live="polite">24 of 24 kept</span>
         </div>
         <p class="plan-group">Common opt-outs</p>
         <label class="plan-row">
@@ -405,6 +403,12 @@
         </label>
         <p class="plan-group">The rest</p>
         <label class="plan-row">
+          <input type="checkbox" checked data-cap="analytics">
+          <span class="plan-box" aria-hidden="true"></span>
+          <span class="plan-main"><span class="plan-name">Analytics</span><span class="plan-desc">analytics provider sink for the event bus (PostHog, default none)</span></span>
+          <span class="plan-env">ANALYTICS_PROVIDER=none</span>
+        </label>
+        <label class="plan-row">
           <input type="checkbox" checked data-cap="app">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">App</span><span class="plan-desc">AppContext (dependency bundle for the native window)</span></span>
@@ -447,6 +451,12 @@
           <span class="plan-env">manual removal</span>
         </label>
         <label class="plan-row">
+          <input type="checkbox" checked data-cap="events">
+          <span class="plan-box" aria-hidden="true"></span>
+          <span class="plan-main"><span class="plan-name">Events</span><span class="plan-desc">in-process domain event bus + outbound sinks (webhook, analytics)</span></span>
+          <span class="plan-env">manual removal</span>
+        </label>
+        <label class="plan-row">
           <input type="checkbox" checked data-cap="genkit">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">Genkit</span><span class="plan-desc">typed AI flows (Genkit Go): orchestration + traces above internal/llm</span></span>
@@ -481,6 +491,12 @@
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">perf</span><span class="plan-desc">opt-in operator diagnostics: statsviz dashboard + stdlib pprof</span></span>
           <span class="plan-env">PERF_ENABLED=false (default off in production)</span>
+        </label>
+        <label class="plan-row">
+          <input type="checkbox" checked data-cap="recipestate">
+          <span class="plan-box" aria-hidden="true"></span>
+          <span class="plan-main"><span class="plan-name">Recipe state</span><span class="plan-desc">runtime recipe enable/disable: the one reader of recipe_state</span></span>
+          <span class="plan-env">manual removal</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="sounds">
@@ -547,7 +563,7 @@
           <div class="brick"><span class="brick-name">Instance</span><span class="brick-desc">stable instance identity for cross-instance durables and event origins</span><span class="brick-path">instance</span></div>
           <div class="brick"><span class="brick-name">license</span><span class="brick-desc">offline entitlement tokens (Ed25519 license/account activation)</span><span class="brick-path">license</span></div>
           <div class="brick"><span class="brick-name">Observability</span><span class="brick-desc">core observability (slog + tracing)</span><span class="brick-path">observability</span></div>
-          <div class="brick"><span class="brick-name">prompts</span><span class="brick-desc">prompt library: .prompt files (Dotprompt shape) and their loader</span><span class="brick-path">prompts</span></div>
+          <div class="brick"><span class="brick-name">Prompts</span><span class="brick-desc">prompt library: .prompt files (Dotprompt shape) and their loader</span><span class="brick-path">prompts</span></div>
           <div class="brick"><span class="brick-name">RBAC</span><span class="brick-desc">RBAC with Casbin (embedded model + policy, enforced at the mux)</span><span class="brick-path">rbac</span></div>
           <div class="brick"><span class="brick-name">recipe</span><span class="brick-desc">recipe engine: declaration seam, receipt and drift check for installable extensions</span><span class="brick-path">recipe</span></div>
           <div class="brick"><span class="brick-name">Secrets</span><span class="brick-desc">age-decrypted env loader</span><span class="brick-path">secrets</span></div>
@@ -714,43 +730,177 @@
   </div>
 </section>
 
+<section class="async-layers shapelab" id="app-shapes">
+  <div class="cap-head">
+    <p class="kicker">One template, any product</p>
+    <h2>Pick a shape.<br><em>Not a fork.</em></h2>
+  </div>
+
+  <!--SHAPES:START-->
+        <div class="shape-shelf">
+          <article class="shape-card shape-default" data-shape="full">
+            <header class="shape-top">
+              <span class="shape-glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="11" height="8" rx="1.5"/><rect x="10" y="13" width="11" height="7" rx="1.5"/></svg></span>
+              <code class="shape-id">full</code>
+              <span class="shape-badge">default</span>
+            </header>
+            <p class="shape-keeps"><span>web</span><span>desktop</span><span>gui</span><span>mobile</span></p>
+            <p class="shape-drops shape-none">nothing dropped</p>
+            <p class="shape-note">every target — the default</p>
+          </article>
+        <article class="shape-card" data-shape="web">
+            <header class="shape-top">
+              <span class="shape-glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><circle cx="6" cy="6.5" r=".9"/></svg></span>
+              <code class="shape-id">web</code>
+              
+            </header>
+            <p class="shape-keeps"><span>web</span></p>
+            <p class="shape-drops"><span>desktop</span><span>gui</span><span>mobile</span></p>
+            <p class="shape-note">the browser app</p>
+          </article>
+        <article class="shape-card" data-shape="api">
+            <header class="shape-top">
+              <span class="shape-glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 5v14M15 5v14M5 9h14M5 15h14"/></svg></span>
+              <code class="shape-id">api</code>
+              
+            </header>
+            <p class="shape-keeps"><span>web</span></p>
+            <p class="shape-drops"><span>desktop</span><span>gui</span><span>mobile</span></p>
+            <p class="shape-note">API, health and assets only; pages answer 404</p>
+          </article>
+        <article class="shape-card" data-shape="desktop">
+            <header class="shape-top">
+              <span class="shape-glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M9 20h6"/></svg></span>
+              <code class="shape-id">desktop</code>
+              
+            </header>
+            <p class="shape-keeps"><span>desktop</span><span>web</span></p>
+            <p class="shape-drops"><span>gui</span><span>mobile</span></p>
+            <p class="shape-note">the Wails shell and the server it embeds</p>
+          </article>
+        <article class="shape-card" data-shape="gui">
+            <header class="shape-top">
+              <span class="shape-glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 8h18"/></svg></span>
+              <code class="shape-id">gui</code>
+              
+            </header>
+            <p class="shape-keeps"><span>gui</span></p>
+            <p class="shape-drops"><span>web</span><span>desktop</span><span>mobile</span></p>
+            <p class="shape-note">the gogpu/ui native shell</p>
+          </article>
+        <article class="shape-card" data-shape="mobile">
+            <header class="shape-top">
+              <span class="shape-glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M10 19h4"/></svg></span>
+              <code class="shape-id">mobile</code>
+              
+            </header>
+            <p class="shape-keeps"><span>mobile</span><span>web</span></p>
+            <p class="shape-drops"><span>desktop</span><span>gui</span></p>
+            <p class="shape-note">the Wails Android shell and the server it embeds</p>
+          </article>
+        </div>
+        <p class="shape-legend"><span class="shape-key kept">kept</span> answers it · <span class="shape-key dropped">dropped</span> does not ship · a shape never invents a boot path</p>
+        <!--SHAPES:END-->
+
+  <p class="async-link"><a href="./docs/shape/">Read the app shape doc →</a></p>
+</section>
+
 <section class="async-layers" id="async-layers">
   <div class="cap-head">
     <p class="kicker">The other axis</p>
     <h2>The code has levels.<br><em>The runtime has layers.</em></h2>
-    <p class="cap-lede">A capability is not one folder. Real-time multi-user is the sum of the collaboration, live-record, signal, broadcast and room rows; durable workflows is DagNats; offline-capable writes are the mode below.</p>
+    <p class="cap-lede">A capability is not one folder. An outcome is a few layers working together: pick one to see what composes it.</p>
   </div>
 
-  <p class="outcome-label">Outcomes</p>
-  <div class="outcome-row" aria-label="Outcomes">
-    <span class="outcome" data-outcome="offline">Offline-capable writes</span>
-    <span class="outcome" data-outcome="realtime">Real-time multi-user</span>
-    <span class="outcome" data-outcome="durable">Durable workflows</span>
-  </div>
+  <div class="async-lab" id="async-lab">
+    <input type="radio" name="async-outcome" id="out-realtime" checked>
+    <input type="radio" name="async-outcome" id="out-durable">
+    <input type="radio" name="async-outcome" id="out-offline">
+    <div class="async-tabs" role="group" aria-label="Async outcomes">
+      <label for="out-realtime" class="async-tab" data-outcome="realtime"><span class="async-tab-name">Real-time multi-user</span><span class="async-tab-note">4 layers compose it</span></label>
+      <label for="out-durable" class="async-tab" data-outcome="durable"><span class="async-tab-name">Durable workflows</span><span class="async-tab-note">1 layer, survives a restart</span></label>
+      <label for="out-offline" class="async-tab" data-outcome="offline"><span class="async-tab-name">Offline-capable writes</span><span class="async-tab-note">a mode on top of them</span></label>
+    </div>
 
-  <div class="table-wrap" role="region" aria-label="Async layers">
-  <table class="async-table">
-    <thead>
-      <tr><th scope="col">Async layer</th><th scope="col">What it does</th><th scope="col">Lives in</th><th scope="col">Switch</th></tr>
-    </thead>
-    <tbody>
-      <tr><th scope="row">Background jobs</th><td data-label="What it does">goqite + SSE Hub delivery. Work longer than ~50 ms goes here instead of blocking a request.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-core">Core</a><a href="#layer-recipes">Features</a></span></td><td data-label="Switch"><span class="async-switch">always on</span></td></tr>
-      <tr><th scope="row">Durable workflows</th><td data-label="What it does">DagNats over JetStream. Kill the process mid-run; it resumes at the last incomplete step.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-servants">Plugins</a><a href="#layer-recipes">Features</a></span></td><td data-label="Switch"><code>DAGNATS_ENABLED=false</code></td></tr>
-      <tr><th scope="row">Collaboration</th><td data-label="What it does">Loro CRDT. Offline edits merge; snapshots persist to Turso.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-recipes">Features</a><a href="#layer-servants">Plugins</a></span></td><td data-label="Switch"><span class="async-switch">remove <code>internal/collab/</code></span></td></tr>
-      <tr><th scope="row">Live record updates</th><td data-label="What it does">SSE Hub record-sync, scoped by owner and visibility.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-core">Core</a><a href="#layer-recipes">Features</a></span></td><td data-label="Switch"><span class="async-switch">always on</span></td></tr>
-      <tr><th scope="row">Ephemeral signals</th><td data-label="What it does">SSE Hub over Datastar: toasts, progress, chat answers.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-core">Core</a><a href="#layer-recipes">Features</a></span></td><td data-label="Switch"><span class="async-switch">always on</span></td></tr>
-      <tr><th scope="row">Cross-instance</th><td data-label="What it does">NATS JetStream. Records and docs converge across instances.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-servants">Plugins</a></span></td><td data-label="Switch"><code>NATS_ENABLED=false</code></td></tr>
-      <tr><th scope="row">Room ownership</th><td data-label="What it does">GoAkt grains. One owner per room: roster, locks, supervision.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-servants">Plugins</a><a href="#layer-recipes">Features</a></span></td><td data-label="Switch"><code>GOAKT_ENABLED=false</code></td></tr>
-    </tbody>
-  </table>
+    <div class="async-panels">
+      <div class="async-panel panel-realtime">
+        <div class="layer-grid">
+          <article class="layer-card">
+            <h3>Live record updates</h3>
+            <p>SSE Hub record-sync, scoped by owner and visibility.</p>
+            <p class="layer-foot"><span class="layer-switch on">always on</span></p>
+          </article>
+          <article class="layer-card">
+            <h3>Ephemeral signals</h3>
+            <p>SSE Hub over Datastar: toasts, progress, chat answers.</p>
+            <p class="layer-foot"><span class="layer-switch on">always on</span></p>
+          </article>
+          <article class="layer-card">
+            <h3>Cross-instance</h3>
+            <p>NATS JetStream. Records and docs converge across instances.</p>
+            <p class="layer-foot"><code>NATS_ENABLED=false</code></p>
+          </article>
+          <article class="layer-card">
+            <h3>Room ownership</h3>
+            <p>GoAkt grains. One owner per room: roster, locks, supervision.</p>
+            <p class="layer-foot"><code>GOAKT_ENABLED=false</code></p>
+          </article>
+        </div>
+      </div>
+
+      <div class="async-panel panel-durable">
+        <div class="layer-grid">
+          <article class="layer-card">
+            <h3>Durable workflows</h3>
+            <p>DagNats over JetStream. Kill the process mid-run; it resumes at the last incomplete step.</p>
+            <p class="layer-foot"><code>DAGNATS_ENABLED=false</code></p>
+          </article>
+          <article class="layer-card layer-card-quiet">
+            <h3>Background jobs</h3>
+            <p>goqite + SSE Hub delivery. Work longer than ~50 ms goes here instead of blocking a request.</p>
+            <p class="layer-foot"><span class="layer-switch on">always on</span></p>
+          </article>
+        </div>
+      </div>
+
+      <div class="async-panel panel-offline">
+        <div class="layer-grid">
+          <article class="layer-card">
+            <h3>Collaboration</h3>
+            <p>Loro CRDT. Offline edits merge; snapshots persist to Turso.</p>
+            <p class="layer-foot">remove <code>internal/collab/</code></p>
+          </article>
+          <article class="layer-card layer-card-quiet">
+            <h3>Outbox + replay</h3>
+            <p>A mutation is stored before it leaves the tab, then replayed on reconnect.</p>
+            <p class="layer-foot"><code>OFFLINE_SYNC_ENABLED=false</code></p>
+          </article>
+        </div>
+      </div>
+    </div>
   </div>
 
   <aside class="offline-callout">
-    <p class="offline-kicker">Offline-capable writes are a mode, not one of the seven</p>
-    <p><strong>Writes go offline; reads stay server-owned.</strong> A mutation is stored in a durable outbox before it leaves the tab, and replayed on reconnect; the server dedupes by <code>idem_key</code>. Reads are queries — a view you never synced is refused, not answered from a stale replica. The desktop build is the exception: it has its own local database and loopback server, so reads work offline; the NATS leaf carries live CRUD, and offline replay is a follow-up.</p>
-    <p class="offline-switch"><span class="label">Switch</span> <code>OFFLINE_SYNC_ENABLED=false</code> disables the Service Worker app-shell cache and the NATS CRUD proxy together. The outbox is never gated — losing a queued write is worse than the cache it protects.</p>
-    <p class="offline-meta"><span class="label">Lives in</span> <a href="#layer-recipes">Features</a> <a href="#layer-servants">Plugins</a> <a href="#layer-core">Core</a> · <span class="label">Try it</span> disconnect, edit, reconnect.</p>
-    <p class="offline-unit">On the SCOPE axis, <a href="#layer-servants">offline-sync</a> is a servant unit; on this async axis it is the mode above, not one of the seven.</p>
+    <p class="offline-kicker">Offline is a mode, not a level</p>
+    <div class="offline-pair">
+      <div class="offline-lane offline-lane-write">
+        <span class="offline-lane-title">Writes</span>
+        <span class="offline-lane-tag">offline</span>
+        <p>Saved to a durable outbox <em>before</em> the tab closes, replayed on reconnect.</p>
+      </div>
+      <div class="offline-lane offline-lane-read">
+        <span class="offline-lane-title">Reads</span>
+        <span class="offline-lane-tag">server-owned</span>
+        <p>A view you never synced is refused, never answered from a stale replica.</p>
+      </div>
+    </div>
+    <div class="offline-facts">
+      <p class="offline-fact"><span class="label">Deduped by</span> <code>idem_key</code></p>
+      <p class="offline-fact"><span class="label">Desktop</span> own local database — reads work offline</p>
+      <p class="offline-fact"><span class="label">Switch</span> <span><code>OFFLINE_SYNC_ENABLED=false</code><span class="offline-note">app-shell cache + NATS CRUD proxy; the outbox is never gated</span></span></p>
+      <p class="offline-fact"><span class="label">Try it</span> <span>disconnect, edit, reconnect</span></p>
+    </div>
+      <p class="offline-unit">On the SCOPE axis, <a href="#layer-servants">offline-sync</a> is a servant. Here it is the mode above.</p>
   </aside>
 
   <p class="async-fine">One <code>make build</code>. No build tags, no stub files, no matrix.</p>

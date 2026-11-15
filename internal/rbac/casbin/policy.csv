@@ -105,6 +105,8 @@ p, user, /api/review, .*
 p, user, /api/review/*, .*
 p, user, /api/credits/*, .*
 p, user, /api/ext/invoke, POST
+# UI analytics beacon (mounted only when ANALYTICS_PROVIDER is configured).
+p, user, /api/analytics, POST
 p, user, /api/ai/*, .*
 p, user, /api/byok/*, .*
 p, user, /api/onboarding, .*
@@ -201,6 +203,7 @@ p, user, /api/credits/stripe-webhook, .*
 # recipe:dashboard
 # written by `gogogo recipe install`; `gogogo recipe uninstall` removes this block
 p, user, /dashboard, .*
+p, admin, /admin/dashboard, .*
 # end recipe:dashboard
 # recipe:notes
 # written by `gogogo recipe install`; `gogogo recipe uninstall` removes this block

@@ -221,8 +221,6 @@ code {
   max-width: 56ch;
 }
 .chapter-points li::marker { color: var(--accent); }
-.viz.slots { margin-top: 40px; }
-.viz.slots > summary { cursor: pointer; }
 
 .chapter-foot {
   display: grid;
@@ -472,6 +470,15 @@ code {
   font: 9.5px/1 var(--mono);
   color: rgba(27, 26, 24, .8);
   white-space: nowrap;
+}
+
+/* The band names three examples; this says how many more the level holds, so
+   the reader never takes the sample for the whole island. */
+.band-chips .band-more {
+  border-style: dashed;
+  border-color: rgba(27, 26, 24, .3);
+  color: rgba(27, 26, 24, .62);
+  font-weight: 600;
 }
 
 .band-go .band-chips span {
@@ -1247,95 +1254,10 @@ html:not(.js) .try-remove { display: none; }
   color: var(--muted);
 }
 
-.outcome-label {
-  margin: 26px 0 6px;
-  font: 600 10.5px/1 var(--mono);
-  letter-spacing: .1em;
-  text-transform: uppercase;
-  color: var(--faint);
-}
-
-.outcome-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-  margin: 0;
-}
-
-.outcome {
-  padding: 5px 10px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--paper-2);
-  font: 600 10.5px/1 var(--mono);
-  letter-spacing: .04em;
-  color: var(--ink-soft);
-}
-
-.outcome[data-outcome="offline"] { color: #356a8a; border-color: rgba(53, 106, 138, .3); }
-.outcome[data-outcome="realtime"] { color: #3f7a54; border-color: rgba(63, 122, 84, .3); }
-.outcome[data-outcome="durable"] { color: var(--accent); border-color: rgba(185, 61, 32, .3); }
-
-.async-table {
-  width: 100%;
-  margin-top: 26px;
-  border-collapse: collapse;
-}
-
-.async-table th {
-  padding: 0 18px 10px 0;
-  border-bottom: 1px solid var(--line);
-  text-align: left;
-  font: 600 9.5px/1 var(--mono);
-  letter-spacing: .1em;
-  text-transform: uppercase;
-  color: var(--faint);
-}
-
-.async-table td {
-  padding: 14px 18px 14px 0;
-  border-bottom: 1px solid var(--line-soft);
-  vertical-align: top;
-  font-size: 13.5px;
-  line-height: 1.5;
-  color: var(--muted);
-}
-
-.async-table tbody th {
-  width: 18%;
-  font-family: var(--serif);
-  font-size: 18px;
-  line-height: 1.15;
-  letter-spacing: -.01em;
-  color: var(--ink);
-}
-
-.async-table td:nth-child(2) { width: 40%; }
-.async-table td:nth-child(3) { width: 24%; }
-.async-table td:nth-child(4) { width: 18%; }
-
-.async-lives { display: flex; flex-wrap: wrap; gap: 5px; }
-
-.async-lives a {
-  display: inline-block;
-  padding: 2px 7px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  font: 10px/1.4 var(--mono);
-  color: var(--ink-soft);
-  text-decoration: none;
-  transition: border-color .2s, color .2s;
-}
-
-.async-lives a:hover { border-color: var(--accent); color: var(--accent); }
-
-.async-switch { font: 10px/1.5 var(--mono); color: var(--faint); }
-.async-switch code { font-size: 10px; }
-.async-table td:last-child code { font-size: 10px; }
 
 .offline-callout {
   margin-top: 30px;
-  padding: 20px 22px;
+  padding: 22px 24px;
   border: 1px solid var(--line);
   border-left: 3px solid #356a8a;
   border-radius: 0 12px 12px 0;
@@ -1343,68 +1265,216 @@ html:not(.js) .try-remove { display: none; }
 }
 
 .offline-kicker {
-  margin: 0 0 8px;
+  margin: 0 0 14px;
   font: 600 10px/1.3 var(--mono);
   letter-spacing: .1em;
   text-transform: uppercase;
   color: #356a8a;
 }
 
-.offline-callout p {
-  margin: 0 0 10px;
-  font-size: 13.5px;
-  line-height: 1.6;
+/* The claim is a pair of lanes, not a paragraph: what goes offline sits beside
+   what stays server-owned, so the split is seen before the prose is read. */
+.offline-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 0 0 18px;
+}
+
+.offline-lane {
+  padding: 14px 16px;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: var(--paper);
+}
+
+.offline-lane-write { border-left: 3px solid #356a8a; }
+.offline-lane-read { border-left: 3px solid #6a645c; }
+
+.offline-lane-title {
+  display: block;
+  font-family: var(--serif);
+  font-size: 20px;
+  line-height: 1.1;
+  letter-spacing: -.01em;
+  color: var(--ink);
+}
+
+.offline-lane-tag {
+  display: inline-block;
+  margin: 6px 0 8px;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font: 600 9px/1.5 var(--mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.offline-lane p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
   color: var(--muted);
 }
 
-.offline-callout p:last-child { margin: 0; }
-.offline-callout code { font-size: 11.5px; }
-
-.offline-switch {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 5px;
-  font-size: 12.5px;
-  color: var(--faint);
+/* Facts are a definition list in one column: label left, value right, so the
+   eye scans it instead of parsing a sentence. */
+.offline-facts {
+  display: grid;
+  gap: 1px;
+  margin: 0 0 14px;
+  border-top: 1px solid var(--line-soft);
 }
 
-.offline-switch .label {
-  font: 600 9px/1 var(--mono);
+.offline-fact {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 4px 12px;
+  align-items: baseline;
+  margin: 0;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.offline-fact .label {
+  font: 600 9px/1.5 var(--mono);
   letter-spacing: .1em;
   text-transform: uppercase;
   color: var(--faint);
 }
 
-.offline-switch code { font-size: 11px; }
+/* A grid item stretches by default and these read as inline values, not bars:
+   the value is the grid's second cell, so it starts where it starts. */
+.offline-fact > * { justify-self: start; }
+.offline-fact > span:last-child { min-width: 0; }
+.offline-fact code { display: inline-block; font-size: 11.5px; }
 
-.offline-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 5px;
+.offline-note {
+  display: block;
+  margin-top: 3px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--faint);
+}
+
+.offline-unit {
+  margin: 0;
   font-size: 12px;
+  line-height: 1.5;
   color: var(--faint);
 }
 
-.offline-meta .label {
-  font: 600 9px/1 var(--mono);
-  letter-spacing: .1em;
-  text-transform: uppercase;
-  color: var(--faint);
+.offline-unit a { color: var(--faint); }
+
+/* ---------- app shapes: one card per row of the enum ---------- */
+
+.shape-shelf {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 30px;
 }
 
-.offline-meta a {
-  display: inline-block;
-  padding: 2px 7px;
+.shape-card {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-height: 148px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper-2);
+}
+
+.shape-card.shape-default {
+  border-color: rgba(185, 61, 32, .4);
+  background: linear-gradient(180deg, rgba(185, 61, 32, .045), transparent 70%), var(--paper-2);
+}
+
+.shape-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.shape-glyph svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+
+.shape-default .shape-glyph svg { stroke: var(--accent); }
+
+.shape-id {
+  padding: 2px 8px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  font: 10.5px/1.4 var(--mono);
-  color: var(--ink-soft);
-  text-decoration: none;
+  font: 600 11px/1.6 var(--mono);
+  letter-spacing: .02em;
+  color: var(--ink);
+  background: none;
 }
 
-.offline-meta a:hover { border-color: var(--accent); color: var(--accent); }
+.shape-badge {
+  margin-left: auto;
+  font: 600 9px/1 var(--mono);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* Kept pieces read as filled chips; dropped pieces as struck-through ghosts.
+   The two rows answer "what ships?" without a sentence. */
+.shape-keeps,
+.shape-drops {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+}
+
+.shape-keeps span {
+  padding: 3px 8px;
+  border: 1px solid rgba(63, 122, 84, .32);
+  border-radius: 999px;
+  font: 10.5px/1.4 var(--mono);
+  color: #3f7a54;
+  background: rgba(63, 122, 84, .06);
+}
+
+.shape-drops span {
+  padding: 3px 8px;
+  border: 1px dashed rgba(27, 26, 24, .16);
+  border-radius: 999px;
+  font: 10.5px/1.4 var(--mono);
+  color: #a09586;
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.shape-none {
+  font: 10.5px/1.4 var(--mono);
+  color: var(--faint);
+}
+
+.shape-legend {
+  margin: 14px 0 0;
+  font: 10.5px/1.5 var(--mono);
+  color: var(--faint);
+}
+
+.shape-key { font-weight: 600; }
+.shape-key.kept { color: #3f7a54; }
+.shape-key.dropped { color: #a09586; }
 
 .async-fine { margin: 22px 0 0; font: 11px/1.5 var(--mono); color: var(--faint); }
 .async-fine code { font-size: 10.5px; }
@@ -1628,35 +1698,6 @@ html:not(.js) .try-remove { display: none; }
 @media (max-width: 900px) {
   .async-layers { padding: 56px 20px 50px; }
 
-  .async-table,
-  .async-table tbody,
-  .async-table tr { display: block; width: auto; }
-
-  .async-table td,
-  .async-table tbody th { display: block; width: auto; }
-
-  .async-table thead { display: none; }
-
-  .async-table tr {
-    padding: 16px 0;
-    border-top: 1px solid var(--line);
-  }
-
-  .async-table tr:first-child { border-top: 0; }
-  .async-table td { border: 0; padding: 2px 0; }
-
-  .async-table td::before {
-    content: attr(data-label);
-    display: block;
-    margin-bottom: 3px;
-    font: 600 10.5px/1 var(--mono);
-    letter-spacing: .1em;
-    text-transform: uppercase;
-    color: var(--faint);
-  }
-
-  .async-table tbody th { font-size: 21px; margin-bottom: 4px; }
-  .async-table td:first-child::before { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2008,4 +2049,166 @@ html:not(.js) .try-remove { display: none; }
   .gate-map-row { grid-template-columns: 1fr; gap: 2px; }
   .scope-legend { justify-content: flex-start; }
   .weight { font-size: 10.5px; }
+}
+
+/* ---------- app shape shelf (responsive) ---------- */
+
+@media (max-width: 1100px) {
+  .shape-shelf { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 620px) {
+  .shape-shelf { grid-template-columns: 1fr; }
+  .shape-card { min-height: 0; }
+  .offline-pair { grid-template-columns: 1fr; }
+  .offline-fact { grid-template-columns: 1fr; gap: 2px; }
+}
+
+/* kiosk tile: a spoken sentence becoming a ticket, the demo's whole claim */
+.kiosk-ui { display: grid; gap: 7px; padding-top: 2px; }
+
+.kiosk-ui .kiosk-said {
+  display: inline-block;
+  max-width: 100%;
+  padding: 5px 9px;
+  border: 1px solid #e0d5c6;
+  border-radius: 8px 8px 8px 2px;
+  background: #f0e9de;
+  font: italic 11px/1.4 var(--serif);
+  color: #6b5f50;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kiosk-ui .kiosk-ticket {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 4px 2px 3px;
+  border-top: 1px dashed #d8cdbd;
+  font: 600 11px/1.3 var(--mono);
+  color: var(--ink-soft);
+}
+
+.kiosk-ui .kiosk-ticket b { color: #4f8f63; }
+
+.shape-note {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--faint);
+}
+
+/* ---------- async lab: an outcome as the layers that compose it ---------- */
+
+/* Radio-driven panels, the same no-JS pattern the agent tabs use: the inputs
+   sit before the labels and panels, so `:checked ~` needs no script. */
+.async-lab > input { position: absolute; opacity: 0; pointer-events: none; }
+
+.async-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 26px;
+}
+
+.async-tab {
+  display: grid;
+  gap: 3px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper-2);
+  cursor: pointer;
+  transition: border-color .2s, background .2s, box-shadow .2s;
+}
+
+.async-tab:hover { border-color: #c9bfae; }
+
+.async-tab-name {
+  font-family: var(--serif);
+  font-size: 17px;
+  line-height: 1.15;
+  letter-spacing: -.01em;
+  color: var(--ink);
+}
+
+.async-tab-note {
+  font: 9.5px/1.4 var(--mono);
+  letter-spacing: .04em;
+  color: var(--faint);
+}
+
+#out-realtime:checked ~ .async-tabs label[for="out-realtime"],
+#out-durable:checked ~ .async-tabs label[for="out-durable"],
+#out-offline:checked ~ .async-tabs label[for="out-offline"] {
+  border-color: rgba(53, 106, 138, .45);
+  background: var(--paper);
+  box-shadow: inset 0 0 0 1px rgba(53, 106, 138, .18);
+}
+
+#out-realtime:focus-visible ~ .async-tabs label[for="out-realtime"],
+#out-durable:focus-visible ~ .async-tabs label[for="out-durable"],
+#out-offline:focus-visible ~ .async-tabs label[for="out-offline"] {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.async-panel { display: none; margin-top: 16px; }
+#out-realtime:checked ~ .async-panels .panel-realtime,
+#out-durable:checked ~ .async-panels .panel-durable,
+#out-offline:checked ~ .async-panels .panel-offline { display: block; }
+
+.layer-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.layer-card {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-left: 3px solid rgba(53, 106, 138, .5);
+  border-radius: 10px;
+  background: var(--paper-2);
+}
+
+/* A supporting layer, not one of the outcome's defining pieces. */
+.layer-card-quiet { border-left-color: var(--line); }
+
+.layer-card h3 {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 19px;
+  line-height: 1.1;
+  letter-spacing: -.01em;
+  color: var(--ink);
+}
+
+.layer-card p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.layer-foot {
+  margin-top: 2px !important;
+  font: 9.5px/1.6 var(--mono);
+  color: var(--faint);
+}
+
+.layer-foot code { font-size: 9.5px; }
+
+.layer-switch.on { color: #3f7a54; }
+
+@media (max-width: 900px) {
+  .async-tabs { grid-template-columns: 1fr; }
+  .layer-grid { grid-template-columns: 1fr; }
 }

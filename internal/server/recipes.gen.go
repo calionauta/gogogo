@@ -10,13 +10,15 @@ import (
 // installedRecipes is regenerated from .recipes/*.yml by `gogogo recipe
 // install`. A removed receipt is skipped, so uninstalling never leaves an
 // import of a package that is gone.
-var installedRecipes = []register.Func{}
+var installedRecipes = []register.Entry{}
 
 // registerInstalledRecipes is the one generated call the composition root
 // makes. The code the recipes register is already in the user's tree; this only
 // tells the seam what that code claims.
 func registerInstalledRecipes(reg *recipe.Registry, d register.Deps) {
-	for _, registerRecipe := range installedRecipes {
-		registerRecipe(reg, d)
+	for _, entry := range installedRecipes {
+		if d.Allowed(entry.ID) {
+			entry.Fn(reg, d)
+		}
 	}
 }

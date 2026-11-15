@@ -6,15 +6,18 @@ upstream:
   ref: master
   path: features/dashboard
 files:
-  features/dashboard/components/page.templ: 72d0591faddf7d4e5fd1510872a6fead7d97c7fa2f16b80e9b20bd16b9bb6d8a
-  features/dashboard/components/page_templ.go: da0bf25b6f868ba7fc29911313f85e6591be77ddd947729b5ef23f740044074a
-  features/dashboard/handlers/chi.go: a7b745c9e281e338fb8e8de5c1373669381a48a7b9cc859d1abab214fac899fd
-  features/dashboard/handlers/chi_test.go: b762400b21038515e8c64230898080f32220b06bf2f595cd91a4f249a27b6947
-  features/dashboard/handlers/register.go: 463e69693e5681739fa14ef7e171c5bc32e55d5785d4c425ccd673cb3d0c4091
+  features/dashboard/components/page.templ: 5d2d425add5eb3029bb78951f2f1ea9a75b7574b1cda8b001038e76920fa4aa6
+  features/dashboard/components/page_templ.go: d57875a0d95669f3f5f185a9eebbac5506fafc0f05f264d875d4e36d286c28f0
+  features/dashboard/handlers/chi.go: 36d8c490320eb92ddc89ca957a15e7f9e3c53323bfb317334d358962956670db
+  features/dashboard/handlers/chi_test.go: 916a375f0cd309ce6968c8e2b84e4ff44b78afd9ac9c2ca3706c16b3aebb6c17
+  features/dashboard/handlers/register.go: 4a5494a2798d083b0934639d93bb1731fa9361d29a8627a1874ba0e2e4939c45
 declaration:
   routes:
   - method: GET
     pattern: /dashboard
+  - method: GET
+    pattern: /admin/dashboard
+    role: admin
   slots:
   - dashboard.card
 register: features/dashboard/handlers

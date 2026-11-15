@@ -35,6 +35,11 @@ const loginPath = "/login"
 // mountHome claims and mounts the root route. It lives here so the composition
 // root names one line, and the claim cannot drift from the handler it guards.
 func mountHome(r *Router, a *auth.Auth) {
+	// An API-only product has no home page to redirect to: / is a page, and
+	// the shape's contract is that it answers 404 (shape_gate.go).
+	if !r.pageRoutes {
+		return
+	}
 	r.Claim("core", http.MethodGet, "/")
 	r.Get("/", homeHandler(a, r))
 }

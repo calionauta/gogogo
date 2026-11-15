@@ -210,7 +210,7 @@ func kioskHead() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\">\n\t\tfunction initKioskVoice() {\n\t\t\tvar root = document.getElementById(\"kiosk-voice\");\n\t\t\tvar input = document.getElementById(\"kiosk-text\");\n\t\t\tvar status = document.getElementById(\"kiosk-voice-status\");\n\t\t\tvar mic = document.getElementById(\"kiosk-mic\");\n\t\t\tif (!root || !input || !status || !mic) return;\n\n\t\t\tvar SR = window.SpeechRecognition || window.webkitSpeechRecognition;\n\t\t\t// No recognizer at all: the button cannot ever work, so it leaves\n\t\t\t// instead of sitting there inviting a click that does nothing.\n\t\t\tif (!SR) {\n\t\t\t\tmic.hidden = true;\n\t\t\t\tstatus.textContent = \"This browser has no speech recognition — type the order.\";\n\t\t\t\treturn;\n\t\t\t}\n\t\t\tvar lang = document.documentElement.lang || \"en-US\";\n\t\t\tvar recognition = null;\n\t\t\tvar listening = false;\n\t\t\tvar lastResultAt = 0;\n\t\t\tvar watchdog = 0;\n\n\t\t\tfunction say(text) { status.textContent = text; }\n\t\t\tfunction idle() {\n\t\t\t\tlistening = false;\n\t\t\t\tmic.setAttribute(\"aria-pressed\", \"false\");\n\t\t\t\tmic.textContent = mic.getAttribute(\"data-label-idle\") || \"Microphone\";\n\t\t\t}\n\n\t\t\tfunction stop() {\n\t\t\t\tclearTimeout(watchdog);\n\t\t\t\tif (recognition && listening) recognition.stop();\n\t\t\t\tidle();\n\t\t\t}\n\n\t\t\t// On-device gating. available()/install() are the 2026 Web Speech API\n\t\t\t// surface; without them the browser can only recognize remotely, and\n\t\t\t// this page does not use a remote recognizer.\n\t\t\tfunction localSupport() {\n\t\t\t\treturn !!(SR && typeof SR.available === \"function\" && typeof SR.install === \"function\");\n\t\t\t}\n\n\t\t\tfunction prepare(next) {\n\t\t\t\tif (recognition) return recognition;\n\t\t\t\trecognition = new SR();\n\t\t\t\trecognition.lang = lang;\n\t\t\t\trecognition.continuous = true;\n\t\t\t\trecognition.interimResults = true;\n\t\t\t\trecognition.maxAlternatives = 1;\n\t\t\t\trecognition.processLocally = true;\n\t\t\t\tbias(recognition);\n\t\t\t\trecognition.onresult = function (event) {\n\t\t\t\t\tlastResultAt = Date.now();\n\t\t\t\t\tvar text = \"\";\n\t\t\t\t\tfor (var i = 0; i < event.results.length; i++) {\n\t\t\t\t\t\ttext += event.results[i][0].transcript + \" \";\n\t\t\t\t\t}\n\t\t\t\t\tinput.value = text.trim();\n\t\t\t\t\tinput.dispatchEvent(new Event(\"input\", { bubbles: true }));\n\t\t\t\t\t// A finished utterance is exactly when the decision engine\n\t\t\t\t\t// earns its round trip: the menu has had its chance, and a\n\t\t\t\t\t// person is waiting for the order to settle. Typing keeps the\n\t\t\t\t\t// parser-only path (see the input's debounce).\n\t\t\t\t\tif (event.results[event.results.length - 1].isFinal) {\n\t\t\t\t\t\tvar said = text.trim().toLowerCase();\n\t\t\t\t\t\tvar wantsReset = resetPhrases.some(function (p) { return said.indexOf(p) !== -1; });\n\t\t\t\t\t\tif (wantsReset) {\n\t\t\t\t\t\t\t// Dispatch, so ONE definition of \"clear\" serves the\n\t\t\t\t\t\t\t// button and the voice command.\n\t\t\t\t\t\t\tinput.dispatchEvent(new CustomEvent(\"kiosk-clear\", { bubbles: true }));\n\t\t\t\t\t\t\tsay(\"Order cleared — say or type a new one.\");\n\t\t\t\t\t\t\treturn;\n\t\t\t\t\t\t}\n\t\t\t\t\t\tinput.dispatchEvent(new CustomEvent(\"kiosk-decide\", { bubbles: true }));\n\t\t\t\t\t}\n\t\t\t\t};\n\t\t\t\trecognition.onerror = function (event) {\n\t\t\t\t\tsay(\"Microphone: \" + (event.error || \"error\") + \" — type the order.\");\n\t\t\t\t\tstop();\n\t\t\t\t};\n\t\t\t\trecognition.onend = function () {\n\t\t\t\t\t// The browser ends a session on its own after silence. Leave it\n\t\t\t\t\t// stopped and say so rather than pretending it is still listening.\n\t\t\t\t\tif (listening) {\n\t\t\t\t\t\tsay(\"Listening stopped — tap the microphone to continue, or type.\");\n\t\t\t\t\t\tidle();\n\t\t\t\t\t}\n\t\t\t\t};\n\t\t\t\treturn next(recognition);\n\t\t\t}\n\n\t\t\t// bias supplies the menu as phrases. Contextual biasing is the cheap half\n\t\t\t// of accuracy: the recognizer prefers words it was told about.\n\t\t\tfunction bias(rec) {\n\t\t\t\tif (!rec.phrases || !window.SpeechRecognitionPhrase) return;\n\t\t\t\tif (!root.dataset.phrases) return;\n\t\t\t\ttry {\n\t\t\t\t\tvar labels = JSON.parse(root.dataset.phrases);\n\t\t\t\t\trec.phrases = labels.map(function (label) {\n\t\t\t\t\t\treturn new SpeechRecognitionPhrase(label, 1);\n\t\t\t\t\t});\n\t\t\t\t} catch (_) {\n\t\t\t\t\t// A malformed attribute costs the bias, not the feature.\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// installTimeout bounds the language-pack download. Chrome's install()\n\t\t\t// can stay pending for minutes on a slow link and never reject, which\n\t\t\t// left the page saying \"Downloading…\" forever with no way back — the\n\t\t\t// button still worked, but nothing said so. A timeout turns that into\n\t\t\t// an instruction (type, or ask again) instead of a stuck label.\n\t\t\tvar installTimeout = 20000;\n\n\t\t\tfunction availableWithTimeout(options) {\n\t\t\t\treturn Promise.race([\n\t\t\t\t\tSR.available(options),\n\t\t\t\t\tnew Promise(function (resolve) { setTimeout(function () { resolve(\"unknown\"); }, 5000); })\n\t\t\t\t]);\n\t\t\t}\n\n\t\t\tfunction installWithTimeout(options) {\n\t\t\t\treturn Promise.race([\n\t\t\t\t\tSR.install(options),\n\t\t\t\t\tnew Promise(function (resolve) { setTimeout(function () { resolve(false); }, installTimeout); })\n\t\t\t\t]);\n\t\t\t}\n\n\t\t\t// askMicrophone asks the browser for microphone permission.\n\t\t\t//\n\t\t\t// SpeechRecognition.start() does NOT trigger the permission prompt on\n\t\t\t// its own: the recognizer is handed an already-granted stream, so with\n\t\t\t// no grant it fails immediately with `not-allowed` and the page says\n\t\t\t// \"type the order\" — the reported bug (\"it never asked me\"). Calling\n\t\t\t// getUserMedia IS what shows the prompt. The tracks are stopped right\n\t\t\t// away: recognition opens its own capture, and holding a second\n\t\t\t// stream would light the microphone indicator for no reason.\n\t\t\tfunction askMicrophone() {\n\t\t\t\tif (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {\n\t\t\t\t\t// No getUserMedia at all (insecure origin): the recognizer may\n\t\t\t\t\t// still work on a granted permission, so do not block here.\n\t\t\t\t\treturn Promise.resolve(true);\n\t\t\t\t}\n\t\t\t\treturn navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {\n\t\t\t\t\tstream.getTracks().forEach(function (t) { t.stop(); });\n\t\t\t\t\treturn true;\n\t\t\t\t}).catch(function () {\n\t\t\t\t\treturn false;\n\t\t\t\t});\n\t\t\t}\n\n\t\t\tfunction start() {\n\t\t\t\tif (!localSupport()) {\n\t\t\t\t\tsay(\"This browser offers no on-device recognition — type the order.\");\n\t\t\t\t\treturn;\n\t\t\t\t}\n\t\t\t\tvar options = { langs: [lang], processLocally: true };\n\t\t\t\t// Permission FIRST. The recognizer needs an already-granted stream,\n\t\t\t\t// and a language-pack download is slow and can hang: asking after\n\t\t\t\t// it meant the user clicked, waited, and never saw the prompt —\n\t\t\t\t// which is exactly what was reported (\"it never asked me\").\n\t\t\t\taskMicrophone().then(function (granted) {\n\t\t\t\t\tif (!granted) {\n\t\t\t\t\t\tsay(\"Microphone permission was denied — allow it in the browser, or type the order.\");\n\t\t\t\t\t\treturn null;\n\t\t\t\t\t}\n\t\t\t\t\treturn availableWithTimeout(options).then(function (state) {\n\t\t\t\t\t\tif (state === \"available\") return \"ready\";\n\t\t\t\t\t\t// `downloading` means an install is already running: waiting on\n\t\t\t\t\t\t// another one would stack downloads, so ask the user to retry.\n\t\t\t\t\t\tif (state === \"downloading\") {\n\t\t\t\t\t\t\tsay(\"The language pack is still downloading — tap the microphone again in a moment.\");\n\t\t\t\t\t\t\treturn \"pending\";\n\t\t\t\t\t\t}\n\t\t\t\t\t\tsay(\"Downloading the language pack once…\");\n\t\t\t\t\t\treturn installWithTimeout(options).then(function (ok) {\n\t\t\t\t\t\t\treturn ok ? \"ready\" : \"pending\";\n\t\t\t\t\t\t});\n\t\t\t\t\t});\n\t\t\t\t}).then(function (outcome) {\n\t\t\t\t\tif (outcome !== \"ready\") {\n\t\t\t\t\t\t// null: permission refused (the message is already shown).\n\t\t\t\t\t\t// pending: the install is still running in the background and\n\t\t\t\t\t\t// the label already says what to do.\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\t\t\t\t\tstartRecognition();\n\t\t\t\t}).catch(function () {\n\t\t\t\t\tsay(\"On-device recognition unavailable — type the order.\");\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// startRecognition begins a listening session, assuming the language\n\t\t\t// pack is present and the microphone is allowed.\n\t\t\tfunction startRecognition() {\n\t\t\t\tprepare(function (rec) {\n\t\t\t\t\tlistening = true;\n\t\t\t\t\tmic.setAttribute(\"aria-pressed\", \"true\");\n\t\t\t\t\tmic.textContent = mic.getAttribute(\"data-label-live\") || \"Stop\";\n\t\t\t\t\tsay(\"Listening on device…\");\n\t\t\t\t\tlastResultAt = Date.now();\n\t\t\t\t\trec.start();\n\t\t\t\t\t// A known browser bug (Chromium 579050368) detects speech and\n\t\t\t\t\t// never fires a result. Silence must become an instruction,\n\t\t\t\t\t// not a spinner that never ends.\n\t\t\t\t\twatchdog = setTimeout(function () {\n\t\t\t\t\t\tif (listening && Date.now() - lastResultAt > 4000) {\n\t\t\t\t\t\t\tsay(\"I did not catch that — type the order.\");\n\t\t\t\t\t\t\tstop();\n\t\t\t\t\t\t}\n\t\t\t\t\t}, 4500);\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// A spoken \"start over\" clears the order the same way the button does.\n\t\t\t// The recognizer only fills the input, so the phrase is checked here\n\t\t\t// rather than parsed server-side: it is a command, not an order.\n\t\t\tvar resetPhrases = [\"start over\", \"start again\", \"clear\", \"cancel order\", \"recomeçar\", \"limpar\", \"cancelar\"];\n\n\t\t\t// ONE handler: the markup's data-on:click calls __kioskVoice.toggle.\n\t\t\t// An addEventListener here would fire on the same click as well, so\n\t\t\t// the two toggles cancelled out — the button flipped to Stop and\n\t\t\t// straight back to Microphone, and recognition never stayed on.\n\t\t\twindow.__kioskVoice = { toggle: function () { if (listening) stop(); else start(); } };\n\t\t}\n\n\t\t// The body is not parsed yet when this script runs (it is in <head>), so\n\t\t// the wiring waits for the DOM. `readyState` covers the case where a\n\t\t// later include has already fired the event.\n\t\tif (document.readyState === \"loading\") {\n\t\t\tdocument.addEventListener(\"DOMContentLoaded\", initKioskVoice);\n\t\t} else {\n\t\t\tinitKioskVoice();\n\t\t}\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\">\n\t\tfunction initKioskVoice() {\n\t\t\tvar root = document.getElementById(\"kiosk-voice\");\n\t\t\tvar input = document.getElementById(\"kiosk-text\");\n\t\t\tvar status = document.getElementById(\"kiosk-voice-status\");\n\t\t\tvar mic = document.getElementById(\"kiosk-mic\");\n\t\t\tif (!root || !input || !status || !mic) return;\n\n\t\t\tvar SR = window.SpeechRecognition || window.webkitSpeechRecognition;\n\t\t\t// No recognizer at all: the button cannot ever work, so it leaves\n\t\t\t// instead of sitting there inviting a click that does nothing.\n\t\t\tif (!SR) {\n\t\t\t\tmic.hidden = true;\n\t\t\t\tstatus.textContent = \"This browser has no speech recognition — type the order.\";\n\t\t\t\treturn;\n\t\t\t}\n\t\t\tvar lang = document.documentElement.lang || \"en-US\";\n\t\t\tvar recognition = null;\n\t\t\tvar listening = false;\n\t\t\tvar lastResultAt = 0;\n\t\t\tvar watchdog = 0;\n\t\t\t// silenceMs bounds a silent session (see armWatchdog). Speech\n\t\t\t// recognition can detect a voice and never fire a result, so the\n\t\t\t// page must not claim to be listening forever; it must also be\n\t\t\t// long enough that a person reading the menu is not cut off.\n\t\t\tvar silenceMs = 30000;\n\t\t\t// The recognizer accumulates every final result for the whole\n\t\t\t// session (continuous = true), so rebuilding the field from index 0\n\t\t\t// replayed words the customer had already cleared — the \"old order\n\t\t\t// comes back\" bug. `committed` is the accepted final text and\n\t\t\t// `lastFinal` the first result index not yet folded into it.\n\t\t\tvar committed = \"\";\n\t\t\tvar lastFinal = 0;\n\t\t\t// resultCount is how many results the recognizer has delivered so\n\t\t\t// far; a clear uses it to forget the utterance in flight, not only\n\t\t\t// the finished ones.\n\t\t\tvar resultCount = 0;\n\n\t\t\tfunction say(text) { status.textContent = text; }\n\t\t\tfunction idle() {\n\t\t\t\tlistening = false;\n\t\t\t\tmic.setAttribute(\"aria-pressed\", \"false\");\n\t\t\t\tmic.textContent = mic.getAttribute(\"data-label-idle\") || \"Microphone\";\n\t\t\t}\n\n\t\t\t// armWatchdog bounds a silent session. A known browser bug\n\t\t\t// (Chromium 579050368) detects speech and never fires a result;\n\t\t\t// silence must become an instruction, not a spinner that never\n\t\t\t// ends. It is re-armed on every result, so a long order is never\n\t\t\t// cut off mid-sentence, and half a minute is long enough to read a menu.\n\t\t\tfunction armWatchdog() {\n\t\t\t\tclearTimeout(watchdog);\n\t\t\t\twatchdog = setTimeout(function () {\n\t\t\t\t\tif (listening && Date.now() - lastResultAt >= silenceMs - 500) {\n\t\t\t\t\t\tsay(\"I did not catch that — type the order.\");\n\t\t\t\t\t\tstop();\n\t\t\t\t\t}\n\t\t\t\t}, silenceMs);\n\t\t\t}\n\n\t\t\tfunction stop() {\n\t\t\t\tclearTimeout(watchdog);\n\t\t\t\t// Drop the reference BEFORE aborting: the discarded session's\n\t\t\t\t// onend/onerror then fail the staleness guard instead of\n\t\t\t\t// resetting the button of a session that is still live.\n\t\t\t\tvar rec = recognition;\n\t\t\t\trecognition = null;\n\t\t\t\tlistening = false;\n\t\t\t\tif (rec) {\n\t\t\t\t\ttry { rec.abort(); } catch (_) { /* already ended */ }\n\t\t\t\t}\n\t\t\t\tidle();\n\t\t\t}\n\n\t\t\t// On-device gating. available()/install() are the 2026 Web Speech API\n\t\t\t// surface; without them the browser can only recognize remotely, and\n\t\t\t// this page does not use a remote recognizer.\n\t\t\tfunction localSupport() {\n\t\t\t\treturn !!(SR && typeof SR.available === \"function\" && typeof SR.install === \"function\");\n\t\t\t}\n\n\t\t\tfunction prepare(next) {\n\t\t\t\t// A NEW recognizer per session. Reusing the object that had just\n\t\t\t\t// stopped raced its onend against the next start(): the old\n\t\t\t\t// session's onend ran after the restart and put the button back\n\t\t\t\t// to \"Microphone\" while the microphone was live — the reported\n\t\t\t\t// \"mic looks on but the app does nothing\". A fresh instance has\n\t\t\t\t// no state to race, and the staleness guard below turns every\n\t\t\t\t// event from a discarded session into a no-op.\n\t\t\t\tvar rec = new SR();\n\t\t\t\trecognition = rec;\n\t\t\t\trec.lang = lang;\n\t\t\t\trec.continuous = true;\n\t\t\t\trec.interimResults = true;\n\t\t\t\trec.maxAlternatives = 1;\n\t\t\t\trec.processLocally = true;\n\t\t\t\tbias(rec);\n\t\t\t\trec.onresult = function (event) {\n\t\t\t\t\tif (recognition !== rec) return;\n\t\t\t\t\tlastResultAt = Date.now();\n\t\t\t\t\tarmWatchdog();\n\t\t\t\t\t// Start at the first result THIS event changed and fold in only\n\t\t\t\t\t// results the buffer has not seen: that is what makes a cleared\n\t\t\t\t\t// transcript stay cleared.\n\t\t\t\t\tresultCount = event.results.length;\n\t\t\t\t\tvar interim = \"\";\n\t\t\t\t\tvar finished = false;\n\t\t\t\t\tfor (var i = event.resultIndex; i < event.results.length; i++) {\n\t\t\t\t\t\tif (i < lastFinal) continue;\n\t\t\t\t\t\tvar result = event.results[i];\n\t\t\t\t\t\tif (result.isFinal) {\n\t\t\t\t\t\t\tcommitted = (committed + \" \" + result[0].transcript).trim();\n\t\t\t\t\t\t\tlastFinal = i + 1;\n\t\t\t\t\t\t\tfinished = true;\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tinterim = (interim + \" \" + result[0].transcript).trim();\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t\tvar text = (committed + \" \" + interim).trim();\n\t\t\t\t\tinput.value = text;\n\t\t\t\t\tinput.dispatchEvent(new Event(\"input\", { bubbles: true }));\n\t\t\t\t\t// A finished utterance only needs to have dispatched `input`\n\t\t\t\t\t// above: the page's debounce posts it, and the server decides\n\t\t\t\t\t// whether the decision engine is worth a round trip (a\n\t\t\t\t\t// correction or an order already in play yes, a plain order\n\t\t\t\t\t// no). Typing and speaking share that one path.\n\t\t\t\t\tif (finished) {\n\t\t\t\t\t\tvar said = text.toLowerCase();\n\t\t\t\t\t\tvar wantsReset = resetPhrases.some(function (p) { return said.indexOf(p) !== -1; });\n\t\t\t\t\t\tif (wantsReset) {\n\t\t\t\t\t\t\t// Dispatch, so ONE definition of \"clear\" serves the\n\t\t\t\t\t\t\t// button and the voice command.\n\t\t\t\t\t\t\tinput.dispatchEvent(new CustomEvent(\"kiosk-clear\", { bubbles: true }));\n\t\t\t\t\t\t\tsay(\"Order cleared — say or type a new one.\");\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t};\n\t\t\t\trec.onerror = function (event) {\n\t\t\t\t\tif (recognition !== rec) return;\n\t\t\t\t\tsay(\"Microphone: \" + (event.error || \"error\") + \" — type the order.\");\n\t\t\t\t\tstop();\n\t\t\t\t};\n\t\t\t\trec.onend = function () {\n\t\t\t\t\tif (recognition !== rec) return;\n\t\t\t\t\t// The browser ends a session on its own after silence. Leave it\n\t\t\t\t\t// stopped and say so rather than pretending it is still listening.\n\t\t\t\t\tif (listening) {\n\t\t\t\t\t\tsay(\"Listening stopped — tap the microphone to continue, or type.\");\n\t\t\t\t\t\tidle();\n\t\t\t\t\t}\n\t\t\t\t};\n\t\t\t\treturn next(rec);\n\t\t\t}\n\n\t\t\t// bias supplies the menu as phrases. Contextual biasing is the cheap half\n\t\t\t// of accuracy: the recognizer prefers words it was told about.\n\t\t\tfunction bias(rec) {\n\t\t\t\tif (!rec.phrases || !window.SpeechRecognitionPhrase) return;\n\t\t\t\tif (!root.dataset.phrases) return;\n\t\t\t\ttry {\n\t\t\t\t\tvar labels = JSON.parse(root.dataset.phrases);\n\t\t\t\t\trec.phrases = labels.map(function (label) {\n\t\t\t\t\t\treturn new SpeechRecognitionPhrase(label, 1);\n\t\t\t\t\t});\n\t\t\t\t} catch (_) {\n\t\t\t\t\t// A malformed attribute costs the bias, not the feature.\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// installTimeout bounds the language-pack download. Chrome's install()\n\t\t\t// can stay pending for minutes on a slow link and never reject, which\n\t\t\t// left the page saying \"Downloading…\" forever with no way back — the\n\t\t\t// button still worked, but nothing said so. A timeout turns that into\n\t\t\t// an instruction (type, or ask again) instead of a stuck label.\n\t\t\tvar installTimeout = 20000;\n\n\t\t\tfunction availableWithTimeout(options) {\n\t\t\t\treturn Promise.race([\n\t\t\t\t\tSR.available(options),\n\t\t\t\t\tnew Promise(function (resolve) { setTimeout(function () { resolve(\"unknown\"); }, 5000); })\n\t\t\t\t]);\n\t\t\t}\n\n\t\t\tfunction installWithTimeout(options) {\n\t\t\t\treturn Promise.race([\n\t\t\t\t\tSR.install(options),\n\t\t\t\t\tnew Promise(function (resolve) { setTimeout(function () { resolve(false); }, installTimeout); })\n\t\t\t\t]);\n\t\t\t}\n\n\t\t\t// askMicrophone asks the browser for microphone permission.\n\t\t\t//\n\t\t\t// SpeechRecognition.start() does NOT trigger the permission prompt on\n\t\t\t// its own: the recognizer is handed an already-granted stream, so with\n\t\t\t// no grant it fails immediately with `not-allowed` and the page says\n\t\t\t// \"type the order\" — the reported bug (\"it never asked me\"). Calling\n\t\t\t// getUserMedia IS what shows the prompt. The tracks are stopped right\n\t\t\t// away: recognition opens its own capture, and holding a second\n\t\t\t// stream would light the microphone indicator for no reason.\n\t\t\tfunction askMicrophone() {\n\t\t\t\tif (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {\n\t\t\t\t\t// No getUserMedia at all (insecure origin): the recognizer may\n\t\t\t\t\t// still work on a granted permission, so do not block here.\n\t\t\t\t\treturn Promise.resolve(true);\n\t\t\t\t}\n\t\t\t\treturn navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {\n\t\t\t\t\tstream.getTracks().forEach(function (t) { t.stop(); });\n\t\t\t\t\treturn true;\n\t\t\t\t}).catch(function () {\n\t\t\t\t\treturn false;\n\t\t\t\t});\n\t\t\t}\n\n\t\t\tfunction start() {\n\t\t\t\tif (!localSupport()) {\n\t\t\t\t\tsay(\"This browser offers no on-device recognition — type the order.\");\n\t\t\t\t\treturn;\n\t\t\t\t}\n\t\t\t\tvar options = { langs: [lang], processLocally: true };\n\t\t\t\t// Permission FIRST. The recognizer needs an already-granted stream,\n\t\t\t\t// and a language-pack download is slow and can hang: asking after\n\t\t\t\t// it meant the user clicked, waited, and never saw the prompt —\n\t\t\t\t// which is exactly what was reported (\"it never asked me\").\n\t\t\t\taskMicrophone().then(function (granted) {\n\t\t\t\t\tif (!granted) {\n\t\t\t\t\t\tsay(\"Microphone permission was denied — allow it in the browser, or type the order.\");\n\t\t\t\t\t\treturn null;\n\t\t\t\t\t}\n\t\t\t\t\treturn availableWithTimeout(options).then(function (state) {\n\t\t\t\t\t\tif (state === \"available\") return \"ready\";\n\t\t\t\t\t\t// `downloading` means an install is already running: waiting on\n\t\t\t\t\t\t// another one would stack downloads, so ask the user to retry.\n\t\t\t\t\t\tif (state === \"downloading\") {\n\t\t\t\t\t\t\tsay(\"The language pack is still downloading — tap the microphone again in a moment.\");\n\t\t\t\t\t\t\treturn \"pending\";\n\t\t\t\t\t\t}\n\t\t\t\t\t\tsay(\"Downloading the language pack once…\");\n\t\t\t\t\t\treturn installWithTimeout(options).then(function (ok) {\n\t\t\t\t\t\t\treturn ok ? \"ready\" : \"pending\";\n\t\t\t\t\t\t});\n\t\t\t\t\t});\n\t\t\t\t}).then(function (outcome) {\n\t\t\t\t\tif (outcome !== \"ready\") {\n\t\t\t\t\t\t// null: permission refused (the message is already shown).\n\t\t\t\t\t\t// pending: the install is still running in the background and\n\t\t\t\t\t\t// the label already says what to do.\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\t\t\t\t\tstartRecognition();\n\t\t\t\t}).catch(function () {\n\t\t\t\t\tsay(\"On-device recognition unavailable — type the order.\");\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// startRecognition begins a listening session, assuming the language\n\t\t\t// pack is present and the microphone is allowed.\n\t\t\tfunction startRecognition() {\n\t\t\t\tif (listening) return;\n\t\t\t\tprepare(function (rec) {\n\t\t\t\t\t// A new session starts with an empty result list; whatever the\n\t\t\t\t\t// field already holds is treated as committed, so stopping and\n\t\t\t\t\t// resuming the microphone continues the order instead of losing\n\t\t\t\t\t// the words spoken before the pause.\n\t\t\t\t\tcommitted = (input.value || \"\").trim();\n\t\t\t\t\tlastFinal = 0;\n\t\t\t\t\tresultCount = 0;\n\t\t\t\t\tlistening = true;\n\t\t\t\t\tmic.setAttribute(\"aria-pressed\", \"true\");\n\t\t\t\t\tmic.textContent = mic.getAttribute(\"data-label-live\") || \"Stop\";\n\t\t\t\t\tsay(\"Listening on device…\");\n\t\t\t\t\tlastResultAt = Date.now();\n\t\t\t\t\ttry {\n\t\t\t\t\t\trec.start();\n\t\t\t\t\t} catch (_) {\n\t\t\t\t\t\t// A start that throws would otherwise leave the button\n\t\t\t\t\t\t// saying Stop on a session that never began.\n\t\t\t\t\t\tsay(\"Could not start the microphone — tap it again.\");\n\t\t\t\t\t\tstop();\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\t\t\t\t\tarmWatchdog();\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// A spoken \"start over\" clears the order the same way the button does.\n\t\t\t// The recognizer only fills the input, so the phrase is checked here\n\t\t\t// rather than parsed server-side: it is a command, not an order.\n\t\t\tvar resetPhrases = [\"start over\", \"start again\", \"clear\", \"cancel order\", \"recomeçar\", \"limpar\", \"cancelar\"];\n\n\t\t\t// Clear means forget, not only empty the box. The Datastar handler\n\t\t\t// empties the field; the recognizer's buffer is what put the old\n\t\t\t// order back on the next word, so the voice wiring drops it on the\n\t\t\t// same event — including the utterance still in flight, which is a\n\t\t\t// phrase the customer just cancelled. Listening keeps running: on a\n\t\t\t// counter, \"start over\" is almost always followed by a new order.\n\t\t\t//\n\t\t\t// This is published on the global rather than added as a listener:\n\t\t\t// the markup owns the event with data-on:kiosk-clear, so the guard\n\t\t\t// that keeps behavior out of vanilla JS sees no island.\n\t\t\twindow.__kioskVoice = Object.assign(window.__kioskVoice || {}, {\n\t\t\t\tforget: function () {\n\t\t\t\t\tcommitted = \"\";\n\t\t\t\t\tlastFinal = resultCount;\n\t\t\t\t}\n\t\t\t});\n\n\t\t\t// The counter is voice-first: arriving on the page IS the intent to\n\t\t\t// speak, so the microphone starts without a second tap. start()\n\t\t\t// still triggers the browser's permission prompt (never a silent\n\t\t\t// grant), and a refusal stays a message instead of a retry loop.\n\t\t\tfunction autoStart() {\n\t\t\t\tif (!localSupport()) return;\n\t\t\t\tif (listening) return;\n\t\t\t\tstart();\n\t\t\t}\n\t\t\tautoStart();\n\n\t\t\t// ONE handler: the markup's data-on:click calls __kioskVoice.toggle.\n\t\t\t// An addEventListener here would fire on the same click as well, so\n\t\t\t// the two toggles cancelled out — the button flipped to Stop and\n\t\t\t// straight back to Microphone, and recognition never stayed on.\n\t\t\twindow.__kioskVoice = Object.assign(window.__kioskVoice || {}, {\n\t\t\t\ttoggle: function () { if (listening) stop(); else start(); }\n\t\t\t});\n\t\t}\n\n\t\t// The body is not parsed yet when this script runs (it is in <head>), so\n\t\t// the wiring waits for the DOM. `readyState` covers the case where a\n\t\t// later include has already fired the event.\n\t\tif (document.readyState === \"loading\") {\n\t\t\tdocument.addEventListener(\"DOMContentLoaded\", initKioskVoice);\n\t\t} else {\n\t\t\tinitKioskVoice();\n\t\t}\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -246,7 +246,7 @@ func kioskBody(data PageData) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(MarshalSignals(seedSignals()))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 340, Col: 90}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 441, Col: 90}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 		if templ_7745c5c3_Err != nil {
@@ -259,7 +259,7 @@ func kioskBody(data PageData) templ.Component {
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.Phrases)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 341, Col: 71}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 442, Col: 71}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 		if templ_7745c5c3_Err != nil {
@@ -272,7 +272,7 @@ func kioskBody(data PageData) templ.Component {
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.sayOrder", nil))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 343, Col: 61}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 444, Col: 61}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -285,20 +285,20 @@ func kioskBody(data PageData) templ.Component {
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.sayOrderHelp", nil))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 344, Col: 63}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 445, Col: 63}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</p><form id=\"kiosk-form\" class=\"ui-row\" data-on:submit__prevent=\"@post('/api/kiosk/preview', {contentType: 'form'})\" data-on:kiosk-clear=\"var i = document.getElementById('kiosk-text'); i.value = ''; $kioskText = ''; $kioskDrink = ''; $kioskSize = ''; $kioskMilk = ''; $kioskExtras = ''; $kioskPrice = ''; $kioskNeed = ''; $kioskPreview = ''; $kioskNotice = ''; i.focus()\"><input id=\"kiosk-text\" name=\"text\" class=\"input input-sm grow\" autocomplete=\"off\" placeholder=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</p><form id=\"kiosk-form\" class=\"ui-row\" data-on:submit__prevent=\"@post('/api/kiosk/preview', {contentType: 'form'})\" data-on:kiosk-clear=\"window.__kioskVoice && window.__kioskVoice.forget(); var i = document.getElementById('kiosk-text'); i.value = ''; $kioskText = ''; $kioskDrink = ''; $kioskSize = ''; $kioskMilk = ''; $kioskExtras = ''; $kioskPrice = ''; $kioskNeed = ''; $kioskPreview = ''; $kioskNotice = ''; i.focus()\"><input id=\"kiosk-text\" name=\"text\" class=\"input input-sm grow\" autocomplete=\"off\" placeholder=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(i18n.T(ctx, "kiosk.orderPlaceholder", nil))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 356, Col: 62}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 457, Col: 62}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 		if templ_7745c5c3_Err != nil {
@@ -311,7 +311,7 @@ func kioskBody(data PageData) templ.Component {
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(i18n.T(ctx, "kiosk.orderLabel", nil))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 357, Col: 55}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 458, Col: 55}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 		if templ_7745c5c3_Err != nil {
@@ -335,7 +335,7 @@ func kioskBody(data PageData) templ.Component {
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue(i18n.T(ctx, "kiosk.resetHint", nil))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 375, Col: 49}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 476, Col: 49}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 		if templ_7745c5c3_Err != nil {
@@ -348,7 +348,7 @@ func kioskBody(data PageData) templ.Component {
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.reset", nil))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 379, Col: 39}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 480, Col: 39}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 		if templ_7745c5c3_Err != nil {
@@ -361,7 +361,7 @@ func kioskBody(data PageData) templ.Component {
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue(i18n.T(ctx, "kiosk.microphone", nil))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 388, Col: 60}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 489, Col: 60}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 		if templ_7745c5c3_Err != nil {
@@ -374,7 +374,7 @@ func kioskBody(data PageData) templ.Component {
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.ResolveAttributeValue(i18n.T(ctx, "kiosk.stop", nil))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 389, Col: 54}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 490, Col: 54}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
 		if templ_7745c5c3_Err != nil {
@@ -387,7 +387,7 @@ func kioskBody(data PageData) templ.Component {
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.microphone", nil))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 392, Col: 44}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 493, Col: 44}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 		if templ_7745c5c3_Err != nil {
@@ -400,7 +400,7 @@ func kioskBody(data PageData) templ.Component {
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.micOptional", nil))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 395, Col: 45}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 496, Col: 45}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
@@ -413,7 +413,7 @@ func kioskBody(data PageData) templ.Component {
 		var templ_7745c5c3_Var18 string
 		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.preview", nil))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 408, Col: 61}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 509, Col: 61}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 		if templ_7745c5c3_Err != nil {
@@ -426,7 +426,7 @@ func kioskBody(data PageData) templ.Component {
 		var templ_7745c5c3_Var19 string
 		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.pricing", nil))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 409, Col: 87}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 510, Col: 87}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 		if templ_7745c5c3_Err != nil {
@@ -447,7 +447,7 @@ func kioskBody(data PageData) templ.Component {
 		var templ_7745c5c3_Var20 string
 		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.drink", nil))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 417, Col: 59}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 518, Col: 59}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 		if templ_7745c5c3_Err != nil {
@@ -460,7 +460,7 @@ func kioskBody(data PageData) templ.Component {
 		var templ_7745c5c3_Var21 string
 		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.size", nil))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 421, Col: 58}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 522, Col: 58}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 		if templ_7745c5c3_Err != nil {
@@ -473,7 +473,7 @@ func kioskBody(data PageData) templ.Component {
 		var templ_7745c5c3_Var22 string
 		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.milk", nil))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 425, Col: 58}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 526, Col: 58}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 		if templ_7745c5c3_Err != nil {
@@ -486,7 +486,7 @@ func kioskBody(data PageData) templ.Component {
 		var templ_7745c5c3_Var23 string
 		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.extras", nil))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 429, Col: 60}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 530, Col: 60}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 		if templ_7745c5c3_Err != nil {
@@ -499,20 +499,20 @@ func kioskBody(data PageData) templ.Component {
 		var templ_7745c5c3_Var24 string
 		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.price", nil))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 433, Col: 73}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 534, Col: 73}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</dt><dd class=\"text-2xl font-bold tabular-nums\" data-text=\"$kioskPrice || '—'\"></dd></div></dl><p class=\"ui-meta\" data-show=\"!!$kioskNeed\" data-text=\"$kioskNeed\"></p><button type=\"button\" class=\"btn btn-primary btn-sm\" data-attr:disabled=\"!!($kioskBusy || !$kioskDrink || $kioskNeed)\" data-on:click=\"$kioskBusy = true; @post('/api/kiosk/confirm', {contentType: 'form'}).finally(() => { $kioskBusy = false; })\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</dt><dd class=\"text-2xl font-bold tabular-nums\" data-text=\"$kioskPrice || '—'\"></dd></div></dl><p class=\"ui-meta\" data-show=\"!!$kioskNeed\" data-text=\"$kioskNeed\"></p><button type=\"button\" class=\"btn btn-primary btn-sm\" data-attr:disabled=\"!!($kioskBusy || !$kioskDrink || $kioskNeed)\" data-on:click=\"$kioskBusy = true; @post('/api/kiosk/confirm', {contentType: 'form', selector: '#kiosk-form'}).finally(() => { $kioskBusy = false; })\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var25 string
 		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.confirm", nil))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 444, Col: 40}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 545, Col: 40}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 		if templ_7745c5c3_Err != nil {
@@ -525,7 +525,7 @@ func kioskBody(data PageData) templ.Component {
 		var templ_7745c5c3_Var26 string
 		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.menu", nil))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 458, Col: 58}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 559, Col: 58}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 		if templ_7745c5c3_Err != nil {
@@ -538,7 +538,7 @@ func kioskBody(data PageData) templ.Component {
 		var templ_7745c5c3_Var27 string
 		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.menuOpenHint", nil))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 459, Col: 67}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 560, Col: 67}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 		if templ_7745c5c3_Err != nil {
@@ -551,7 +551,7 @@ func kioskBody(data PageData) templ.Component {
 		var templ_7745c5c3_Var28 string
 		templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(data.MenuLine)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 461, Col: 38}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 562, Col: 38}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 		if templ_7745c5c3_Err != nil {
@@ -612,7 +612,7 @@ func OrdersList(orders []Order) templ.Component {
 		var templ_7745c5c3_Var30 string
 		templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.orders", nil))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 481, Col: 57}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 582, Col: 57}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 		if templ_7745c5c3_Err != nil {
@@ -625,7 +625,7 @@ func OrdersList(orders []Order) templ.Component {
 		var templ_7745c5c3_Var31 string
 		templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(len(orders)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 482, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 583, Col: 51}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 		if templ_7745c5c3_Err != nil {
@@ -643,7 +643,7 @@ func OrdersList(orders []Order) templ.Component {
 			var templ_7745c5c3_Var32 string
 			templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.noOrdersTitle", nil))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 486, Col: 70}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 587, Col: 70}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 			if templ_7745c5c3_Err != nil {
@@ -656,7 +656,7 @@ func OrdersList(orders []Order) templ.Component {
 			var templ_7745c5c3_Var33 string
 			templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.noOrdersBody", nil))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 488, Col: 44}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 589, Col: 44}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 			if templ_7745c5c3_Err != nil {
@@ -679,7 +679,7 @@ func OrdersList(orders []Order) templ.Component {
 				var templ_7745c5c3_Var34 string
 				templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(o.Drink)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 496, Col: 15}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 597, Col: 15}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 				if templ_7745c5c3_Err != nil {
@@ -692,7 +692,7 @@ func OrdersList(orders []Order) templ.Component {
 				var templ_7745c5c3_Var35 string
 				templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(o.Size)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 496, Col: 29}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 597, Col: 29}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 				if templ_7745c5c3_Err != nil {
@@ -710,7 +710,7 @@ func OrdersList(orders []Order) templ.Component {
 					var templ_7745c5c3_Var36 string
 					templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(o.Milk)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 498, Col: 18}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 599, Col: 18}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
 					if templ_7745c5c3_Err != nil {
@@ -729,7 +729,7 @@ func OrdersList(orders []Order) templ.Component {
 					var templ_7745c5c3_Var37 string
 					templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(o.Extras)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 501, Col: 20}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 602, Col: 20}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 					if templ_7745c5c3_Err != nil {
@@ -748,7 +748,7 @@ func OrdersList(orders []Order) templ.Component {
 					var templ_7745c5c3_Var38 string
 					templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "kiosk.corrected", nil))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 504, Col: 87}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 605, Col: 87}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 					if templ_7745c5c3_Err != nil {
@@ -766,7 +766,7 @@ func OrdersList(orders []Order) templ.Component {
 				var templ_7745c5c3_Var39 string
 				templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(o.Price)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 507, Col: 36}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 608, Col: 36}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 				if templ_7745c5c3_Err != nil {
@@ -779,7 +779,7 @@ func OrdersList(orders []Order) templ.Component {
 				var templ_7745c5c3_Var40 string
 				templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(o.When)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 507, Col: 50}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/page.templ`, Line: 608, Col: 50}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 				if templ_7745c5c3_Err != nil {

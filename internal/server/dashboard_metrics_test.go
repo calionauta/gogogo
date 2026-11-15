@@ -26,8 +26,8 @@ import (
 // dashboardMetricRE pulls the (label, value) pair of every card metric out
 // of the rendered page: the label div, then the odometer's aria-label.
 var dashboardMetricRE = regexp.MustCompile(
-	`<div class="text-xs uppercase tracking-wide text-base-content/50">([^<]*)</div>` +
-		`\s*<div class="stat-value"[^>]*>\s*<span[^>]*aria-label="([^"]*)"`)
+	`<span class="dashboard-metric-label">([^<]*)</span>` +
+		`\s*<span class="dashboard-metric-value">\s*<span[^>]*aria-label="([^"]*)"`)
 
 // dashboardMetrics returns the page's metrics in render order.
 func dashboardMetrics(t *testing.T, body string) [][2]string {
@@ -182,7 +182,7 @@ func TestDashboardCountsMatchThePages(t *testing.T) {
 	// Every recipe that reports data keeps its card, and the link follows
 	// the role: a viewer cannot open the inbox or the chat.
 	for _, want := range []string{"Inbox", "Todo", "Whiteboard", "Notes", "Chat"} {
-		if !strings.Contains(page, ">"+want+"</div>") {
+		if !strings.Contains(page, ">"+want+"</h3>") {
 			t.Errorf("dashboard is missing the %q card", want)
 		}
 	}

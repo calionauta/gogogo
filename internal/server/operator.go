@@ -15,6 +15,7 @@ import (
 	"net/http"
 
 	"github.com/calionauta/gogogo/config"
+	"github.com/calionauta/gogogo/internal/analytics"
 	"github.com/calionauta/gogogo/internal/auth"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/rbac"
@@ -35,6 +36,7 @@ func shellMiddleware(
 	next = navPageMiddleware(nav)(next)
 	next = operatorPageMiddleware(cfg, a, engine)(next)
 	next = perfPageMiddleware(cfg)(next)
+	next = analyticsPageMiddleware(analytics.Enabled(analyticsProvider(cfg)))(next)
 	return next
 }
 
@@ -67,6 +69,23 @@ func perfPageMiddleware(cfg *config.Config) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if pageRequest(r) {
 				r = r.WithContext(ui.WithPerf(r.Context(), true))
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// analyticsPageMiddleware seeds ui.WithAnalytics on page navigations. It is a
+// pass-through when no provider is configured: the shell then renders no
+// beacon script and the endpoint is not mounted either.
+func analyticsPageMiddleware(enabled bool) func(http.Handler) http.Handler {
+	if !enabled {
+		return func(next http.Handler) http.Handler { return next }
+	}
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if pageRequest(r) {
+				r = r.WithContext(ui.WithAnalytics(r.Context(), true))
 			}
 			next.ServeHTTP(w, r)
 		})

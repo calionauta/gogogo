@@ -9,6 +9,7 @@ package ui
 
 import (
 	"context"
+	"strings"
 
 	"github.com/calionauta/gogogo/internal/rbac"
 )
@@ -21,10 +22,23 @@ import (
 type NavEntry struct {
 	Label string
 	Href  string
+	// Icon is a catalog key (internal/icon). Empty keeps the rail's generic
+	// glyph, so an entry that names nothing still renders a destination.
+	Icon string
 	// Admin keeps the destination out of a non-admin rail. The built-in
 	// modules carry the same flag; without it an extension's operator-only
 	// page would render a link that 403s.
 	Admin bool
+}
+
+// navEntryIcon is the rail's glyph for a contributed destination: the recipe's
+// own catalog key when it names one, the generic stack otherwise. Kept here
+// (not in the template) so the fallback is one line the tests can read.
+func navEntryIcon(e NavEntry) string {
+	if e.Icon != "" {
+		return e.Icon
+	}
+	return "material-symbols:stack"
 }
 
 type navKey struct{}
@@ -35,6 +49,30 @@ func WithNav(ctx context.Context, entries []NavEntry) context.Context {
 		return ctx
 	}
 	return context.WithValue(ctx, navKey{}, entries)
+}
+
+// NavEventName turns a destination path into a bounded analytics event name:
+// "/kiosk" → "nav.kiosk". The name is markup data for the beacon endpoint,
+// which revalidates it; anything outside [a-z0-9_.-] becomes a dash here so a
+// path can never carry an arbitrary string into an event name.
+func NavEventName(href string) string {
+	name := strings.Trim(href, "/")
+	if name == "" {
+		return "nav.home"
+	}
+	name = strings.Map(func(r rune) rune {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '.', r == '-', r == '_':
+			return r
+		case r == '/':
+			return '.'
+		case r >= 'A' && r <= 'Z':
+			return r + ('a' - 'A')
+		default:
+			return '-'
+		}
+	}, name)
+	return "nav." + name
 }
 
 // Nav returns the extension destinations to render. A page rendered outside

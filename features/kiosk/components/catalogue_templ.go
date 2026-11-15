@@ -51,7 +51,7 @@ func MenuCatalogue(cat Catalogue) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<form id=\"kiosk-catalogue\" class=\"ui-stack\" data-on:submit__prevent=\"@post('/api/kiosk/preview', {contentType: 'form'})\" data-on:change=\"@post('/api/kiosk/preview', {contentType: 'form'})\"><input type=\"hidden\" name=\"text\" value=\"\" data-attr:value=\"$kioskText\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<form id=\"kiosk-catalogue\" class=\"ui-stack\" data-on:submit__prevent=\"@post('/api/kiosk/preview', {contentType: 'form'})\" data-on:change=\"@post('/api/kiosk/preview', {contentType: 'form'})\"><input type=\"hidden\" name=\"text\" value=\"\" data-attr:value=\"$kioskText\"> <input type=\"hidden\" name=\"previewed\" value=\"\" data-attr:value=\"$kioskPreview\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -109,7 +109,7 @@ func radioGroup(title, field string, choices []Choice) templ.Component {
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/catalogue.templ`, Line: 44, Col: 33}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/catalogue.templ`, Line: 45, Col: 33}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
@@ -127,7 +127,7 @@ func radioGroup(title, field string, choices []Choice) templ.Component {
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(field)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/catalogue.templ`, Line: 48, Col: 37}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/catalogue.templ`, Line: 49, Col: 37}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 			if templ_7745c5c3_Err != nil {
@@ -140,7 +140,7 @@ func radioGroup(title, field string, choices []Choice) templ.Component {
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(c.ID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/catalogue.templ`, Line: 48, Col: 52}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/catalogue.templ`, Line: 49, Col: 52}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 			if templ_7745c5c3_Err != nil {
@@ -153,7 +153,7 @@ func radioGroup(title, field string, choices []Choice) templ.Component {
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(c.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/catalogue.templ`, Line: 49, Col: 20}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/catalogue.templ`, Line: 50, Col: 20}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
@@ -171,7 +171,7 @@ func radioGroup(title, field string, choices []Choice) templ.Component {
 				var templ_7745c5c3_Var7 string
 				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(c.Price)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/catalogue.templ`, Line: 51, Col: 56}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/catalogue.templ`, Line: 52, Col: 56}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 				if templ_7745c5c3_Err != nil {
@@ -226,7 +226,7 @@ func checkGroup(title, field string, choices []Choice) templ.Component {
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/catalogue.templ`, Line: 64, Col: 33}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/catalogue.templ`, Line: 65, Col: 33}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
@@ -244,7 +244,7 @@ func checkGroup(title, field string, choices []Choice) templ.Component {
 			var templ_7745c5c3_Var10 string
 			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(field)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/catalogue.templ`, Line: 68, Col: 40}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/catalogue.templ`, Line: 69, Col: 40}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 			if templ_7745c5c3_Err != nil {
@@ -257,7 +257,7 @@ func checkGroup(title, field string, choices []Choice) templ.Component {
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(c.ID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/catalogue.templ`, Line: 68, Col: 55}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/catalogue.templ`, Line: 69, Col: 55}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 			if templ_7745c5c3_Err != nil {
@@ -270,7 +270,7 @@ func checkGroup(title, field string, choices []Choice) templ.Component {
 			var templ_7745c5c3_Var12 string
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(c.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/catalogue.templ`, Line: 69, Col: 20}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/catalogue.templ`, Line: 70, Col: 20}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 			if templ_7745c5c3_Err != nil {
@@ -288,7 +288,7 @@ func checkGroup(title, field string, choices []Choice) templ.Component {
 				var templ_7745c5c3_Var13 string
 				templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(c.Price)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/catalogue.templ`, Line: 71, Col: 56}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/kiosk/components/catalogue.templ`, Line: 72, Col: 56}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 				if templ_7745c5c3_Err != nil {

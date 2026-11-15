@@ -141,6 +141,99 @@ func TestKioskLanguagePackDownloadCannotHang(t *testing.T) {
 	}
 }
 
+// TestKioskClearForgetsTheRecognizedTranscript is the reported regression:
+// clearing emptied the field, but continuous recognition keeps every final
+// result for the whole session, so the next word rebuilt the field from index 0
+// and the old order came back. The field must start at event.resultIndex and the
+// transcript buffer must be dropped on the same event the markup handles.
+func TestKioskClearForgetsTheRecognizedTranscript(t *testing.T) {
+	script := renderKioskHead(t)
+	if strings.Contains(script, "i = 0; i < event.results.length") {
+		t.Error("onresult rebuilds from result 0; a continuous session replays every cleared word")
+	}
+	if !strings.Contains(script, "event.resultIndex") {
+		t.Error("onresult ignores event.resultIndex, so it cannot tell new words from committed ones")
+	}
+	_, clearBody, ok := strings.Cut(script, "forget: function ()")
+	if !ok {
+		t.Fatal("the voice wiring publishes no forget(); the recognizer buffer keeps the cleared order")
+	}
+	forget, _, ok := strings.Cut(clearBody, "});")
+	if !ok || !strings.Contains(forget, `committed = ""`) {
+		t.Error("forget() does not empty the committed transcript")
+	}
+	// The utterance still in flight is also cancelled: dropping only the
+	// finished text would let a phrase spoken before the clear land in the
+	// field after it.
+	if !strings.Contains(forget, "lastFinal = resultCount") {
+		t.Error("a clear keeps the unfinished utterance; it reappears when it finalizes")
+	}
+	// The markup owns the event: data-on:kiosk-clear calls forget(), so the
+	// behavior stays out of a second addEventListener island.
+	var body bytes.Buffer
+	if err := kioskBody(PageData{MenuLine: "Espresso $3.50"}).Render(context.Background(), &body); err != nil {
+		t.Fatalf("render kioskBody: %v", err)
+	}
+	if !strings.Contains(body.String(), "__kioskVoice.forget()") {
+		t.Error("the kiosk-clear handler does not call __kioskVoice.forget(); the transcript survives a clear")
+	}
+}
+
+// TestKioskMicSurvivesStopAndRestart is the reported bug: after one Stop, the
+// next tap left the browser capturing audio while the page did nothing, the
+// button still said "Microphone" and the status claimed "Listening on device…".
+// The cause was reusing the recognizer that had just stopped: its onend ran
+// after the restart and reset the UI of a live session. Each session gets a new
+// recognizer, and every discarded session's events are ignored.
+func TestKioskMicSurvivesStopAndRestart(t *testing.T) {
+	script := renderKioskHead(t)
+	if strings.Contains(script, "if (recognition) return recognition;") {
+		t.Error("sessions share one recognizer; the stopped session's onend races the restart")
+	}
+	if !strings.Contains(script, "var rec = new SR();") {
+		t.Error("prepare() does not build a recognizer per session")
+	}
+	if !strings.Contains(script, "if (recognition !== rec) return;") {
+		t.Error("a discarded session's events are not ignored; they reset the live session's UI")
+	}
+	// Stop must forget the session before aborting it, and it must abort: a
+	// request to stop that leaves capture running is the same bug from the
+	// other side.
+	_, stopBody, ok := strings.Cut(script, "function stop()")
+	if !ok {
+		t.Fatal("stop() is missing")
+	}
+	stopBody, _, _ = strings.Cut(stopBody, "\n\t\t\t}")
+	if !strings.Contains(stopBody, "recognition = null") {
+		t.Error("stop() keeps the recognizer reference; the stale session can still drive the button")
+	}
+	if !strings.Contains(stopBody, "rec.abort()") {
+		t.Error("stop() does not abort the session, so the microphone can stay busy")
+	}
+}
+
+// TestKioskVoiceStartsOnArrival is the requested behavior: opening the counter
+// page is the intent to speak, so the microphone starts without a second tap
+// (permission is still the browser's prompt). It stays one attempt: a refused
+// prompt is a message, not a retry loop.
+func TestKioskVoiceStartsOnArrival(t *testing.T) {
+	script := renderKioskHead(t)
+	if !strings.Contains(script, "autoStart();") {
+		t.Fatal("the page never starts listening on its own; the operator has to tap first")
+	}
+	_, autoBody, ok := strings.Cut(script, "function autoStart()")
+	if !ok {
+		t.Fatal("autoStart is not a named function, so it cannot be bounded")
+	}
+	autoBody, _, _ = strings.Cut(autoBody, "\n\t\t\t}")
+	if !strings.Contains(autoBody, "if (!localSupport()) return;") {
+		t.Error("autoStart runs on a browser without on-device recognition; it would only print an error")
+	}
+	if strings.Contains(autoBody, "setTimeout") || strings.Contains(autoBody, "setInterval") {
+		t.Error("autoStart retries; a refused permission would prompt on a loop")
+	}
+}
+
 // TestKioskAsksForTheMicrophoneBeforeAnythingElse is the reported bug: clicking
 // the button said "Microphone: not-allowed" without ever prompting. Chrome does
 // not show the permission dialog for SpeechRecognition.start() — the recognizer

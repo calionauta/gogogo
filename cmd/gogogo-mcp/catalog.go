@@ -141,6 +141,22 @@ var toolCatalog = []toolDef{
 		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeUninstall) },
 	},
 	{
+		name: "recipe_enable",
+		desc: "Enable one installed recipe's durable runtime switch (recipe_state). The code stays in the tree; " +
+			"the next boot mounts its routes and starts its workers. Requires confirm:true.",
+		params: "`id`, `dir`, `confirm: true`, `db?`, `format?`",
+		effect: "Yes (`confirm:true`)",
+		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeEnable) },
+	},
+	{
+		name: "recipe_disable",
+		desc: "Disable one installed recipe's durable runtime switch (recipe_state) without uninstalling it. " +
+			"The code and its data stay; the next boot skips its routes and workers. Requires confirm:true.",
+		params: "`id`, `dir`, `confirm: true`, `db?`, `format?`",
+		effect: "Yes (`confirm:true`)",
+		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeDisable) },
+	},
+	{
 		name: "recipe_status",
 		desc: "Read-only recipe drift report: pristine vs edited copy, generated/schema/policy state, or one recipe by id. " +
 			"Changes nothing and needs no confirmation.",
@@ -167,8 +183,8 @@ var toolCatalog = []toolDef{
 	{
 		name: "recipe_describe",
 		desc: "Describe one recipe by id: kind, origin, summary, registration surface, dependencies, " +
-			"invocable verbs with a description, per-param help, and the metrics/outcomes it already " +
-			"declares (job, beneficiary, counter signals). Read this before recipe_invoke so you choose " +
+			"invocable verbs with a description, per-param help, and the metrics it already " +
+			"declares (activity counts and outcome ratios with their counterMetrics). Read this before recipe_invoke so you choose " +
 			"a verb the recipe actually declares, and before proposing instrumentation so you extend an " +
 			"existing count instead of inventing a second one. Changes nothing.",
 		params: "`id`, `dir?`, `format?`",

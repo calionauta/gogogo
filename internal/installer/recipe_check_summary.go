@@ -7,31 +7,35 @@ package installer
 
 import "github.com/calionauta/gogogo/internal/recipe"
 
-// summariseMetrics projects a declaration's metrics into the report's two
-// shapes. Split out of checkOneRecipe for the complexity gate: the projection is
-// mechanical, and mixing it with the scoring rules made one function do both.
-func summariseMetrics(d recipe.Declaration) ([]checkMetricSummary, []checkOutcomeSummary) {
-	activity := d.Activity()
-	metrics := make([]checkMetricSummary, 0, len(activity))
-	for _, m := range activity {
-		metrics = append(metrics, checkMetricSummary{
-			Label: m.Label, Query: m.Query, Signal: m.Signal, Owner: m.OwnerBinds,
-		})
-	}
-	outcomes := d.Outcomes()
-	summaries := make([]checkOutcomeSummary, 0, len(outcomes))
-	for _, o := range outcomes {
-		if o.Success == nil || o.Total == nil {
-			continue
+// summariseMetrics projects a declaration's single metrics list into the
+// report's one list. An activity metric carries its label/query; an outcome
+// metric additionally carries the job, its two halves and the counterMetrics
+// labels. There is no second list to merge.
+func summariseMetrics(d recipe.Declaration) []checkMetricSummary {
+	out := make([]checkMetricSummary, 0, len(d.Metrics))
+	for _, m := range d.Metrics {
+		item := checkMetricSummary{
+			Kind:   string(m.ResolvedKind()),
+			Label:  m.Label,
+			Query:  m.Query,
+			Signal: m.Signal,
+			Owner:  m.OwnerBinds,
 		}
-		labels := make([]string, 0, len(o.Counterbalance))
-		for _, c := range o.Counterbalance {
-			labels = append(labels, c.Label)
+		if m.ResolvedKind() == recipe.MetricOutcome {
+			if m.Success == nil || m.Total == nil {
+				continue
+			}
+			item.ID = m.ID
+			item.Job = m.Job
+			item.Beneficiary = m.Beneficiary
+			item.Window = m.Window
+			item.Success = m.Success.Query
+			item.Total = m.Total.Query
+			for _, c := range m.CounterMetrics {
+				item.CounterMetrics = append(item.CounterMetrics, c.Label)
+			}
 		}
-		summaries = append(summaries, checkOutcomeSummary{
-			ID: o.ID, Job: o.Job, Success: o.Success.Query, Total: o.Total.Query,
-			Counterbalance: labels,
-		})
+		out = append(out, item)
 	}
-	return metrics, summaries
+	return out
 }

@@ -44,11 +44,21 @@ const (
 // rewrite cannot silently change the permissions gitleaks and git expect.
 const recipePolicyMode = 0o644
 
-// recipePolicyOwner is the one subject a recipe's routes allow. A recipe cannot
-// declare a role vocabulary — roles are core (internal/rbac/roles.go) — so its
-// routes are reachable by every signed-in user and the handler does the
+// recipePolicyOwner is the default subject a recipe's routes allow. A recipe
+// cannot declare a role vocabulary — roles are core (internal/rbac/roles.go) —
+// so its routes are reachable by every signed-in user and the handler does the
 // per-record check, exactly like a built-in unit that keeps ownership in SQL.
+// A route may name `admin` explicitly (the admin dashboard): the handler still
+// fences it, and the policy row then says the same thing the module says.
 const recipePolicyOwner = "user"
+
+// routePolicyOwner is the subject one declared route asks for.
+func routePolicyOwner(route recipe.Route) string {
+	if route.Role == "" {
+		return recipePolicyOwner
+	}
+	return route.Role
+}
 
 // recipePolicyRows renders the receipt's routes as policy rows, one per pattern,
 // sorted. Two verbs on one pattern collapse into one row: the row allows `.*`.
@@ -74,7 +84,7 @@ func recipePolicyRows(d recipe.Declaration) []string {
 			}
 			obj = obj[:start] + "*" + obj[start+end+1:]
 		}
-		rows = append(rows, fmt.Sprintf("p, %s, %s, .*", recipePolicyOwner, obj))
+		rows = append(rows, fmt.Sprintf("p, %s, %s, .*", routePolicyOwner(route), obj))
 	}
 	sort.Strings(rows)
 	return rows

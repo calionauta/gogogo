@@ -111,8 +111,14 @@ templ UserMenu(userEmail string, userRole string, prefs templ.Component, lang te
 						</a>
 					</li>
 				}
-				<!-- trim:config-view removes this entry (config is operator-only; the route goes with the unit) -->
+				<!-- trim:config-view removes these entries (admin surfaces; the routes go with the units) -->
 				if userRole == "admin" {
+					<li>
+						<a href="/admin/dashboard" class="flex items-center gap-2">
+							@icon.Icon("material-symbols:grid-view", "app-menu-icon")
+							Admin dashboard
+						</a>
+					</li>
 					<li>
 						<a href="/config" class="flex items-center gap-2">
 							@icon.Icon("material-symbols:settings", "app-menu-icon")

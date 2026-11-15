@@ -13,10 +13,10 @@ files:
     features/kiosk/handlers/chi.go: 39d371145c61b5cfb1f96c694af415c4105e7c62d3f5b002926b39339581c7a6
     features/kiosk/handlers/confirm.go: e19004b9b6d18e0663f41c5adc8a6978801636e7e3789931f19acf9e595fd9d2
     features/kiosk/handlers/genui_panel.go: 4cbeff325be62b1ea13ea2b25885f62cbdc0c35e44e279d682b3d1543ebc75c9
-    features/kiosk/handlers/outcome_test.go: 3b7acd5274996c368db175890e5efe4247a55c96da72848eaf25984a9ca6ccc8
+    features/kiosk/handlers/outcome_test.go: df13a73f011dd3cba532e9ba15df99da04de696a4cde3b6c46c1b698269afdfd
     features/kiosk/handlers/preview.go: 0d67934548312aa520abd8452dd7bc1c4b650b2785552772c3896c0a98d75768
-    features/kiosk/handlers/recipe.go: c69a8f0e8937c75dea133a2948955e2e98ea0a84c2551da487773382cc480ce7
-    features/kiosk/handlers/recipe_test.go: 9875bdccb477df4c786ea844494968c15ae6713ea80a7264ef9d363dbf7954ea
+    features/kiosk/handlers/recipe.go: 99e9174621e49963a3d8b0352ad768bd9c257a8d6cee5d5da6b097542734350a
+    features/kiosk/handlers/recipe_test.go: 17c68b0901c2c4af188cbf8aa37173c135141783feaceecd8c102f23d5e4b293
     features/kiosk/handlers/register.go: 9f307d222293b8f87cfb9bf1e1f05cfd507b8f75080be2b77934a0cde1044f48
     features/kiosk/menu.go: eb403c9841da8b4382a80e338e4ca60e1ce352411e5661e372fc4f2256d83323
     features/kiosk/menu_test.go: 3e3a9437654729e88dacbc45f2cd085831955f34970b85a4aadc7d5952bd6f50
@@ -66,7 +66,7 @@ declaration:
           total:
             label: Orders confirmed
             query: SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ?
-          counterbalance:
+          counterMetrics:
             - label: Orders corrected
               query: SELECT COUNT(*) FROM ext_kiosk_orders WHERE owner = ? AND corrected = 1
           window: session

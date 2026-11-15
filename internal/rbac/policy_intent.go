@@ -8,17 +8,19 @@ import "slices"
 // a plain `user`. It is the ONE place that decision is written down, so a
 // reviewer sees it in a diff instead of inferring it from an absent policy row.
 var adminOnlyRoutes = map[string]bool{
-	"/config":              true,
-	"/config/":             true,
-	"/config/*":            true,
-	"/config/users/role":   true,
-	"/config/users/revoke": true,
-	"/config/audit.csv":    true,
-	"/debug/statsviz":      true,
-	"/debug/statsviz/*":    true,
-	"/debug/statsviz/ws":   true,
-	"/debug/pprof":         true,
-	"/debug/pprof/*":       true,
+	"/config":                true,
+	"/config/":               true,
+	"/config/*":              true,
+	"/config/users/role":     true,
+	"/config/users/revoke":   true,
+	"/config/recipes/toggle": true,
+	"/config/audit.csv":      true,
+	"/admin/dashboard":       true,
+	"/debug/statsviz":        true,
+	"/debug/statsviz/*":      true,
+	"/debug/statsviz/ws":     true,
+	"/debug/pprof":           true,
+	"/debug/pprof/*":         true,
 }
 
 // publicRoutes declares the routes a signed-out visitor may reach. An

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -204,7 +205,7 @@ func (wp *WorkerPool) processMessage(ctx context.Context, msg *goqite.Message) {
 	if msg == nil {
 		return
 	}
-	slog.Info("queue worker: processMessage", "type", jobTypeOf(msg.Body))
+	slog.Info("queue worker: processMessage", jobAttrs(jobTypeOf(msg.Body))...)
 	job, err := DecodeJob(msg.Body)
 	if err != nil {
 		// Decode failures are non-retryable: bad bytes will never parse.
@@ -222,9 +223,35 @@ func (wp *WorkerPool) processMessage(ctx context.Context, msg *goqite.Message) {
 		return handler(ctx, wp.hub, job)
 	})
 	if err != nil {
-		slog.Error("queue worker: handler failed after retries",
-			"worker_id", -1, "type", job.Type, "client_id", clientID, "error", err)
+		args := append([]any{"worker_id", -1}, jobAttrs(job.Type)...)
+		args = append(args, "client_id", clientID, "error", err)
+		slog.Error("queue worker: handler failed after retries", args...)
 	}
+}
+
+// jobAttrs is the log vocabulary for one job: its type and, when the job is
+// recipe-owned (`ext:<recipe>:<job>`), the recipe id. Both the start line and
+// the failure line use it, so a job cannot be attributed two ways.
+func jobAttrs(jobType string) []any {
+	attrs := []any{"type", jobType}
+	if id := recipeOf(jobType); id != "" {
+		attrs = append(attrs, "recipe", id)
+	}
+	return attrs
+}
+
+// recipeOf extracts the recipe id from a job type. The prefix is the seam's
+// own convention (internal/recipe.HasRecipePrefix), so a core job answers "".
+func recipeOf(jobType string) string {
+	rest, ok := strings.CutPrefix(jobType, "ext:")
+	if !ok {
+		return ""
+	}
+	id, _, ok := strings.Cut(rest, ":")
+	if !ok || id == "" {
+		return ""
+	}
+	return id
 }
 
 func jobTypeOf(body []byte) string {

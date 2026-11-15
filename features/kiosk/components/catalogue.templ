@@ -30,6 +30,7 @@ templ MenuCatalogue(cat Catalogue) {
 		data-on:change="@post('/api/kiosk/preview', {contentType: 'form'})"
 	>
 		<input type="hidden" name="text" value="" data-attr:value="$kioskText"/>
+		<input type="hidden" name="previewed" value="" data-attr:value="$kioskPreview"/>
 		@radioGroup(i18n.T(ctx, "kiosk.drink", nil), "drink", cat.Drinks)
 		@radioGroup(i18n.T(ctx, "kiosk.size", nil), "size", cat.Sizes)
 		@checkGroup(i18n.T(ctx, "kiosk.milk", nil), "milk", cat.Milks)

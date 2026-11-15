@@ -121,6 +121,35 @@ register: features/timer/handlers
 	}
 }
 
+// TestRecipeCheckStrictHeadlessBlocksInvisibleMutation is the headless-first
+// switch: the same mutating route that warns by default becomes a blocker, so
+// a recipe whose value is agent use cannot ship a write no agent can call.
+func TestRecipeCheckStrictHeadlessBlocksInvisibleMutation(t *testing.T) {
+	root := newRecipeCheckout(t)
+	manifest := `id: timer
+upstream:
+  repo: example.com/recipes
+  ref: v1
+declaration:
+  routes:
+  - {method: GET, pattern: /timer}
+  - {method: POST, pattern: /timer}
+register: features/timer/handlers
+`
+	writeFile(t, filepath.Join(root, "features", "timer", "handlers", "chi.go"), recipeHandlerV1)
+	writeFile(t, filepath.Join(root, "features", "timer", "handlers", "register.go"), "package handlers\n")
+	writeFile(t, filepath.Join(root, "features", "timer", "handlers", "chi_test.go"), recipeHandlerTest)
+	writeFile(t, filepath.Join(root, ".recipes", "timer.yml"), manifest)
+
+	report := checkOneRecipeWith(root, "timer", defaultRecipeLocales, false, true)
+	if report.Healthy {
+		t.Fatalf("strict headless must block an uncallable mutation: %+v", report.Warnings)
+	}
+	if !strings.Contains(strings.Join(report.Errors, "\n"), "no headless action") {
+		t.Fatalf("strict headless error missing: %v", report.Errors)
+	}
+}
+
 // TestRecipeCheckHonorsDeclaredOmissions is the false-positive half: a route
 // the author deliberately kept out of the headless surface must stop the
 // "invisible mutation" warning and still be shown with its reason. Without
@@ -296,7 +325,7 @@ declaration:
     success: {label: Sessions kept, query: "SELECT COUNT(*) FROM ext_timer_sessions` +
 		` WHERE owner = ? AND extended = 0"}
     total: {label: Sessions, query: "SELECT COUNT(*) FROM ext_timer_sessions WHERE owner = ?"}
-    counterbalance:
+    counterMetrics:
     - label: Sessions extended
       query: "SELECT COUNT(*) FROM ext_timer_sessions` +
 		` WHERE owner = ? AND extended = 1"
@@ -322,7 +351,7 @@ declaration:
 
 			report := checkOneRecipe(root, "timer")
 			joined := strings.Join(report.Errors, "\n")
-			blocked := strings.Contains(joined, `declares counterbalance "extended"`)
+			blocked := strings.Contains(joined, `declares counterMetrics "extended"`)
 			if blocked != tc.wantErrors {
 				t.Fatalf("counter-signal verdict = %v, want %v: errors=%v warnings=%v",
 					blocked, tc.wantErrors, report.Errors, report.Warnings)

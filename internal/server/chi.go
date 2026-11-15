@@ -32,13 +32,13 @@ import (
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/notes"
 	"github.com/calionauta/gogogo/features/notifications"
-	"github.com/calionauta/gogogo/features/onboarding"
 	"github.com/calionauta/gogogo/features/whiteboard"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
+	"github.com/calionauta/gogogo/internal/events"
 	appgoakt "github.com/calionauta/gogogo/internal/goakt"
 	"github.com/calionauta/gogogo/internal/instance"
 	"github.com/calionauta/gogogo/internal/llm"
@@ -134,25 +134,6 @@ type ChiStack struct {
 	presence *collab.FederatedPresence
 }
 
-// bootOnboarding wires the DagNats onboarding slice onto the chi stack:
-// its stepper publishes to the chi hub, its route is served, and the todo
-// create path resumes the paused run through the resumer interface.
-// Returns nil (no shutdown hooks) when the engine is disabled, so a stock
-// boot never registers the route and the resume hook stays off. Split from
-// BootChi to keep boot under the length gate, mirroring bootCredits.
-func bootOnboarding(
-	cfg *config.Config, a *auth.Auth, ref *register.TodoRef, hub *queue.SSEHub,
-) (*onboarding.Handler, []func()) {
-	if !cfg.DagNats.Enabled {
-		return nil, nil
-	}
-	h := onboarding.NewHandler(a, cfg.DagNats.HTTPAddr, hub)
-	if ref != nil && ref.SetOnboarding != nil {
-		ref.SetOnboarding(h)
-	}
-	return h, []func(){h.Shutdown}
-}
-
 // BootChi boots the flat stack without listening and without JetStream:
 // the returned stack serves its mux and has cross-instance sync off until
 // AttachJetStream runs. js-free by design — the engine owns the NATS, so
@@ -207,7 +188,13 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// Deps so self-mounting units register theirs without type knowledge.
 	shutdown := []func(){chiQ.Close}
 	onShutdown := func(f func()) { shutdown = append(shutdown, f) }
-
+	// Domain events: one in-process bus, opt-in sinks. With nothing
+	// configured it costs a non-blocking send on a capability write and
+	// nothing leaves the binary. See docs/hooks-analytics.md.
+	bus := events.New(eventBuffer)
+	bus.Start()
+	shutdown = append(shutdown, bus.Close)
+	bootEventSinks(cfg, bus)
 	// Todo handle holder: the todo Register fills it during bootRecipes
 	// so engines (JetStream, onboarding, DagNats worker) wire without the
 	// root importing the handlers package.
@@ -216,7 +203,6 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	chatRef := &register.ChatRef{}
 	creditsRef := &register.CreditsRef{}
 	panels := []any{}
-
 	// LLM clients are built once here and shared by the todo and chat
 	// Registers (same clients BootChi used to hand each handler).
 	realLLM := llm.New(cfg.GoAI.APIKey)
@@ -246,7 +232,9 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 			Persister: persister, DocStore: docs, Presence: federated,
 			TodoRef: todoRef, InboxRef: inboxRef,
 			ChatRef: chatRef, CreditsRef: creditsRef,
-			Panels: &panels,
+			Panels:  &panels,
+			Enabled: recipeEnabledSwitch(bootCtx, cfg, queries),
+			Events:  bus,
 		},
 	)
 	if mux.recipeErr != nil {
@@ -422,16 +410,6 @@ func StartChi(cfg *config.Config, nc *natsio.Conn, js nats.JetStreamLike) (stop 
 	return stack.Serve(cfg.ChiAddr)
 }
 
-// mountOnboarding registers the onboarding routes after the composition, not
-// inside it: buildChiMux takes one concrete pointer per feature, and every extra
-// parameter is a line every trim must edit. Nil is a no-op, so a stock boot
-// never registers the route.
-func mountOnboarding(r *Router, onboardingH *onboarding.Handler) {
-	if onboardingH != nil {
-		r.MountFeature("onboarding", onboardingH.Routes())
-	}
-}
-
 // buildChiMux composes the flat-stack routes. Pure constructor (no ports, no
 // goroutines) so contract tests cover the exact composition production serves.
 // Optional surfaces mount after it, so their absence never changes this
@@ -446,10 +424,14 @@ func buildChiMux(
 	a *auth.Auth, deps register.Deps,
 ) *Router {
 	r := NewRouter()
+	// The event bus and the shape decide what the tree mounts at all; both
+	// are set before the first feature so every mount sees the same answer.
+	r.events = deps.Events
+	r.pageRoutes = deps.Cfg == nil || !deps.Cfg.IsAPIShape()
 	// A panic in a handler answers 500 instead of dropping the connection and
 	// taking an SSE stream down with it.
 	r.Use(recoveryMiddleware)
-
+	applyShapeGate(r, deps.Cfg != nil && deps.Cfg.IsAPIShape())
 	// Auth is a flat feature like every other surface: its router owns the
 	// absolute paths, the methods (405 at the router) and the OAuth provider
 	// parameter, so the route table claims each endpoint.
@@ -460,12 +442,12 @@ func buildChiMux(
 
 	// Installed recipes mount through the seam.
 	r.recipes = &recipe.Registry{}
+	deps.Installed = installedRecipeIDs()
 	// Units that mount themselves (Capability.Register) are registered by the
 	// generated list in units.gen.go, not constructed here.
 	// Installed recipes register through the generated file, then their own
 	// migrations run, then they mount: one step, in that order (recipe_surface.go).
 	r.recipeErr = bootRecipes(r, deps)
-
 	// Static: the core bundle, then the Service Worker at the ROOT URL so its
 	// scope is "/" (see static.go). HEAD rides GET per HTTP semantics.
 	MountSubtree(r, "/static", staticHandler())
@@ -490,6 +472,7 @@ func buildChiMux(
 	r.Claim("core", "POST", cspReportPath)
 	r.Post(cspReportPath, cspReportHandler)
 	mountExtInvoke(r)
+	mountAnalytics(r, a, deps.Cfg, r.events)
 	// The root is core: a redirect to the app's home (or /login), not a page.
 	mountHome(r, a)
 	r.Claim("core", "GET", "/health")

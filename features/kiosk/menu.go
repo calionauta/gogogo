@@ -67,12 +67,12 @@ var (
 		{ID: "flat_white", Label: "Flat white", Aliases: []string{"flat white", "flatwhite"}, BaseCents: 470},
 		{ID: "latte", Label: "Latte", Aliases: []string{"latte", "caffe latte", "cafe latte"}, BaseCents: 430},
 		{ID: "mocha", Label: "Mocha", Aliases: []string{"mocha", "moca"}, BaseCents: 500},
-		{ID: "tea", Label: "Tea", Aliases: []string{"tea", "black tea", "green tea"}, BaseCents: 300},
+		{ID: "tea", Label: "Tea", Aliases: []string{"tea", "black tea", "green tea", "chá"}, BaseCents: 300},
 	}
 	Sizes = []Size{
-		{ID: "small", Label: "Small", Aliases: []string{"small", "short"}, DeltaCents: -50},
-		{ID: "medium", Label: "Medium", Aliases: []string{"medium", "regular"}, DeltaCents: 0},
-		{ID: "large", Label: "Large", Aliases: []string{"large", "big", "tall"}, DeltaCents: 60},
+		{ID: "small", Label: "Small", Aliases: []string{"small", "short", "pequeno"}, DeltaCents: -50},
+		{ID: "medium", Label: "Medium", Aliases: []string{"medium", "regular", "médio", "medio"}, DeltaCents: 0},
+		{ID: "large", Label: "Large", Aliases: []string{"large", "big", "tall", "grande"}, DeltaCents: 60},
 	}
 	// Milks are the ALTERNATIVES to the default. A bare "milk" is not one of
 	// them: every drink already comes with milk, so "with milk" asks for nothing
@@ -80,15 +80,17 @@ var (
 	// customer never made. Only a word that names a milk selects one; plain
 	// "milk" is understood and ignored.
 	Milks = []Milk{
-		{ID: "oat", Label: "Oat", Aliases: []string{"oat", "oat milk"}},
-		{ID: "soy", Label: "Soy", Aliases: []string{"soy", "soy milk"}},
-		{ID: "lactose_free", Label: "Lactose free", Aliases: []string{"lactose free", "lactose-free", "no lactose"}},
-		{ID: "whole", Label: "Whole", Aliases: []string{"whole", "whole milk", "regular milk"}},
+		{ID: "oat", Label: "Oat", Aliases: []string{"oat", "oat milk", "aveia", "leite de aveia"}},
+		{ID: "soy", Label: "Soy", Aliases: []string{"soy", "soy milk", "soja", "leite de soja"}},
+		{ID: "lactose_free", Label: "Lactose free", Aliases: []string{
+			"lactose free", "lactose-free", "no lactose", "sem lactose",
+		}},
+		{ID: "whole", Label: "Whole", Aliases: []string{"whole", "whole milk", "regular milk", "integral", "leite integral"}},
 	}
 	Extras = []Extra{
 		{ID: "extra_shot", Label: "Extra shot", Aliases: []string{"extra shot", "shot extra", "double shot"}, Cents: 80},
-		{ID: "syrup", Label: "Syrup", Aliases: []string{"syrup", "vanilla syrup", "caramel syrup"}, Cents: 60},
-		{ID: "cinnamon", Label: "Cinnamon", Aliases: []string{"cinnamon"}, Cents: 0},
+		{ID: "syrup", Label: "Syrup", Aliases: []string{"syrup", "vanilla syrup", "caramel syrup", "xarope"}, Cents: 60},
+		{ID: "cinnamon", Label: "Cinnamon", Aliases: []string{"cinnamon", "canela"}, Cents: 0},
 	}
 )
 

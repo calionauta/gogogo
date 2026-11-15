@@ -69,6 +69,57 @@ func TestHandlersConfigGate(t *testing.T) {
 	}
 }
 
+// TestRecipeToggleWritesDurableState proves the switch is a real admin
+// mutation: step-up proof is required, the row lands in recipe_state, and the
+// redirect names the tab.
+func TestRecipeToggleWritesDurableState(t *testing.T) {
+	sqlDB, err := db.OpenAt(t.TempDir() + "/config-toggle.db")
+	if err != nil {
+		t.Fatalf("db open: %v", err)
+	}
+	t.Cleanup(func() { sqlDB.Close() })
+	if merr := dbschema.Migrate(sqlDB); merr != nil {
+		t.Fatalf("db migrate: %v", merr)
+	}
+	a, aerr := auth.New(dbgen.New(sqlDB), false)
+	if aerr != nil {
+		t.Fatalf("auth new: %v", aerr)
+	}
+	mux := http.NewServeMux()
+	mux.Handle("/", NewHandler(config.Load(), a, dbgen.New(sqlDB)).Routes())
+
+	ctx := context.Background()
+	if _, _, serr := a.Signup(ctx, "toggle@example.com", "Correct-horse-99!", ""); serr != nil {
+		t.Fatalf("signup: %v", serr)
+	}
+	promoteConfigAdmin(t, dbgen.New(sqlDB), "toggle@example.com")
+	token, _, lerr := a.Login(ctx, "toggle@example.com", "Correct-horse-99!")
+	if lerr != nil {
+		t.Fatalf("login: %v", lerr)
+	}
+
+	form := strings.NewReader("id=todo&enabled=false&proof=Correct-horse-99%21")
+	req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/config/recipes/toggle", form)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	// #nosec G124 — test-only request cookie.
+	req.AddCookie(&http.Cookie{Name: auth.CookieName, Value: token})
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("toggle status = %d, want 303: %s", rec.Code, rec.Body.String())
+	}
+	if loc := rec.Header().Get("Location"); !strings.Contains(loc, "#units-recipes") {
+		t.Fatalf("toggle redirect = %q, want the Units recipes tab", loc)
+	}
+	rows, rerr := dbgen.New(sqlDB).ListRecipeStates(ctx)
+	if rerr != nil {
+		t.Fatalf("list states: %v", rerr)
+	}
+	if len(rows) != 1 || rows[0].ID != "todo" || rows[0].Enabled != 0 {
+		t.Fatalf("recipe_state = %+v, want todo disabled", rows)
+	}
+}
+
 // TestChiConfigRoleBanner pins the Casbin demo surface: the page shows
 // the viewer's role and the enforcement posture. A fresh signup is
 // 'user' (migration 0008 default); RBAC is off in tests (pass-through).

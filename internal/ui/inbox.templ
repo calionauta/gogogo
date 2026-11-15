@@ -106,6 +106,7 @@ templ railItem(m Module, active bool, unread int) {
 	<a
 		href={ templ.SafeURL(m.URL) }
 		class={ templ.Classes("app-rail-item", map[string]bool{"is-active": active}) }
+		data-analytics-event={ "nav." + m.ID }
 		aria-current={ activeCurrent(active) }
 		title={ ModuleLabel(ctx, m) }
 		data-cuelume-hover="tick"

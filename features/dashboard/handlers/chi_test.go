@@ -126,6 +126,43 @@ func TestDashboardRequiresSession(t *testing.T) {
 	}
 }
 
+// TestAdminDashboardRequiresAdmin pins the fence: the admin scope is a
+// separate path, but the handler checks the role itself because RBAC_ENABLED
+// defaults to false.
+func TestAdminDashboardRequiresAdmin(t *testing.T) {
+	f := newFixture(t)
+	cookie := f.signup(t, "notadmin@example.com")
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/admin/dashboard", nil)
+	req.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	f.r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("GET /admin/dashboard as user = %d, want 403", rec.Code)
+	}
+}
+
+// TestAdminDashboardRendersAllScope proves the admin page opens for an admin
+// and says which scope its numbers cover.
+func TestAdminDashboardRendersAllScope(t *testing.T) {
+	f := newFixture(t)
+	cookie := f.signup(t, "admin@example.com")
+	if err := f.q.SetUserRole(context.Background(), dbgen.SetUserRoleParams{
+		Role: "admin", Updated: "2026-01-01T00:00:00Z", Email: "admin@example.com",
+	}); err != nil {
+		t.Fatalf("promote admin: %v", err)
+	}
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/admin/dashboard", nil)
+	req.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	f.r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /admin/dashboard as admin = %d, want 200", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "All users") {
+		t.Fatal("admin dashboard does not name its scope")
+	}
+}
+
 func TestDashboardRendersSummaryAndCards(t *testing.T) {
 	f := newFixture(t)
 	cookie := f.signup(t, "dash@example.com")
@@ -216,7 +253,7 @@ func TestDashboardRendersDeclaredOutcomeRatio(t *testing.T) {
 					Label: "Orders",
 					Query: "SELECT COUNT(*) FROM ext_probe_orders WHERE owner = ?",
 				},
-				Counterbalance: []recipe.Count{{
+				CounterMetrics: []recipe.Count{{
 					Label: "Corrected",
 					Query: "SELECT COUNT(*) FROM ext_probe_orders WHERE owner = ? AND corrected = 1",
 				}},
@@ -269,7 +306,7 @@ func TestBuildCardsListsInstalledRecipes(t *testing.T) {
 		},
 		chatTotal: 10, chatHuman: 4,
 	}
-	cards := buildCards(mods, reachAll(mods), c)
+	cards := buildCards(mods, reachAll(mods), c, false)
 	if len(cards) != 4 {
 		t.Fatalf("buildCards = %d cards, want 4 (inbox, todo, whiteboard, chat)", len(cards))
 	}
@@ -305,7 +342,7 @@ func TestBuildCardsKeepsUnreachableRecipesWithoutALink(t *testing.T) {
 		},
 	}
 	// The role may open Todo but not the Inbox.
-	cards := buildCards(mods, map[string]bool{"todo": true}, c)
+	cards := buildCards(mods, map[string]bool{"todo": true}, c, false)
 	if len(cards) != 2 {
 		t.Fatalf("buildCards = %d cards, want 2 (the role does not hide a recipe)", len(cards))
 	}
@@ -325,7 +362,7 @@ func TestBuildCardsKeepsUnreachableRecipesWithoutALink(t *testing.T) {
 // build with bundled recipes always has cards, so the old message — "no
 // extensions installed" while todo/inbox were on screen — cannot return.
 func TestBuildCardsEmptyPinsTheDegenerateBuild(t *testing.T) {
-	if cards := buildCards(nil, nil, counts{}); len(cards) != 0 {
+	if cards := buildCards(nil, nil, counts{}, false); len(cards) != 0 {
 		t.Fatalf("buildCards(nil) = %v, want empty", cards)
 	}
 }
@@ -353,7 +390,7 @@ func TestDeclaredMetricsLogAFailingQuery(t *testing.T) {
 	}})
 	h := NewHandler(f.h.cfg, f.auth, f.q, nil)
 	h.SetRegistry(reg, f.sqlDB)
-	if got := h.declaredMetrics(context.Background(), "owner-1"); len(got) != 0 {
+	if got := h.declaredMetrics(context.Background(), "owner-1", false); len(got) != 0 {
 		t.Fatalf("declaredMetrics = %v, want no metric for a failing query", got)
 	}
 	out := buf.String()
@@ -411,7 +448,7 @@ func TestDeclaredMetricsExecutesCounts(t *testing.T) {
 	}})
 	h := NewHandler(f.h.cfg, f.auth, f.q, nil)
 	h.SetRegistry(reg, f.sqlDB)
-	got := h.declaredMetrics(ctx, owner)
+	got := h.declaredMetrics(ctx, owner, false)
 	m := got["todo"]
 	if len(m) != 1 || m[0].Value != 1 || m[0].Label != "Open" || m[0].Signal != "openTodos" {
 		t.Fatalf("todo declared = %+v, want one metric Open=1", m)
