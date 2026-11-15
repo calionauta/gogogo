@@ -378,7 +378,7 @@ func buildCards(mods []ui.Module, reach map[string]bool, c counts, all bool) []c
 				continue
 			}
 			cards = append(cards, components.Card{
-				Title: m.Title, URL: m.URL, Cta: cardCta(m, reach, "Open Chat"),
+				Title: m.Title, URL: m.URL, Cta: cardCta(m, reach, "Open"),
 				Locked: !reach[m.ID],
 				Metrics: []components.Metric{
 					{Kind: recipe.MetricActivity, Label: "Messages", Value: c.chatTotal, Signal: "chatTotal"},
@@ -391,7 +391,7 @@ func buildCards(mods []ui.Module, reach map[string]bool, c counts, all bool) []c
 				continue
 			}
 			cards = append(cards, components.Card{
-				Title: m.Title, URL: m.URL, Cta: cardCta(m, reach, "Open "+m.Title),
+				Title: m.Title, URL: m.URL, Cta: cardCta(m, reach, "Open"),
 				Locked: !reach[m.ID], Metrics: metrics,
 			})
 		}

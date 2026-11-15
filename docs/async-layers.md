@@ -423,6 +423,13 @@ retried within a bounded budget, so the supervised-restart window answers a
 moment later instead of with a 502; the grain error is logged, never
 returned in the response body.
 
+The PID cache re-checks liveness. Passivation **stops** an idle grain after
+`IdlePassivateAfter`, and a cached `*PID` then points at a dead actor — `Ask`
+fails immediately with `ErrDead` without reaching the supervisor. Keeping the
+pointer without that check made the first visitor after a quiet period wait for
+a process restart; `Host.room` and `DocPresence.doc` now drop a dead entry and
+respawn, so rooms, notes and boards wake on the next read.
+
 Presence is the **SSE connection**, not a timer: the stream joins on
 connect, leaves on disconnect, and the grain refcounts per-tab client IDs,
 so two tabs of one person are one member and closing one does not evict

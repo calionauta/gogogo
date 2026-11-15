@@ -1201,6 +1201,17 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   color: color-mix(in oklab, var(--color-base-content) 65%, transparent);
 }
 .dashboard-counter strong { font-variant-numeric: tabular-nums; }
+/* The action footer is what aligns a row: it is pinned to the card's bottom
+   edge, so a card with two metric rows and its neighbour with one put their
+   buttons on the same line. Living in the header made alignment incidental. */
+.dashboard-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: auto;
+}
+.dashboard-card-foot .dashboard-locked { margin-top: 0; }
 .dashboard-locked {
   margin-top: auto;
   font-size: 0.75rem;

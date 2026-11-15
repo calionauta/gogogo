@@ -64,5 +64,7 @@
   "todo.filter.active": "Ativas",
   "todo.filter.all": "Todas",
   "todo.filter.completed": "Concluídas",
-  "todo.tasks": "Tarefas"
+  "todo.tasks": "Tarefas",
+  "review.tab.text": "Texto — e-mail, post, anúncio",
+  "review.tab.code": "Código — diff ou trecho"
 }

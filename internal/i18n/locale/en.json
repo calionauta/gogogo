@@ -64,5 +64,7 @@
   "todo.filter.active": "Active",
   "todo.filter.all": "All",
   "todo.filter.completed": "Completed",
-  "todo.tasks": "Tasks"
+  "todo.tasks": "Tasks",
+  "review.tab.text": "Text — email, post, announcement",
+  "review.tab.code": "Code — diff or snippet"
 }

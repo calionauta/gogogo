@@ -180,21 +180,31 @@ func TestDashboardCountsMatchThePages(t *testing.T) {
 	}
 
 	// Every recipe that reports data keeps its card, and the link follows
-	// the role: a viewer cannot open the inbox or the chat.
+	// the role: a viewer cannot open the inbox or the chat. The label is the
+	// same everywhere ("Open"), so the assertion reads the CARD the link sits
+	// in — the title is what distinguishes them now.
 	for _, want := range []string{"Inbox", "Todo", "Whiteboard", "Notes", "Chat"} {
 		if !strings.Contains(page, ">"+want+"</h3>") {
 			t.Errorf("dashboard is missing the %q card", want)
 		}
 	}
-	if strings.Contains(page, ">Open Inbox<") {
-		t.Error("the viewer was offered the inbox, which the policy denies")
+	for _, denied := range []string{"/inbox", "/chat"} {
+		if cardHasAction(t, page, denied) {
+			t.Errorf("the viewer was offered %s, which the policy denies", denied)
+		}
 	}
-	if strings.Contains(page, ">Open Chat<") {
-		t.Error("the viewer was offered the chat, which the policy denies")
-	}
-	if !strings.Contains(page, ">Open Todo<") {
+	if !cardHasAction(t, page, "/todo") {
 		t.Error("the viewer was not offered the todo, which the policy allows")
 	}
+}
+
+// cardHasAction reports whether the card whose action links to href renders a
+// CTA at all. It scopes the search to that card so one card's permission cannot
+// hide behind another's.
+func cardHasAction(t *testing.T, page, href string) bool {
+	t.Helper()
+	idx := strings.Index(page, `href="`+href+`" class="btn btn-primary btn-xs">Open<`)
+	return idx >= 0
 }
 
 // countRows counts the rows a fragment carries, by the marker each row

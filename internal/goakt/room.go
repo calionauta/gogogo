@@ -335,13 +335,24 @@ func (h *Host) Stop(ctx context.Context) error {
 // supervisor (restart on panic, 3-try budget) and the idle-passivation
 // strategy. Room ids are sanitized: actor names must be stable path
 // segments, never raw user input.
+//
+// THE CACHE HOLDS A LIVENESS CHECK, NOT JUST A POINTER. GoAkt passivates an
+// idle grain after IdlePassivateAfter and stops it; the cached *PID then points
+// at a dead actor, and goakt.Ask short-circuits with ErrDead without ever
+// reaching the supervisor. Nothing evicted the entry, so the first visitor after
+// a quiet period got a permanent 502 until the process restarted — the
+// production-only symptom (locally the demo keeps the grain warm inside the
+// window). A dead PID is dropped and respawned here, which is the same thing
+// GoAkt's own GetOrSpawn does.
 func (h *Host) room(ctx context.Context, id string) (*goakt.PID, error) {
 	id = sanitizeRoomID(id)
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if pid, ok := h.rooms[id]; ok {
+	if pid, ok := h.rooms[id]; ok && pid != nil && pid.IsRunning() {
 		return pid, nil
 	}
+	// A cached-but-dead entry (passivated) is evicted and replaced below.
+	delete(h.rooms, id)
 	if h.system == nil {
 		return nil, errors.New("goakt: host not started")
 	}

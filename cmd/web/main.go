@@ -122,12 +122,11 @@ func run() error {
 	startDagNats(lifecycleCtx, cfg, stack.TodoHandler, stack.NotificationsHandler)
 	defer shutdownDagNats()
 
-	// GoAkt owns the room actor system (standalone, no network). It's
-	// always compiled; when GOAKT_ENABLED=false it no-ops.
-	// NOTE: intentionally NOT lifecycleCtx-bound (unlike DagNats): the
-	// standalone boot performs no retries and returns promptly, so there
-	// is no loop for shutdown to bound — and a self-contained span keeps
-	// `add goakt` position-independent (any anchor works).
+	// GoAkt owns the room actor system (standalone, no network). BootChi has
+	// already run the room recipe, which starts its own host and publishes it as
+	// the process default; startGoAkt ADOPTS that one rather than starting a
+	// second (two systems with the same name leak the first). A tree whose room
+	// recipe is trimmed has no default yet, and this is what starts it.
 	startGoAkt(context.Background(), cfg)
 	defer shutdownGoAkt()
 

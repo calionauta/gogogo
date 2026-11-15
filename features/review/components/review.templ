@@ -90,8 +90,8 @@ templ reviewBody(signals Signals) {
 						<div class="mb-3">
 							<label for="review-tab" class="label mb-1">{ i18n.T(ctx, "review.whatToReview", nil) }</label>
 							<select id="review-tab" name="tab" class="select select-sm max-w-xs">
-								<option value="text">Text — email, post, announcement</option>
-								<option value="code">Code — diff or snippet</option>
+								<option value="text">{ i18n.T(ctx, "review.tab.text", nil) }</option>
+								<option value="code">{ i18n.T(ctx, "review.tab.code", nil) }</option>
 							</select>
 						</div>
 						<label for="review-content" class="flex flex-col gap-1 w-full">
