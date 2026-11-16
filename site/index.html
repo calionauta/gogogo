@@ -131,7 +131,7 @@
           </a>
           <a class="band band-gates" href="#layer-gates" data-layer="gates" style="--w:72%">
             <span class="band-line"><span class="band-num">06</span><span class="band-name">Gates</span></span>
-            <span class="band-chips"><span>lint</span><span>scope</span><span>docs</span><span class="band-more" title="38 total">+35</span></span>
+            <span class="band-chips"><span>lint</span><span>scope</span><span>docs</span><span class="band-more" title="39 total">+36</span></span>
           </a>
           <a class="band band-go" href="#layer-go" data-layer="go" style="--w:65%">
             <span class="band-line"><span class="band-num">07</span><span class="band-name">Go</span></span>
@@ -662,27 +662,28 @@
           <button class="gate" type="button" aria-describedby="gate-note" style="--i:20" data-note="a skill not registered for the hosts">skill-frontmatter</button>
           <button class="gate" type="button" aria-describedby="gate-note" style="--i:21" data-note="a Datastar attribute that does nothing">datastar-lint</button>
           <button class="gate" type="button" aria-describedby="gate-note" style="--i:22" data-note="a route missing from the generated inventory">api-routes</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:23" data-note="a hook in .lefthook.yml">check-locales</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:24" data-note="an MCP tool whose test stopped pinning it">mcp-tests</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:25" data-note="a unit that left the registry">registry-conformance</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:26" data-note="a committed _templ.go that drifted">generated-templ</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:27" data-note="a stale app.min.css">css-check</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:28" data-note="a template that slipped into JSX">no-jsx</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:29" data-note="unchecked errors, leaked contexts, template mistakes">golangci-lint</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:30" data-note="AGENTS.md drifted from the tree">agents-md-staleness</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:31" data-note="the vendored stelow skill drifted">stelow-drift</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:32" data-note="the vendored DaisyUI skill drifted">daisyui-drift</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:33" data-note="docs that did not move with the code">docs-staleness</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:23" data-note="a hook in .lefthook.yml">receipt-hashes</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:24" data-note="a hook in .lefthook.yml">check-locales</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:25" data-note="an MCP tool whose test stopped pinning it">mcp-tests</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:26" data-note="a unit that left the registry">registry-conformance</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:27" data-note="a committed _templ.go that drifted">generated-templ</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:28" data-note="a stale app.min.css">css-check</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:29" data-note="a template that slipped into JSX">no-jsx</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:30" data-note="unchecked errors, leaked contexts, template mistakes">golangci-lint</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:31" data-note="AGENTS.md drifted from the tree">agents-md-staleness</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:32" data-note="the vendored stelow skill drifted">stelow-drift</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:33" data-note="the vendored DaisyUI skill drifted">daisyui-drift</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:34" data-note="docs that did not move with the code">docs-staleness</button>
         </div>
         <p class="gate-group">pre-push</p>
         <div class="gate-row">
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:34" data-note="a known CVE in a dependency">govulncheck</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:35" data-note="code no test or route reaches">deadcode</button>
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:36" data-note="a hook in .lefthook.yml">operator-look</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:35" data-note="a known CVE in a dependency">govulncheck</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:36" data-note="code no test or route reaches">deadcode</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:37" data-note="a hook in .lefthook.yml">operator-look</button>
         </div>
         <p class="gate-group">post-merge</p>
         <div class="gate-row">
-          <button class="gate" type="button" aria-describedby="gate-note" style="--i:37" data-note="templ/css artifacts out of date">regen-assets</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:38" data-note="templ/css artifacts out of date">regen-assets</button>
           <span class="gate gate-merge">merge</span>
         </div>
 

@@ -11,6 +11,7 @@ package config
 
 import (
 	"log/slog"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -40,6 +41,26 @@ type I18NConfig struct {
 	RequireRecipeCoverage bool
 }
 
+// localesFromRecord resolves the tracked language record.
+//
+// The record lives at the app root, and "the app root" has two honest readings:
+// the working directory (how `make dev` and the container run) and the directory
+// that holds DATA_DIR (how a deployment is laid out — `data/` sits inside the
+// tree). Reading only "." meant a binary started from anywhere else silently
+// served the template default instead of the product's declared set.
+func (c *Config) localesFromRecord() []string {
+	if tags, source := projectlocales.Resolve(".", ""); source == projectlocales.File {
+		return tags
+	}
+	if c.DataDir != "" {
+		if tags, source := projectlocales.Resolve(filepath.Dir(c.DataDir), ""); source == projectlocales.File {
+			return tags
+		}
+	}
+	tags, _ := projectlocales.Resolve("", "")
+	return tags
+}
+
 // loadI18NEnv fills I18n from env.
 func (c *Config) loadI18NEnv() {
 	enabled := envBool("I18N_ENABLED", true)
@@ -49,8 +70,7 @@ func (c *Config) loadI18NEnv() {
 	// template's own set.
 	supported := parseI18NSupported(getEnv("SUPPORTED_LOCALES", ""))
 	if strings.TrimSpace(getEnv("SUPPORTED_LOCALES", "")) == "" {
-		tags, _ := projectlocales.Resolve(".", "")
-		supported = tags
+		supported = c.localesFromRecord()
 	}
 	def := strings.TrimSpace(getEnv("DEFAULT_LOCALE", "en"))
 	if def == "" {

@@ -70,9 +70,9 @@ JSON-config clients take the Claude Code block verbatim.
 | `migrate_plan` | No | `from?`, `to?`, `dir?`, `changelog?`, `files?`, `format?` | Read-only migration list: every release between the project's recorded base revision (the scaffolded-from: line in its AGENTS.md) and the latest, plus the gates that prove a migrated tree conforms. |
 | `export_unit` | Only writes `to` | `unit`, `dir`, `to`, `module?`, `format?` | Read-only PORT BUNDLE for a tree that is not a gogogo checkout (a tree this build does not scaffold): copies the unit's owned files into the scratch `to` directory and writes PORTING.md with the measured wiring — routes it registers, imports to rewrite, what YOU must write by hand — plus the proof commands. |
 | `new_feature` | Yes (`confirm:true`) | `name`, `dir`, `confirm: true`, `dryRun?` | Scaffold one new feature inside a gogogo checkout: handler + page, composition-root wiring, capability unit, RBAC rows, then templ generate, generated docs, registry conformance, check-flatdeps and a build proof. |
-| `locales` | Only with `set` | `dir?`, `set?`, `format?` | READ or RECORD the languages this product ships. |
+| `locales` | Only with `set`, needs `confirm` | `dir?`, `set?`, `confirm: true`, `format?` | READ or RECORD the languages this product ships. |
 | `recipe_source` | No | `id`, `dir?`, `version?`, `file?`, `src?`, `format?` | READ a recipe's code without installing it: the receipt's file set (or a catalog entry, or --src bundle) printed file by file, plus whether each still matches the reviewed bytes. |
-| `recipe_receipts` | Only with `write` | `dir?`, `write?`, `format?` | Do every recipe's declared hashes still describe the tree? Reports per-recipe stale paths; `write` re-hashes in place (the fix). |
+| `recipe_receipts` | Only with `write`, needs `confirm` | `dir?`, `write?`, `confirm: true`, `format?` | Do every recipe's declared hashes still describe the tree? Reports per-recipe stale paths; `write` re-hashes in place (the fix). |
 | `recipe_install` | Yes (`confirm:true`) | `src`, `dir`, `confirm: true`, `dryRun?`, `entry?`, `format?` | Install a recipe package (tree plus .recipe.yml) into a gogogo checkout: copy, receipt, generated registration, schema/policy/codegen and proof. |
 | `recipe_update` | Yes (`confirm:true`) | `src`, `dir`, `confirm: true`, `dryRun?`, `entry?`, `format?` | Update an already-installed recipe from a recipe directory or catalog entry. |
 | `recipe_uninstall` | Yes (`confirm:true`) | `id`, `dir`, `confirm: true`, `format?` | Uninstall one installed recipe by id: removes only pristine files, keeps edited or derived state, updates registration/policy/schema surfaces and marks the receipt removed. |
@@ -102,9 +102,12 @@ choosing a unit reads the slice's boundary instead of inferring it from the id.
 
 Read-only tools need nothing else. Mutating tools fail closed without
 `confirm:true` — preview with `scaffold_plan` (or `dryRun:true`) first, then
-apply. `export_unit` is the exception to the exception: it mutates only the
-scratch directory you name, never the checkout it reads, so it needs no
-confirm gate. Formats default to `json` on this transport.
+apply. Three tools mutate only under a flag, and their effect column says so:
+`locales` with `set`, `recipe_receipts` with `write`, and `export_unit` with
+`to` — the first two still require `confirm:true`, because they rewrite a
+tracked file in the checkout; `export_unit` never touches the checkout it
+reads, only the scratch directory you name. Formats default to `json` on this
+transport.
 
 ### Installer surface vs product surface
 

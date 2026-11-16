@@ -420,7 +420,7 @@ func TestRecipeReceiptsToolReportsAndFixes(t *testing.T) {
 	if _, _, err := handleRecipeReceipts(context.Background(), nil, receiptsArgs{Dir: root}); err == nil {
 		t.Fatal("a stale hash passed the tool")
 	}
-	res, _, err := handleRecipeReceipts(context.Background(), nil, receiptsArgs{Dir: root, Write: true})
+	res, _, err := handleRecipeReceipts(context.Background(), nil, receiptsArgs{Dir: root, Write: true, Confirm: true})
 	if err != nil {
 		t.Fatalf("write: %v", err)
 	}
@@ -430,5 +430,29 @@ func TestRecipeReceiptsToolReportsAndFixes(t *testing.T) {
 	}
 	if _, _, err := handleRecipeReceipts(context.Background(), nil, receiptsArgs{Dir: root}); err != nil {
 		t.Fatalf("still red after write: %v", err)
+	}
+}
+
+// TestMutatingToolsRefuseWithoutConfirm is the fail-closed half of the safety
+// column: a tool whose effect names `confirm` must not write when it is absent.
+func TestMutatingToolsRefuseWithoutConfirm(t *testing.T) {
+	root := t.TempDir()
+	// A checkout marker, so the refusal under test is the confirm gate and not
+	// "this is not a gogogo tree".
+	if err := os.MkdirAll(filepath.Join(root, "cmd", "web"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "cmd", "web", "main.go"), []byte("package main\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := handleLocales(context.Background(), nil, localesArgs{Dir: root, Set: "en,fr"}); err == nil {
+		t.Error("locales --set wrote without confirm:true")
+	}
+	if _, _, err := handleRecipeReceipts(context.Background(), nil, receiptsArgs{Dir: root, Write: true}); err == nil {
+		t.Error("recipe receipts --write wrote without confirm:true")
+	}
+	// Reading is never gated.
+	if _, _, err := handleRecipeReceipts(context.Background(), nil, receiptsArgs{Dir: root}); err != nil {
+		t.Errorf("reading receipts needs no confirm: %v", err)
 	}
 }

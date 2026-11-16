@@ -309,9 +309,10 @@ func handleRecipeUninstall(
 }
 
 type localesArgs struct {
-	Dir    string `json:"dir,omitempty" jsonschema:"checkout whose locales.yml to read or write (default: current directory)"`
-	Set    string `json:"set,omitempty" jsonschema:"comma-separated tags to record (e.g. en,pt-BR,es); omit to read"`
-	Format string `json:"format,omitempty" jsonschema:"text or json (default json)"`
+	Dir     string `json:"dir,omitempty" jsonschema:"checkout whose locales.yml to read or write (default: current directory)"`
+	Set     string `json:"set,omitempty" jsonschema:"comma-separated tags to record (e.g. en,pt-BR,es); omit to read"`
+	Format  string `json:"format,omitempty" jsonschema:"text or json (default json)"`
+	Confirm bool   `json:"confirm,omitempty" jsonschema:"must be true when set is given: it rewrites the tracked locales.yml"`
 }
 
 // handleLocales is the operator question as a tool: read what this tree ships,
@@ -319,6 +320,9 @@ type localesArgs struct {
 func handleLocales(
 	ctx context.Context, _ *mcp.CallToolRequest, args localesArgs,
 ) (*mcp.CallToolResult, any, error) {
+	if args.Set != "" && !args.Confirm {
+		return nil, nil, errors.New("refusing to record locales without confirm:true — this rewrites the tracked locales.yml")
+	}
 	format := args.Format
 	if format == "" {
 		format = defaultFormat
@@ -338,9 +342,10 @@ func handleLocales(
 }
 
 type receiptsArgs struct {
-	Dir    string `json:"dir,omitempty" jsonschema:"checkout whose receipts to verify (default: current directory)"`
-	Write  bool   `json:"write,omitempty" jsonschema:"re-hash the stale files in place (the fix); omit to report only"`
-	Format string `json:"format,omitempty" jsonschema:"text or json (default json)"`
+	Dir     string `json:"dir,omitempty" jsonschema:"checkout whose receipts to verify (default: current directory)"`
+	Write   bool   `json:"write,omitempty" jsonschema:"re-hash the stale files in place (the fix); omit to report only"`
+	Format  string `json:"format,omitempty" jsonschema:"text or json (default json)"`
+	Confirm bool   `json:"confirm,omitempty" jsonschema:"must be true when write is given: it rewrites the tracked receipts"`
 }
 
 // handleRecipeReceipts answers "do the declared hashes still describe the
@@ -349,6 +354,9 @@ type receiptsArgs struct {
 func handleRecipeReceipts(
 	ctx context.Context, _ *mcp.CallToolRequest, args receiptsArgs,
 ) (*mcp.CallToolResult, any, error) {
+	if args.Write && !args.Confirm {
+		return nil, nil, errors.New("refusing to re-hash receipts without confirm:true — this rewrites the tracked .recipes/*.yml")
+	}
 	format := args.Format
 	if format == "" {
 		format = defaultFormat

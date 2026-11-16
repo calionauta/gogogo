@@ -38,9 +38,9 @@ Claude Code (`~/.claude.json`) / Cursor (`~/.cursor/mcp.json`) / BB:
 | `migrate_plan` | `from?`, `to?`, `dir?`, `changelog?`, `files?`, `format?` | No |
 | `export_unit` | `unit`, `dir`, `to`, `module?`, `format?` | Only writes `to` |
 | `new_feature` | `name`, `dir`, `confirm: true`, `dryRun?` | Yes (`confirm:true`) |
-| `locales` | `dir?`, `set?`, `format?` | Only with `set` |
+| `locales` | `dir?`, `set?`, `confirm: true`, `format?` | Only with `set`, needs `confirm` |
 | `recipe_source` | `id`, `dir?`, `version?`, `file?`, `src?`, `format?` | No |
-| `recipe_receipts` | `dir?`, `write?`, `format?` | Only with `write` |
+| `recipe_receipts` | `dir?`, `write?`, `confirm: true`, `format?` | Only with `write`, needs `confirm` |
 | `recipe_install` | `src`, `dir`, `confirm: true`, `dryRun?`, `entry?`, `format?` | Yes (`confirm:true`) |
 | `recipe_update` | `src`, `dir`, `confirm: true`, `dryRun?`, `entry?`, `format?` | Yes (`confirm:true`) |
 | `recipe_uninstall` | `id`, `dir`, `confirm: true`, `format?` | Yes (`confirm:true`) |

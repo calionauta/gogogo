@@ -128,8 +128,8 @@ var toolCatalog = []toolDef{
 			"With `set` it writes the tracked record and prints it — ask the operator once, before " +
 			"scaffolding features or checking recipes, because `recipe check` and `new feature` grade " +
 			"against this answer. Every product ships English; anything else is the operator's call.",
-		params: "`dir?`, `set?`, `format?`",
-		effect: "Only with `set`",
+		params: "`dir?`, `set?`, `confirm: true`, `format?`",
+		effect: "Only with `set`, needs `confirm`",
 		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleLocales) },
 	},
 	{
@@ -148,8 +148,8 @@ var toolCatalog = []toolDef{
 			"re-hashes in place (the fix). Not the same question as recipe_status: `modified` is a fork's edit and " +
 			"is fine, but a receipt that no longer matches breaks install, `--recipes` pruning and `recipe test`'s " +
 			"package scope — all of which read the hash. Runs in `make check-recipes`.",
-		params: "`dir?`, `write?`, `format?`",
-		effect: "Only with `write`",
+		params: "`dir?`, `write?`, `confirm: true`, `format?`",
+		effect: "Only with `write`, needs `confirm`",
 		add:    func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleRecipeReceipts) },
 	},
 	{

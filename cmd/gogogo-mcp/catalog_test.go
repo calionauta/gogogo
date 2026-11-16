@@ -32,9 +32,18 @@ func TestCatalogEffectMatchesTheConfirmGate(t *testing.T) {
 	for _, d := range toolCatalog {
 		takesConfirm := strings.Contains(d.params, "confirm")
 		claimsMutating := strings.HasPrefix(d.effect, "Yes")
-		if takesConfirm != claimsMutating {
-			t.Errorf("tool %q: params %q vs effect %q — a tool that mutates must take confirm:true, and one that takes it must say so",
-				d.name, d.params, d.effect)
+		// A CONDITIONAL tool mutates only when its one flag is given (`set`,
+		// `write`), so its effect says so instead of claiming `Yes`. It still
+		// takes confirm, and the effect must SAY that it takes it: the safety
+		// column a reader trusts is the one that names the guard.
+		conditional := strings.Contains(d.effect, "`confirm`")
+		if claimsMutating && !takesConfirm {
+			t.Errorf("tool %q claims to mutate but takes no confirm:true: params %q",
+				d.name, d.params)
+		}
+		if takesConfirm && !claimsMutating && !conditional {
+			t.Errorf("tool %q takes confirm:true but its effect %q does not say it mutates",
+				d.name, d.effect)
 		}
 	}
 }
@@ -44,9 +53,14 @@ func TestCatalogEffectMatchesTheConfirmGate(t *testing.T) {
 // mutating tool must show up here, in a review, not in a docs table nobody
 // read.
 func TestMutatingToolsAreTheKnownSet(t *testing.T) {
+	// A tool that CAN write is in the set whether the write is unconditional
+	// (`Yes`) or gated on its one flag (`set`/`write`, which still requires
+	// confirm). `export_unit` is neither: it writes only the scratch directory
+	// the caller names.
 	mutating := map[string]bool{}
 	for _, d := range toolCatalog {
-		if strings.HasPrefix(d.effect, "Yes") {
+		if strings.HasPrefix(d.effect, "Yes") || strings.Contains(d.effect, "`write`") ||
+			strings.Contains(d.effect, "`set`") {
 			mutating[d.name] = true
 		}
 	}
@@ -58,6 +72,8 @@ func TestMutatingToolsAreTheKnownSet(t *testing.T) {
 		"recipe_uninstall": true,
 		"recipe_enable":    true,
 		"recipe_disable":   true,
+		"locales":          true,
+		"recipe_receipts":  true,
 	}
 	for name := range want {
 		if !mutating[name] {
