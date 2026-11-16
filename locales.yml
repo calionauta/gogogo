@@ -1,0 +1,5 @@
+# The languages this product ships — read by the boot, the CLI and
+# `make check-locales`. The first entry is the fallback.
+locales:
+    - en
+    - pt-BR

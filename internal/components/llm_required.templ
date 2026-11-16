@@ -1,5 +1,7 @@
 package components
 
+import "github.com/calionauta/gogogo/internal/i18n"
+
 // LLMRequired is the ONE setup notice for a surface whose feature needs a model.
 //
 // WHY IN A SHARED LEAF. A feature that needs an LLM (review, chat, and any
@@ -19,6 +21,6 @@ package components
 // the kind of error that costs a support round trip.
 templ LLMRequired(surface string) {
 	<div class="alert alert-warning" role="status">
-		<span>{ surface } needs a configured LLM. Set GOAI_API_KEY on the server, then reload.</span>
+		<span>{ surface } { i18n.T(ctx, "llmRequired.message", nil) }</span>
 	</div>
 }

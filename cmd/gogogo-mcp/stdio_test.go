@@ -19,14 +19,14 @@ func TestStdioRoundTrip(t *testing.T) {
 		t.Skip("go toolchain required to build the probe binary")
 	}
 	bin := filepath.Join(t.TempDir(), "gogogo-mcp-probe")
-	build := exec.Command("go", "build", "-o", bin, ".")
+	build := exec.CommandContext(context.Background(), "go", "build", "-o", bin, ".")
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build probe binary: %v\n%s", err, out)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	client := mcp.NewClient(&mcp.Implementation{Name: "stdio-probe", Version: "0"}, nil)
-	session, err := client.Connect(ctx, &mcp.CommandTransport{Command: exec.Command(bin)}, nil)
+	session, err := client.Connect(ctx, &mcp.CommandTransport{Command: exec.CommandContext(ctx, bin)}, nil)
 	if err != nil {
 		t.Fatalf("connect over stdio: %v", err)
 	}

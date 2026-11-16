@@ -15,11 +15,11 @@ import (
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/dashboard/components"
-	"github.com/calionauta/gogogo/features/todo"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
+	"github.com/calionauta/gogogo/internal/i18n"
 	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/recipe"
 	"github.com/calionauta/gogogo/internal/ui"
@@ -30,14 +30,15 @@ import (
 // stubProvider is a minimal recipe.Provider for the generic dashboard
 // path: it declares metrics and outcomes (no routes served).
 type stubProvider struct {
-	id      string
-	metrics []recipe.Metric
+	id           string
+	metrics      []recipe.Metric
+	translations []recipe.Translations
 }
 
 func (s *stubProvider) ID() string { return s.id }
 
 func (s *stubProvider) Declaration() recipe.Declaration {
-	return recipe.Declaration{Metrics: s.metrics}
+	return recipe.Declaration{Metrics: s.metrics, Translations: s.translations}
 }
 
 func (s *stubProvider) Routes() chi.Router { return chi.NewRouter() }
@@ -60,7 +61,7 @@ func newFixture(t *testing.T) *fixture {
 	if merr := dbschema.Migrate(sqlDB); merr != nil {
 		t.Fatalf("migrate: %v", merr)
 	}
-	set := dbschema.MigrationSet{ID: "todo", FS: todo.Migrations, Dir: "migrations"}
+	set := dbschema.MigrationSet{ID: "todo", FS: db.RecipeSchema("todo")}
 	if merr := dbschema.MigrateWith(sqlDB, set); merr != nil {
 		t.Fatalf("todo migrate: %v", merr)
 	}
@@ -306,7 +307,7 @@ func TestBuildCardsListsInstalledRecipes(t *testing.T) {
 		},
 		chatTotal: 10, chatHuman: 4,
 	}
-	cards := buildCards(mods, reachAll(mods), c, false)
+	cards := buildCards(context.Background(), mods, reachAll(mods), c, false)
 	if len(cards) != 4 {
 		t.Fatalf("buildCards = %d cards, want 4 (inbox, todo, whiteboard, chat)", len(cards))
 	}
@@ -342,7 +343,7 @@ func TestBuildCardsKeepsUnreachableRecipesWithoutALink(t *testing.T) {
 		},
 	}
 	// The role may open Todo but not the Inbox.
-	cards := buildCards(mods, map[string]bool{"todo": true}, c, false)
+	cards := buildCards(context.Background(), mods, map[string]bool{"todo": true}, c, false)
 	if len(cards) != 2 {
 		t.Fatalf("buildCards = %d cards, want 2 (the role does not hide a recipe)", len(cards))
 	}
@@ -362,7 +363,7 @@ func TestBuildCardsKeepsUnreachableRecipesWithoutALink(t *testing.T) {
 // build with bundled recipes always has cards, so the old message — "no
 // extensions installed" while todo/inbox were on screen — cannot return.
 func TestBuildCardsEmptyPinsTheDegenerateBuild(t *testing.T) {
-	if cards := buildCards(nil, nil, counts{}, false); len(cards) != 0 {
+	if cards := buildCards(context.Background(), nil, nil, counts{}, false); len(cards) != 0 {
 		t.Fatalf("buildCards(nil) = %v, want empty", cards)
 	}
 }
@@ -455,5 +456,39 @@ func TestDeclaredMetricsExecutesCounts(t *testing.T) {
 	}
 	if _, ok := got["broken"]; ok {
 		t.Fatalf("broken provider must be omitted, got %v", got["broken"])
+	}
+}
+
+// TestDeclaredMetricsUsesTheDeclarationsOwnTranslations: a metric label is the
+// recipe author's data, so its pt-BR spelling travels in the declaration. The
+// dashboard must read it there — the app catalog cannot own a third-party
+// recipe's wording, and an unlisted locale must fall back to the declared word.
+func TestDeclaredMetricsUsesTheDeclarationsOwnTranslations(t *testing.T) {
+	f := newFixture(t)
+	owner := "owner-1"
+	if _, err := f.sqlDB.ExecContext(context.Background(),
+		"INSERT INTO users (id, email, password_hash, created, updated) VALUES (?, ?, ?, ?, ?)",
+		owner, "owner@example.com", "x", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"); err != nil {
+		t.Fatalf("insert user: %v", err)
+	}
+	reg := &recipe.Registry{}
+	reg.Add(&stubProvider{
+		id: "todo",
+		metrics: []recipe.Metric{
+			{Label: "Open", Query: "SELECT COUNT(*) FROM users WHERE id = ?"},
+		},
+		translations: []recipe.Translations{
+			{Locale: "pt-BR", Metrics: map[string]string{"Open": "Abertas"}},
+		},
+	})
+	h := NewHandler(f.h.cfg, f.auth, f.q, nil)
+	h.SetRegistry(reg, f.sqlDB)
+
+	pt := i18n.WithLocale(context.Background(), "pt-BR")
+	if got := h.declaredMetrics(pt, owner, false)["todo"]; len(got) != 1 || got[0].Label != "Abertas" {
+		t.Fatalf("pt-BR label = %+v, want Abertas", got)
+	}
+	if got := h.declaredMetrics(context.Background(), owner, false)["todo"]; len(got) != 1 || got[0].Label != "Open" {
+		t.Fatalf("default locale label = %+v, want Open", got)
 	}
 }

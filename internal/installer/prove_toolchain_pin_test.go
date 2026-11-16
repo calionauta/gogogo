@@ -72,7 +72,7 @@ func TestProveFailsWhenThePinSurfaceBreaks(t *testing.T) {
 	writeFile(t, filepath.Join(dir, "internal", "toolchain_pin_test.go"),
 		"package internal_test\n\nimport \"testing\"\n\n"+
 			"func TestGoToolchainPinIsConsistent(t *testing.T) {\n"+
-			"\tt.Fatal(\"cmd/gogogo-mcp/go.mod: no such file\")\n"+
+			"\tt.Fatal(\"go.mod: no such file\")\n"+
 			"}\n")
 
 	var out bytes.Buffer

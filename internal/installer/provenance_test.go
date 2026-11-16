@@ -97,6 +97,7 @@ func TestWriteAgentsRecordsEmptyTrim(t *testing.T) {
 // silently would quietly restore the old behaviour, where --check-update could
 // only compare the binary and reported a stale tree as current.
 func TestWriteAgentsRecordsTemplateBase(t *testing.T) {
+	requireTemplateIdentity(t)
 	dir := t.TempDir()
 	if err := writeAgents(context.Background(), dir, "my-app", nil); err != nil {
 		t.Fatal(err)

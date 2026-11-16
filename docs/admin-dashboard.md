@@ -147,6 +147,10 @@ Three rules the grid keeps:
 - **The link follows the role.** A card whose destination the role cannot
   open shows its numbers and no button (with a note saying why) — a link
   that 403s is a broken promise, the same rule the rail follows.
+- **The action is a footer, not a header chip.** Every card puts its button on
+  the bottom edge (`margin-top: auto`), so two cards in one grid row line up
+  even when one declared two metric tiles and the other four. The label is
+  `Open` on every card — the title above it already says where.
 
 ### Outcome cards: the ratio, not a score
 

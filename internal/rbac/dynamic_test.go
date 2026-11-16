@@ -37,16 +37,21 @@ func TestRBACABACOwnership(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewEnforcer: %v", err)
 	}
+	// A path the policy always allows for a signed-in user, so the ownership
+	// clause is what this test isolates. `/api/todos` was the demo's route and a
+	// scaffold that drops the slice removes its policy row with it — the clause
+	// under test has nothing to do with which slice is installed.
+	const owned = "/account"
 	cases := []struct {
 		name string
 		sub  string
 		obj  Object
 		want bool
 	}{
-		{"owner reaches own record", RoleUser, Object{Path: "/api/todos/abc", SubjectID: "u1", Owner: "u1"}, true},
-		{"user denied another's record", RoleUser, Object{Path: "/api/todos/abc", SubjectID: "u1", Owner: "u2"}, false},
-		{"admin reaches any record", RoleAdmin, Object{Path: "/api/todos/abc", SubjectID: "u1", Owner: "u2"}, true},
-		{"ownerless object keeps the base decision", RoleUser, Object{Path: "/api/todos", SubjectID: "u1"}, true},
+		{"owner reaches own record", RoleUser, Object{Path: owned + "/abc", SubjectID: "u1", Owner: "u1"}, true},
+		{"user denied another's record", RoleUser, Object{Path: owned + "/abc", SubjectID: "u1", Owner: "u2"}, false},
+		{"admin reaches any record", RoleAdmin, Object{Path: owned + "/abc", SubjectID: "u1", Owner: "u2"}, true},
+		{"ownerless object keeps the base decision", RoleUser, Object{Path: owned, SubjectID: "u1"}, true},
 	}
 	for _, c := range cases {
 		got, gerr := EnforceWith(e, c.sub, c.obj, "GET")
@@ -59,7 +64,7 @@ func TestRBACABACOwnership(t *testing.T) {
 	}
 	// A bare path string is the same as an ownerless Object: string
 	// callers (tests, the middleware default) keep identical decisions.
-	ok, serr := EnforceWith(e, RoleUser, "/api/todos/abc", "GET")
+	ok, serr := EnforceWith(e, RoleUser, owned+"/abc", "GET")
 	if serr != nil || !ok {
 		t.Fatalf("bare string path must keep the base allow: ok=%v err=%v", ok, serr)
 	}

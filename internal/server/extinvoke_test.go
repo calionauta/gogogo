@@ -66,6 +66,7 @@ func postInvoke(t *testing.T, f *muxFixture, token, payload string) *httptest.Re
 // TestInvokeEndpointAnonymousNeverReachesAHandler is the endpoint's
 // fail-loud side: no cookie, no write, 401.
 func TestInvokeEndpointAnonymousNeverReachesAHandler(t *testing.T) {
+	requireTodo(t)
 	f := buildMuxFixture(t)
 	wireInvokeOut(t, f)
 	rec := postInvoke(t, f, "", `{"id":"todo","verb":"create","params":{"title":"Anon"}}`)
@@ -86,6 +87,7 @@ func TestInvokeEndpointAnonymousNeverReachesAHandler(t *testing.T) {
 // whole stack: resolve → re-serve through the RBAC-wrapped outer →
 // the handler's row lands in the owned table.
 func TestInvokeEndpointRunsDeclaredVerb(t *testing.T) {
+	requireTodo(t)
 	f := buildMuxFixture(t)
 	wireInvokeOut(t, f)
 	token := signupForInvoke(t, f, "invoker@example.com")
@@ -108,6 +110,7 @@ func TestInvokeEndpointRunsDeclaredVerb(t *testing.T) {
 // route URL, and the handler toggles the caller's own row. This is the gap
 // that made toggle/delete impossible headless before.
 func TestInvokeEndpointRunsPathParamVerb(t *testing.T) {
+	requireTodo(t)
 	f := buildMuxFixture(t)
 	wireInvokeOut(t, f)
 	token := signupForInvoke(t, f, "toggler@example.com")
@@ -137,6 +140,7 @@ func TestInvokeEndpointRunsPathParamVerb(t *testing.T) {
 // TestInvokeEndpointRefusesMalformedPathID pins the validation boundary: a
 // non-UUID id is a 400 before dispatch, and the row is untouched.
 func TestInvokeEndpointRefusesMalformedPathID(t *testing.T) {
+	requireTodo(t)
 	f := buildMuxFixture(t)
 	wireInvokeOut(t, f)
 	token := signupForInvoke(t, f, "badid@example.com")
@@ -153,6 +157,7 @@ func TestInvokeEndpointRefusesMalformedPathID(t *testing.T) {
 // a verb the declaration never named is a 400 naming it, before any
 // handler runs.
 func TestInvokeEndpointRefusesUndeclaredVerb(t *testing.T) {
+	requireTodo(t)
 	f := buildMuxFixture(t)
 	wireInvokeOut(t, f)
 	token := signupForInvoke(t, f, "refuser@example.com")

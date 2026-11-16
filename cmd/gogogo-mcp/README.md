@@ -1,14 +1,15 @@
-# `cmd/gogogo-mcp` — installer as MCP tools (own module)
+# `cmd/gogogo-mcp` — installer as MCP tools
 
 Thin adapter over `internal/installer`: every tool maps to the same code
-path the CLI executes, so transports never diverge in behavior. Separate
-`go.mod` on purpose — the MCP SDK (and its 40+ transitive imports) must
-never enter the web binary's module graph.
+path the CLI executes, so transports never diverge in behavior. It is part of
+the root module, so it installs without cloning anything:
 
 ```bash
-cd cmd/gogogo-mcp
-go build -o gogogo-mcp .
+go install github.com/calionauta/gogogo/cmd/gogogo-mcp@latest
 ```
+
+(Unused imports never enter the web binary: only packages `cmd/web` imports are
+compiled into it.)
 
 ## Client wiring (the user runs it, nobody implements anything)
 
@@ -32,11 +33,14 @@ Claude Code (`~/.claude.json`) / Cursor (`~/.cursor/mcp.json`) / BB:
 | `build_prerequisites` | `platform?` | No |
 | `sync_prerequisites` | — | No |
 | `version_status` | `dir?`, `format?` | No |
-| `scaffold_plan` | `name`, `owner?`, `dir?`, `format?`, `shape?` | No |
-| `scaffold_apply` | `name`, `owner?`, `dir?`, `format?`, `shape?`, `confirm: true` | Yes (`confirm:true`) |
+| `scaffold_plan` | `name`, `owner?`, `dir?`, `format?`, `shape?`, `recipes?` | No |
+| `scaffold_apply` | `name`, `owner?`, `dir?`, `format?`, `shape?`, `recipes?`, `confirm: true` | Yes (`confirm:true`) |
 | `migrate_plan` | `from?`, `to?`, `dir?`, `changelog?`, `files?`, `format?` | No |
 | `export_unit` | `unit`, `dir`, `to`, `module?`, `format?` | Only writes `to` |
 | `new_feature` | `name`, `dir`, `confirm: true`, `dryRun?` | Yes (`confirm:true`) |
+| `locales` | `dir?`, `set?`, `confirm: true`, `format?` | Only with `set`, needs `confirm` |
+| `recipe_source` | `id`, `dir?`, `version?`, `file?`, `src?`, `format?` | No |
+| `recipe_receipts` | `dir?`, `write?`, `confirm: true`, `format?` | Only with `write`, needs `confirm` |
 | `recipe_install` | `src`, `dir`, `confirm: true`, `dryRun?`, `entry?`, `format?` | Yes (`confirm:true`) |
 | `recipe_update` | `src`, `dir`, `confirm: true`, `dryRun?`, `entry?`, `format?` | Yes (`confirm:true`) |
 | `recipe_uninstall` | `id`, `dir`, `confirm: true`, `format?` | Yes (`confirm:true`) |

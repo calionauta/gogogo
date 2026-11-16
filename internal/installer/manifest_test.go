@@ -25,7 +25,7 @@ func TestValidateName(t *testing.T) {
 
 // TestManifestUnitsCoverTheRegistry pins the export index: every manifest
 // unit maps to real registry capabilities, and the scaffold plan lists
-// everything (there is no keep/drop split any more).
+// everything (the demo slices are dropped by a separate selector).
 func TestManifestUnitsCoverTheRegistry(t *testing.T) {
 	byID := capabilities.ByID()
 	seen := map[string]bool{}
@@ -46,8 +46,11 @@ func TestManifestUnitsCoverTheRegistry(t *testing.T) {
 	}
 	var b strings.Builder
 	printPlanText(&b, p)
-	if !strings.Contains(b.String(), "removal:        none (full template") {
-		t.Errorf("plan text must say nothing is removed:\n%s", b.String())
+	if !strings.Contains(b.String(), "recipes:        none") {
+		t.Errorf("plan text must name the selector:\n%s", b.String())
+	}
+	if !strings.Contains(b.String(), "removal:        core is never removed") {
+		t.Errorf("plan text must say what removal means:\n%s", b.String())
 	}
 	// The text groups by the same three kind words the JSON carries, so a
 	// reader cannot see one vocabulary in the plan and another in the registry.

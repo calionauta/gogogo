@@ -24,6 +24,8 @@ word that replaced it. One concept, one name, one place.
 | **metric** | One reading a recipe declares, in the single `metrics` list. `kind` decides its claim: `activity` (how much happened) or `outcome` (did the job get done). | `internal/recipe` |
 | **activity metric** | A metric with `kind: activity` (the default): one COUNT over a table the recipe owns. No denominator, no claim. | `internal/recipe` |
 | **outcome** | A metric with `kind: outcome`: a job for a beneficiary, as a success count over the eligible count, plus the counterMetrics that qualify it. It is a kind of metric, never a second entity or a sibling list. | `internal/recipe` |
+| **locale record** (`locales.yml`) | The languages a product ships, recorded once and read by the boot, `new feature` and `recipe check`. `SUPPORTED_LOCALES` overrides it at deploy time; `en` is always first, and the first tag is the fallback. | `internal/projectlocales` |
+| **string** (recipe) | A human-readable word the recipe itself shows. Two homes, one per kind: page copy in `locale/<tag>.json` (prefixed `<id>.` at boot), and declared labels (a metric label) in the declaration's `translations:` block — data the author wrote, travelling with the slice. | `internal/i18n`, `internal/recipe` |
 | **counter metric** (`counterMetrics`) | A declared count that limits how an outcome's success may be read — a correction, an abandonment, a retry. A count, not a token, so the tension is visible on the page. | `internal/recipe` |
 | **recipe catalog** | A recipe's own `locale/<tag>.json`, merged at boot under the recipe id as the key prefix (`kiosk.title`). It travels with the slice, so deleting the recipe deletes its strings. | `internal/i18n`, `internal/recipe` |
 | **beneficiary** | Whose job an outcome serves: `user` or `operator`. Never both, so optimizing against the person stays distinguishable from serving them. | `internal/recipe` |
@@ -54,7 +56,7 @@ extension point* are different words.)
 | `extensions.gen.go` | `recipes.gen.go` | #385 |
 | `extension_list` / `extension_describe` / `extension_invoke` (MCP tools) | `recipe_list` / `recipe_describe` / `recipe_invoke` | #385 |
 | `Kind: plugin` (removal class) | `Kind: servant` | this commit |
-| `trim` as an installer operation (`--plugins`, `--features`, keep/drop presets) | nothing — scaffold ships the whole tree; remove a feature with `recipe uninstall <id>`, a servant by hand | this commit |
+| `trim` as an installer operation (`--plugins`, `--features`, keep/drop presets) | `--recipes` — drops the demo slices a tree does not import; a servant by hand, a platform surface never | this commit |
 | `trim_plan` / `trim_apply` (MCP tools) | `scaffold_plan` / `scaffold_apply` — they scaffold, never trim | this commit |
 
 Two reasons, one per row group. **One name per level:** `plugin` in code and

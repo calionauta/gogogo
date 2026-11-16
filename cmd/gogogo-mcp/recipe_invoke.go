@@ -37,9 +37,9 @@ func handleRecipeInvoke(
 		dir = "."
 	}
 	cli := []string{
-		"recipe", "invoke",
-		"--dir", dir, "--server", args.Server, "--session", args.Session,
-		"--format", format,
+		cliRecipe, "invoke",
+		flagDir, dir, "--server", args.Server, "--session", args.Session,
+		flagFormat, format,
 	}
 	for k, v := range args.Params {
 		cli = append(cli, "--param", k+"="+v)

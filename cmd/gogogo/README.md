@@ -21,7 +21,7 @@ deterministic `generate`, no LLM in the path. Full reference:
 
 ```bash
 go run ./cmd/gogogo doctor --json     # preflight for agents/CI (exit 0 ok / 4 fail)
-go run ./cmd/gogogo generate --check  # CI gate: exit 1 on drift
+go run ./cmd/gogogo generate --check  # CI gate: exit 1 when generation changed an owned file
 go run ./cmd/gogogo generate          # fix drift yourself (templ+sqlc+css+docs)
 ```
 
@@ -29,7 +29,8 @@ Checks: `go.version`, `go.tool.templ`, `tool.*` (ripwire/sem/cymbal/xerj/
 lefthook/sqlc/docker; `zig` and `mygo` warn opt-in — `mygo` CLI is
 packaging only, `make mygo` needs no CLI), `desktop.sdk` (xcode/GTK
 warn-only), `mobile.sdk` (skip unless `ANDROID_HOME`), `secrets.age`,
-`host.capacity`, `registry.fresh`, `generate.drift` (skip → `generate --check`).
+`host.capacity`, `registry.fresh`, `generate.drift` (real, read-only: warns when
+a `.templ` is newer than its `_templ.go`, or a query newer than `sqlcgen`).
 
 LLM workflow: run `doctor --json` first when starting work; run
 `generate --check` before opening a PR; if drift, run `generate` and
@@ -43,6 +44,7 @@ the same engine the MCP server calls. Full contract:
 [`skills/gogogo-recipe-authoring`](../../skills/gogogo-recipe-authoring/SKILL.md).
 
 ```bash
+go run ./cmd/gogogo recipe source todo             # READ it, install nothing
 go run ./cmd/gogogo recipe install ./path/to/bundle --dir ./my-app --yes
 go run ./cmd/gogogo recipe status --dir ./my-app   # pristine / modified / deleted
 go run ./cmd/gogogo recipe list --dir ./my-app [--format json]
@@ -51,25 +53,44 @@ go run ./cmd/gogogo recipe test todo --dir ./my-app    # the tests THAT recipe s
 go run ./cmd/gogogo recipe invoke todo create --dir ./my-app --param title=hi
 ```
 
+## Languages
+
+One tracked record (`locales.yml`) answers "what does this product ship". The
+boot, `new feature` and `recipe check` all read it, and `SUPPORTED_LOCALES`
+overrides at deploy time.
+
+```bash
+go run ./cmd/gogogo locales                    # what it ships, and where that came from
+go run ./cmd/gogogo locales --set en,pt-BR,es  # record the answer once
+```
+
+`make check-locales` fails when a recipe that translates one shipped language
+skips another. A recipe's page copy lives in `features/<id>/locale/<tag>.json`;
+a declared label (a metric's) lives in its own `translations:` block, because it
+is data the author wrote and travels with the slice.
+
 ## What it does, in order
 
 1. Shows the plan with every consequence (never silent).
 2. Clones the template into `--dir` when it is missing (asks, or `--yes`
    to proceed unattended).
-3. Renames it (same rules as `scripts/rename-project.py`: module path first,
+3. Drops the demo slices the tree no longer needs (`--recipes`, default
+   `none`), gated on real imports: a slice something still imports stays, and
+   the plan names the importer. Then records the languages (`--locales`).
+4. Renames it (same rules as `scripts/rename-project.py`: module path first,
    bare name second, Pages host only on `--owner` change, then every path
    whose NAME carries the template name — `cmd/gogogo`, `cmd/gogogo-mcp`,
    `skills/gogogo-coding-standards` and its `.agents/skills` registration —
    because the content pass rewrites every reference to those paths; shields
    `ai-credits`, `datastar-lint`, `pi-leakguard`; skips generated `site/docs/`).
-4. `go mod tidy`, proof `go build ./cmd/web` + the toolchain pin test when
+5. `go mod tidy`, proof `go build ./cmd/web` + the toolchain pin test when
    the tree carries it (it names files by path, so it is what catches a
    half-renamed tree).
-5. Writes an `AGENTS.md` in the new repo pointing agents back at the upstream
+6. Writes an `AGENTS.md` in the new repo pointing agents back at the upstream
    template before they add a dependency or a feature.
    Generated code follows `skills/gogogo-coding-standards/SKILL.md`
    (same Go rules `advise` cites).
-6. Prints `cd <dir> && make dev` — or, with `--run`, becomes dev itself
+7. Prints `cd <dir> && make dev` — or, with `--run`, becomes dev itself
    by execing `make dev` in the new checkout (humans only; never returns,
    so agents must not use it).
 

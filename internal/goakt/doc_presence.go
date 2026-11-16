@@ -91,9 +91,14 @@ func (p *DocPresence) doc(ctx context.Context, id string) (*goakt.PID, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	key := "doc-" + id
-	if pid, ok := h.rooms[key]; ok {
+	// Same liveness rule as Host.room: a passivated grain leaves a dead PID in
+	// this map, and goakt.Ask fails with ErrDead without reaching the
+	// supervisor. Dropping it here is what makes a quiet document wake up on
+	// the next edit instead of requiring a restart.
+	if pid, ok := h.rooms[key]; ok && pid != nil && pid.IsRunning() {
 		return pid, nil
 	}
+	delete(h.rooms, key)
 	if h.system == nil {
 		return nil, errors.New("goakt: host not started")
 	}

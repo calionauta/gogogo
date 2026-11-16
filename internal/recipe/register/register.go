@@ -14,6 +14,7 @@ package register
 import (
 	"context"
 	"database/sql"
+	"net/http"
 
 	natsio "github.com/nats-io/nats.go"
 
@@ -100,6 +101,12 @@ type Deps struct {
 	// is installed but disabled is not mounted, so the registry alone cannot
 	// list it; this is the build fact.
 	Installed []string
+	// MountStatic registers a feature's OWN asset subtree on the composition
+	// root's router. It exists so the root does not import the feature's
+	// package to mount two lines: a slice that embeds assets claims its path
+	// here, exactly like it claims routes through reg. Nil in callers with no
+	// router (tests) — Register must tolerate nil.
+	MountStatic func(prefix string, h http.Handler)
 	// Events is the in-process domain-event bus. Emit is nil-safe, so a
 	// caller with no bus (tests, a trimmed tree) emits into nothing. A recipe
 	// publishes a fact after its write commits; it never subscribes to core

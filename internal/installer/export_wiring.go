@@ -276,6 +276,8 @@ func looksLikeTemplate(root string) bool {
 		filepath.Join("cmd", "web", "main.go"),
 		filepath.Join("internal", "installer", "run.go"),
 	} {
+		// probe is a package-constant path inside the checkout being read.
+		//nolint:gosec // constant probe path under the caller's root
 		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(probe))); err == nil {
 			return true
 		}

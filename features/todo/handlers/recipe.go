@@ -29,8 +29,6 @@ const (
 	todoSuggest   = "/api/todos/suggest"
 	todoSuggestUI = "/api/todos/suggest-simulated"
 	todoRetryDemo = "/api/todos/retry-demo"
-	loginPath     = "/login"
-	signupPath    = "/signup"
 )
 
 // Recipe returns the declaration the composition root mounts through the
@@ -179,11 +177,6 @@ func todoRoutes() []recipe.Route {
 		{Method: methodPost, Pattern: todoSuggest},
 		{Method: methodPost, Pattern: todoSuggestUI},
 		{Method: methodPost, Pattern: todoRetryDemo},
-		{Method: methodGet, Pattern: loginPath},
-		{Method: methodPost, Pattern: loginPath},
-		{Method: methodGet, Pattern: signupPath},
-		{Method: methodPost, Pattern: signupPath},
-		{Method: methodPost, Pattern: "/logout"},
 		{Method: methodGet, Pattern: todoPage},
 	}
 }

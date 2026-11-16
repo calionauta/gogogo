@@ -11,20 +11,26 @@ import (
 // TestRenameTreeMovesNameBearingPaths is the guard for the half-renamed tree.
 //
 // The content pass rewrites every REFERENCE to a name-bearing path (`go run
-// ./cmd/gogogo`, `cmd/gogogo-mcp/go.mod`, `skills/gogogo-coding-standards/
+// ./cmd/gogogo`, `cmd/gogogo-mcp/README.md`, `skills/gogogo-coding-standards/
 // SKILL.md`). If the directories keep the template name, every one of those
 // references points at nothing — and nothing notices, because the build proof
 // never opens them. What fails later is a test that does, with "no such file",
 // in a project whose own name is the only clue.
 func TestRenameTreeMovesNameBearingPaths(t *testing.T) {
+	requireTemplateIdentity(t)
+	// The rename's source name is the template's, whatever this tree calls
+	// itself: `renameOldName` is the literal a scaffold rewrites. These tests
+	// assert the template's own paths, so they only mean something in the
+	// template — a scaffolded product has already renamed them.
+	requireTemplateIdentity(t)
 	root := t.TempDir()
 
 	files := map[string]string{
-		"go.mod":                "module github.com/calionauta/gogogo\n\ngo 1.27\n",
-		"README.md":             "run `go run ./cmd/gogogo`, then `cd cmd/gogogo-mcp`\n",
-		"cmd/gogogo/main.go":    "package main\n\nfunc main() {}\n",
-		"cmd/gogogo-mcp/go.mod": "module github.com/calionauta/gogogo/cmd/gogogo-mcp\n",
-		"cmd/web/main.go":       "package main\n",
+		"go.mod":                   "module github.com/calionauta/gogogo\n\ngo 1.27\n",
+		"README.md":                "run `go run ./cmd/gogogo`, then `cd cmd/gogogo-mcp`\n",
+		"cmd/gogogo/main.go":       "package main\n\nfunc main() {}\n",
+		"cmd/gogogo-mcp/README.md": "the MCP server\n",
+		"cmd/web/main.go":          "package main\n",
 		"skills/gogogo-coding-standards/SKILL.md": "# skill\n",
 		// Vendored upstream skills keep their upstream names in every
 		// checkout: only gogogo-coding-standards carries the project name.
@@ -55,7 +61,7 @@ func TestRenameTreeMovesNameBearingPaths(t *testing.T) {
 	}
 	for _, want := range []string{
 		"cmd/my-app/main.go",
-		"cmd/my-app-mcp/go.mod",
+		"cmd/my-app-mcp/README.md",
 		"skills/my-app-coding-standards/SKILL.md",
 		"cmd/web/main.go",
 	} {
@@ -102,5 +108,27 @@ func TestRenameTreeMovesNameBearingPaths(t *testing.T) {
 	}
 	if !strings.Contains(string(readme), "./cmd/my-app") {
 		t.Errorf("the README reference was not rewritten:\n%s", readme)
+	}
+}
+
+// TestRenameLeavesItsOwnConstantAlone is the bug a second scaffold would hit:
+// the rename rewrites the bare template name everywhere, and rename.go carries
+// it in `renameOldName`. A scaffolded tree used to ship
+// `const renameOldName = "my-app"`, so scaffolding FROM that tree looked for
+// the wrong old name and renamed nothing.
+func TestRenameLeavesItsOwnConstantAlone(t *testing.T) {
+	root := t.TempDir()
+	body := "package installer\n\nconst renameOldName = \"gogo\" + \"go\"\n"
+	writeFile(t, filepath.Join(root, "internal/installer/rename.go"), body)
+
+	if err := renameTree(root, "my-app", "me"); err != nil {
+		t.Fatalf("renameTree: %v", err)
+	}
+	got, err := os.ReadFile(filepath.Join(root, "internal/installer/rename.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(got), `"gogo" + "go"`) {
+		t.Fatalf("the rename rewrote its own old-name constant:\n%s", got)
 	}
 }

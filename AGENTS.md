@@ -6,7 +6,7 @@
 
 Datastar + Templ + Turso (sqlc) + owned auth + goqite + DagNats + NATS JetStream. Module `github.com/calionauta/gogogo`.
 **Naming:** repo/binary/deploy-dir/container/hostname share the project name; `gogogo` appears ~670× — never rename by hand (`scripts/rename-project.py --dry-run`, `make rename`). Scaffold via `go run ./cmd/gogogo` or `make rename`.
-**Upstream-first:** check `site/llms.txt` + `site/docs/<slug>/` before adding a feature/dependency; Todo is the reference, `docs/unit-contracts.md` lists owners. New features: `go run ./cmd/gogogo new feature <name>`.
+**Upstream-first:** check `site/llms.txt` + `site/docs/<slug>/` before adding a feature/dependency; Todo is the reference, `docs/unit-contracts.md` lists owners. Read a slice before writing one: `gogogo recipe source <id>` (no receipt, no copy — installing is a separate, deliberate act). New features: `go run ./cmd/gogogo new feature <name>`. Languages: `gogogo locales` (`locales.yml` is the single record every gate reads).
 **Build:** `go build ./cmd/web`, no tags; opt out at runtime (`NATS_ENABLED=false` etc.). Backup `scripts/backup.sh`; retention `docs/async-layers.md`.
 
 ## Stack

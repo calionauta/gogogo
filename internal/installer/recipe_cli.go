@@ -32,6 +32,10 @@ import (
 // manifest is not part of the copied tree.
 const recipeManifestFile = ".recipe.yml"
 
+// recipeVerbUpdate is the `recipe update` verb. Spelled once because the
+// dispatch and the flag documentation both compare against it.
+const recipeVerbUpdate = "update"
+
 // recipeIDPattern is the receipt filename and the prefix a recipe may use for
 // its tables and jobs: lowercase, no separators, so it can never escape
 // .recipes/ or make two recipes collide by case.
@@ -71,32 +75,35 @@ func runRecipe(ctx context.Context, args []string, stdout, stderr io.Writer) err
 		return &ExitError{code: 1, msg: "recipe needs a subcommand: " +
 			"`recipe install <dir>`, `recipe check [id]`, `recipe test [id]`, `recipe status [id]`, " +
 			"`recipe outdated [id]`, `recipe uninstall <id>`, `recipe enable <id>`, `recipe disable <id>`, " +
-			"`recipe list`, `recipe describe <id>` or `recipe invoke <id> <verb>`"}
+			"`recipe list`, `recipe describe <id>`, `recipe source <id>`, `recipe receipts` or `recipe invoke <id> <verb>`"}
 	}
 	switch args[0] {
-	case "install":
-		return runRecipeInstall(args[1:], stdout, false)
-	case "update":
-		return runRecipeInstall(args[1:], stdout, true)
+	case "install", "update":
+		return runRecipeInstall(args[1:], stdout, args[0] == recipeVerbUpdate)
 	case "check":
 		return runRecipeCheck(args[1:], stdout)
 	case "test":
 		return runRecipeTest(ctx, args[1:], stdout, stderr)
 	case "status":
 		return runRecipeStatus(args[1:], stdout)
-	case "outdated":
-		return runRecipeOutdated(args[1:], stdout)
-	case "uninstall":
-		return runRecipeUninstall(args[1:], stdout)
 	case "enable":
 		//nolint:contextcheck // CLI DB open at command start; no request context to carry.
 		return runRecipeEnable(args[1:], stdout)
 	case "disable":
 		//nolint:contextcheck // CLI DB open at command start; no request context to carry.
 		return runRecipeDisable(args[1:], stdout)
+	case "outdated":
+		return runRecipeOutdated(args[1:], stdout)
+	case "uninstall":
+		return runRecipeUninstall(args[1:], stdout)
+
 	case "list":
 		//nolint:contextcheck // CLI DB open at command start; no request context to carry.
 		return runRecipeList(args[1:], stdout)
+	case "source":
+		return runRecipeSource(args[1:], stdout)
+	case "receipts":
+		return runRecipeReceipts(args[1:], stdout)
 	case "describe", "show":
 		//nolint:contextcheck // CLI DB open at command start; no request context to carry.
 		return runRecipeDescribe(args[1:], stdout)
@@ -104,8 +111,8 @@ func runRecipe(ctx context.Context, args []string, stdout, stderr io.Writer) err
 		return runRecipeInvoke(ctx, args[1:], stdout)
 	}
 	return &ExitError{code: 1, msg: fmt.Sprintf(
-		"unknown recipe subcommand %q (want install|check|test|status|outdated|uninstall|"+
-			"enable|disable|list|describe|invoke)", args[0])}
+		"unknown recipe subcommand %q (want install|check|test|status|outdated|uninstall|source|"+
+			"enable|disable|list|describe|source|receipts|invoke)", args[0])}
 }
 
 // loadRecipeSource reads and validates a recipe directory: the manifest first

@@ -331,3 +331,73 @@ func TestSanitizeRoomID(t *testing.T) {
 		}
 	}
 }
+
+// TestPassivatedRoomIsRespawned is the production-only 502: GoAkt passivates an
+// idle grain after IdlePassivateAfter and stops it. The cached *PID then points
+// at a dead actor and goakt.Ask returns ErrDead without reaching the supervisor,
+// so every roster read failed until the process restarted. The cache must check
+// liveness and respawn, not return a stale pointer forever.
+func TestPassivatedRoomIsRespawned(t *testing.T) {
+	ctx, h := testHost(t)
+
+	// Seed the cache with a grain, then stop it the way passivation does.
+	if err := h.Tell(ctx, "lobby", RoomJoin{Name: "ana", ClientID: "c1"}); err != nil {
+		t.Fatalf("join: %v", err)
+	}
+	h.mu.Lock()
+	live := h.rooms["lobby"]
+	h.mu.Unlock()
+	if live == nil {
+		t.Fatal("setup: no cached pid")
+	}
+	if err := h.system.Kill(context.Background(), "room-lobby"); err != nil {
+		t.Logf("kill (grain may already be gone): %v", err)
+	}
+	waitFor(t, 2*time.Second, func() bool { return !live.IsRunning() }, "the cached pid to be dead")
+
+	// The next read must recover instead of answering the dead pid.
+	roster, err := h.Roster(context.Background(), "lobby")
+	if err != nil {
+		t.Fatalf("roster after passivation: %v (the dead pid was not replaced)", err)
+	}
+	// A fresh grain, so the old membership is gone — that is expected: the
+	// roster rebuilds from heartbeats.
+	if len(roster.Members) != 0 {
+		t.Errorf("respawned grain kept stale members: %+v", roster.Members)
+	}
+	h.mu.Lock()
+	next := h.rooms["lobby"]
+	h.mu.Unlock()
+	if next == nil || next == live {
+		t.Errorf("cache still points at the dead pid (next=%p live=%p)", next, live)
+	}
+}
+
+// TestDocPresencePassivationWakesUp is the same rule for document presence:
+// a quiet note or board must wake on the next edit, not require a restart.
+func TestDocPresencePassivationWakesUp(t *testing.T) {
+	ctx, h := testHost(t)
+	p := NewDocPresence(h)
+
+	if _, err := p.Join(ctx, "note-1", "c1"); err != nil {
+		t.Fatalf("join: %v", err)
+	}
+	h.mu.Lock()
+	live := h.rooms["doc-note-1"]
+	h.mu.Unlock()
+	if live == nil {
+		t.Fatal("setup: no cached doc pid")
+	}
+	if err := h.system.Kill(context.Background(), "doc-note-1"); err != nil {
+		t.Logf("kill: %v", err)
+	}
+	waitFor(t, 2*time.Second, func() bool { return !live.IsRunning() }, "the doc pid to be dead")
+
+	peers, err := p.Join(context.Background(), "note-1", "c2")
+	if err != nil {
+		t.Fatalf("doc join after passivation: %v (the dead pid was not replaced)", err)
+	}
+	if len(peers) != 0 {
+		t.Errorf("respawned doc grain kept stale peers: %v", peers)
+	}
+}

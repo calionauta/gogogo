@@ -57,7 +57,10 @@ import (
 	"github.com/gogpu/ui/widget"
 
 	"github.com/calionauta/gogogo/config"
+	"github.com/calionauta/gogogo/features/todo"
+	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/desktopboot"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
@@ -106,7 +109,10 @@ func run() error {
 		return err
 	}
 	defer sqlDB.Close()
-	if merr := desktopboot.MigrateAll(sqlDB); merr != nil {
+	// The shell renders todos, so it owns that unit's spec: the shared boot
+	// applies whatever migration sets its caller names, and a shell without the
+	// slice passes none.
+	if merr := desktopboot.MigrateAll(sqlDB, todoMigrationSet()); merr != nil {
 		return merr
 	}
 	a, aerr := desktopboot.NewAuth(sqlDB, cfg)
@@ -250,4 +256,11 @@ func persistSessionIfNeeded(st *windowState, tokPath string) {
 	if err := saveToken(tokPath, token); err != nil {
 		slog.Warn("gui: could not persist session", "error", err)
 	}
+}
+
+// todoMigrationSet is the todo unit's own DDL, named by the shell that renders
+// todos. It lives here, not in desktopboot: the shared boot must not know which
+// slices exist.
+func todoMigrationSet() dbschema.MigrationSet {
+	return dbschema.MigrationSet{ID: todohandlers.RecipeID, FS: todo.Migrations, Dir: "migrations"}
 }

@@ -42,6 +42,16 @@ Rules:
   `MigrateAll`, `NewAuth` (TOTP seal-key), `EnsureDemo`,
   `ScopeInstanceIdentity`/`SingleInstanceID`, `PortOf`, `WebviewURL`.
   Shells never copy the boot sequence.
+- **`MigrateAll` takes the migration sets it should apply.** It used to name
+  `features/todo` directly, which made shared infrastructure import a demo
+  slice: the reference slice could then never be dropped from a product. A
+  shell that renders todos passes `features/todo`'s set (`cmd/gui` does); one
+  that renders nothing passes none. `cmd/check-product-boundary` fails when any
+  `internal/` package outside the composition root names a removable slice.
+- **Sign-in pages are core.** `internal/authpages` mounts `/login`, `/signup`
+  and `/logout` against `features/authviews`' markup. They used to be methods on
+  the todo handler, which made the reference slice the owner of the login page:
+  a product that dropped it answered 404 at `/login` and could sign nobody in.
 
 ## Current state
 

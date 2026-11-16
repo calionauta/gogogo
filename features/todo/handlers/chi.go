@@ -217,11 +217,6 @@ func (h *Handler) Routes() chi.Router {
 	r.Post("/api/todos/suggest", h.handleSuggest)
 	r.Post("/api/todos/suggest-simulated", h.handleSuggestSimulated)
 	r.Post("/api/todos/retry-demo", h.handleRetryDemo)
-	r.Get("/login", h.handleLoginGet)
-	r.Post("/login", h.handleLoginPost)
-	r.Get("/signup", h.handleSignupGet)
-	r.Post("/signup", h.handleSignupPost)
-	r.Post("/logout", h.handleLogoutPost)
 	r.Get("/todo", h.handleIndex)
 	return r
 }
@@ -423,6 +418,9 @@ func (h *Handler) handleFragment(w http.ResponseWriter, r *http.Request) {
 	signals := h.displaySignals(r, todos, filter, scope)
 	signals.SearchMode = h.activeSearchMode(searchModeOf(r))
 	var buf bytes.Buffer
+	//nolint:contextcheck // templ threads GeneratedComponentInput.Context into
+	// nested components; contextcheck cannot see that path, and the ctx here IS
+	// the request's (r.Context()).
 	if err := components.TodoListRegion(signals).Render(r.Context(), &buf); err != nil {
 		h.fail(r.Context(), w, "todo: fragment render failed", err, "error rendering list")
 		return

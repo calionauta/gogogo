@@ -298,16 +298,14 @@ jobs:
             exit 1
           fi
           echo "✓ generated templ files match their sources"
-      - name: MCP module tests
-        # cmd/gogogo-mcp is its own module, so the root `go test ./...` and the
-        # race suite never see it. Nothing ran this module's tests, which is how
-        # add_unit/new_feature shipped passing a flag their subcommands never
-        # defined: every MCP call to them failed at flag parse and no gate
-        # noticed. Same script as the local hook (make check-mcp).
-        run: |
-          cd cmd/gogogo-mcp
-          bash ../../bin/go-mod-download.sh
-          go test -count=1 ./...
+      - name: MCP tool tests
+        # The MCP server shares the root module (so `go install
+        # .../cmd/gogogo-mcp@latest` works without a checkout), which means the
+        # root `go test ./...` already runs these. Kept as a named step anyway:
+        # the tools are the surface a third party drives, and a parse-level
+        # regression there fails every call silently. Same script as the local
+        # hook (make check-mcp).
+        run: go test -count=1 ./cmd/gogogo-mcp/...
       - name: Check install.sh bootstrap contract
         # install.sh is the first thing a new user runs and manipulates PATH.
         # Guards that it never plants a `go` entry in $BIN_DIR (which would
@@ -435,10 +433,9 @@ jobs:
         # This step exists because the pre-commit hook was the ONLY place
         # that checked formatting: the hook uses ambient binaries and CI
         # never ran it — so a formatting drift reached master on a green
-        # build (it did: the MCP catalog, a nested module, was misaligned and
-        # every CI job stayed green). One command, and the nested module is
-        # covered too — `golangci-lint fmt` walks the directory tree, not the
-        # module graph.
+        # build (it did: the MCP catalog was misaligned and every CI job stayed
+        # green). One command — `golangci-lint fmt` walks the directory tree,
+        # not the module graph, so nothing can sit outside it.
         run: golangci-lint fmt --diff .
       - name: Install C toolchain (CGO for loro-go)
         # internal/collab uses loro-go, a CGO binding to the Loro C library.

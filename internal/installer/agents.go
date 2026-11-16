@@ -18,20 +18,26 @@ import (
 // That commits the base marker to a real revision instead of a guess, and it
 // costs one git call at scaffold time (skipped silently outside a git tree).
 func writeAgents(ctx context.Context, dir, projectName string, drop []builtinUnit) error {
-	// "none" rather than an empty string, so the lines are always parseable
-	// and always present — an empty value would read as a missing section.
-	removed := removedIDs(drop)
-	list := keepNone
-	if len(removed) > 0 {
-		list = strings.Join(removed, ", ")
-	}
+	return writeAgentsWith(ctx, dir, projectName, removedIDs(drop), droppedPaths(drop))
+}
+
+// writeAgentsWith is writeAgents for a removal set that is not a list of
+// builtinUnits: the scaffold's demo slices (`--recipes`) are receipts dropped by
+// id, and they have no builtinUnit to read paths from. Writing `removed: none`
+// for them — which is what the first implementation did — makes the tree claim
+// it is whole, so `--check` reports the dropped slices as manifest drift and the
+// registry conformance test looks for directories the operator deliberately
+// removed.
+func writeAgentsWith(ctx context.Context, dir, projectName string, removedIDs, removedPaths []string) error {
+	list := joinOrNone(removedIDs)
+	paths := joinOrNone(removedPaths)
 	out := prompts.MustRender("installer/agents-md", map[string]string{
 		"project":         projectName,
 		"toolchain":       toolchainLine(treeGoVersion(dir)),
 		"template_ref":    templateRef(),
 		"template_commit": gitHead(ctx, dir),
 		"removed":         list,
-		"removed_paths":   removedPaths(drop),
+		"removed_paths":   paths,
 	})
 	t, err := openTree(dir)
 	if err != nil {

@@ -43,6 +43,7 @@ internal/
   server/                         Flat-stack composition (BootChi + buildChiMux)
 features/
   app/                            AppContext bundle (consumed by cmd/gui only)
+  authpages/                      Sign-in pages (internal/authpages): login, signup, logout
   authviews/                      Login page + shell controls (theme, user menu, palette)
   config/                         Admin-only /config view + user actions
   todo/                           Todo MVC example
@@ -110,6 +111,9 @@ absolute patterns, and `MountFeature` flattens that table onto the root
   `Routes() chi.Router` with absolute patterns and the router decides the
   method. Static/asset handlers mount through `MountSubtree`, which leaves
   the request path unrewritten because those handlers trim their own prefix.
+  A slice that embeds its OWN assets claims its subtree through
+  `register.Deps.MountStatic` during `Register`, so the root needs no import
+  for it and a dropped slice leaves no line behind.
   `GET /` is a core redirect (`internal/server/home.go`): /login for a guest,
   the signed-in home otherwise. There is no catch-all page.
 - Serve static assets through `web/resources.AssetHandler` (`/static/` plus
@@ -119,9 +123,9 @@ absolute patterns, and `MountFeature` flattens that table onto the root
 
 ### Why not chi's Route/Group
 
-`Route` is prefix-scoped. Six of the eleven feature packages own more than one
-top-level prefix: `todo` answers `/todo`, `/api/todos`, `/login` and `/logout`;
-`whiteboard` answers `/whiteboard` and `/api/whiteboard`. With `Route`, each
+`Route` is prefix-scoped. Several feature packages own more than one top-level
+prefix: `todo` answers `/todo` and `/api/todos`; `whiteboard` answers
+`/whiteboard` and `/api/whiteboard`. With `Route`, each
 feature would need two to four mount calls plus a split `Routes()` API, and the
 root would own the prefix while the feature owned the suffix. The current
 shape keeps one fact in one place: the feature owns the whole path, and the

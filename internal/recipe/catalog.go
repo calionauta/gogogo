@@ -80,8 +80,12 @@ type CatalogEntry struct {
 	// Metrics are reviewed as one list (activity and outcome kinds alike): a
 	// catalog entry that omits them installs a recipe whose claims are smaller
 	// than the ones the author reviewed.
-	Metrics []Metric   `yaml:"metrics,omitempty"`
-	Panel   *PanelSpec `yaml:"panel,omitempty"`
+	Metrics []Metric `yaml:"metrics,omitempty"`
+	// Translations is the reviewed spelling of the declared labels, per locale.
+	// A catalog install must carry it or the dashboard grades a translated
+	// product against English-only wording — the same reason Metrics travel.
+	Translations []Translations `yaml:"translations,omitempty"`
+	Panel        *PanelSpec     `yaml:"panel,omitempty"`
 	// UpstreamDeps is a pointer so "absent" and "empty" are different claims:
 	// absent is a missing declaration, empty is "this recipe needs nothing".
 	UpstreamDeps    *[]string `yaml:"upstreamDeps"`

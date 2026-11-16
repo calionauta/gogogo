@@ -201,6 +201,13 @@ linters:
       - path: ^(cmd|scripts)/
         linters:
           - gocritic
+      # The MCP tools' jsonschema tags and the tool catalog are the served
+      # surface: both are single-line by construction (a struct tag cannot
+      # wrap; a tool description is one string the agent reads), so the line
+      # limit would only push meaning out of the schema.
+      - path: ^cmd/gogogo-mcp/
+        linters:
+          - lll
       # Ignore length checks in templ-generated files
       - path: (.+)_templ\.go
         linters:
@@ -211,6 +218,12 @@ linters:
       # internal/icon/icons.go is vendored Iconify glyph data: opaque
       # single-line path bodies a human never edits by hand. Length checks
       # are noise there; the catalog's shape is guarded by icons_test.go.
+      # features/todo/components/list_wire.go holds Datastar expressions: one
+      # JS fragment per string literal, and wrapping them would split the
+      # expression a reader has to follow.
+      - path: features/todo/components/list_wire\.go
+        linters:
+          - lll
       - path: internal/icon/icons\.go
         linters:
           - lll

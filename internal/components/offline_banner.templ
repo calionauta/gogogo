@@ -54,6 +54,7 @@ import (
 	"encoding/hex"
 	"strconv"
 	"strings"
+	"github.com/calionauta/gogogo/internal/i18n"
 )
 
 // ownerKey is the per-account stamp the outbox stores with every intent. It is
@@ -160,7 +161,7 @@ templ OfflineBanner(offlineSync bool, userEmail string) {
 			data-show="$bannerAuth && !($bannerDrop > 0)"
 			data-attr:href={ `'/login?next=' + encodeURIComponent(location.pathname + location.search)` }
 			href="/login"
-		>Sign in</a>
+		>{ i18n.T(ctx, "common.signIn", nil) }</a>
 		<span id="offline-banner-drop" class="hidden" data-class={ `{'hidden': !($bannerDrop > 0)}` }>
 			<span data-text={ dropTextExpr }></span>
 			<button type="button" class="btn btn-ghost btn-xs" data-on:click="$bannerDrop = 0; window.GogogoOffline && window.GogogoOffline.forgetDrop()">dismiss</button>

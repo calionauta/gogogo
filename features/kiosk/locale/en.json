@@ -1,10 +1,12 @@
 {
   "title": "Kiosk",
   "sayOrder": "Say the order",
-  "sayOrderHelp": "The microphone uses the device's own recognition. Without support, permission or the language pack, type it: the path is the same.",
+  "sayOrderHelp": "Speak or type — the microphone is on the field, and it listens on this device.",
   "orderPlaceholder": "a large latte with oat milk",
   "orderLabel": "Order",
   "microphone": "Microphone",
+  "micToggleHint": "Start or stop listening",
+  "micIdleHint": "Tap the microphone to speak, or just type.",
   "micOptional": "Typing always works — the microphone is optional.",
   "preview": "Preview",
   "previewHelp": "Provisional. Nothing is submitted until you confirm.",

@@ -86,10 +86,15 @@ func TestRailInboxBadgeKeepsItsTextForTheSeed(t *testing.T) {
 // expanded row is not read twice.
 func TestRailItemKeepsItsNameWhenCollapsed(t *testing.T) {
 	html := renderShell(WithInboxUnread(context.Background(), 4), t)
-	for _, want := range []string{
-		`<span class="sr-only is-drawer-open:hidden">Inbox</span>`,
-		`<span class="sr-only is-drawer-open:hidden">Todo</span>`,
-	} {
+	wants := []string{`<span class="sr-only is-drawer-open:hidden">Inbox</span>`}
+	// Todo is the reference slice and a scaffold may drop it; when it is here,
+	// its row must carry the same affordance.
+	for _, m := range Modules {
+		if m.ID == "todo" && !m.MenuOnly {
+			wants = append(wants, `<span class="sr-only is-drawer-open:hidden">Todo</span>`)
+		}
+	}
+	for _, want := range wants {
 		if !strings.Contains(html, want) {
 			t.Errorf("collapsed rail row missing its screen-reader name %q", want)
 		}

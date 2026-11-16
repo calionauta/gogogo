@@ -36,11 +36,19 @@ const shapeHelp = `Pick what the tree ships with --shape (default full: every ta
     --shape gui       cmd/gui only
     --shape mobile    cmd/mobile + cmd/web`
 
+// recipeSourceHelp documents the read half of the recipe lifecycle: a recipe is
+// consulted before it is copied.
+const recipeSourceHelp = `Read a recipe's code without installing it (no receipt, no copy):
+
+    go run ./cmd/gogogo recipe source todo
+    go run ./cmd/gogogo recipe source todo --file handlers/recipe.go
+    go run ./cmd/gogogo recipe source todo --format json`
+
 // printScaffoldUsage is the scaffold half of the reference: the human path, the
 // agent path, and how a shape narrows what the tree ships.
 func printScaffoldUsage(w io.Writer) {
 	fmt.Fprintln(w, `
-  Interactive (humans: 2 questions — name, owner — then a plan to confirm):
+  Interactive (humans: name, owner, shape, then which demo slices to drop):
 
     go run github.com/calionauta/gogogo/cmd/gogogo@latest --run
 
@@ -54,7 +62,17 @@ func printScaffoldUsage(w io.Writer) {
       --no-tui --dry-run --format json --dir ./my-app
     go run ./cmd/gogogo --name my-app --no-tui --yes --dir ./my-app
 
-  `+shapeHelp)
+  `+shapeHelp+`
+
+  Demo slices. A fresh product does not need the demos, so they are dropped by
+  default ('--recipes none'). Removal is gated on real imports: a slice your
+  tree still uses stays, with the importer named.
+
+    go run ./cmd/gogogo --name my-app --no-tui --yes --recipes none
+    go run ./cmd/gogogo --name my-app --no-tui --yes --recipes kiosk,room
+    go run ./cmd/gogogo --name my-app --no-tui --yes --recipes all
+
+  `+recipeSourceHelp)
 }
 
 func PrintUsage(w io.Writer, fs *flag.FlagSet) {

@@ -4,6 +4,7 @@ package components
 import (
 	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/internal/components"
+	"github.com/calionauta/gogogo/internal/i18n"
 )
 
 // PageData is what the activation page needs.
@@ -20,13 +21,13 @@ templ ActivatePage(data PageData) {
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>Activate — gogogo</title>
+			<title>{ i18n.T(ctx, "license.title", nil) }</title>
 			@components.Assets()
 		</head>
 		<body class="bg-base-200 min-h-screen flex items-center justify-center p-4">
 			<div class="card bg-base-100 shadow-xl w-full max-w-xl">
 				<div class="card-body gap-4">
-					<h1 class="card-title text-2xl">Activate this app</h1>
+					<h1 class="card-title text-2xl">{ i18n.T(ctx, "license.activateApp", nil) }</h1>
 					if data.Mode == "account" {
 						<p class="text-sm opacity-70">
 							Paste the account token you received. Activation links this
@@ -46,13 +47,13 @@ templ ActivatePage(data PageData) {
 					}
 					<form method="POST" action="/activate" class="flex flex-col gap-3">
 						<label class="flex flex-col gap-1">
-							<span class="text-sm font-semibold">Activation token</span>
+							<span class="text-sm font-semibold">{ i18n.T(ctx, "license.token", nil) }</span>
 							<textarea name="token" class="textarea textarea h-32 font-mono text-xs"
 								placeholder="gogogo1.…" required autofocus></textarea>
 						</label>
 						if data.Mode == "account" {
 							<label class="flex flex-col gap-1">
-								<span class="text-sm font-semibold">Local password (optional)</span>
+								<span class="text-sm font-semibold">{ i18n.T(ctx, "license.passwordOptional", nil) }</span>
 								<input type="password" name="password" class="input input-sm"
 									autocomplete="new-password" minlength="8"
 									placeholder="at least 8 characters"/>
@@ -62,7 +63,7 @@ templ ActivatePage(data PageData) {
 								without it, re-paste the token.
 							</p>
 						}
-						<button type="submit" class="btn btn-primary">Activate</button>
+						<button type="submit" class="btn btn-primary">{ i18n.T(ctx, "license.activate", nil) }</button>
 					</form>
 					<p class="text-xs opacity-60">
 						Offline check: the token is verified with a key built into this

@@ -127,6 +127,21 @@ type Metric struct {
 	Target         *float64 `yaml:"target,omitempty"`
 }
 
+// Translations is the localized spelling of the labels this declaration shows.
+//
+// A metric's label is DATA the recipe author wrote, so it cannot live in the
+// app catalog (the recipe may be uninstalled) and it cannot be looked up by a
+// core key (the wording is the author's). It travels WITH the declaration, one
+// entry per locale tag, and the reader picks the one the request asks for. A
+// tag with no entry falls back to the declared label, which is why a partial
+// translation renders instead of showing a dotted key.
+type Translations struct {
+	// Locale is the tag (`pt-BR`, `en`), matched case-insensitively.
+	Locale string `yaml:"locale"`
+	// Metrics maps a declared metric label to its spelling in this locale.
+	Metrics map[string]string `yaml:"metrics,omitempty"`
+}
+
 // ResolvedKind is the kind this metric declares, with the zero value read as
 // Activity (the pre-kind spelling).
 func (m Metric) ResolvedKind() MetricKind {
@@ -173,7 +188,58 @@ func (d Declaration) OutcomeMetrics() []Metric {
 // Exported so registration, the catalog and the dashboard executor share one
 // definition of a valid metric.
 func MetricProblems(d Declaration) []string {
-	return metricListProblems(d.Metrics)
+	return append(metricListProblems(d.Metrics), translationProblems(d)...)
+}
+
+// translationProblems checks the localized spellings: a translation must name a
+// locale, name only labels the declaration actually shows, and not repeat a
+// locale. A translation for a label nobody renders is a typo that would never
+// surface (the reader looks up by label, so the stray key is simply ignored).
+func translationProblems(d Declaration) []string {
+	shown := map[string]bool{}
+	for _, m := range d.Metrics {
+		for _, label := range metricLabels(m) {
+			shown[label] = true
+		}
+	}
+	var out []string
+	seen := map[string]bool{}
+	for _, t := range d.Translations {
+		tag := strings.TrimSpace(t.Locale)
+		if tag == "" {
+			out = append(out, "translation entry has no locale")
+			continue
+		}
+		if seen[strings.ToLower(tag)] {
+			out = append(out, fmt.Sprintf("translation for %q is declared twice", tag))
+		}
+		seen[strings.ToLower(tag)] = true
+		for label := range t.Metrics {
+			if !shown[label] {
+				out = append(out, fmt.Sprintf(
+					"translation for %q names %q, which no declared metric shows", tag, label))
+			}
+		}
+	}
+	return out
+}
+
+// metricLabels is every human label one metric renders.
+func metricLabels(m Metric) []string {
+	if m.ResolvedKind() == MetricActivity {
+		return []string{m.Label}
+	}
+	out := make([]string, 0, 2+len(m.CounterMetrics))
+	if m.Success != nil {
+		out = append(out, m.Success.Label)
+	}
+	if m.Total != nil {
+		out = append(out, m.Total.Label)
+	}
+	for _, c := range m.CounterMetrics {
+		out = append(out, c.Label)
+	}
+	return out
 }
 
 func metricListProblems(metrics []Metric) []string {
@@ -277,4 +343,25 @@ func metricLabel(name string) string {
 		return metricWord
 	}
 	return fmt.Sprintf("metric %q", name)
+}
+
+// LabelFor returns the declared label's spelling in one locale, falling back to
+// the declared label itself.
+//
+// The fallback is the contract: a third-party recipe that ships no translation
+// must not have its wording replaced by a key, and a partial translation must
+// render the English word instead of a dotted identifier.
+func (d Declaration) LabelFor(label, locale string) string {
+	if label == "" || locale == "" {
+		return label
+	}
+	for _, t := range d.Translations {
+		if !strings.EqualFold(t.Locale, locale) {
+			continue
+		}
+		if v, ok := t.Metrics[label]; ok && strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return label
 }

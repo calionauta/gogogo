@@ -2,6 +2,7 @@
 package handlers
 
 import (
+	"github.com/calionauta/gogogo/features/whiteboard"
 	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/queue"
 	"github.com/calionauta/gogogo/internal/recipe"
@@ -29,6 +30,11 @@ func Register(reg *recipe.Registry, d register.Deps) {
 	h := NewHandler(d.Queries, d.Auth, hub, persister, docs, d.Cfg)
 	h.SetPresence(d.Presence)
 	reg.Add(h.Recipe())
+	// The feature owns its asset subtree too: the root mounts it through the
+	// seam so a tree without this slice has no line and no import to trim.
+	if d.MountStatic != nil {
+		d.MountStatic(whiteboard.AssetPath, whiteboard.StaticHandler())
+	}
 	if d.Panels != nil {
 		*d.Panels = append(*d.Panels, NewBoardsPanel(d.Queries))
 	}

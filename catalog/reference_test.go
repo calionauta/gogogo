@@ -10,35 +10,34 @@ import (
 	"github.com/calionauta/gogogo/internal/recipe"
 )
 
-// TestRecommendedListIsValid is the gate for the one file that answers "what
+// TestReferenceListIsValid is the gate for the one file that answers "what
 // does the template advise at install": every entry needs an id and a reason,
 // ids are unique, and the list is non-empty (an empty list silently turns the
 // recommendation off for every operator).
-func TestRecommendedListIsValid(t *testing.T) {
-	entries, err := Load()
+func TestReferenceListIsValid(t *testing.T) {
+	entries, err := Reference()
 	if err != nil {
-		t.Fatalf("Load() = %v", err)
+		t.Fatalf("Reference() = %v", err)
 	}
 	if len(entries) == 0 {
-		t.Fatal("recommended list is empty — the scaffold would advise nothing")
+		t.Fatal("reference list is empty — nothing would be pointed at")
 	}
-	ids, err := IDs()
+	ids, err := ReferenceIDs()
 	if err != nil {
-		t.Fatalf("IDs() = %v", err)
+		t.Fatalf("ReferenceIDs() = %v", err)
 	}
 	if len(ids) != len(entries) {
-		t.Fatalf("IDs() = %v, want one id per entry (%d)", ids, len(entries))
+		t.Fatalf("ReferenceIDs() = %v, want one id per entry (%d)", ids, len(entries))
 	}
 }
 
-// TestRecommendedIDsExist is the typo gate. A recommendation that names an id
-// nothing can install is advice nobody can accept: the plan prints it and
-// `--install-recommended` would resolve to nothing. Two sets count as known:
-// the capabilities this tree ships, and the reviewed catalog entries.
-func TestRecommendedIDsExist(t *testing.T) {
-	ids, err := IDs()
+// TestReferenceIDsExist is the typo gate: a pointer at an id this tree does not
+// ship would send a reader nowhere. Two sets count as known: the capabilities
+// this tree ships, and the reviewed catalog entries.
+func TestReferenceIDsExist(t *testing.T) {
+	ids, err := ReferenceIDs()
 	if err != nil {
-		t.Fatalf("IDs: %v", err)
+		t.Fatalf("ReferenceIDs: %v", err)
 	}
 	known := map[string]bool{}
 	for _, c := range capabilities.All {
@@ -55,7 +54,7 @@ func TestRecommendedIDsExist(t *testing.T) {
 	}
 	for _, id := range ids {
 		if !known[id] {
-			t.Errorf("%s recommends %q, which is neither a shipped capability nor a catalog entry", RecommendedFile, id)
+			t.Errorf("%s points at %q, which is neither a shipped capability nor a catalog entry", ReferenceFile, id)
 		}
 	}
 }

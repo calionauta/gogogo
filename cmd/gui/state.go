@@ -105,17 +105,6 @@ func (s *windowState) setEventsCancel(fn func()) {
 	s.mu.Unlock()
 }
 
-// cancelEvents stops the active stream, if any. Safe to call repeatedly.
-func (s *windowState) cancelEvents() {
-	s.mu.Lock()
-	fn := s.eventsCancel
-	s.eventsCancel = nil
-	s.mu.Unlock()
-	if fn != nil {
-		fn()
-	}
-}
-
 // windowSnapshot is a consistent, lock-free copy of everything a frame
 // needs. Slices are reallocated so the view can iterate without
 // holding the mutex while laying out widgets.

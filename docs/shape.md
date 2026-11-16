@@ -51,11 +51,19 @@ go run github.com/calionauta/gogogo/cmd/gogogo@latest \
 
 `--shape` prunes the entrypoint dirs the shape does not ship (`cmd/desktop`,
 `cmd/gui`, `cmd/mobile`) and writes `.gogogo/shape.yml` in the same step. It
-never deletes `features/`, `internal/` or a page: that is what `recipe
-uninstall` is for, and `api` is the one shape whose page removal needs the
-`server.PageRoutes` seam below. `--shape full` (the default) applies nothing —
-a template clone already ships every target, so writing a record would make
-every tree look like a decision was taken.
+never deletes `features/`, `internal/` or a page: a slice is dropped by
+`--recipes` (the demo set) or by `recipe uninstall` (an installed one), and
+`api` is the one shape whose page removal needs the `server.PageRoutes` seam
+below. `--shape full` (the default) applies nothing — a template clone already
+ships every target, so writing a record would make every tree look like a
+decision was taken.
+
+Order matters in one direction: the slice scan runs on the tree **after** the
+shape is chosen, so a slice is not kept merely because an entrypoint the shape
+deletes imported it. In this template `todo` still stays under every shape
+because `internal/desktopboot` (shared by the native shells, and not an
+entrypoint dir) imports it — the plan names that file, which is the honest
+answer and the thing to change first if you want the reference slice gone.
 
 The plan printed by `--dry-run` carries the same answer (`shape`,
 `shapeRemoves`), so an agent can read it without diffing the tree. The MCP
@@ -75,21 +83,29 @@ It deliberately does **not** compile anything: the build proof belongs to CI,
 which builds the declared entrypoints, and a gate that compiles cannot run on
 every commit.
 
-## What a shape does not do (yet)
+## What a shape does not do
 
-- It does not remove capabilities for you. The removal mechanics (`recipe
-  uninstall`, the exporter, `removed-paths:`) already exist; a shape records the
-  decision they apply.
-- It does not carry a per-unit shape label. `Capability.Shapes` is the next
-  step: today the registry has no shape column, so a second shape touching the
+- **It does not decide which demo slices you keep.** That is `--recipes`
+  (`none` by default; `all`, or a list of ids). The two decisions are
+  independent: a `web` product usually also drops `chat`/`kiosk`/`room`, and a
+  `full` tree may keep all of them. A slice leaves only when nothing the tree
+  keeps still imports it — the scaffold parses the kept Go files first and, by
+  default, keeps a slice with the importer named. `--recipes <id>` for an
+  imported slice is an error, not a silent half-removal.
+- **It does not remove a capability the shell calls.** `account`, `dashboard`,
+  `config`, `credits`, `license`, notifications and the auth views are platform
+  surfaces: `--recipes` refuses them by name.
+- **It does not carry a per-unit shape label.** `Capability.Shapes` is still the
+  next step: the registry has no shape column, so a second shape touching the
   same unit is a review question, not a gate verdict.
-- `api` is enforced **at the mount**: `MountFeature` refuses a page route in
-  this shape, so it never enters the tree (no handler, no RBAC read, no
-  template render), and `internal/server/shape_gate.go` stays as the backstop
-  for a path mounted directly. `/api`, `/health`, `/_ui`, static assets and the
-  auth API keep working. The page handlers still compile — full compile-time
-  pruning is a measured trade-off, not an assumption (`TODO-tradeoffs.md`).
-- A deployed API binary should set `APP_SHAPE=api`; a developer tree with
+- **It does not compile.** `app` is enforced **at the mount**: `MountFeature`
+  refuses a page route in this shape, so it never enters the tree (no handler,
+  no RBAC read, no template render), and `internal/server/shape_gate.go` stays
+  as the backstop for a path mounted directly. `/api`, `/health`, `/_ui`,
+  static assets and the auth API keep working. The page handlers still compile —
+  full compile-time pruning is a measured trade-off, not an assumption
+  (`TODO-tradeoffs.md`).
+- **A deployed API binary should set `APP_SHAPE=api`**; a developer tree with
   `.gogogo/shape.yml` gets the same answer without an env.
 
 The proposal that led here — including the phase order above — is the

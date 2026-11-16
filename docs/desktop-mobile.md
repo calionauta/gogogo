@@ -555,8 +555,9 @@ and the native window call the same `Create/Toggle/Delete`, so the
 onboarding resume and Bus publish happen on both. Fresh-read toggle
 (never snapshot-based), idempotent create and `canDeleteRow` live
 there once. Boot for both shells goes through `internal/desktopboot`
-(migrations, auth+TOTP, demo, instance-id, single-instance,
-webview-URL).
+(auth+TOTP, demo, instance-id, single-instance, webview-URL), and
+`MigrateAll` applies whatever migration sets the SHELL passes — a shell that
+renders todos names that slice, one that does not passes nothing.
 
 **Deliberate limits** (see the `cmd/gui/main.go` header): online-only (no
 outbox/replay), no JetStream push (poll only), session token in a `0600` file

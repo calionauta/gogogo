@@ -115,6 +115,120 @@ func TestKioskMicButtonIsBoundToTheWiring(t *testing.T) {
 	}
 }
 
+// TestKioskMicLivesInsideTheField is the requested affordance: the microphone
+// is an icon at the right edge of the input, not a separate button row. The
+// wrapper carries DaisyUI's `input` class (an input holding more than one
+// element), and the inner input is chromeless so the field reads as one control.
+func TestKioskMicLivesInsideTheField(t *testing.T) {
+	var buf bytes.Buffer
+	if err := kioskBody(PageData{MenuLine: "Espresso $3.50"}).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("render kioskBody: %v", err)
+	}
+	body := buf.String()
+
+	start := strings.Index(body, `class="input input-sm w-full kiosk-field"`)
+	if start < 0 {
+		t.Fatal("no .kiosk-field wrapper carrying the input class")
+	}
+	end := strings.Index(body[start:], "</div>")
+	if end < 0 {
+		t.Fatal("the kiosk field wrapper is not closed")
+	}
+	field := body[start : start+end]
+	for _, want := range []string{`id="kiosk-text"`, `id="kiosk-mic"`} {
+		if !strings.Contains(field, want) {
+			t.Errorf("the field wrapper does not contain %q; the mic must sit inside the input", want)
+		}
+	}
+	// The button is inside the field, after the input, so it lands at the right
+	// edge in source order and in reading order.
+	if strings.Index(field, `id="kiosk-text"`) > strings.Index(field, `id="kiosk-mic"`) {
+		t.Error("the mic button precedes the input in the field")
+	}
+	// It is an icon button, and both states are rendered so the stylesheet can
+	// swap them without the script writing text.
+	for _, want := range []string{
+		`class="btn btn-circle btn-ghost btn-xs kiosk-mic"`,
+		`class="kiosk-mic-idle"`,
+		`class="kiosk-mic-live"`,
+		`aria-pressed="false"`,
+		`data-listening="false"`,
+	} {
+		if !strings.Contains(field, want) {
+			t.Errorf("the mic button is missing %q", want)
+		}
+	}
+	// The old explanatory line is gone: the state is on the control.
+	if strings.Contains(body, "Typing always works") {
+		t.Error("the removed mic-optional paragraph is still rendered")
+	}
+}
+
+// TestKioskVoiceStateIsOneAttribute pins the script's half: the toggle state is
+// written to aria-pressed AND data-listening from one function, so the glyph swap
+// (CSS) and the assistive-tech state cannot disagree.
+func TestKioskVoiceStateIsOneAttribute(t *testing.T) {
+	script := renderKioskHead(t)
+	_, body, ok := strings.Cut(script, "function setListening(on)")
+	if !ok {
+		t.Fatal("no setListening(); the state is written in several places again")
+	}
+	fn, _, ok := strings.Cut(body, "\n\t\t\t}")
+	if !ok {
+		t.Fatal("setListening is not a bounded function")
+	}
+	for _, want := range []string{
+		`mic.setAttribute("aria-pressed"`,
+		`mic.setAttribute("data-listening"`,
+	} {
+		if !strings.Contains(fn, want) {
+			t.Errorf("setListening does not write %q", want)
+		}
+	}
+	// No text swapping: the button's content is markup, so writing textContent
+	// would delete the icons.
+	if strings.Contains(script, "mic.textContent") {
+		t.Error("the script writes mic.textContent; that erases the icon markup")
+	}
+	// Both transitions go through the one function. `var listening = false` is
+	// the declaration and is expected; a bare assignment is not.
+	if strings.Contains(script, "listening = true;") || strings.Contains(script, "\t\t\t\tlistening = false;") {
+		t.Error("listening is assigned outside setListening(), so the UI can miss a transition")
+	}
+	if strings.Count(script, "listening = ") != 2 { // declaration + the one inside setListening
+		t.Errorf("listening has %d assignments; want the declaration plus setListening only",
+			strings.Count(script, "listening = "))
+	}
+}
+
+// TestKioskStartOverSitsWithTheReceipt is the placement decision: a customer
+// restarts when the ticket in front of them is wrong, so the control belongs
+// beside Confirm, not beside the order field.
+func TestKioskStartOverSitsWithTheReceipt(t *testing.T) {
+	var buf bytes.Buffer
+	if err := kioskBody(PageData{MenuLine: "Espresso $3.50"}).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("render kioskBody: %v", err)
+	}
+	body := buf.String()
+
+	receipt := strings.Index(body, `id="kiosk-receipt"`)
+	if receipt < 0 {
+		t.Fatal("no receipt section")
+	}
+	clear := strings.Index(body, `id="kiosk-clear"`)
+	if clear < 0 {
+		t.Fatal("no Start over control")
+	}
+	if clear < receipt {
+		t.Error("Start over renders before the receipt; it belongs with the order being reviewed")
+	}
+	// It sits in the same action row as Confirm.
+	row := strings.LastIndex(body[:clear], `class="flex flex-wrap items-center gap-2"`)
+	if row < 0 || row < receipt {
+		t.Error("Start over is not in the receipt's action row with Confirm")
+	}
+}
+
 // TestKioskLanguagePackDownloadCannotHang is the bug the operator hit: Chrome's
 // SpeechRecognition.install() stays pending for minutes on a slow link and never
 // rejects, so the page said "Downloading…" forever with no instruction and no way

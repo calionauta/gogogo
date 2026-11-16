@@ -71,6 +71,10 @@ type recipeDescriptor struct {
 	// what is already counted before declaring a second definition — and
 	// because a job sentence is the operator's decision, not the agent's.
 	Metrics []metricDescriptor `json:"metrics,omitempty"`
+	// Translations lists the locale tags the declaration spells its metric
+	// labels in. An agent asked to add a language must see which ones exist
+	// before inventing a second translation home.
+	Translations []string `json:"translations,omitempty"`
 }
 
 // metricDescriptor is one declared reading. Kind is empty for activity (the
@@ -104,6 +108,18 @@ const (
 	StateBuiltinRecipe   RecipeState = "builtin"
 	StateUnknownRecipe   RecipeState = "unknown"
 )
+
+// listStateColumn prints the state only when it is worth a column: a `removed`
+// slice must never read as installed just because a scaffold dropped it. The
+// ordinary states (installed, builtin) stay terse — a table where every row
+// says "installed" teaches nothing.
+func listStateColumn(state RecipeState) string {
+	switch state {
+	case StateInstalledRecipe, StateBuiltinRecipe, StateUnknownRecipe:
+		return ""
+	}
+	return "\t" + string(state)
+}
 
 // descriptorState derives the state from the three facts that decide it.
 func descriptorState(installed, removed bool, origin string) RecipeState {
@@ -170,6 +186,10 @@ func applyReceiptInstrumentation(desc *recipeDescriptor, d recipe.Declaration) {
 			}
 		}
 		desc.Metrics = append(desc.Metrics, item)
+	}
+	desc.Translations = desc.Translations[:0]
+	for _, t := range d.Translations {
+		desc.Translations = append(desc.Translations, t.Locale)
 	}
 }
 
@@ -289,38 +309,6 @@ func recipeDescriptors(dir string) ([]recipeDescriptor, error) {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	return out, nil
-}
-
-func runRecipeList(args []string, stdout io.Writer) error {
-	fs := flag.NewFlagSet("recipe list", flag.ContinueOnError)
-	dir := fs.String("dir", ".", "target checkout directory")
-	format := fs.String("format", planFormatText, "output format: text|json")
-	fs.SetOutput(io.Discard)
-	if err := fs.Parse(args); err != nil || fs.NArg() != 0 {
-		return &ExitError{code: 1, msg: "recipe list takes no positional arguments"}
-	}
-	if *format != planFormatText && *format != planFormatJSON {
-		return &ExitError{code: 1, msg: fmt.Sprintf("unknown --format %q (want text|json)", *format)}
-	}
-	exts, err := recipeDescriptors(*dir)
-	if err != nil {
-		return err
-	}
-	applyRuntimeStates(*dir, exts)
-	if *format == planFormatJSON {
-		return json.NewEncoder(stdout).Encode(exts)
-	}
-	for _, e := range exts {
-		line := fmt.Sprintf("%s\t%s\t%s\t%s", e.ID, e.Kind, e.Origin, e.Summary)
-		if e.Enabled != nil {
-			line += "\t" + map[bool]string{true: recipeEnabledWord, false: recipeDisabledWord}[*e.Enabled]
-		}
-		if len(e.Invoke) > 0 {
-			line += "\tinvoke: " + strings.Join(e.Invoke, ",")
-		}
-		fmt.Fprintln(stdout, line)
-	}
-	return nil
 }
 
 func runRecipeDescribe(args []string, stdout io.Writer) error {

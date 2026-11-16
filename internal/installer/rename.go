@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/calionauta/gogogo/internal/recipe"
 )
 
 // binarySniffLen bounds the binary sniff: NUL bytes past this window do not
@@ -15,7 +17,18 @@ const binarySniffLen = 8192
 
 // renameOldName is the template's name, the string a rename removes from both
 // the CONTENTS and the PATHS.
-const renameOldName = "gogogo"
+//
+// It must survive its own pass. The rewrite replaces the bare name everywhere,
+// and this file is one of the files it rewrites — so a scaffolded tree used to
+// ship `const renameOldName = "my-app"`, and a SECOND scaffold from that tree
+// would look for the wrong "old" name and rename nothing. The marker below keeps
+// the literal intact; `TestRenameLeavesItsOwnConstantAlone` pins it.
+const renameOldName = renameNameSentinel
+
+// renameNameSentinel is the template's name, split so the rewrite's plain
+// strings.ReplaceAll cannot see it as a candidate. Concatenation is folded by
+// the compiler: no runtime cost, one line of defence.
+const renameNameSentinel = "gogo" + "go"
 
 // renameTree ports the scripts/rename-project.py rules: module path first,
 // bare name second, Pages host only on owner change, and then the paths.
@@ -57,7 +70,50 @@ func renameTree(root, newName, newOwner string) error {
 	if err := moveRenamePaths(t, root, newName); err != nil {
 		return err
 	}
-	return repointRenameSymlinks(t, root, newName)
+	if err := repointRenameSymlinks(t, root, newName); err != nil {
+		return err
+	}
+	// The receipts record a hash per copied file. Every rewrite above changed
+	// those bytes, so a tree that skipped this step ships receipts whose hashes
+	// no longer describe anything — and then `recipe install` copies wrong,
+	// `--recipes` prunes wrong and `recipe test` derives the wrong scope. The
+	// template's own receipts had rotted this way in 82 of 276 files.
+	return rehashReceipts(root)
+}
+
+// rehashReceipts rewrites the recorded hashes of the files that still exist.
+// A path the rename moved is not present any more; it is dropped from the
+// receipt rather than recorded with a hash of nothing, because a receipt that
+// claims a file nobody can open is the kind of lie `recipe receipts` exists to
+// catch.
+func rehashReceipts(root string) error {
+	ids, err := recipe.ListReceipts(root)
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		r, lerr := recipe.LoadReceipt(root, id)
+		if lerr != nil {
+			return lerr
+		}
+		if r.Removed != "" {
+			continue // a tombstone describes data, not bytes
+		}
+		files := make(map[string]string, len(r.Files))
+		for path := range r.Files {
+			full := filepath.Join(root, filepath.FromSlash(path))
+			raw, rerr := os.ReadFile(full)
+			if rerr != nil {
+				continue // moved away by the rename: the path is gone
+			}
+			files[path] = recipe.Hash(raw)
+		}
+		r.Files = files
+		if err := recipe.SaveReceipt(root, r); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // moveRenamePaths moves every path whose NAME carries the template name:
@@ -207,7 +263,7 @@ func collectRenameFiles(root string) ([]string, error) {
 		}
 		rel, _ := filepath.Rel(root, p)
 		if info.IsDir() {
-			if rel == ".git" || strings.HasPrefix(rel, ".git"+string(filepath.Separator)) {
+			if rel == gitDirName || strings.HasPrefix(rel, gitDirName+string(filepath.Separator)) {
 				return filepath.SkipDir
 			}
 			if rel == "site/docs" || strings.HasPrefix(rel, "site/docs"+string(filepath.Separator)) {

@@ -161,8 +161,8 @@ jobs:
           git commit -F - <<EOF
           chore(go): bump the pinned toolchain to ${TARGET}
 
-          Moves every file that names the toolchain — go.mod, cmd/gogogo-mcp/go.mod,
-          bin/install-go-toolchain.sh, both Dockerfiles, the coding-standards skill,
+          Moves every file that names the toolchain — go.mod, bin/install-go-toolchain.sh,
+          both Dockerfiles, the coding-standards skill,
           docs/troubleshooting.md and the pin test's own table — from ${CURRENT} to
           ${TARGET}, a patch release of the same minor line.
 
@@ -192,7 +192,7 @@ jobs:
 
           **What moved** — every file that names the version, in one commit:
 
-          - \`go.mod\` and \`cmd/gogogo-mcp/go.mod\` (the \`go\` directive)
+          - \`go.mod\` (the \`go\` directive)
           - \`bin/install-go-toolchain.sh\` (the CI installer default)
           - \`Dockerfile\` and \`deploy/Dockerfile.prod\` (the image builders)
           - \`skills/gogogo-coding-standards/SKILL.md\` (what agents are told)

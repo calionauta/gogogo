@@ -170,7 +170,7 @@ const richFeatures = {
             <span class="bubble right"><i></i></span>
           </span>`,
   kiosk: `<span class="tile-ui kiosk-ui">
-            <span class="kiosk-said">“só um expresso”</span>
+            <span class="kiosk-said">“just one espresso”</span>
             <span class="kiosk-ticket"><i>Espresso</i><b>…</b></span>
           </span>`,
 };

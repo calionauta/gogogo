@@ -53,7 +53,7 @@ func handleRecipeCheck(
 	if format == "" {
 		format = defaultFormat
 	}
-	cli := []string{"recipe", "check"}
+	cli := []string{cliRecipe, "check"}
 	if args.ID != "" {
 		cli = append(cli, args.ID)
 	}
@@ -74,7 +74,7 @@ func handleRecipeTest(
 	if dir == "" {
 		dir = "."
 	}
-	cli := []string{"recipe", "test"}
+	cli := []string{cliRecipe, "test"}
 	if args.ID != "" {
 		cli = append(cli, args.ID)
 	}

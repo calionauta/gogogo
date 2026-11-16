@@ -251,18 +251,18 @@ func removeModuleEntry(root, id string) (bool, error) {
 		}
 		if strings.TrimSpace(line) == "{" {
 			// Multi-line entry: drop it only when its ID line names this unit.
-			end := i + 1
-			for end < len(lines) && !strings.HasSuffix(strings.TrimSpace(lines[end]), "},") {
-				end++
-			}
-			block := strings.Join(lines[i:min(end+1, len(lines))], "\n")
-			if strings.Contains(block, `ID:        "`+id+`",`) || strings.Contains(block, `ID: "`+id+`",`) {
+			if end := blockEntryEnd(lines, i, id); end >= 0 {
 				changed = true
 				i = end
 				continue
 			}
 		}
-		if strings.Contains(line, `"`+id+`":`) && strings.Contains(line, "true") {
+		if next, ok := dropMapKey(line, id); ok {
+			changed = true
+			line = next
+		} else if strings.Contains(line, `"`+id+`":`) && strings.Contains(line, "true") {
+			// A pair line inside a multi-line map: the braces live on other
+			// lines, so only this entry goes and the declaration survives.
 			changed = true
 			continue
 		}
@@ -281,6 +281,53 @@ func removeModuleEntry(root, id string) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+// blockEntryEnd returns the closing line of the multi-line entry that starts at
+// i when that entry names id, or -1. Keeping the scan here leaves the caller a
+// loop with one branch instead of a nested one.
+func blockEntryEnd(lines []string, i int, id string) int {
+	end := i + 1
+	for end < len(lines) && !strings.HasSuffix(strings.TrimSpace(lines[end]), "},") {
+		end++
+	}
+	block := strings.Join(lines[i:min(end+1, len(lines))], "\n")
+	if strings.Contains(block, `ID:        "`+id+`",`) || strings.Contains(block, `ID: "`+id+`",`) {
+		return end
+	}
+	return -1
+}
+
+// dropMapKey removes one `"id": true` pair from a one-line map literal and
+// keeps the DECLARATION: deleting `var viewerModules = map[string]bool{...}`
+// when its last entry goes leaves every reader of the map undefined, which is a
+// compile error introduced by a removal that was supposed to delete a link.
+// An empty map is the honest result.
+func dropMapKey(line, id string) (string, bool) {
+	const marker = "map[string]bool{"
+	open := strings.Index(line, marker)
+	closeIdx := strings.LastIndex(line, "}")
+	if open < 0 || closeIdx < open {
+		return line, false
+	}
+	var keep []string
+	removed := false
+	for part := range strings.SplitSeq(line[open+len(marker):closeIdx], ",") {
+		entry := strings.TrimSpace(part)
+		if entry == "" {
+			continue
+		}
+		key, _, ok := strings.Cut(entry, ":")
+		if ok && strings.Trim(strings.TrimSpace(key), `"`) == id {
+			removed = true
+			continue
+		}
+		keep = append(keep, entry)
+	}
+	if !removed {
+		return line, false
+	}
+	return line[:open] + marker + strings.Join(keep, ", ") + "}" + line[closeIdx+1:], true
 }
 
 // parseRecipeUninstallArgs accepts the id before or after the flags.

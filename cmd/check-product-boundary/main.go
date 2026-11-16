@@ -12,12 +12,21 @@
 //     evolution tools (`internal/installer`, `cmd/gogogo`, `internal/capabilities`,
 //     `internal/shape`) or the MCP module. A product must build after the
 //     developer tools are deleted.
+//
 //  2. `internal/installer` must not import `cmd/web`'s handlers: the tool reads
 //     the tree, it does not link the server.
 //
-// A third invariant was tried and removed: "a core unit must not import a
-// non-core one" fails by construction, because `internal/server` IS the
-// composition root and naming what it wires is its whole job (docs/
+//  3. Shared infrastructure must not name a FEATURE slice. `internal/server` is
+//     the composition root — naming what it wires is its whole job, so it is
+//     exempt — but every other package under `internal/` is infrastructure that
+//     a shell boots. `internal/desktopboot` used to import `features/todo` to
+//     apply one migration set; the effect was that the reference slice could
+//     never be dropped from a product, because a servant named it. A shell
+//     (cmd/*) MAY import a feature: it is the app.
+//
+// A different third invariant was tried and removed: "a core unit must not
+// import a non-core one" fails by construction, because `internal/server` IS
+// the composition root and naming what it wires is its whole job (docs/
 // scope-taxonomy.md says so explicitly: core wiring names servants). A gate
 // born red is a gate that gets disabled, so the rule was dropped rather than
 // weakened into something that looked like it checked something.
@@ -32,6 +41,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/calionauta/gogogo/internal/capabilities"
 )
 
 func main() {
@@ -85,6 +96,8 @@ func check(root string) ([]string, error) {
 		}
 	}
 
+	problems = append(problems, featureImportsFromInfrastructure(root)...)
+
 	installerImports, err := importsUnder(root, "internal/installer")
 	if err != nil {
 		return nil, err
@@ -98,6 +111,58 @@ func check(root string) ([]string, error) {
 	}
 
 	return problems, nil
+}
+
+// featurePrefix is where a slice lives. Infrastructure may not name it.
+const featurePrefix = "github.com/calionauta/gogogo/features/"
+
+// featureImportsFromInfrastructure reports every `internal/` package (outside
+// the composition root) that imports a REMOVABLE feature slice.
+//
+// The two exemptions are deliberate:
+//
+//   - `internal/server` builds the mux and the registry, so it names every unit
+//     by design.
+//   - A directory the registry files under a CORE capability is not a slice you
+//     can drop: `features/authviews` is the other half of `auth` (its `Dirs`
+//     list both), so the shell may name it without making anything
+//     unremovable. The gate reads that class from the registry rather than
+//     guessing it from the path — the same source `recipe uninstall` uses.
+func featureImportsFromInfrastructure(root string) []string {
+	coreDirs := map[string]bool{}
+	for _, c := range capabilities.All {
+		if c.Kind != capabilities.KindCore {
+			continue
+		}
+		for _, dir := range c.Dirs {
+			coreDirs[dir] = true
+		}
+	}
+	var problems []string
+	err := walkGo(root, func(rel string, imports []string) {
+		if !strings.HasPrefix(rel, "internal/") || strings.HasPrefix(rel, "internal/server/") {
+			return
+		}
+		for _, imp := range imports {
+			if !strings.HasPrefix(imp, featurePrefix) {
+				continue
+			}
+			dir := strings.TrimPrefix(imp, featurePrefix)
+			if i := strings.IndexByte(dir, '/'); i >= 0 {
+				dir = dir[:i]
+			}
+			if coreDirs["features/"+dir] {
+				continue
+			}
+			problems = append(problems, fmt.Sprintf(
+				"%s imports %s: infrastructure must not name a removable slice (a shell may; "+
+					"pass it in instead, as cmd/gui passes todo's migration set)", rel, imp))
+		}
+	})
+	if err != nil {
+		return []string{"feature boundary scan: " + err.Error()}
+	}
+	return problems
 }
 
 // importsUnder maps import path → the files under relDir that import it.

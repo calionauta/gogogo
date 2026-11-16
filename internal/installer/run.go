@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/calionauta/gogogo/internal/capabilities"
@@ -29,12 +28,14 @@ type options struct {
 	// which read-only paths (--check-update) must not mistake for a target.
 	dirGiven bool
 	format   string
-	// installRecommended accepts the registry's recommended recipes at
-	// scaffold time. Without it (and without --install), installer prints
-	// the recommendation but installs none — acceptance is explicit.
-	installRecommended bool
-	installIDs         string
-	skipRecommended    bool
+	// recipes selects which demo slices the scaffold drops: "none" (the
+	// default), "all", or a comma list of ids to drop.
+	recipes string
+	// locales is the language set the product ships. Empty means "keep the
+	// record the template already carries" (or write nothing when there is
+	// none): the scaffold never invents a language decision.
+	locales string
+
 	// shape selects which entrypoints the scaffolded tree ships. Empty is
 	// `full` (every target), which is what a template clone already is.
 	shape string
@@ -121,9 +122,10 @@ func RunTo(ctx context.Context, args []string, stdin io.Reader, stdout, stderr i
 		}
 		return printUpdateCheck(ctx, stdout, opt.format, dir)
 	}
-	// Scaffold keeps everything: no keep/drop decision exists.
 	plan := buildPlan(opt.name, opt.owner, opt.dir, opt.shape, opt.dryRun)
-	applyInstallSelection(&plan, opt)
+	if serr := applyRecipeSelection(&plan, opt); serr != nil {
+		return serr
+	}
 	if opt.format == planFormatJSON {
 		if opt.dryRun {
 			return printPlanJSON(stdout, plan)
@@ -162,6 +164,8 @@ func runSubcommand(ctx context.Context, args []string, stdin io.Reader, stdout, 
 		return true, runGenerate(ctx, args[1:], stdout)
 	case "shape":
 		return true, runShape(args[1:], stdout)
+	case "locales":
+		return true, runLocales(args[1:], stdout)
 	}
 	return false, nil
 }
@@ -178,28 +182,38 @@ func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, err
 	fs.BoolVar(&opt.yes, "yes", false, "apply without asking (agents: always pin this)")
 	fs.BoolVar(&opt.dryRun, "dry-run", false, "print the plan and stop; changes nothing")
 	fs.BoolVar(&opt.updateCh, "check-update", false, "compare this binary against the latest release, change nothing")
-	fs.BoolVar(&opt.run, "run", false, "hand over to `make dev` after a "+
+	// No backticks in a flag usage: `flag` reads them as the value PLACEHOLDER,
+	// so "hand over to `make dev`" printed the flag as "run make dev".
+	fs.BoolVar(&opt.run, "run", false, "hand over to make dev after a "+
 		"successful proof (takes this terminal; Ctrl-C stops dev; humans only)")
 	fs.StringVar(&opt.format, "format", planFormatText, "plan format: text|json")
-	fs.BoolVar(&opt.installRecommended, "install-recommended", false,
-		"accept recommended recipes (default: recommend only)")
-	fs.StringVar(&opt.installIDs, "install", "",
-		"comma-separated recipe ids to install (e.g. --install todo)")
+	fs.StringVar(&opt.locales, "locales", "",
+		"languages to ship, comma-separated (e.g. en,pt-BR); records locales.yml and seeds every new catalog")
+	fs.StringVar(&opt.recipes, "recipes", recipesNone,
+		"demo slices to drop: none|all|<ids> (default none; read one with: recipe source <id>)")
 	fs.StringVar(&opt.shape, "shape", string(shapekit.Full),
 		"product shape: full|web|api|desktop|gui|mobile (which entrypoints the tree ships)")
-	fs.BoolVar(&opt.skipRecommended, "skip-recommended", false,
-		"hide the recommendation in the plan (install none)")
 	fs.Usage = func() { PrintUsage(stdout, fs) }
 	fs.SetOutput(stdout)
 	if err := fs.Parse(args); err != nil {
 		return opt, err
 	}
 	opt.dirGiven = flagGiven(fs, "dir")
+	if err := validateOptions(&opt, fs, stdin, stdout); err != nil {
+		return opt, err
+	}
+	return opt, nil
+}
+
+// validateOptions is the half of loadOptions that decides rather than parse:
+// check the enum flags, then fill the identity from the form when the operator
+// asked for it. Kept apart so the flag block reads as a flag block.
+func validateOptions(opt *options, fs *flag.FlagSet, stdin io.Reader, stdout io.Writer) error {
 	if !shapekit.Valid(shapekit.Shape(opt.shape)) {
-		return opt, fmt.Errorf("unknown --shape %q (want %s)", opt.shape, shapeNames())
+		return fmt.Errorf("unknown --shape %q (want %s)", opt.shape, shapeNames())
 	}
 	if opt.format != planFormatText && opt.format != planFormatJSON {
-		return opt, fmt.Errorf("unknown --format %q (want text|json)", opt.format)
+		return fmt.Errorf("unknown --format %q (want text|json)", opt.format)
 	}
 	if opt.updateCh {
 		// --check-update never prompts either: pure network read.
@@ -209,21 +223,37 @@ func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, err
 		}
 	}
 	if !opt.noTUI && opt.name == "" {
-		interactive := promptForm(stdin, stdout)
-		opt.name = interactive.name
-		opt.owner = interactive.owner
+		fillFromForm(opt, fs, stdin, stdout)
 	}
 	if opt.name == "" {
 		fs.Usage()
-		return opt, errors.New("project name is required (--name my-app or interactive mode)")
+		return errors.New("project name is required (--name my-app or interactive mode)")
 	}
 	if err := validateName(opt.name); err != nil {
-		return opt, err
+		return err
 	}
 	if opt.dir == "" {
 		opt.dir = opt.name
 	}
-	return opt, nil
+	return nil
+}
+
+// fillFromForm asks the identity and shape questions and applies the answers. A flag the
+// operator typed wins over the form's default; the form fills only what was not
+// named. That keeps `--shape api` meaning "api" even though the form also asked.
+func fillFromForm(opt *options, fs *flag.FlagSet, stdin io.Reader, stdout io.Writer) {
+	interactive := promptForm(stdin, stdout)
+	opt.name = interactive.name
+	opt.owner = interactive.owner
+	if !flagGiven(fs, "shape") {
+		opt.shape = interactive.shape
+	}
+	if !flagGiven(fs, "recipes") {
+		opt.recipes = interactive.recipes
+	}
+	if !flagGiven(fs, "locales") {
+		opt.locales = interactive.locales
+	}
 }
 
 // The template's identity, in one place: the clone URL scaffolding pulls from
@@ -278,191 +308,6 @@ var gitClone = func(ctx context.Context, dir string) error {
 	return err
 }
 
-// applyAndProve renames, writes AGENTS.md, and proves the result.
-func applyAndProve(ctx context.Context, opt options, stdout io.Writer) error {
-	if err := renameTree(opt.dir, opt.name, opt.owner); err != nil {
-		return err
-	}
-	if err := writeAgents(ctx, opt.dir, opt.name, nil); err != nil {
-		return err
-	}
-	if err := applyShapeIfNeeded(opt, stdout); err != nil {
-		return err
-	}
-	if err := prove(ctx, opt.dir, stdout); err != nil {
-		return err
-	}
-	printNextSteps(stdout, opt.dir, nil)
-	if opt.run {
-		return handoff(opt.dir, stdout)
-	}
-	return nil
-}
-
-// applyAndProveJSON is the machine-readable apply path: one envelope at
-// the end carrying plan + receipt + proof result.
-func applyAndProveJSON(ctx context.Context, opt options, stdout io.Writer, plan scaffoldPlan) error {
-	if err := renameTree(opt.dir, opt.name, opt.owner); err != nil {
-		return err
-	}
-	if err := writeAgents(ctx, opt.dir, opt.name, nil); err != nil {
-		return err
-	}
-	if err := applyShapeIfNeeded(opt, io.Discard); err != nil {
-		return err
-	}
-	// Silence prove chatter in JSON mode: discard its progress lines,
-	// keep only the outcome for the envelope.
-	devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = devNull.Close() }()
-	proveErr := prove(ctx, opt.dir, devNull)
-	env := envelope{Plan: plan, BuildOk: proveErr == nil, Next: buildNextSteps(opt.dir, nil)}
-	if proveErr != nil {
-		env.BuildErr = proveErr.Error()
-	}
-	if err := printEnvelopeJSON(stdout, env); err != nil {
-		return err
-	}
-	if proveErr != nil {
-		return proveErr
-	}
-	if opt.run {
-		return handoff(opt.dir, stdout)
-	}
-	return nil
-}
-
-func confirm(stdout io.Writer, stdin io.Reader, nDrop int) bool {
-	if nDrop == 0 {
-		fmt.Fprint(stdout, "Proceed with rename only? [y/N]: ")
-	} else {
-		fmt.Fprintf(stdout, "Scaffold the full template into %s and rename? [y/N]: ", "the target directory")
-	}
-	var answer [8]byte
-	n, _ := stdin.Read(answer[:])
-	resp := strings.ToLower(strings.TrimSpace(string(answer[:n])))
-	return resp == "y" || resp == "yes"
-}
-
-// plan output format names.
-const (
-	planFormatText = "text"
-	planFormatJSON = "json"
-)
-
-// prove output tails kept short for humans; full logs stay in the checkout.
-const (
-	proofTemplTailLines = 10
-	proofTidyTailLines  = 20
-	proofBuildTailLines = 30
-)
-
-// prove runs templ generate (only when .templ files were edited in place),
-// go mod tidy, and the build. A failing proof exits 2 with compiler output.
-func prove(ctx context.Context, dir string, stdout io.Writer) error {
-	// With no removal pass, no in-place .templ is edited: the rename rewrites only
-	// module paths in Go sources, which `go build` proves as-is. The
-	// templ step the old port path ran for edited .templ files is gone
-	// with the removal pass itself.
-	fmt.Fprintln(stdout, "gogogo: prove: go mod tidy …")
-	if out, err := runIn(ctx, dir, "go", "mod", "tidy"); err != nil {
-		return &ExitError{code: 2, msg: fmt.Sprintf(
-			"go mod tidy failed (%v):\n%s", err, tailLines(string(out), proofTidyTailLines))}
-	}
-	// Regenerate the generated docs (route inventory + unit contract cards)
-	// so the tree is green immediately.
-	fmt.Fprintln(stdout, "gogogo: prove: generated docs …")
-	// Warn-only here (failure is a stale doc, not a broken tree); the gate
-	// below treats the same error as fatal.
-	_ = proveAPIRoutesDoc(ctx, dir, stdout)
-	fmt.Fprintln(stdout, "gogogo: prove: go build ./cmd/web …")
-	tmp, err := os.CreateTemp("", "gogogo-proof-*")
-	if err != nil {
-		return err
-	}
-	tmpPath := tmp.Name()
-	_ = tmp.Close()
-	defer os.Remove(tmpPath)
-	if out, err := runIn(ctx, dir, "go", "build", "-o", tmpPath, "./cmd/web"); err != nil {
-		return &ExitError{code: 2, msg: fmt.Sprintf(
-			"proof build failed (%v) — the rename is applied but broken:\n%s",
-			err, tailLines(string(out), proofBuildTailLines))}
-	}
-	fmt.Fprintln(stdout, "gogogo: prove: build OK")
-	return proveToolchainPin(ctx, dir, stdout)
-}
-
-func runIn(ctx context.Context, dir, name string, args ...string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Dir = dir
-	return cmd.CombinedOutput()
-}
-
-// proveAPIRoutesDoc regenerates the generated docs in the target tree: the
-// route inventory and the unit contract cards. Both are pinned by tests, so a
-// removal that deletes a unit without regenerating them leaves CI red.
-// It returns the regen error (callers decide warn-only vs fatal) after
-// printing the WARN with the manual regen command, so no failure mode is
-// silent. Shared with the preset composition gate, which proves it on
-// copies.
-func proveAPIRoutesDoc(ctx context.Context, dir string, stdout io.Writer) error {
-	if out, err := runIn(ctx, dir, "go", "test", "./internal/capabilities/",
-		"-run", "Test(ApiRoutes|CapabilityContracts)DocFresh", "-update", "-count=1"); err != nil {
-		fmt.Fprintf(stdout,
-			"gogogo: WARN: generated docs regen failed (%v) — run "+
-				"`go test ./internal/capabilities/ -run 'Test(ApiRoutes|CapabilityContracts)DocFresh' -update` manually:\n%s\n",
-			err, tailLines(string(out), proofTidyTailLines))
-		return err
-	}
-	return nil
-}
-
-func tailLines(s string, n int) string {
-	lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
-	if len(lines) > n {
-		lines = lines[len(lines)-n:]
-	}
-	return strings.Join(lines, "\n")
-}
-
-// UnitView is one installer unit for display (matrix, menus, docs).
-type UnitView struct {
-	ID      string
-	Kind    string
-	Summary string
-}
-
-// Units lists installer units in manifest order.
-func Units() []UnitView {
-	out := make([]UnitView, 0, len(builtinUnits))
-	for _, u := range builtinUnits {
-		m := u.meta()
-		summary := u.id
-		if s := unitOneLiner(u); s != u.id {
-			summary = s
-		}
-		out = append(out, UnitView{ID: u.id, Kind: string(m.kind), Summary: summary})
-	}
-	return out
-}
-
-// flagGiven reports whether a flag was passed explicitly. Split out of
-// loadOptions because the closure pushed that function over the gocyclo gate,
-// and the distinction ("--dir was named" vs "the default") is what keeps
-// --check-update from inventing a target directory.
-func flagGiven(fs *flag.FlagSet, name string) bool {
-	given := false
-	fs.Visit(func(f *flag.Flag) {
-		if f.Name == name {
-			given = true
-		}
-	})
-	return given
-}
-
 // runApply is the mutating tail: preflight, clone-if-missing, confirm,
 // then rename and prove. Separated so Run stays under the gocyclo gate.
 // (The apply-then-remove body lived in apply.go until the removal retired; the
@@ -485,6 +330,13 @@ func runApply(ctx context.Context, opt options, plan scaffoldPlan, stdin io.Read
 	if err := checkToolchainForTree(ctx, opt.dir, stdout, opt.format == planFormatJSON); err != nil {
 		return err
 	}
+	// The selector was previewed against the directory Run saw; now that the
+	// checkout exists (a clone may have just landed), resolve it again. The
+	// import gate is the difference between a product and a tree that does not
+	// build, so it runs on the tree that will be edited.
+	if serr := applyRecipeSelection(&plan, opt); serr != nil {
+		return serr
+	}
 	if !opt.yes && !confirm(stdout, stdin, 0) {
 		fmt.Fprintln(stdout, "gogogo: aborted — nothing changed (re-run with --yes to skip this prompt)")
 		return nil
@@ -492,5 +344,5 @@ func runApply(ctx context.Context, opt options, plan scaffoldPlan, stdin io.Read
 	if opt.format == planFormatJSON {
 		return applyAndProveJSON(ctx, opt, stdout, plan)
 	}
-	return applyAndProve(ctx, opt, stdout)
+	return applyAndProve(ctx, opt, plan, stdout)
 }

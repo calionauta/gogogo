@@ -7,6 +7,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -33,12 +34,12 @@ func handleRecipeState(
 	ctx context.Context, args recipeArgs, verb string,
 ) (*mcp.CallToolResult, any, error) {
 	if !args.Confirm {
-		return nil, nil, fmt.Errorf("refusing without confirm:true")
+		return nil, nil, errors.New("refusing without confirm:true")
 	}
 	if args.ID == "" || args.Dir == "" {
 		return nil, nil, fmt.Errorf("recipe_%s needs id and dir", verb)
 	}
-	cli := []string{"recipe", verb, args.ID, "--dir", args.Dir}
+	cli := []string{cliRecipe, verb, args.ID, flagDir, args.Dir}
 	if args.DB != "" {
 		cli = append(cli, "--db", args.DB)
 	}

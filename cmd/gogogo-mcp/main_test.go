@@ -117,7 +117,7 @@ func TestProtocolListsCatalogTools(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(res.Tools) != len(toolCatalog) {
-		names := []string{}
+		names := make([]string, 0, len(res.Tools))
 		for _, tool := range res.Tools {
 			names = append(names, tool.Name)
 		}
@@ -242,7 +242,7 @@ func buildChiMux() *int { return new(int) }
 		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+		if err := os.WriteFile(full, []byte(body), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -331,7 +331,7 @@ func TestVersionStatusIsAVerdictNotAnError(t *testing.T) {
 	dir := t.TempDir()
 	body := "# AGENTS\n\n## Trim provenance\n\nscaffolded-from: calionauta/gogogo@v0.1.0\n" +
 		"template-commit: unknown\nremoved: none\nremoved-paths: none\n"
-	if err := os.WriteFile(filepath.Join(dir, "AGENTS.md"), []byte(body), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "AGENTS.md"), []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	// Keep the check offline and deterministic: a stale cache entry is a
@@ -408,7 +408,7 @@ func TestCapabilitiesListWithDirCarriesTheBoundary(t *testing.T) {
 		"**Does not own.** Presence and carets.\n\n## Language\n\n" +
 		"| term | means | not |\n|---|---|---|\n| note | a document | a message |\n\n" +
 		"## Invariants\n\n- Delete requires canDeleteDoc.\n"
-	if err := os.WriteFile(filepath.Join(root, "docs", "domain", "notes.md"), []byte(card), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "docs", "domain", "notes.md"), []byte(card), 0o600); err != nil {
 		t.Fatal(err)
 	}
 

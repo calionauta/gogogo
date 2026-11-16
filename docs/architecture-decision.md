@@ -503,7 +503,10 @@ boundary the dependency gate enforces for the framework.
 
 Conventions that outlive the transition: schema lives in
 `internal/dbschema/migrations/*.sql`, applied in filename order and recorded in
-`schema_migrations` — files are append-only history, never edited. Generated
+`schema_migrations` — files are append-only history, never edited, and that is
+now ENFORCED: the ledger stores each file's sha256, so a boot refuses an applied
+migration whose bytes changed (`TestEditingAnAppliedMigrationIsRefused`). A row
+written before the checksum column existed is adopted on the next boot. Generated
 `sqlcgen` is committed. Docs describe structure and contracts; CHANGELOG
 keeps history.
 

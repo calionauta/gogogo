@@ -28,7 +28,7 @@ func openTestDB(tb testing.TB) (*dbgen.Queries, *Service, *fakeOnboarding, strin
 	if merr := dbschema.Migrate(sqlDB); merr != nil {
 		tb.Fatalf("migrate: %v", merr)
 	}
-	todoSet := dbschema.MigrationSet{ID: "todo", FS: todo.Migrations, Dir: "migrations"}
+	todoSet := dbschema.MigrationSet{ID: "todo", FS: db.RecipeSchema("todo")}
 	if merr := dbschema.MigrateWith(sqlDB, todoSet); merr != nil {
 		tb.Fatalf("todo migrate: %v", merr)
 	}

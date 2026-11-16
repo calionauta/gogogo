@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestRecipeToolsRequireDirAndConfirm(t *testing.T) {
@@ -312,5 +316,143 @@ func TestRecipeInvokeForwardsToLoopback(t *testing.T) {
 	}
 	if gotCookie != "tok-7" {
 		t.Errorf("cookie = %q, want tok-7", gotCookie)
+	}
+}
+
+// TestRecipeSourceToolReadsWithoutInstalling pins the MCP half of the read
+// primitive: it answers with the recipe's code, refuses a call that names
+// nothing, and leaves no receipt behind.
+func TestRecipeSourceToolReadsWithoutInstalling(t *testing.T) {
+	if _, _, err := handleRecipeSource(context.Background(), nil, recipeSourceArgs{}); err == nil {
+		t.Fatal("a call naming no recipe was accepted")
+	}
+
+	root := t.TempDir()
+	body := "package demo\n"
+	path := filepath.Join(root, "features", "demo", "handlers")
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(path, "chi.go"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	receipt := "id: demo\nfiles:\n  features/demo/handlers/chi.go: \"" + hashOf(body) + "\"\n"
+	if err := os.MkdirAll(filepath.Join(root, ".recipes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".recipes", "demo.yml"), []byte(receipt), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	res, _, err := handleRecipeSource(context.Background(), nil, recipeSourceArgs{ID: "demo", Dir: root})
+	if err != nil {
+		t.Fatalf("recipe_source: %v", err)
+	}
+	text := contentText(t, res)
+	if !strings.Contains(text, "features/demo/handlers/chi.go") || !strings.Contains(text, "package demo") {
+		t.Errorf("the tool did not return the recipe's code:\n%s", text)
+	}
+	if _, statErr := os.Stat(filepath.Join(root, ".recipes", "demo.yml")); statErr != nil {
+		t.Errorf("the receipt changed: %v", statErr)
+	}
+}
+
+// contentText unwraps a tool result to the text a client receives.
+func contentText(t *testing.T, res *mcp.CallToolResult) string {
+	t.Helper()
+	if res == nil || len(res.Content) == 0 {
+		t.Fatal("empty tool result")
+	}
+	text, ok := res.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatalf("content is %T, want text", res.Content[0])
+	}
+	return text.Text
+}
+
+// hashOf mirrors recipe.Hash without importing the package into the test's
+// expectations: the fixture only needs the same digest the tool compares.
+func hashOf(body string) string {
+	sum := sha256.Sum256([]byte(body))
+	return hex.EncodeToString(sum[:])
+}
+
+// TestRecipeReceiptsToolReportsAndFixes: the MCP half of the receipts gate.
+// Without `write` it reports and the call fails; with it the record is fixed
+// and the same call succeeds.
+func TestRecipeReceiptsToolReportsAndFixes(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "cmd", "web"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/fixture\n\ngo 1.27\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "cmd", "web"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "cmd", "web", "main.go"), []byte("package main\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	body := "package demo\n"
+	if err := os.MkdirAll(filepath.Join(root, "features", "demo"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "features", "demo", "x.go"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	receipt := "id: demo\nfiles:\n  features/demo/x.go: \"" + hashOf(body) + "\"\n"
+	if err := os.MkdirAll(filepath.Join(root, ".recipes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".recipes", "demo.yml"), []byte(receipt), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, _, err := handleRecipeReceipts(context.Background(), nil, receiptsArgs{Dir: root}); err != nil {
+		t.Fatalf("a matching receipt failed: %v", err)
+	}
+
+	edited := "package demo\n\n// edited\n"
+	if err := os.WriteFile(filepath.Join(root, "features", "demo", "x.go"), []byte(edited), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := handleRecipeReceipts(context.Background(), nil, receiptsArgs{Dir: root}); err == nil {
+		t.Fatal("a stale hash passed the tool")
+	}
+	res, _, err := handleRecipeReceipts(context.Background(), nil, receiptsArgs{Dir: root, Write: true, Confirm: true})
+	if err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	// The tool defaults to JSON, so the fix arrives as the list of ids.
+	if !strings.Contains(contentText(t, res), "demo") {
+		t.Errorf("the fix was not announced: %s", contentText(t, res))
+	}
+	if _, _, err := handleRecipeReceipts(context.Background(), nil, receiptsArgs{Dir: root}); err != nil {
+		t.Fatalf("still red after write: %v", err)
+	}
+}
+
+// TestMutatingToolsRefuseWithoutConfirm is the fail-closed half of the safety
+// column: a tool whose effect names `confirm` must not write when it is absent.
+func TestMutatingToolsRefuseWithoutConfirm(t *testing.T) {
+	root := t.TempDir()
+	// A checkout marker, so the refusal under test is the confirm gate and not
+	// "this is not a gogogo tree".
+	if err := os.MkdirAll(filepath.Join(root, "cmd", "web"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "cmd", "web", "main.go"), []byte("package main\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := handleLocales(context.Background(), nil, localesArgs{Dir: root, Set: "en,fr"}); err == nil {
+		t.Error("locales --set wrote without confirm:true")
+	}
+	if _, _, err := handleRecipeReceipts(context.Background(), nil, receiptsArgs{Dir: root, Write: true}); err == nil {
+		t.Error("recipe receipts --write wrote without confirm:true")
+	}
+	// Reading is never gated.
+	if _, _, err := handleRecipeReceipts(context.Background(), nil, receiptsArgs{Dir: root}); err != nil {
+		t.Errorf("reading receipts needs no confirm: %v", err)
 	}
 }

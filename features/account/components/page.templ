@@ -120,21 +120,21 @@ templ body(data PageData) {
 				<h2 class="ui-title">{ i18n.T(ctx, "account.password", nil) }</h2>
 				<form method="POST" action="/account/password" class="space-y-3 max-w-md">
 					<label class="flex flex-col gap-1 w-full">
-						<div class="label"><span>Current password</span></div>
+						<div class="label"><span>{ i18n.T(ctx, "account.currentPassword", nil) }</span></div>
 						<input type="password" name="current" class="input input-sm" required
 							autocomplete="current-password"/>
 					</label>
 					<label class="flex flex-col gap-1 w-full">
-						<div class="label"><span>New password</span></div>
+						<div class="label"><span>{ i18n.T(ctx, "account.newPassword", nil) }</span></div>
 						<input type="password" name="new" class="input input-sm" required
 							autocomplete="new-password" minlength="8"/>
 					</label>
 					<label class="flex flex-col gap-1 w-full">
-						<div class="label"><span>Confirm new password</span></div>
+						<div class="label"><span>{ i18n.T(ctx, "account.confirmNewPassword", nil) }</span></div>
 						<input type="password" name="confirm" class="input input-sm" required
 							autocomplete="new-password" minlength="8"/>
 					</label>
-					<button type="submit" class="btn btn-sm btn-primary">Change password</button>
+					<button type="submit" class="btn btn-sm btn-primary">{ i18n.T(ctx, "account.changePassword", nil) }</button>
 				</form>
 			</div>
 		</section>
@@ -150,13 +150,13 @@ templ body(data PageData) {
 					<form method="POST" action="/account/totp/disable" class="space-y-3 max-w-md mt-3">
 						if data.PasswordSet {
 							<label class="flex flex-col gap-1 w-full">
-								<div class="label"><span>Confirm with your password</span></div>
+								<div class="label"><span>{ i18n.T(ctx, "account.confirmWithPassword", nil) }</span></div>
 								<input type="password" name="password" class="input input-sm" required
 									autocomplete="current-password"/>
 							</label>
 						} else {
 							<label class="flex flex-col gap-1 w-full">
-								<div class="label"><span>Authenticator or recovery code</span></div>
+								<div class="label"><span>{ i18n.T(ctx, "account.totpOrRecovery", nil) }</span></div>
 								<input type="text" name="code" class="input input-sm" required
 									inputmode="numeric" autocomplete="one-time-code"/>
 							</label>
@@ -166,13 +166,13 @@ templ body(data PageData) {
 					<form method="POST" action="/account/totp/recovery" class="mt-3 space-y-2 max-w-md">
 						if data.PasswordSet {
 							<label class="flex flex-col gap-1 w-full">
-								<div class="label"><span>Confirm with your password</span></div>
+								<div class="label"><span>{ i18n.T(ctx, "account.confirmWithPassword", nil) }</span></div>
 								<input type="password" name="password" class="input input-sm" required
 									autocomplete="current-password"/>
 							</label>
 						} else {
 							<label class="flex flex-col gap-1 w-full">
-								<div class="label"><span>Authenticator or recovery code</span></div>
+								<div class="label"><span>{ i18n.T(ctx, "account.totpOrRecovery", nil) }</span></div>
 								<input type="text" name="code" class="input input-sm" required
 									inputmode="numeric" autocomplete="one-time-code"/>
 							</label>
@@ -187,20 +187,20 @@ templ body(data PageData) {
 					<p class="text-xs break-all"><code id="totp-uri">{ data.SetupURL }</code></p>
 					<div class="flex flex-wrap gap-2 mt-2">
 						<button type="button" class="btn btn-xs"
-							data-on:click="navigator.clipboard.writeText(document.getElementById('totp-secret').textContent)">Copy secret</button>
+							data-on:click="navigator.clipboard.writeText(document.getElementById('totp-secret').textContent)">{ i18n.T(ctx, "account.copySecret", nil) }</button>
 						<button type="button" class="btn btn-xs"
-							data-on:click="navigator.clipboard.writeText(document.getElementById('totp-uri').textContent)">Copy setup link</button>
+							data-on:click="navigator.clipboard.writeText(document.getElementById('totp-uri').textContent)">{ i18n.T(ctx, "account.copySetupLink", nil) }</button>
 					</div>
 					<form method="POST" action="/account/totp/verify" class="space-y-3 max-w-md mt-3">
 						<label class="flex flex-col gap-1 w-full">
-							<div class="label"><span>Authenticator code</span></div>
+							<div class="label"><span>{ i18n.T(ctx, "account.authenticatorCode", nil) }</span></div>
 							<input type="text" name="code" class="input input-sm" required
 								inputmode="numeric" autocomplete="one-time-code"/>
 						</label>
 						<button type="submit" class="btn btn-sm btn-primary">{ i18n.T(ctx, "account.enableTwoFactor", nil) }</button>
 					</form>
 				} else {
-					<p class="text-sm">Add a second factor for every sign-in.</p>
+					<p class="text-sm">{ i18n.T(ctx, "account.twoFactorBlurb", nil) }</p>
 					<form method="POST" action="/account/totp/begin" class="mt-3">
 						<button type="submit" class="btn btn-sm btn-primary">{ i18n.T(ctx, "account.enableTwoFactor", nil) }</button>
 					</form>
@@ -208,8 +208,8 @@ templ body(data PageData) {
 				if len(data.RecoveryCodes) > 0 {
 					<div class="alert alert-warning mt-4">
 						<div>
-							<strong>Save these recovery codes now.</strong>
-							<p class="text-xs mt-1">They are shown once and each works once.</p>
+							<strong>{ i18n.T(ctx, "account.saveRecoveryNow", nil) }</strong>
+							<p class="text-xs mt-1">{ i18n.T(ctx, "account.recoveryShownOnce", nil) }</p>
 							<ul class="grid grid-cols-2 gap-1 mt-2 font-mono text-xs">
 								for _, code := range data.RecoveryCodes {
 									<li data-recovery-code>{ code }</li>
@@ -217,8 +217,8 @@ templ body(data PageData) {
 							</ul>
 							<div class="flex flex-wrap gap-2 mt-3">
 								<button type="button" class="btn btn-xs"
-									data-on:click="navigator.clipboard.writeText(Array.from(document.querySelectorAll('[data-recovery-code]')).map(function (el) { return el.textContent }).join('\n'))">Copy all</button>
-								<a class="btn btn-xs" href={ recoveryDownload(data.RecoveryCodes) } download="recovery-codes.txt">Download</a>
+									data-on:click="navigator.clipboard.writeText(Array.from(document.querySelectorAll('[data-recovery-code]')).map(function (el) { return el.textContent }).join('\n'))">{ i18n.T(ctx, "account.copyAll", nil) }</button>
+								<a class="btn btn-xs" href={ recoveryDownload(data.RecoveryCodes) } download="recovery-codes.txt">{ i18n.T(ctx, "account.download", nil) }</a>
 							</div>
 						</div>
 					</div>
@@ -230,7 +230,7 @@ templ body(data PageData) {
 			<div class="ui-card-body">
 				<h2 class="ui-title">{ i18n.T(ctx, "account.sessions", nil) }</h2>
 				if len(data.Sessions) == 0 {
-					<p class="text-sm">No sessions to show.</p>
+					<p class="text-sm">{ i18n.T(ctx, "account.noSessions", nil) }</p>
 				} else {
 					<div class="space-y-2">
 						for _, session := range data.Sessions {
@@ -253,7 +253,7 @@ templ body(data PageData) {
 								</div>
 								<form method="POST" action="/account/sessions/revoke">
 									<input type="hidden" name="session_id" value={ session.ID }/>
-									<button type="submit" class="btn btn-xs btn-error">Revoke</button>
+									<button type="submit" class="btn btn-xs btn-error">{ i18n.T(ctx, "account.revoke", nil) }</button>
 								</form>
 							</div>
 						}
@@ -262,20 +262,20 @@ templ body(data PageData) {
 				<form method="POST" action="/account/sessions/revoke-all" class="mt-4 space-y-2 max-w-md">
 					if data.PasswordSet {
 						<label class="flex flex-col gap-1 w-full">
-							<div class="label"><span>Confirm with your password</span></div>
+							<div class="label"><span>{ i18n.T(ctx, "account.confirmWithPassword", nil) }</span></div>
 							<input type="password" name="password" class="input input-sm" required
 								autocomplete="current-password"/>
 						</label>
 					} else if data.TOTP {
 						<label class="flex flex-col gap-1 w-full">
-							<div class="label"><span>Authenticator or recovery code</span></div>
+							<div class="label"><span>{ i18n.T(ctx, "account.totpOrRecovery", nil) }</span></div>
 							<input type="text" name="code" class="input input-sm" required
 								inputmode="numeric" autocomplete="one-time-code"/>
 						</label>
 					} else {
-						<p class="text-xs text-base-content/60">This account has no password or second factor; the session itself authorizes this action.</p>
+						<p class="text-xs text-base-content/60">{ i18n.T(ctx, "account.sessionOnly", nil) }</p>
 					}
-					<button type="submit" class="btn btn-sm btn-error">Sign out everywhere</button>
+					<button type="submit" class="btn btn-sm btn-error">{ i18n.T(ctx, "account.signOutEverywhere", nil) }</button>
 				</form>
 			</div>
 		</section>
@@ -283,7 +283,7 @@ templ body(data PageData) {
 
 		<section class="ui-card">
 			<div class="ui-card-body">
-				<h2 class="ui-title">Cloud sync</h2>
+				<h2 class="ui-title">{ i18n.T(ctx, "account.cloudSync", nil) }</h2>
 				<p class="text-sm opacity-70">
 					Connect this device to a server. Rows converge only when this
 					account exists on that server with the same id — activation in
@@ -296,21 +296,21 @@ templ body(data PageData) {
 						<span class="badge badge-info badge-sm">applies on next launch</span>
 					</p>
 					<form method="POST" action="/account/cloud/disconnect" class="mt-3">
-						<button type="submit" class="btn btn-sm btn-error">Disconnect</button>
+						<button type="submit" class="btn btn-sm btn-error">{ i18n.T(ctx, "account.disconnect", nil) }</button>
 					</form>
 				} else {
 					<form method="POST" action="/account/cloud" class="space-y-3 max-w-md">
 						<label class="flex flex-col gap-1 w-full">
-							<div class="label"><span>Server URL</span></div>
+							<div class="label"><span>{ i18n.T(ctx, "account.serverURL", nil) }</span></div>
 							<input type="text" name="url" class="input input-sm font-mono"
 								placeholder="nats://host:4222" required/>
 						</label>
 						<label class="flex flex-col gap-1 w-full">
-							<div class="label"><span>Device token (optional)</span></div>
+							<div class="label"><span>{ i18n.T(ctx, "account.deviceTokenOptional", nil) }</span></div>
 							<input type="password" name="token" class="input input-sm"
 								autocomplete="off" placeholder="from the server"/>
 						</label>
-						<button type="submit" class="btn btn-sm btn-primary">Connect</button>
+						<button type="submit" class="btn btn-sm btn-primary">{ i18n.T(ctx, "account.connect", nil) }</button>
 					</form>
 				}
 				if data.LicenseSummary != "" {
@@ -325,17 +325,17 @@ templ body(data PageData) {
 		if data.DeviceTokenAvailable {
 			<section class="ui-card">
 				<div class="ui-card-body">
-					<h2 class="ui-title">Device token</h2>
+					<h2 class="ui-title">{ i18n.T(ctx, "account.deviceToken", nil) }</h2>
 					<p class="text-sm opacity-70">
 						Use this token to activate a desktop in account mode. It links
 						that device to this account and carries the sync endpoint.
 					</p>
 					if data.DeviceToken != "" {
 						<textarea class="textarea textarea w-full h-32 font-mono text-xs" readonly>{ data.DeviceToken }</textarea>
-						<p class="text-xs opacity-60">Shown once. If you lose it, generate another.</p>
+						<p class="text-xs opacity-60">{ i18n.T(ctx, "account.tokenShownOnce", nil) }</p>
 					}
 					<form method="POST" action="/account/device-token" class="mt-3">
-						<button type="submit" class="btn btn-sm btn-primary">Generate device token</button>
+						<button type="submit" class="btn btn-sm btn-primary">{ i18n.T(ctx, "account.generateToken", nil) }</button>
 					</form>
 				</div>
 			</section>

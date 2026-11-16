@@ -16,7 +16,7 @@ files:
   features/credits/handlers/driver_android.go: 0456c4150c6674aecad5b2cad51eddb04c4d4691cf2629b85b8afded40814cf7
   features/credits/handlers/driver_other.go: f18d89b85028097ab367d5da41094e58b364eedcd76ac455ee3ac9d6902504d3
   features/credits/handlers/recipe.go: 9429aa7fd67867fb8850b75fc3d4e4c1cc0cd7271d581a2f310b7d2b77db571e
-  features/credits/handlers/register.go: 025ed866b618536aae2c4385650aee053770f4370eef7a3e6ecd759cbeecc462
+  features/credits/handlers/register.go: 5c921f4418e06393e34cad281206f6c6d744900640b3f60bc7211d667f845961
   features/credits/lifecycle_test.go: 0a389e5131628dc2b47faaacd0614818aad6b7dae72be238bb59e1f7eab7dde4
   features/credits/reconcile_driver_test.go: 0e9c97b01af94a7997a7d1bda74bcda578305c597ca7fca39e0cc7988823870a
   features/credits/settlement_synctest_test.go: cce4e9ad8a006c9f48713ec9216232c46ad004feafea54de9efd04979914cff7

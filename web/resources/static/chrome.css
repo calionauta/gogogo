@@ -1201,6 +1201,17 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   color: color-mix(in oklab, var(--color-base-content) 65%, transparent);
 }
 .dashboard-counter strong { font-variant-numeric: tabular-nums; }
+/* The action footer is what aligns a row: it is pinned to the card's bottom
+   edge, so a card with two metric rows and its neighbour with one put their
+   buttons on the same line. Living in the header made alignment incidental. */
+.dashboard-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: auto;
+}
+.dashboard-card-foot .dashboard-locked { margin-top: 0; }
 .dashboard-locked {
   margin-top: auto;
   font-size: 0.75rem;
@@ -1393,3 +1404,82 @@ input[type="search"]::-webkit-search-cancel-button { cursor: pointer; }
   top: calc(var(--app-header-h, 4.5rem) + 0.5rem);
   z-index: 10;
 }
+
+/* ---------- kiosk: the microphone inside the order field ----------
+   The wrapper carries DaisyUI's `input` class (the documented shape for an
+   input holding more than one element), so the border, height and focus ring
+   stay the component's. The inner input is chromeless: the wrapper IS the
+   field, and a second border inside it would read as two controls. */
+.kiosk-field {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding-inline-end: 0.25rem;
+}
+
+.kiosk-field > input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+}
+
+.kiosk-field > input:focus-visible { outline: 0; }
+
+/* The wrapper must show the focus ring the input can no longer draw, or the
+   field looks unfocusable to a keyboard user. */
+.kiosk-field:focus-within {
+  outline: 2px solid var(--color-primary, currentColor);
+  outline-offset: 2px;
+}
+
+/* State is ONE attribute on the button (set by the voice script), so the two
+   visual states cannot disagree: idle is a grey outline glyph, live is a
+   filled accent circle with a stop glyph. Filled-vs-outline is the same
+   distinction shipping composers use to separate dictation from a voice mode;
+   here there is only one control, so the fill is what says "on air". */
+.kiosk-mic {
+  flex: 0 0 auto;
+  position: relative;
+}
+
+.kiosk-mic .kiosk-mic-live { display: none; }
+
+.kiosk-mic[data-listening="true"] {
+  background: var(--color-primary, currentColor);
+  color: var(--color-primary-content, #fff);
+}
+
+.kiosk-mic[data-listening="true"] .kiosk-mic-idle { display: none; }
+.kiosk-mic[data-listening="true"] .kiosk-mic-live { display: inline-flex; }
+
+/* A slow halo reads as "listening", not as "busy": it is the only motion on
+   the page, so it does not compete with the receipt. */
+.kiosk-mic[data-listening="true"]::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 999px;
+  border: 2px solid var(--color-primary, currentColor);
+  opacity: 0;
+  animation: kiosk-mic-halo 2s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes kiosk-mic-halo {
+  0%   { opacity: 0.5; transform: scale(1); }
+  70%  { opacity: 0;   transform: scale(1.35); }
+  100% { opacity: 0;   transform: scale(1.35); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kiosk-mic[data-listening="true"]::after { animation: none; }
+}
+
+/* The status line is a hint, not a paragraph: it sits quiet under the field
+   and only takes colour when the microphone needs the customer to act. */
+.kiosk-voice-status { margin: 0; }

@@ -33,12 +33,14 @@ import (
 // unitsGenPath is the generated file buildChiMux's recipe step calls.
 const unitsGenPath = "internal/server/units.gen.go"
 
-// recipeImport and registerImport are the two package paths the seam's
-// signature names; the signature check resolves aliases to these, so a unit may
-// import them under any name.
+// seamImports are the two package SUFFIXES the seam's signature names. The
+// comparison is suffix-based, not absolute: a scaffolded tree renames the module
+// (github.com/me/my-app), and an absolute literal made every unit look like it
+// declared no Register at all — the test failed the moment the tree was renamed,
+// which is the first thing a scaffold does.
 const (
-	recipeImport   = "github.com/calionauta/gogogo/internal/recipe"
-	registerImport = "github.com/calionauta/gogogo/internal/recipe/register"
+	recipeImportSuffix   = "/internal/recipe"
+	registerImportSuffix = "/internal/recipe/register"
 )
 
 // TestBundledUnitRegistrationIsCurrent pins internal/server/units.gen.go to the
@@ -77,9 +79,12 @@ type mountEntry struct {
 func mountEntries(t *testing.T, root string) []mountEntry {
 	t.Helper()
 	module := testModulePath(t, root)
+	trimmed := trimmedPaths(root)
 	var entries []mountEntry
 	for _, c := range All {
-		if c.Register == "" {
+		// A trimmed slice's package is gone: generating an import for it would
+		// make the scaffolded tree fail to build on its first commit.
+		if c.Register == "" || skippedByTrim(trimmed, c) {
 			continue
 		}
 		entries = append(entries, mountEntry{
@@ -125,8 +130,11 @@ func renderBundledUnits(t *testing.T, root string) []byte {
 	if len(entries) > 0 {
 		b.WriteString("\n")
 	}
-	fmt.Fprintf(&b, "\t%q\n", recipeImport)
-	fmt.Fprintf(&b, "\t%q\n", registerImport)
+	// The generated file's own imports must name THIS tree's module: it is
+	// written into a scaffolded project, whose module is not the template's.
+	module := testModulePath(t, root)
+	fmt.Fprintf(&b, "\t%q\n", module+recipeImportSuffix)
+	fmt.Fprintf(&b, "\t%q\n", module+registerImportSuffix)
 	b.WriteString(")\n\n")
 	b.WriteString("// bundledUnits is every in-tree unit that mounts itself, in id order. The list\n")
 	b.WriteString("// is generated from `capabilities.Capability.Register`, so a unit opts in by\n")
@@ -161,9 +169,13 @@ func renderBundledUnits(t *testing.T, root string) []byte {
 // dependency graph for a signature check.
 func TestSelfMountingUnitsExportRegister(t *testing.T) {
 	root := repoRoot(t)
+	// A scaffolded tree drops demo slices; their registry rows stay (the
+	// registry is the template's data, not the tree's), so the removed-paths:
+	// provenance is what tells this test a missing package is deliberate.
+	trimmed := trimmedPaths(root)
 	checked := 0
 	for _, c := range All {
-		if c.Register == "" {
+		if c.Register == "" || skippedByTrim(trimmed, c) {
 			continue
 		}
 		checked++
@@ -176,6 +188,30 @@ func TestSelfMountingUnitsExportRegister(t *testing.T) {
 	if checked == 0 {
 		t.Fatal("no capability sets Register: the self-mounting path is untested and would rot silently")
 	}
+}
+
+// skippedByTrim reports whether the tree deliberately removed the unit's code:
+// any of its Dirs or its Register package is listed under removed-paths:.
+func skippedByTrim(trimmed map[string]bool, c Capability) bool {
+	if len(trimmed) == 0 {
+		return false
+	}
+	for _, dir := range c.Dirs {
+		if trimmed[filepath.FromSlash(dir)] {
+			return true
+		}
+	}
+	if c.Register != "" && trimmed[filepath.FromSlash(c.Register)] {
+		return true
+	}
+	// A slice removed by its feature directory takes its Register with it.
+	for path := range trimmed {
+		if strings.HasPrefix(filepath.ToSlash(path), "features/") &&
+			strings.HasPrefix(c.Register, filepath.ToSlash(path)+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 // packageDeclaresRegister parses the unit's package and looks for the exported
@@ -224,16 +260,22 @@ func declaresSeamRegister(file *ast.File) bool {
 			continue
 		}
 		first, ok := star.X.(*ast.SelectorExpr)
-		if !ok || first.Sel.Name != "Registry" || qualifierPath(first.X, imports) != recipeImport {
+		if !ok || first.Sel.Name != "Registry" || !hasSuffixPath(qualifierPath(first.X, imports), recipeImportSuffix) {
 			continue
 		}
 		second, ok := params[1].Type.(*ast.SelectorExpr)
-		if !ok || second.Sel.Name != "Deps" || qualifierPath(second.X, imports) != registerImport {
+		if !ok || second.Sel.Name != "Deps" || !hasSuffixPath(qualifierPath(second.X, imports), registerImportSuffix) {
 			continue
 		}
 		return true
 	}
 	return false
+}
+
+// hasSuffixPath matches an import path by its tail, so the check survives the
+// module rename every scaffold performs.
+func hasSuffixPath(path, suffix string) bool {
+	return path == strings.TrimPrefix(suffix, "/") || strings.HasSuffix(path, suffix)
 }
 
 // importAliases maps the names a file gives its imports to their paths, so the

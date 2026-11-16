@@ -9,11 +9,12 @@ package main
 // and the docs row still promised only the verbs. One source, generated
 // downstream, makes that class impossible.
 //
-// The catalog lives in a SEPARATE module (cmd/gogogo-mcp has its own go.mod,
-// so the MCP SDK never enters the web binary's graph), so this reads it as
-// SOURCE, the same way the subcommand list is read from the installer
-// entrypoint: go/parser, not a regex, so a description split across
-// concatenated string literals is read whole.
+// The catalog is read as SOURCE, the same way the subcommand list is read from
+// the installer entrypoint: go/parser, not a regex, so a description split
+// across concatenated string literals is read whole. It shares the root module
+// (`go install .../cmd/gogogo-mcp@latest` must work without a checkout), but a
+// docs gate still must not import it: the sdk and its transitive packages would
+// join this binary's graph for one table.
 
 import (
 	"fmt"

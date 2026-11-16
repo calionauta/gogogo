@@ -174,6 +174,29 @@ func ReceiptAfter(prev Receipt, plan PlanResult) Receipt {
 	return out
 }
 
+// RemoveAll deletes every file the receipt claims, pristine or not.
+//
+// It has exactly one caller: scaffold-time pruning, on a fresh clone nobody has
+// edited. There, "modified vs the receipt" describes the TEMPLATE's drift, not
+// the operator's work, and keeping those files leaves a product importing
+// packages that no longer exist. `Remove` keeps the pristine-only rule for the
+// user-facing uninstall; this function must never be reached from a user
+// command.
+func RemoveAll(root string, r Receipt) (ApplyResult, error) {
+	var res ApplyResult
+	for p := range r.Files {
+		full := filepath.Join(root, filepath.FromSlash(p))
+		if err := os.Remove(full); err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return res, err
+		}
+		res.Removed = append(res.Removed, p)
+	}
+	return res, nil
+}
+
 // Remove is uninstall: it deletes only the files the receipt claims AND that are
 // still pristine. A modified file is left behind and reported, because deleting
 // something the user wrote is the one thing uninstall must never do.

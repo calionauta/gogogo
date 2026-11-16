@@ -20,6 +20,7 @@ import (
 	"github.com/calionauta/gogogo/internal/icon"
 	"github.com/calionauta/gogogo/web/resources"
 	"github.com/calionauta/gogogo/internal/ui"
+	"github.com/calionauta/gogogo/internal/i18n"
 )
 
 // BoardMeta is a list-row summary of a saved whiteboard.
@@ -77,7 +78,7 @@ templ boardsListHead() {
 
 // boardsActions is the header's right-aligned action.
 templ boardsActions() {
-	<a class="app-nav-btn is-primary" href="/whiteboard/new">New board</a>
+	<a class="app-nav-btn is-primary" href="/whiteboard/new">{ i18n.T(ctx, "whiteboard.newBoard", nil) }</a>
 }
 
 // boardsContext is the header's context slot.
@@ -101,10 +102,7 @@ func boardsStack() []components.TechItem {
 templ boardsBody(boards []BoardMeta) {
 	<div class="ui-page ui-page-narrow ui-stack">
 
-				<p class="ui-meta mb-2">
-					Every whiteboard is shared: anyone signed in can open and draw on it. Only its
-					author (or an admin) can delete it.
-				</p>
+				<p class="ui-meta mb-2">{ i18n.T(ctx, "whiteboard.sharedBlurb", nil) }</p>
 				@WhiteboardListFragment(boards)
 		@deleteBoardModal()
 		@components.ListResync("wb-realtime-resync", "'/api/whiteboards/fragment'")
@@ -120,7 +118,7 @@ templ WhiteboardListFragment(boards []BoardMeta) {
 		if len(boards) == 0 {
 			<div class="ui-card">
 				<div class="ui-empty">
-					<p class="text-sm text-base-content/60">No whiteboards yet. Create one to start drawing together.</p>
+					<p class="text-sm text-base-content/60">{ i18n.T(ctx, "whiteboard.empty", nil) }</p>
 				</div>
 			</div>
 		}
@@ -175,7 +173,7 @@ templ authorBadge(author string, isMine bool) {
 templ deleteBoardModal() {
 	<dialog id={ boardDialogID } class="modal" data-on:close="$confirmBoardId = ''; $confirmBoardAuthor = ''; $deletingBoard = false">
 		<div class="modal-box">
-			<h3 class="font-bold text-lg text-error">Delete this whiteboard?</h3>
+			<h3 class="font-bold text-lg text-error">{ i18n.T(ctx, "whiteboard.deleteConfirm", nil) }</h3>
 			<p class="py-4 text-sm">
 				This permanently removes the board and every shape on it
 				<span class="text-base-content/60" data-text="$confirmBoardAuthor ? 'started by ' + $confirmBoardAuthor : ''"></span>.
@@ -255,9 +253,9 @@ templ boardBody(meta BoardMeta, shapesJSON string) {
 	<div class="flex flex-1 flex-col min-h-0" data-doc-id={ meta.DocID }>
 
 				<div class="toolbar flex flex-wrap gap-2 p-2 bg-base-200 border-b border-base-content/10 overflow-x-auto">
-					<button class="btn btn-sm" data-tool="rect">Rectangle</button>
-					<button class="btn btn-sm" data-tool="ellipse">Ellipse</button>
-					<button class="btn btn-sm" data-tool="line">Line</button>
+					<button class="btn btn-sm" data-tool="rect">{ i18n.T(ctx, "whiteboard.rectangle", nil) }</button>
+					<button class="btn btn-sm" data-tool="ellipse">{ i18n.T(ctx, "whiteboard.ellipse", nil) }</button>
+					<button class="btn btn-sm" data-tool="line">{ i18n.T(ctx, "whiteboard.line", nil) }</button>
 					<button class="btn btn-sm" data-tool="pen">Pen</button>
 					<input class="input input-sm w-16 cursor-pointer" type="color" value="#1f2937"
 					       id="color-input" name="color" aria-label="Shape color"/>

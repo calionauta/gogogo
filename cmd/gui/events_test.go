@@ -42,7 +42,7 @@ func TestWatchEventsDeliversFrames(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = fmt.Fprint(w, ": connected\n\n")
 		flusher.Flush()
-		for i := 0; i < 2; i++ {
+		for i := range 2 {
 			_, _ = fmt.Fprintf(w, "data: {\"n\":%d}\n\n", i)
 			flusher.Flush()
 		}
@@ -59,7 +59,7 @@ func TestWatchEventsDeliversFrames(t *testing.T) {
 		done <- err
 	}()
 
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		select {
 		case <-frames:
 		case err := <-done:

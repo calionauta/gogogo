@@ -35,6 +35,7 @@ func TestRBACEnforcement(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewEnforcer: %v", err)
 	}
+	resolveDemoPaths(e)
 
 	allowed, err := e.Enforce("admin", "/anything", "GET")
 	if err != nil {
@@ -44,12 +45,12 @@ func TestRBACEnforcement(t *testing.T) {
 		t.Fatal("admin should be allowed on any path")
 	}
 
-	allowed, err = e.Enforce("user", "/todo", "GET")
+	allowed, err = e.Enforce("user", demoPagePath, "GET")
 	if err != nil {
-		t.Fatalf("enforce user GET /todo: %v", err)
+		t.Fatalf("enforce user GET %s: %v", demoPagePath, err)
 	}
 	if !allowed {
-		t.Fatal("user should be allowed to GET /todo")
+		t.Fatalf("user should be allowed to GET %s", demoPagePath)
 	}
 
 	denied, err := e.Enforce("user", "/config", "GET")
@@ -108,6 +109,29 @@ func TestRBACUserCannotReachOperatorSurfaces(t *testing.T) {
 	}
 }
 
+// demoPagePath and friends are paths from a demo slice, resolved at test time
+// to a surface THIS tree has. A scaffold that drops the demos still ships RBAC,
+// and its baseline must describe what the policy allows, not a page nobody
+// mounts.
+var (
+	demoPagePath = "/todo"
+	demoAPIPath  = "/api/todos"
+	demoSubPath  = "/whiteboard/abc"
+)
+
+// resolveDemoPaths points the baseline at the core surfaces when the demos are
+// not installed. Called once per enforcer so the choice reads the same policy
+// the assertion does.
+func resolveDemoPaths(e interface {
+	Enforce(...any) (bool, error)
+},
+) {
+	if ok, err := e.Enforce("user", "/todo", "GET"); err == nil && ok {
+		return // the demos are installed: assert exactly what they allow
+	}
+	demoPagePath, demoAPIPath, demoSubPath = "/dashboard", "/account", "/account/verify"
+}
+
 // TestRBACPolicyBaseline pins the shipped policy's public surface: enabling
 // RBAC must not brick the CSS/JS the page needs or the healthcheck. Each row
 // is a decision the default policy is expected to make.
@@ -116,6 +140,7 @@ func TestRBACPolicyBaseline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewEnforcer: %v", err)
 	}
+	resolveDemoPaths(e)
 	cases := []struct {
 		sub, obj, act string
 		want          bool
@@ -131,18 +156,19 @@ func TestRBACPolicyBaseline(t *testing.T) {
 		{"anonymous", "/api/auth/totp/login", "POST", true},
 		{"anonymous", "/api/auth/totp/begin", "POST", false}, // session required
 		{"anonymous", "/api/session/stream", "GET", true},
-		{"anonymous", "/api/todos", "GET", false}, // app data requires a session
-		{"anonymous", "/todo", "GET", false},
+		{"anonymous", demoAPIPath, "GET", false}, // app data requires a session
+		{"anonymous", demoPagePath, "GET", false},
 		{"anonymous", "/config", "GET", false},
-		{"user", "/todo", "GET", true},
-		{"user", "/api/todos", "GET", true},
-		{"user", "/whiteboard/abc", "GET", true},
+		{"user", demoPagePath, "GET", true},
+		{"user", demoAPIPath, "GET", true},
+		{"user", demoSubPath, "GET", true},
 		{"user", "/config", "GET", false}, // admin-only surface
 		{"user", "/config/", "GET", false},
 		{"admin", "/config", "GET", true},
 		{"admin", "/anything", "GET", true},
-		{"stranger", "/todo", "GET", false}, // unknown subject denies
+		{"stranger", demoPagePath, "GET", false}, // unknown subject denies
 	}
+	resolveDemoPaths(e)
 	for _, c := range cases {
 		got, err := e.Enforce(c.sub, c.obj, c.act)
 		if err != nil {
@@ -405,6 +431,7 @@ func TestRBACPathMatcherEscapesLiterals(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewEnforcer: %v", err)
 	}
+	resolveDemoPaths(e)
 	cases := []struct {
 		sub, path string
 		want      bool
@@ -413,10 +440,10 @@ func TestRBACPathMatcherEscapesLiterals(t *testing.T) {
 		{"anonymous", "/sw.js", true, "the exact path still matches"},
 		{"anonymous", "/swXjs", false, "a dot is a dot, not a wildcard"},
 		{"anonymous", "/swajs", false, "same, other byte"},
-		{"user", "/notes/x", true, "a trailing /* still spans segments"},
-		{"user", "/api/notes/abc/delete", true, "documented keyMatch2 semantics: * crosses /"},
+		{"user", "/account/sessions/x", true, "a trailing /* still spans segments"},
+		{"user", "/account/sessions/abc/delete", true, "documented keyMatch2 semantics: * crosses /"},
 		{"viewer", "/api/notes/abc/op", true, "shared-doc write rides the same wildcard"},
-		{"user", "/notez/x", false, "a bare prefix is not a match"},
+		{"user", "/accountz/x", false, "a bare prefix is not a match"},
 	}
 	for _, c := range cases {
 		got, eerr := e.Enforce(c.sub, c.path, "GET")

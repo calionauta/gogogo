@@ -13,16 +13,28 @@ import (
 // network, no discovery, no cluster — rooms live in this process only.
 var goAktHost *appgoakt.Host
 
-// startGoAkt boots the room actor system. It no-ops when GOAKT_ENABLED
-// is false, and it is idempotent: a second call while a host is live
-// returns without spawning a second system (which would leak the first).
-// The room routes guard the same flag, so a disabled engine can never
-// be reached.
+// startGoAkt adopts the room actor system the recipe already booted.
+//
+// WHY ADOPT, NOT START. The room recipe builds and starts its host during
+// BootChi (features/room/handlers/register.go) and publishes it as the process
+// default, because it is the thing that serves the routes. Booting a SECOND
+// host here gave the process two actor systems with the same name: the presence
+// upgrade captured the first, this function then overwrote the default with the
+// second, and shutdown stopped only the second — leaking the first. The failure
+// is invisible until the discarded system is the one holding a live grain.
+//
+// A tree where the room recipe is trimmed registers nothing, so Start is still
+// the fallback: a host here exists exactly once, whichever path created it.
 func startGoAkt(ctx context.Context, cfg *config.Config) {
 	if !cfg.GoAkt.Enabled {
 		return
 	}
 	if goAktHost != nil {
+		return
+	}
+	// The room recipe's host wins: it is the one the routes were built against.
+	if existing := appgoakt.Default(); existing != nil {
+		goAktHost = existing
 		return
 	}
 	h := appgoakt.New()

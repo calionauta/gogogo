@@ -8,6 +8,8 @@ import (
 	"io"
 	"regexp"
 	"strings"
+
+	shapekit "github.com/calionauta/gogogo/internal/shape"
 )
 
 // NAME_RE mirrors scripts/rename-project.py: the name becomes a Go module
@@ -30,15 +32,22 @@ func validateName(name string) error {
 }
 
 type formResult struct {
-	name  string
-	owner string
+	name    string
+	owner   string
+	shape   string
+	recipes string
+	locales string
 }
 
-// promptForm is the stdlib interactive form. It asks the two questions a
-// scaffold needs (name, owner), in the same order a future Charm Huh form
-// would ask them. (The retired keep/drop menus used to ask plugins,
-// features, and opt-in units as numbered menus; dropping units at scaffold
-// no longer exists, so the menus — and their parsers — are gone with it.)
+// promptForm is the stdlib interactive form: the questions a scaffold needs
+// that are genuinely the operator's choice. Name and owner are identity; shape
+// and recipes decide what the tree IS, and a scaffold that guesses them ships a
+// product nobody asked for.
+//
+// The defaults are the safe ones (the owner above, the full shape, every demo
+// kept, English only), so pressing Enter five times still produces a working
+// tree. Answering the language question is what makes the later gates grade the
+// right set instead of guessing pt-BR.
 func promptForm(stdin io.Reader, stdout io.Writer) formResult {
 	in := bufio.NewScanner(stdin)
 	ask := func(label, def string) string {
@@ -59,9 +68,8 @@ func promptForm(stdin io.Reader, stdout io.Writer) formResult {
 	res := formResult{}
 	res.name = ask("Project name", "")
 	res.owner = ask("GitHub owner", "calionauta")
+	res.shape = ask("Product shape (full|web|api|desktop|gui|mobile)", string(shapekit.Full))
+	res.recipes = ask("Demo slices to drop (none|all|<ids>)", recipesNone)
+	res.locales = ask("Languages to ship, comma-separated (English is always included)", "en")
 	return res
 }
-
-// All keep/drop machinery is retired with the scaffold-time removal
-// operation: scaffold keeps every unit, and the interactive form asks name
-// and owner only.

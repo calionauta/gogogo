@@ -3,6 +3,7 @@ package authviews
 import (
 	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/internal/components"
+	"github.com/calionauta/gogogo/internal/i18n"
 )
 
 // SignupPage is the standalone /signup page. It is only rendered when the
@@ -15,7 +16,7 @@ templ SignupPage(next string, errMsg string, notice string) {
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>Create account — gogogo</title>
+			<title>{ i18n.T(ctx, "signup.title", nil) }</title>
 			@components.Assets()
 			@ThemeHead()
 			@sounds.SoundAssets()
@@ -43,7 +44,7 @@ templ SignupPage(next string, errMsg string, notice string) {
 						<input type="hidden" name="next" value={ next }/>
 						<label class="flex flex-col gap-1 w-full">
 							<div class="label">
-								<span>Email</span>
+								<span>{ i18n.T(ctx, "signup.email", nil) }</span>
 							</div>
 							<input
 								type="email"
@@ -57,7 +58,7 @@ templ SignupPage(next string, errMsg string, notice string) {
 
 						<label class="flex flex-col gap-1 w-full">
 							<div class="label">
-								<span>Name <span class="text-base-content/50">(optional)</span></span>
+								<span>{ i18n.T(ctx, "signup.name", nil) } <span class="text-base-content/50">{ i18n.T(ctx, "common.optional", nil) }</span></span>
 							</div>
 							<input
 								type="text"
@@ -69,7 +70,7 @@ templ SignupPage(next string, errMsg string, notice string) {
 
 						<label class="flex flex-col gap-1 w-full">
 							<div class="label">
-								<span>Password</span>
+								<span>{ i18n.T(ctx, "signup.password", nil) }</span>
 							</div>
 							<input
 								type="password"
@@ -83,7 +84,7 @@ templ SignupPage(next string, errMsg string, notice string) {
 
 						<label class="flex flex-col gap-1 w-full">
 							<div class="label">
-								<span>Confirm password</span>
+								<span>{ i18n.T(ctx, "signup.confirmPassword", nil) }</span>
 							</div>
 							<input
 								type="password"
@@ -102,7 +103,7 @@ templ SignupPage(next string, errMsg string, notice string) {
 
 					<p class="text-center text-sm mt-4">
 						Already have an account?
-						<a href={ templ.URL("/login?next=" + next) } class="link link-primary">Sign in</a>
+						<a href={ templ.URL("/login?next=" + next) } class="link link-primary">{ i18n.T(ctx, "signup.signIn", nil) }</a>
 					</p>
 				</div>
 			</div>
