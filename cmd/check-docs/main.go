@@ -204,6 +204,7 @@ func run() error {
 	problems = append(problems, checkBarePaths(root, files, trimmed)...)
 	problems = append(problems, checkCommands(root, files, subs)...)
 	problems = append(problems, checkCLIVerbs(root, subs, recipeVerbsList)...)
+	problems = append(problems, checkCLIFlags(root)...)
 	problems = append(problems, checkMCPTools(root)...)
 	problems = append(problems, checkManifest(root)...)
 	problems = append(problems, checkReadmeIndex(root)...)

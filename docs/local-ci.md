@@ -596,11 +596,15 @@ uses `node`/`go` without installing them first).
 `make ci-local` runs the same set locally, cheap steps first, then the
 race+browser fan-out (`scripts/ci-fanout.sh`).
 
-The docs site is not part of `ci-local`. `pages.yml` runs `site-check`, builds
-`site/` (including the generated search index under `site/search/`) and runs
-`scripts/site-layout.test.mjs` before publishing. `site-check` also runs
-`node site/build-landing.mjs --check`, which verifies the landing's unit and
-gate catalog against `docs/unit-contracts.md` and `.lefthook.yml`. `docsite-drift.yml` checks the
+The docs site BUILD is not part of `ci-local`: `pages.yml` builds `site/`
+(including the generated search index under `site/search/`) and runs
+`scripts/site-layout.test.mjs` before publishing. The site CHECKS are, because
+they are read-only and cost ~0.2 s: `ci-local-fast` runs `site-check`, which
+verifies the manifest, every internal link and anchor, and
+`node site/build-landing.mjs --check` — the landing's unit and gate catalog
+against `docs/unit-contracts.md` and `.lefthook.yml`. That last check exists
+because a stale `site/index.html` used to reach CI whenever a hook was added
+after the page was generated. `docsite-drift.yml` checks the
 vendored engine against `site/UPSTREAM_SHA` on PRs that touch it and weekly;
 `docsite-bump.yml` opens the bump PR.
 
