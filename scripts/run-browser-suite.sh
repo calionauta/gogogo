@@ -106,11 +106,20 @@ fi
 
 logdir="${CI_LOG_DIR:-}"
 suffix="${SUITE_LOG_SUFFIX:-}"
+# The trace path follows the LOG suffix. The caller sets SUITE_LOG_SUFFIX=".retry"
+# when it runs a retry as its own wrapper invocation (ci-fanout does this so the
+# retry's log cannot overwrite the first failure's). Tracing to $name.trace.zip
+# regardless made the retry overwrite the PARALLEL attempt's trace — the exact
+# evidence inversion this file exists to remove, reintroduced one layer down:
+# `smoke.trace.zip` held the retry that PASSED while the load failure that
+# mattered had no recording left. The suffix is the caller's statement of which
+# attempt this is, so it has to reach both artifacts.
+trace_suffix="$suffix"
 if [ -n "$logdir" ]; then
   mkdir -p "$logdir"
   first_log="$logdir/$name$suffix.log"
   retry_log="$logdir/$name.retry.log"
-  trace_first="$logdir/$name.trace.zip"
+  trace_first="$logdir/$name$trace_suffix.trace.zip"
   trace_retry="$logdir/$name.retry.trace.zip"
 else
   first_log="$(mktemp -t "suites-${name}.XXXXXX.log")"

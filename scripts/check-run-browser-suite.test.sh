@@ -200,8 +200,10 @@ pass "the first attempt is traced, not only the retry"
 
 grep -q 'trace_first=' "$WRAPPER" || fail "no trace_first path is defined"
 grep -q 'trace_retry=' "$WRAPPER" || fail "no trace_retry path is defined"
-[ "$(grep -c 'trace_first="\$logdir/\$name.trace.zip"' "$WRAPPER")" -eq 1 ] \
-    || fail "trace_first is not \${name}.trace.zip (the base path the tracer suffixes)"
+# The base path must end in .trace.zip and must be built from the suffix-aware
+# variable; the exact form is asserted by the SUITE_LOG_SUFFIX check below.
+grep -qE 'trace_first="\$logdir/\$name[^"]*\.trace\.zip"' "$WRAPPER" \
+    || fail "trace_first is not a \$logdir/\$name*.trace.zip path"
 [ "$(grep -c 'trace_retry="\$logdir/\$name.retry.trace.zip"' "$WRAPPER")" -eq 1 ] \
     || fail "trace_retry is not \${name}.retry.trace.zip"
 # The tracer writes ONE FILE PER CONTEXT (\${base}-<label>.zip), so the wrapper
@@ -220,5 +222,50 @@ if grep -qE "printf '[^']*\\\\u[0-9a-fA-F]{4}" "$WRAPPER"; then
 fi
 grep -q '✗|❌' "$WRAPPER" || fail "the wrapper's marker regex is not the literal ✗|❌ pair"
 pass "failure markers are literal (bash 3.2 compatible)"
+
+# --- 6. the LOCAL fan-out traces every attempt too ----------------------------
+#
+# scripts/ci-fanout.sh is the other half of the same policy (`make ci-local`), and
+# it had the identical retry-only bug: the PARALLEL stage ran each suite bare
+# (no SMOKE_TRACE at all) while only the retry got one — so the local gate kept a
+# trace of the run that passed. Nothing checked it, because the suite list above
+# is derived from ci.yml, where the fan-out does not appear.
+FANOUT="$REPO/scripts/ci-fanout.sh"
+[ -f "$FANOUT" ] || fail "scripts/ci-fanout.sh is missing"
+
+default_exists="$(grep -q 'SMOKE_TRACE="\$logdir/smoke.trace.zip"' "$FANOUT" && echo 1 || echo 0)"
+[ "$default_exists" -eq 1 ] \
+    || fail "the fan-out's PARALLEL stage (the one that fails under load) passes no SMOKE_TRACE, so its trace records nothing: $(grep -nE 'suite-supervisor\.mjs .*&$' "$FANOUT")"
+
+# EVERY parallel suite must be traced, not just smoke. Count the parallel lines
+# (they end in `&`) against the ones carrying a trace path.
+parallel_lines="$(grep -cE '^SMOKE_TRACE=.*suite-supervisor\.mjs .*&$' "$FANOUT" || true)"
+parallel_total="$(grep -cE 'suite-supervisor\.mjs .*&$' "$FANOUT" || true)"
+[ "$parallel_lines" = "$parallel_total" ] \
+    || fail "only $parallel_lines of $parallel_total parallel suites in ci-fanout.sh are traced"
+
+# The parallel and retry trace paths must differ, or the retry overwrites the
+# first failure's evidence — the same reason run-browser-suite.sh splits them.
+if grep -q 'trace.zip' "$FANOUT"; then
+    collision="$(grep -oE 'SMOKE_TRACE="[^"]+"' "$FANOUT" | sort | uniq -d || true)"
+    [ -z "$collision" ] || fail "ci-fanout.sh reuses a trace path across attempts (one stop overwrites the other): $collision"
+fi
+pass "the local fan-out ($parallel_total parallel suites) traces every attempt"
+
+# The fan-out reports failures by marker too, for the same reason.
+grep -q "grep -E '✗|❌'" "$FANOUT" \
+    || fail "ci-fanout.sh still reports a failure with a positional tail, so a suite ending in green assertions prints nothing useful"
+pass "the local fan-out reports failures by marker"
+
+# The trace path must follow SUITE_LOG_SUFFIX, not just the log.
+#
+# ci-fanout runs the retry as its OWN wrapper call with SUITE_LOG_SUFFIX=".retry"
+# so the retry log cannot overwrite the first failure's. The trace ignored the
+# suffix, so the retry wrote $name.trace.zip — clobbering the parallel attempt's
+# recording that held the actual load failure, leaving a trace of the run that
+# passed. Reintroduced one layer down from the bug this PR fixes.
+grep -qF 'trace_first="$logdir/$name$trace_suffix.trace.zip"' "$WRAPPER" \
+    || fail "the trace path ignores SUITE_LOG_SUFFIX, so a retry-overwriting-wrapper call clobbers the first attempt's trace"
+pass "the trace path follows SUITE_LOG_SUFFIX (a retry cannot clobber the first failure's recording)"
 
 echo "✅ run-browser-suite contract holds"

@@ -12,9 +12,22 @@
 # standalone runs, all at offline-queue waits, all green on retry. So a
 # failed browser suite gets exactly one serial retry with the parallel
 # load gone: pass-on-retry is labeled a flake, two consecutive failures
-# mean the product regressed. The retry run records a Playwright trace
-# (SMOKE_TRACE) so the flake keeps its timeline. The race suite never
-# retries (a retried race is a hidden data race).
+# mean the product regressed. The race suite never retries (a retried race
+# is a hidden data race).
+#
+# BOTH stages are traced, and the PARALLEL one is the point. Until 2026-11-16
+# this script passed SMOKE_TRACE only to the retry, so the trace recorded the
+# run that PASSED — a recording of nothing going wrong — while the run that
+# actually failed under load had no timeline at all. That is the same defect
+# scripts/run-browser-suite.sh had, and the same fix: give every attempt its own
+# trace path. Both stages must agree or the local gate stays blind to exactly
+# what CI now records.
+#
+# A failure is reported by its MARKER, not by `tail`. A positional tail of a
+# suite that ends with a long run of green assertions shows only the green (CI
+# run 43870137994 printed "FAILED twice" and zero failed assertions). See
+# scripts/run-browser-suite.sh for the full argument; this script shares the
+# marker so a local red and a CI red read the same way.
 #
 # Ports are collision-free by construction: race tests bind ephemeral
 # ports, smoke.mjs takes 8099, whiteboard 8131, notes 8132, sse-reopen 8133,
@@ -42,18 +55,24 @@ pid_race=$!
 # (scripts/lib/suite-supervisor.mjs): a suite that hangs instead of failing
 # would otherwise hold this fan-out — and the box it runs on — forever. The
 # supervisor kills the whole process group when the budget is gone.
+#
+# SMOKE_TRACE is set for EVERY suite here, not just the retry: this stage is the
+# one that fails under load, so its trace is the evidence worth keeping. Skipped
+# (no matching feature package) suites ignore it; scripts/lib/trace.mjs makes
+# that safe, and check-run-browser-suite.test.sh fails if a suite CI runs does
+# not honour it.
 suite_timeout="${SMOKE_SUITE_TIMEOUT:-600}"
-SMOKE_BIN="$bin" node scripts/lib/suite-supervisor.mjs "$suite_timeout" scripts/smoke.mjs >"$logdir/smoke.log" 2>&1 &
+SMOKE_TRACE="$logdir/smoke.trace.zip" SMOKE_BIN="$bin" node scripts/lib/suite-supervisor.mjs "$suite_timeout" scripts/smoke.mjs >"$logdir/smoke.log" 2>&1 &
 pid_smoke=$!
-SMOKE_BIN="$bin" node scripts/lib/suite-supervisor.mjs "$suite_timeout" scripts/whiteboard-client.test.mjs >"$logdir/whiteboard.log" 2>&1 &
+SMOKE_TRACE="$logdir/whiteboard.trace.zip" SMOKE_BIN="$bin" node scripts/lib/suite-supervisor.mjs "$suite_timeout" scripts/whiteboard-client.test.mjs >"$logdir/whiteboard.log" 2>&1 &
 pid_wb=$!
-SMOKE_BIN="$bin" node scripts/lib/suite-supervisor.mjs "$suite_timeout" scripts/notes-caret.test.mjs >"$logdir/notes.log" 2>&1 &
+SMOKE_TRACE="$logdir/notes.trace.zip" SMOKE_BIN="$bin" node scripts/lib/suite-supervisor.mjs "$suite_timeout" scripts/notes-caret.test.mjs >"$logdir/notes.log" 2>&1 &
 pid_notes=$!
-SSE_PROBE_PORT=8133 SMOKE_BIN="$bin" node scripts/lib/suite-supervisor.mjs "$suite_timeout" scripts/sse-reopen.test.mjs >"$logdir/sse.log" 2>&1 &
+SMOKE_TRACE="$logdir/sse.trace.zip" SSE_PROBE_PORT=8133 SMOKE_BIN="$bin" node scripts/lib/suite-supervisor.mjs "$suite_timeout" scripts/sse-reopen.test.mjs >"$logdir/sse.log" 2>&1 &
 pid_sse=$!
 # Own port (18093): chat-scroll boots a second server, so sharing a port with
 # any suite above would make one of them fail for the wrong reason.
-SMOKE_BIN="$bin" node scripts/lib/suite-supervisor.mjs "$suite_timeout" scripts/chat-scroll.test.mjs >"$logdir/chatscroll.log" 2>&1 &
+SMOKE_TRACE="$logdir/chatscroll.trace.zip" SMOKE_BIN="$bin" node scripts/lib/suite-supervisor.mjs "$suite_timeout" scripts/chat-scroll.test.mjs >"$logdir/chatscroll.log" 2>&1 &
 pid_scroll=$!
 
 # retry_browser reruns one failed browser suite serially: the parallel
@@ -71,7 +90,9 @@ pid_scroll=$!
 #                    FIRST failure, which is the evidence this retry exists to
 #                    preserve. `.retry` is also the name the failure message below
 #                    already points at.
-#   SMOKE_TRACE      so the retry keeps its timeline, as the header above promises.
+#   SMOKE_TRACE      so the retry keeps its timeline. The PARALLEL stage above
+#                    is traced too — see its comment: a retry-only trace records
+#                    the run that passed and throws away the one that failed.
 retry_browser() {
   local name="$1" script="$2"
   echo "  ↻ $name failed under load, retrying once serially…"
@@ -115,10 +136,20 @@ for spec in "race:$pid_race" "smoke:$pid_smoke" "whiteboard:$pid_wb" "notes:$pid
   fi
 done
 if [ "$fail" -ne 0 ]; then
-  echo "--- failing suite tails ---"
+  # Marker extraction, not a positional tail: see the header. `tail -n 30` on a
+  # suite that ends with a run of green assertions prints only green, which is
+  # how a red run can tell you nothing (CI run 43870137994).
+  echo "--- failing suite assertions ---"
   for log in $failed_logs; do
     echo "=== $log ==="
-    tail -n 30 "$log"
+    found="$(grep -E '✗|❌' "$log" 2>/dev/null || true)"
+    if [ -z "$found" ]; then
+      echo "  (no ✗/❌ marker — the suite ended before reporting a verdict:"
+      echo "   a throw, a crash or a supervisor kill. Tail below.)"
+    else
+      printf '%s\n' "$found"
+    fi
+    tail -n 15 "$log"
   done
   exit 1
 fi
