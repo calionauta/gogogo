@@ -270,7 +270,7 @@ func TestSameOriginGuard(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			reached = false
-			req := httptest.NewRequestWithContext(context.Background(), tc.method, "/api/todos", nil)
+			req := httptest.NewRequestWithContext(context.Background(), tc.method, "/account/password", nil)
 			req.Host = tc.host
 			if tc.origin != "" {
 				req.Header.Set("Origin", tc.origin)
@@ -294,7 +294,7 @@ func TestEdgeHandlerLogsOriginRejection(t *testing.T) {
 	var buf bytes.Buffer
 	cfg := &config.Config{HTTPAccessLog: true}
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/todos", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/account/password", nil)
 	req.Host = "app.example.com"
 	req.Header.Set("Origin", "https://evil.example")
 	edgeHandler(cfg, newTestLogger(&buf), http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -303,7 +303,7 @@ func TestEdgeHandlerLogsOriginRejection(t *testing.T) {
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, want 403", rec.Code)
 	}
-	for _, want := range []string{"path=/api/todos", "status=403"} {
+	for _, want := range []string{"path=/account/password", "status=403"} {
 		if !strings.Contains(buf.String(), want) {
 			t.Errorf("log line missing %q: %s", want, buf.String())
 		}
@@ -332,7 +332,7 @@ func TestSameOriginGuardRejectsCrossSiteFetchMetadata(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			req := httptest.NewRequestWithContext(context.Background(), tc.method, "/api/todos", nil)
+			req := httptest.NewRequestWithContext(context.Background(), tc.method, "/account/password", nil)
 			req.Host = "app.example.com"
 			if tc.site != "" {
 				req.Header.Set("Sec-Fetch-Site", tc.site)

@@ -23,7 +23,6 @@ import (
 // TestBundledUnitsMountThroughTheSeam drives the generated registration the way
 // bootRecipes does and requires each entry to arrive as a provider with routes.
 func TestBundledUnitsMountThroughTheSeam(t *testing.T) {
-	requireTodo(t)
 	cfg := config.Load()
 	sqlDB, err := db.OpenAt(t.TempDir() + "/units.db")
 	if err != nil {
@@ -66,21 +65,21 @@ func TestBundledUnitsMountThroughTheSeam(t *testing.T) {
 		t.Fatalf("the bundled unit set is invalid: %v", conflicts)
 	}
 
-	// Every bundled unit must arrive as a provider with routes. The list is
-	// the registry's 12 self-mounting units (config-view is admin-only and
-	// mounts via the same seam). A test that only counted providers would
-	// pass if the list mounted the wrong one; pinning each id makes a
-	// dropped Register fail for the right reason (red-proof: delete one
-	// Register from units.gen.go and its id goes missing here).
-	wantIDs := []string{
-		"account", "chat", "config-view", "credits", "dashboard",
-		"notes", "notifications", "review", "room", "todo", "whiteboard",
-	}
+	// Every entry the generated list carries must arrive as a provider with
+	// routes. The expectation is the list itself, not a copy of it: a second
+	// hardcoded set drifts the moment a slice is added or dropped, and it made
+	// a product that dropped the demos fail a test about the seam. What is
+	// asserted is the RUNTIME effect — calling the generated list puts each
+	// entry in the seam — which is exactly what no static gate can prove.
 	got := map[string]recipe.Provider{}
 	for _, p := range providers {
 		got[p.ID()] = p
 	}
-	for _, id := range wantIDs {
+	if len(bundledUnits) == 0 {
+		t.Fatal("the generated list is empty: every unit was pruned, so the wiring is untested")
+	}
+	for _, entry := range bundledUnits {
+		id := entry.ID
 		p, ok := got[id]
 		if !ok {
 			t.Fatalf("%s did not mount: providers = %v", id, providerIDs(providers))

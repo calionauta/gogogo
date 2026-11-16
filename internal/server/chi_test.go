@@ -118,30 +118,14 @@ func TestServeChiOnListener(t *testing.T) {
 		t.Fatalf("signup status = %d", resp.StatusCode)
 	}
 	if resp := post("/login",
-		"email=serve@example.com&password=Correct-horse-99!&next=/todo",
+		"email=serve@example.com&password=Correct-horse-99!&next=/dashboard",
 		"application/x-www-form-urlencoded"); resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("form login status = %d", resp.StatusCode)
 	}
-	// The CRUD round-trip is the todo slice's contract. This test is about the
-	// LISTENER (bind, serve, cookies, form login), so it exercises the slice
-	// when the tree carries it and stops before it when a scaffold dropped it.
-	if !hasTodoSlice() {
-		t.Log("features/todo is not installed: skipping the CRUD round-trip")
-		return
-	}
-	if resp := post("/api/todos?filter=all", "title=Served+item",
-		"application/x-www-form-urlencoded"); resp.StatusCode != http.StatusOK {
-		t.Fatalf("create status = %d", resp.StatusCode)
-	}
-	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, base+"/todo", nil)
-	resp, err := client.Do(req)
-	if err != nil {
-		t.Fatalf("GET /todo: %v", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("GET /todo status = %d", resp.StatusCode)
-	}
+	// What the listener must prove ends here: bind, serve, the session cookie
+	// and the form-login round trip. The CRUD body that used to follow was the
+	// todo slice's contract (TestHandlersTodoCRUDFlow covers it where the slice
+	// lives) and only tied this listener test to a demo.
 }
 
 // cookieJar is the smallest jar that keeps the test honest: session
@@ -222,7 +206,6 @@ func TestBuildChiMuxRoomDisabledPinsRouteAbsence(t *testing.T) {
 }
 
 func TestBuildChiMux(t *testing.T) {
-	requireTodo(t)
 	f := buildMuxFixture(t)
 	mux := f.mux
 	body := `{"email":"mux@example.com","password":"Correct-horse-99!"}`
@@ -272,20 +255,11 @@ func TestBuildChiMux(t *testing.T) {
 	if configRec.Code != http.StatusForbidden {
 		t.Fatalf("mux anon /config status = %d, want 403", configRec.Code)
 	}
-	// One element per line, deliberately: trimming a demo drops its lines
-	// without touching its neighbours (same rule as the buildChiMux call
-	// sites — a shared line would make combined trims order-dependent).
-	for _, target := range []string{
-		"/room",
-		"/chat",
-		"/review",
-	} {
-		rec := httptest.NewRecorder()
-		mux.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, target, nil))
-		if rec.Code != http.StatusSeeOther {
-			t.Fatalf("mux anon %s status = %d, want 303", target, rec.Code)
-		}
-	}
+	// A demo page had its own row here; the guard path is the one asserted
+	// above (/dashboard), and a demo that ships is covered by
+	// assertPolicyCoverage below — which walks the composed tree, so it names
+	// whichever slices this tree actually mounts. A hardcoded demo list only
+	// made this test fail in a tree that legitimately dropped them.
 	assertMuxTail(t, mux)
 	assertPolicyCoverage(t, mux)
 	assertRecipeWiring(t, mux, f.sqlDB)

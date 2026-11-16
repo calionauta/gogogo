@@ -1,171 +1,226 @@
-// The invoke endpoint, proved against the composed tree: anonymous hits
-// never reach a handler, a signed-in caller runs the declared verb once
-// through the same RBAC-wrapped outer handler the browser uses, and the
-// owned table gains the row.
+// The invoke endpoint's own job, and nothing else.
+//
+// `POST /api/ext/invoke` is an HTTP envelope: decode the request, require the
+// session cookie, resolve (id, verb) against the composed registry, hand the
+// action to `recipe.Invoke`, and write back what came out. The resolve/serve
+// semantics — param allowlisting, `{id}` UUID validation, streaming refusal —
+// are `internal/recipe`'s contract and are proved there (invoke_test.go).
+//
+// These tests therefore drive the handler with a stub registry and a spy outer
+// handler: no slice, no database, no policy, no boot. The reference slice used
+// to be the fixture here, which meant a product that dropped it could not run
+// its own server suite. The spy is enough to prove the envelope because the spy
+// IS "the handler the action reaches".
 package server
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/calionauta/gogogo/internal/auth"
-	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/recipe"
 )
 
-func signupForInvoke(t *testing.T, f *muxFixture, email string) string {
-	t.Helper()
-	body := `{"email":"` + email + `","password":"[LEAKGUARD_REDACTED] — Password Assignment"}`
-	req := httptest.NewRequestWithContext(context.Background(),
-		http.MethodPost, "/api/auth/signup/credential", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	f.mux.ServeHTTP(rec, req)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("signup status = %d (%s)", rec.Code, rec.Body.String())
-	}
-	for _, c := range rec.Result().Cookies() {
-		if c.Name == auth.CookieName && c.Value != "" {
-			return c.Value
-		}
-	}
-	t.Fatalf("signup set no %q cookie", auth.CookieName)
-	return ""
+// probeID is the stub unit the endpoint resolves against. It is a name no
+// recipe in the catalog uses, so a failure reads as "the endpoint forgot to
+// resolve" rather than as a slice that happens to be missing.
+const probeID = "endpoint-probe"
+
+// probeProvider is the smallest Provider: one declaration, a router the seam
+// would mount. The endpoint never mounts it — it only reads the declaration.
+type probeProvider struct{ decl recipe.Declaration }
+
+func (probeProvider) ID() string                        { return probeID }
+func (p probeProvider) Declaration() recipe.Declaration { return p.decl }
+func (probeProvider) Routes() chi.Router                { return chi.NewRouter() }
+
+// probeActions names one verb per dispatch shape the endpoint forwards:
+// a body-only write and a declared `{id}` path parameter.
+var probeActions = []recipe.InvokeAction{
+	{Verb: "create", Route: recipe.Route{Method: http.MethodPost, Pattern: "/probe"}, Params: []string{"title"}},
+	{
+		Verb:       "toggle",
+		Route:      recipe.Route{Method: http.MethodPost, Pattern: "/probe/{id}/toggle"},
+		PathParams: []string{"id"},
+	},
 }
 
-// wireInvokeOut applies the same wrap the boot takes (applyRBAC), then
-// hands the endpoint its re-serve target. Without it the endpoint answers
-// 500 — like a recipe step failure, loud, not a silent skip.
-func wireInvokeOut(t *testing.T, f *muxFixture) http.Handler {
-	t.Helper()
-	handler, err := applyRBAC(context.Background(), f.auth, f.cfg, dbgen.New(f.sqlDB), f.mux)
-	if err != nil {
-		t.Fatalf("applyRBAC: %v", err)
-	}
-	f.mux.invokeOut = handler
-	return handler
+func probeRegistry() *recipe.Registry {
+	reg := &recipe.Registry{}
+	reg.Add(probeProvider{decl: recipe.Declaration{Actions: probeActions}})
+	return reg
 }
 
-func postInvoke(t *testing.T, f *muxFixture, token, payload string) *httptest.ResponseRecorder {
+// spyHandler records the request the action reached and answers with a body the
+// test can recognise. It is the only handler in the chain, so "the spy saw it"
+// is exactly "the declared action reached a handler".
+type spyHandler struct {
+	called bool
+	method string
+	path   string
+	form   map[string][]string
+	cookie string
+	status int
+	body   string
+}
+
+func (s *spyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.called = true
+	s.method = r.Method
+	s.path = r.URL.Path
+	if err := r.ParseForm(); err == nil {
+		s.form = r.PostForm
+	}
+	if c, err := r.Cookie(auth.CookieName); err == nil {
+		s.cookie = c.Value
+	}
+	status := s.status
+	if status == 0 {
+		status = http.StatusOK
+	}
+	w.WriteHeader(status)
+	_, _ = w.Write([]byte(s.body))
+}
+
+// invokeEndpoint builds the endpoint over the stub registry and the spy.
+func invokeEndpoint(spy *spyHandler) http.HandlerFunc {
+	return extInvokeHandler(probeRegistry(), func() http.Handler { return spy })
+}
+
+// callInvoke drives one request, with an empty token meaning "no cookie".
+func callInvoke(t *testing.T, h http.Handler, token, payload string) *httptest.ResponseRecorder {
 	t.Helper()
 	req := httptest.NewRequestWithContext(context.Background(),
 		http.MethodPost, "/api/ext/invoke", strings.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
 	if token != "" {
-		// #nosec G124 — test request cookie: attributes are server-side
-		// concerns; the session token is the transport here.
+		// #nosec G124 — test request cookie: the attributes are the server's
+		// concern; the session token is the transport under test.
 		req.AddCookie(&http.Cookie{Name: auth.CookieName, Value: token, HttpOnly: true, Secure: true})
 	}
 	rec := httptest.NewRecorder()
-	f.mux.ServeHTTP(rec, req)
+	h.ServeHTTP(rec, req)
 	return rec
 }
 
-// TestInvokeEndpointAnonymousNeverReachesAHandler is the endpoint's
-// fail-loud side: no cookie, no write, 401.
+func mustJSON(t *testing.T, v any) string {
+	t.Helper()
+	raw, err := json.Marshal(v)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	return string(raw)
+}
+
+// TestInvokeEndpointAnonymousNeverReachesAHandler is the fail-closed edge: no
+// cookie is a 401 before resolution, so no handler runs.
 func TestInvokeEndpointAnonymousNeverReachesAHandler(t *testing.T) {
-	requireTodo(t)
-	f := buildMuxFixture(t)
-	wireInvokeOut(t, f)
-	rec := postInvoke(t, f, "", `{"id":"todo","verb":"create","params":{"title":"Anon"}}`)
+	spy := &spyHandler{}
+	rec := callInvoke(t, invokeEndpoint(spy), "",
+		mustJSON(t, extInvokeRequest{ID: probeID, Verb: "create", Params: map[string]string{"title": "Anon"}}))
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("anonymous invoke status = %d, want 401", rec.Code)
 	}
-	var n int
-	if err := f.sqlDB.QueryRowContext(context.Background(),
-		`SELECT COUNT(*) FROM ext_todo_todos WHERE title = 'Anon'`).Scan(&n); err != nil {
-		t.Fatalf("count: %v", err)
-	}
-	if n != 0 {
-		t.Fatalf("anonymous invoke wrote %d rows", n)
+	if spy.called {
+		t.Fatal("anonymous invoke reached the handler")
 	}
 }
 
 // TestInvokeEndpointRunsDeclaredVerb proves the happy path through the
-// whole stack: resolve → re-serve through the RBAC-wrapped outer →
-// the handler's row lands in the owned table.
+// envelope: resolve, forward the declared method and body params, and write the
+// handler's status and body back as inert text.
 func TestInvokeEndpointRunsDeclaredVerb(t *testing.T) {
-	requireTodo(t)
-	f := buildMuxFixture(t)
-	wireInvokeOut(t, f)
-	token := signupForInvoke(t, f, "invoker@example.com")
-	rec := postInvoke(t, f, token, `{"id":"todo","verb":"create","params":{"title":"Headless todo"}}`)
+	spy := &spyHandler{body: "created"}
+	rec := callInvoke(t, invokeEndpoint(spy), "session-token",
+		mustJSON(t, extInvokeRequest{ID: probeID, Verb: "create", Params: map[string]string{"title": "Headless"}}))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("invoke status = %d (%s)", rec.Code, rec.Body.String())
 	}
-	var n int
-	if err := f.sqlDB.QueryRowContext(context.Background(),
-		`SELECT COUNT(*) FROM ext_todo_todos WHERE title = 'Headless todo'`).Scan(&n); err != nil {
-		t.Fatalf("count: %v", err)
+	if !spy.called {
+		t.Fatal("the declared action never reached a handler")
 	}
-	if n != 1 {
-		t.Fatalf("owned table has %d rows, want 1", n)
+	if spy.method != http.MethodPost || spy.path != "/probe" {
+		t.Fatalf("handler saw %s %s, want POST /probe", spy.method, spy.path)
+	}
+	if got := spy.form["title"]; len(got) != 1 || got[0] != "Headless" {
+		t.Fatalf("handler form title = %v, want [Headless]", got)
+	}
+	if spy.cookie != "session-token" {
+		t.Fatalf("handler cookie = %q, want the caller's session", spy.cookie)
+	}
+	if got := rec.Header().Get("Content-Type"); !strings.HasPrefix(got, "text/plain") {
+		t.Fatalf("Content-Type = %q, want text/plain so reflected markup stays inert", got)
+	}
+	if rec.Body.String() != "created" {
+		t.Fatalf("body = %q, want the handler's output", rec.Body.String())
 	}
 }
 
-// TestInvokeEndpointRunsPathParamVerb proves the whole `{id}` path through
-// the live endpoint: the id is supplied as a param, validated, moved into the
-// route URL, and the handler toggles the caller's own row. This is the gap
-// that made toggle/delete impossible headless before.
-func TestInvokeEndpointRunsPathParamVerb(t *testing.T) {
-	requireTodo(t)
-	f := buildMuxFixture(t)
-	wireInvokeOut(t, f)
-	token := signupForInvoke(t, f, "toggler@example.com")
-	created := postInvoke(t, f, token, `{"id":"todo","verb":"create","params":{"title":"Toggle me"}}`)
-	if created.Code != http.StatusOK {
-		t.Fatalf("create status = %d (%s)", created.Code, created.Body.String())
-	}
-	var id string
-	if err := f.sqlDB.QueryRowContext(context.Background(),
-		`SELECT id FROM ext_todo_todos WHERE title = 'Toggle me'`).Scan(&id); err != nil {
-		t.Fatalf("find created row: %v", err)
-	}
-	rec := postInvoke(t, f, token, `{"id":"todo","verb":"toggle","params":{"id":"`+id+`"}}`)
+// TestInvokeEndpointFillsDeclaredPathID proves the one shape the endpoint adds
+// on top of a body: a declared `{id}` is moved out of the form and into the
+// URL, so the handler sees it only as a route parameter.
+func TestInvokeEndpointFillsDeclaredPathID(t *testing.T) {
+	const id = "018f5b8c-0000-7000-8000-000000000001"
+	spy := &spyHandler{}
+	rec := callInvoke(t, invokeEndpoint(spy), "session-token",
+		mustJSON(t, extInvokeRequest{ID: probeID, Verb: "toggle", Params: map[string]string{"id": id}}))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("toggle status = %d (%s)", rec.Code, rec.Body.String())
 	}
-	var done bool
-	if err := f.sqlDB.QueryRowContext(context.Background(),
-		`SELECT completed FROM ext_todo_todos WHERE id = ?`, id).Scan(&done); err != nil {
-		t.Fatalf("read toggled row: %v", err)
+	if spy.path != "/probe/"+id+"/toggle" {
+		t.Fatalf("handler path = %q, want the id in the URL", spy.path)
 	}
-	if !done {
-		t.Fatal("toggle did not complete the row")
+	if _, leaked := spy.form["id"]; leaked {
+		t.Fatal("the path id leaked into the form: the handler must see it only as a route parameter")
 	}
 }
 
-// TestInvokeEndpointRefusesMalformedPathID pins the validation boundary: a
-// non-UUID id is a 400 before dispatch, and the row is untouched.
-func TestInvokeEndpointRefusesMalformedPathID(t *testing.T) {
-	requireTodo(t)
-	f := buildMuxFixture(t)
-	wireInvokeOut(t, f)
-	token := signupForInvoke(t, f, "badid@example.com")
-	rec := postInvoke(t, f, token, `{"id":"todo","verb":"toggle","params":{"id":"not-a-uuid"}}`)
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("malformed id status = %d (%s), want 400", rec.Code, rec.Body.String())
-	}
-	if !strings.Contains(rec.Body.String(), "UUID") {
-		t.Fatalf("refusal must name the UUID rule, got %q", rec.Body.String())
-	}
-}
-
-// TestInvokeEndpointRefusesUndeclaredVerb proves the refusal direction:
-// a verb the declaration never named is a 400 naming it, before any
-// handler runs.
+// TestInvokeEndpointRefusesUndeclaredVerb proves the refusal direction: a verb
+// the declaration never named is a 400 naming it, before any handler runs.
 func TestInvokeEndpointRefusesUndeclaredVerb(t *testing.T) {
-	requireTodo(t)
-	f := buildMuxFixture(t)
-	wireInvokeOut(t, f)
-	token := signupForInvoke(t, f, "refuser@example.com")
-	rec := postInvoke(t, f, token, `{"id":"todo","verb":"explode","params":{}}`)
+	spy := &spyHandler{}
+	rec := callInvoke(t, invokeEndpoint(spy), "session-token",
+		mustJSON(t, extInvokeRequest{ID: probeID, Verb: "explode"}))
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("undeclared verb status = %d (%s), want 400", rec.Code, rec.Body.String())
 	}
 	if !strings.Contains(rec.Body.String(), "explode") {
 		t.Fatalf("refusal must name the verb, got %q", rec.Body.String())
+	}
+	if spy.called {
+		t.Fatal("an undeclared verb reached the handler")
+	}
+}
+
+// TestInvokeEndpointForwardsTheDispatchRefusal pins that a dispatch error keeps
+// the status it came with instead of flattening to 500.
+func TestInvokeEndpointForwardsTheDispatchRefusal(t *testing.T) {
+	spy := &spyHandler{}
+	rec := callInvoke(t, invokeEndpoint(spy), "session-token",
+		mustJSON(t, extInvokeRequest{ID: probeID, Verb: "toggle", Params: map[string]string{"id": "not-a-uuid"}}))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("malformed id status = %d (%s), want the dispatch's 400", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "UUID") {
+		t.Fatalf("refusal must name the UUID rule, got %q", rec.Body.String())
+	}
+	if spy.called {
+		t.Fatal("a refused dispatch reached the handler")
+	}
+}
+
+// TestInvokeEndpointRejectsUnknownFields pins the decoder's strictness: a
+// request the product API could not honour is refused, not partially read.
+func TestInvokeEndpointRejectsUnknownFields(t *testing.T) {
+	rec := callInvoke(t, invokeEndpoint(&spyHandler{}), "session-token",
+		`{"id":"`+probeID+`","verb":"create","surprise":true}`)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("unknown field status = %d, want 400", rec.Code)
 	}
 }
