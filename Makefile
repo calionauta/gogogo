@@ -636,7 +636,7 @@ check-no-jsx:
 # so a CSS or installer tweak would otherwise pay for the whole suite. This
 # narrows on the changed packages, falling back to all packages when a shared
 # file (go.mod, config/, db/) changed.
-ci-local-fast: check-fast-capacity reap-stale check-generated check-shape check-recipes check-locales check-sizes datastar-lint css-check check-no-jsx check-ci-scripts check-classes daisyui-lint check-flatdeps check-product-boundary check-typed-states check-domains check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard check-prompts
+ci-local-fast: check-fast-capacity reap-stale check-generated check-shape check-recipes check-locales check-sizes datastar-lint css-check check-no-jsx check-ci-scripts check-classes daisyui-lint check-flatdeps check-product-boundary check-typed-states check-domains check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard check-prompts site-check
 # Pre-flight: check-fast-capacity refuses a wedged box (use CI instead).
 # Budget: more than $FAST_MAX_PARALLEL_PKGS (default 8) changed packages
 # runs serially (-p 1) to bound shared-host load.
