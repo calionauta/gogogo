@@ -510,6 +510,26 @@ jobs:
         # embedded prompt). Slow, so it lives here and in `ci-local`, not in
         # `ci-local-fast`.
         run: make test-scaffold-chain
+      - name: Binary boot smoke test
+        # Product gate, not a browser gate: it compiles the command itself
+        # (`go build` inside the test) and asserts the raw SSE transport
+        # contract (GET /api/todos/stream -> 200 + text/event-stream) plus the
+        # rendered #sse-opener wiring. No Playwright, no Chromium.
+        #
+        # It used to run in BOTH browser legs, which paid ~12s twice in jobs
+        # named for the browser, for work that has nothing to do with one. Here
+        # it runs once, in the job that already owns product contracts and
+        # finishes with minutes of headroom.
+        run: RUN_SMOKE=1 go test -count=1 -timeout 180s -run TestSmoke_BootedBinaryServesAndSyncs ./cmd/web/
+      - name: Public readiness gate contract
+        # The deploy proves the public URL serves the new build, so the gate
+        # itself needs a contract: it must PASS on the right build, FAIL on a
+        # different one, and FAIL (without hanging) on a broken path. A
+        # readiness gate that cannot fail is worse than none.
+        #
+        # Pure shell, no browser: same move as the boot smoke above, and it was
+        # duplicated across both browser legs for the same non-reason.
+        run: bash scripts/assert-public-ready.test.sh
 
   race:
     needs: [changes]
@@ -741,23 +761,11 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Build
         # One binary for the client suites below (previously rebuilt per
-        # suite). The boot smoke validates the endpoint contract from a fresh
-        # compile; the suites below prove this artifact boots and serves.
+        # suite). The suites below prove this artifact boots and serves.
+        #
+        # The boot smoke that used to sit here moved to `checks`: it compiles
+        # its own binary, so this build never fed it — it was simply paid twice.
         run: go build -o /tmp/gogogo-ci-web ./cmd/web/
-      - name: Binary boot smoke test
-        # Boots the REAL compiled binary and asserts the raw SSE transport
-        # contract (GET /api/todos/stream -> 200 + text/event-stream) plus the
-        # rendered #sse-opener wiring. This is the half the Playwright smoke
-        # below does not cover: it validates the endpoint itself, not just that
-        # a browser renders. Gated behind RUN_SMOKE=1 so `go test ./...` stays
-        # port-free for developers.
-        run: RUN_SMOKE=1 go test -count=1 -timeout 180s -run TestSmoke_BootedBinaryServesAndSyncs ./cmd/web/
-      - name: Public readiness gate contract
-        # The deploy proves the public URL serves the new build, so the gate
-        # itself needs a contract: it must PASS on the right build, FAIL on a
-        # different one, and FAIL (without hanging) on a broken path. A
-        # readiness gate that cannot fail is worse than none.
-        run: bash scripts/assert-public-ready.test.sh
       - name: Install Chromium
         # Both groups need the browser, so the install is its own step rather
         # than riding inside the smoke suite (it could ride there while the
