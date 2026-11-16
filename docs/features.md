@@ -218,8 +218,7 @@ measures every file a row names and refuses a number that disagrees, and
 `make docs-index` rewrites it. A row that lists several files sums them
 before rounding up, so the number is what the page fetches, not what one
 file weighs. Gzip is Go's `compress/gzip` (not byte-identical to GNU `gzip`,
-which is why one implementation owns the number). The site landing quotes this
-table through `data-weight` spans and never re-types it. CSS is one shared
+which is why one implementation owns the number). CSS is one shared
 bundle and is not attributed per feature.
 
 | Feature | Files | Raw | Gzip |

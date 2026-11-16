@@ -536,7 +536,7 @@ by hand, so when a step is added to one, add it to the other:
 | templ generate | ✓ | ✓ |
 | generated `_templ.go` matches sources | ✓ `check-generated` | ✓ (also pre-commit, `**/*.templ`) |
 | CSS bundle matches sources | ✓ `css-check` | ✓ (after `npm ci`) |
-| SCOPE annotations | ✓ | ✓ |
+| Registry coverage (every package owned by a capability) | ✓ `registry-conformance` | ✓ |
 | Flat-stack deps (no banned framework, no cross-feature imports, owned sql.Open) | ✓ `check-flatdeps` | ✓ |
 | Product ⟂ evolution tools (`cmd/web` must build after the tool is deleted) | ✓ `check-product-boundary` | ✓ |
 | One spelling per state (no named string type compared with a literal) | ✓ `check-typed-states` | ✓ |
@@ -747,7 +747,7 @@ no-op when lefthook is not installed).
 
 | Hook | Jobs | When |
 |------|------|------|
-| `pre-commit` (parallel) | file-sizes · fmt-gofumpt · mod-tidy · govulncheck · ci-deps · install-sh · scope-lint · class-integrity · daisyui-lint · flatdeps-lint · test-value · docs-claims · secrets-env · rbac-policy · dagnats-pin · secrets-scan · skill-frontmatter · datastar-lint · api-routes · mcp-tests · registry-conformance · generated-templ · css-check · no-jsx · golangci-lint (host-aware, `scripts/lint-safe.sh`) · agents-md-staleness · stelow-drift (advisory) · daisyui-drift (advisory) · docs-staleness (advisory) | every commit; glob-filtered jobs skip when nothing relevant is staged |
+| `pre-commit` (parallel) | file-sizes · fmt-gofumpt · mod-tidy · govulncheck · ci-deps · install-sh · ci-scripts · class-integrity · daisyui-lint · prompts · flatdeps-lint · product-boundary · typed-states · shape-domains · test-value · docs-claims · secrets-env · rbac-policy · dagnats-pin · secrets-scan · skill-frontmatter · datastar-lint · api-routes · receipt-hashes · check-locales · mcp-tests · registry-conformance · generated-templ · css-check · no-jsx · golangci-lint (host-aware, `scripts/lint-safe.sh`) · agents-md-staleness · stelow-drift (advisory) · daisyui-drift (advisory) · docs-staleness (advisory) | every commit; glob-filtered jobs skip when nothing relevant is staged |
 | `pre-push` | govulncheck · deadcode | every push |
 | `post-merge` | regen-assets (templ + css when templ/go/css changed) | after pulls/merges |
 

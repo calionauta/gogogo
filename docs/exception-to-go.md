@@ -34,7 +34,7 @@ and none should be added without a concrete use case that passes the
 
 ## What "native" means
 
-`native` is **not** a fourth SCOPE layer next to core / servant / feature
+`native` is **not** a fourth removal class next to core / servant / feature
 (`Kind` values, the same three words in code and prose)
 (see [Scope taxonomy](scope-taxonomy.md)). It is an **exceptional
 implementation boundary**: a small piece of functionality, owned by a normal
@@ -364,8 +364,8 @@ conventions instead of inventing a parallel tree:
   `cmd/desktop` native shell).
 - `native` is not a capability: do not register it in
   `internal/capabilities`, do not offer it in the installer (`cmd/gogogo`),
-  and do not gate it behind a fourth SCOPE value. The Go package keeps its
-  normal SCOPE; the Zig kernel inherits the package's removal story.
+  and do not gate it behind a fourth removal class. The Go package keeps its
+  normal class; the Zig kernel inherits the package's removal story.
 - One justified kernel = one package. Never build a shared "Zig utils"
   layer that unrelated features import — that is how an escape hatch
   becomes a second stack.
@@ -568,8 +568,8 @@ Every native kernel must be removable in minutes:
 3. Remove any build/CI wiring the kernel added.
 4. Prove with `go build ./cmd/web` and the package's tests.
 
-The SCOPE doc comment on the owning Go file records this exact list, so a
-future agent never has to guess. An agent must be able to remove a Zig
+The removal note on the capability row for the owning package records this exact
+list, so a future agent never has to guess. An agent must be able to remove a Zig
 component without destabilizing the rest of the application — if removal
 touches unrelated packages, the boundary was drawn wrong.
 

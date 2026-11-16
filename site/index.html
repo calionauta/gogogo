@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>gogogo — Your stack is ready. Summon your agent.</title>
+<title>gogogo — the full-stack Go template. Your agent ships the product.</title>
 <meta name="description" content="Full-stack Go web app template: Turso/SQLite, Templ, Datastar, auth, queue, realtime, durable workflows and offline sync in one self-contained binary. The full unit catalog, one build.">
 <meta property="og:title" content="gogogo — one binary, one stack, one agent">
-<meta property="og:description" content="Your stack is ready. Summon your AI agent to build. Not a framework. One binary.">
+<meta property="og:description" content="The full-stack Go template: the foundation is done, your agent ships the product. Not a framework. One binary.">
 <meta property="og:image" content="https://calionauta.github.io/gogogo/assets/logo.png">
 <meta property="og:url" content="https://calionauta.github.io/gogogo/">
 <link rel="canonical" href="https://calionauta.github.io/gogogo/">
@@ -58,7 +58,7 @@
 <section class="hero">
   <div class="hero-copy">
     <p class="kicker">Full-stack Go · one binary · nothing to operate</p>
-    <h1>Your product structure <span class="nowrap">is ready.</span><br><em>Summon</em> your AI agent to evolve.</h1>
+    <h1>The foundation is done.<br><em>Your agent</em> ships the product.</h1>
     <p class="hero-sub">One binary, and a CLI/MCP the agent drives it with.</p>
     <div class="hero-ctas">
       <a class="btn primary" href="#install">Get started</a>
@@ -127,11 +127,11 @@
           </a>
           <a class="band band-tests" href="#layer-tests" data-layer="tests" style="--w:79%">
             <span class="band-line"><span class="band-num">05</span><span class="band-name">Tests</span></span>
-            <span class="band-chips"><span>race</span><span>smoke</span><span>layout</span><span class="band-more" title="5 total">+2</span></span>
+            <span class="band-chips"><span>race</span><span>smoke</span><span>layout</span><span class="band-more" title="15 total">+12</span></span>
           </a>
           <a class="band band-gates" href="#layer-gates" data-layer="gates" style="--w:72%">
             <span class="band-line"><span class="band-num">06</span><span class="band-name">Gates</span></span>
-            <span class="band-chips"><span>lint</span><span>scope</span><span>docs</span><span class="band-more" title="39 total">+36</span></span>
+            <span class="band-chips"><span>fmt</span><span>lint</span><span>docs</span><span class="band-more" title="39 total">+36</span></span>
           </a>
           <a class="band band-go" href="#layer-go" data-layer="go" style="--w:65%">
             <span class="band-line"><span class="band-num">07</span><span class="band-name">Go</span></span>
@@ -154,7 +154,7 @@
     <article class="chapter" id="layer-contact" data-layer="contact" data-name="Agent interface" data-scope="agent" data-line="The three ways an agent meets the system.">
       <div class="chapter-head"><span class="chapter-num">01</span><span class="chapter-meta">agent</span></div>
       <h2>Agent interface</h2>
-      <p class="chapter-lede">Skills say what to read. The evolution MCP says what to change in your checkout. The evolution CLI says what to run. They are for building the product — a product's own users and agents call the running server, never the installer.</p>
+      <p class="chapter-lede">Skills say what to read. The evolution MCP says what to change in your checkout. The evolution CLI says what to run. They are for building the product — a product's own users and agents call the running server, never the installer. The full verb and tool lists live in the docs.</p>
 
       <div class="viz agent-desk">
         <div class="agent-bar">
@@ -185,35 +185,22 @@
               <ul class="agent-list">
                 <li><code>--run</code><span>Scaffold a repo and run it, one command.</span></li>
                 <li><code>doctor --json</code><span>Read-only preflight; JSON for agents/CI.</span></li>
-                <li><code>generate --check</code><span>Deterministic codegen gate (templ+sqlc+css+docs).</span></li>
                 <li><code>recipe install</code><span>Copy a recipe in: code + declaration + receipt.</span></li>
-                <li><code>recipe list</code><span>What is installed, built-in, or removed.</span></li>
                 <li><code>recipe check</code><span>Evaluator: score, errors, warnings — blocks an unrecorded claim.</span></li>
-                <li><code>recipe describe</code><span>One recipe: verbs, params, and the metrics it declares.</span></li>
-                <li><code>recipe test</code><span>Run the tests THAT recipe ships (scope from its receipt).</span></li>
-                <li><code>advise</code><span>Which lib or language fits the use case.</span></li>
-                <li><code>--dry-run</code><span>Preview the plan as JSON, zero changes.</span></li>
-                <li><code>--yes</code><span>Scaffold, prove it builds.</span></li>
                 <li><code>new feature</code><span>Scaffold one feature in your project.</span></li>
                 <li><code>migrate</code><span>Every release since your base, plus gates.</span></li>
-                <li><code>--check-update</code><span>Is an update out? Exit 3 means yes.</span></li>
-                <li><code>export</code><span>Port bundle for a non-gogogo tree.</span></li>
+                <li><span><a href="./docs/cli/">All CLI verbs →</a></span></li>
               </ul>
             </div>
             <div class="agent-panel panel-mcp">
               <ul class="agent-list">
-                <li><code>advise_stack</code><span>Same guidance as advise, over MCP.</span></li>
                 <li><code>capabilities_list</code><span>The full unit registry.</span></li>
                 <li><code>recipe_list</code><span>Built-ins + installed recipes, summary and verbs.</span></li>
                 <li><code>recipe_describe</code><span>Verbs, <code>{id}</code>/body params, omissions.</span></li>
                 <li><code>recipe_check</code><span>Evaluator: score, errors, warnings, the derived test inventory.</span></li>
-                <li><code>recipe_test</code><span>Run the tests THAT recipe ships (scope from its receipt).</span></li>
-                <li><code>recipe_status</code><span>Receipt drift: pristine / modified / deleted.</span></li>
-                <li><code>recipe_invoke</code><span>Developer client for a verb on a running server.</span></li>
                 <li><code>version_status</code><span>Is the tool or the project behind?</span></li>
-                <li><code>migrate_plan</code><span>Releases between your base and latest.</span></li>
-                <li><code>export_unit</code><span>Port bundle, writes only <code>to</code>.</span></li>
                 <li><code>new_feature</code><span>Scaffold a feature, needs <code>confirm:true</code>.</span></li>
+                <li><span><a href="./docs/mcp/">All MCP tools →</a></span></li>
               </ul>
             </div>
           </div>
@@ -237,7 +224,6 @@
         <li>Copied with a receipt: pages, handlers, tables, jobs, policy rows.</li>
         <li>Your edits survive: pristine hashes + <code>git merge</code>, never overwrite.</li>
         <li>Receipt keeps it honest: <code>recipe status</code>, <code>update</code>, <code>uninstall</code>.</li>
-        <li>Declares its own metrics: <code>COUNT(*)</code> readings over tables it already owns, so a number on the dashboard is a fact, not a claim.</li>
       </ul>
 
       <div class="viz tiles">
@@ -323,19 +309,7 @@
         <!--FEATURES:END-->
       </div>
 
-      <!--WEIGHTS:START-->
-        <div class="weights">
-        <p class="weights-title">Client weight <span>measured, not estimated</span></p>
-        <p class="weight"><span>Chat diagrams</span><span data-weight="Chat diagrams">~695 KB raw · ~269 KB gzip</span></p>
-        <p class="weight"><span>Shared notes</span><span data-weight="Shared notes">~36 KB raw · ~13 KB gzip</span></p>
-        <p class="weight"><span>Whiteboard</span><span data-weight="Whiteboard">~56 KB raw · ~20 KB gzip</span></p>
-        <p class="weight"><span>Shared shell (every page)</span><span data-weight="Shared shell (every page)">~48 KB raw · ~20 KB gzip</span></p>
-        <p class="weight zero"><span>Todo · Room · Landing · Config · Account</span><span>0 KB extra</span></p>
-      </div>
-        <!--WEIGHTS:END-->
-
       <div class="chapter-foot">
-        <p class="foot-line"><span class="label">Inside</span> recipes · <code>features/todo</code> <code>features/notes</code> <code>features/whiteboard</code> <code>features/chat</code> <code>features/review</code> <code>features/room</code> <code>features/config</code> <code>features/account</code> <code>features/dashboard</code></p>
         <p class="foot-line"><span class="label">Proof</span> <code>gogogo recipe install</code> · <code>gogogo recipe status</code> (drift) · <code>gogogo recipe list</code></p>
         <p class="foot-line remove"><span class="label">Remove it</span> Uninstall unwires; receipt stays so data still has an owner. The route disappears; nothing below moves.</p>
         <p class="foot-line doc"><a href="./docs/features/">Feature catalog</a> · <a href="./docs/scope-taxonomy/">Scope taxonomy</a> · <a href="./docs/research/extensibility/">Extensibility</a> · <a href="./docs/unit-contracts/">Unit contracts</a></p>
@@ -363,146 +337,122 @@
           <input type="checkbox" checked data-cap="nats">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">NATS</span><span class="plan-desc">NATS JetStream: cross-instance broadcast + CRUD proxy + leaf nodes</span></span>
-          <span class="plan-env">NATS_ENABLED=false (in-memory fallback)</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="dagnats">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">DagNats</span><span class="plan-desc">durable workflows (DagNats over JetStream) + onboarding worker</span></span>
-          <span class="plan-env">DAGNATS_ENABLED=false</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="goakt">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">GoAkt</span><span class="plan-desc">entity actors (GoAkt: room lease + collaborative presence)</span></span>
-          <span class="plan-env">GOAKT_ENABLED=false</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="llm">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">LLM</span><span class="plan-desc">GoAI LLM client behind an injectable interface</span></span>
-          <span class="plan-env">Unset GOAI_API_KEY (suggest button hides)</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="collab">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">Collab</span><span class="plan-desc">Loro CRDT transport: DocStore, sync workers, presence</span></span>
-          <span class="plan-env">manual removal</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="offline-sync">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">Offline sync<span class="plan-tag">async mode</span></span><span class="plan-desc">durable page outbox + app-shell cache (idempotent replay, NATS CRUD proxy)</span></span>
-          <span class="plan-env">OFFLINE_SYNC_ENABLED=false</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="search">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">Search</span><span class="plan-desc">search layers (substring, fuzzy, BM25) behind one seam</span></span>
-          <span class="plan-env">manual removal</span>
         </label>
         <p class="plan-group">The rest</p>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="analytics">
           <span class="plan-box" aria-hidden="true"></span>
-          <span class="plan-main"><span class="plan-name">Analytics</span><span class="plan-desc">analytics provider sink for the event bus (PostHog, default none)</span></span>
-          <span class="plan-env">ANALYTICS_PROVIDER=none</span>
+          <span class="plan-main"><span class="plan-name">Analytics</span><span class="plan-desc">analytics provider sink for the event bus (off by default)</span></span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="app">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">App</span><span class="plan-desc">AppContext (dependency bundle for the native window)</span></span>
-          <span class="plan-env">manual removal</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="capabilities">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">Capabilities</span><span class="plan-desc">capability registry + installer engine (CLI and MCP share it)</span></span>
-          <span class="plan-env">manual removal</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="components">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">Components</span><span class="plan-desc">shared UI helpers (Toast + OfflineBanner)</span></span>
-          <span class="plan-env">manual removal</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="credits">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">Credits</span><span class="plan-desc">AI credits + BYOK ledger (ai-credits)</span></span>
-          <span class="plan-env">CREDITS_ENABLED=false (already the default)</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="datastar">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">Datastar<span class="plan-tag">Go seam</span></span><span class="plan-desc">Datastar rendering helpers</span></span>
-          <span class="plan-env">manual removal</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="delivery">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">delivery</span><span class="plan-desc">delivery transport seam: channels (email today) carried by a provider (smtp or an external notify engine)</span></span>
-          <span class="plan-env">DELIVERY_TRANSPORT=off</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="desktopboot">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">desktopboot</span><span class="plan-desc">shared native-shell boot (migrations, auth+TOTP, demo, instance-id, webview URL)</span></span>
-          <span class="plan-env">manual removal</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="events">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">Events</span><span class="plan-desc">in-process domain event bus + outbound sinks (webhook, analytics)</span></span>
-          <span class="plan-env">manual removal</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="genkit">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">Genkit</span><span class="plan-desc">typed AI flows (Genkit Go): orchestration + traces above internal/llm</span></span>
-          <span class="plan-env">manual removal</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="genui">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">GenUI</span><span class="plan-desc">generative UI: the Chat demo renders LLM answers as Templ directives over the SSE hub</span></span>
-          <span class="plan-env">manual removal</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="graph">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">graph</span><span class="plan-desc">panorama graph (capabilities + recipes)</span></span>
-          <span class="plan-env">manual removal</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="i18n">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">i18n</span><span class="plan-desc">localization seam (embedded catalogs, locale resolution, number/date formatting)</span></span>
-          <span class="plan-env">I18N_ENABLED=false</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="license-activation">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">license-activation</span><span class="plan-desc">standalone /activate page for a license or account token</span></span>
-          <span class="plan-env">manual removal</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="perf">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">perf</span><span class="plan-desc">opt-in operator diagnostics: statsviz dashboard + stdlib pprof</span></span>
-          <span class="plan-env">PERF_ENABLED=false (default off in production)</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="recipestate">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">Recipe state</span><span class="plan-desc">runtime recipe enable/disable: the one reader of recipe_state</span></span>
-          <span class="plan-env">manual removal</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="sounds">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">Sounds</span><span class="plan-desc">UI sound feedback (cuelume, vendored)</span></span>
-          <span class="plan-env">manual removal</span>
         </label>
         <p class="trim-summary" id="trim-summary" aria-live="polite">Every servant on. The binary still builds.</p>
         <p class="trim-note">Every servant from the unit contracts (Kind servant). A preview, not a live switch; the real switch is the env var. Servants are wired libraries, not installable recipes — see Recipes.</p>
@@ -510,8 +460,8 @@
       </div>
 
       <div class="chapter-foot">
-        <p class="foot-line"><span class="label">Inside</span> servants · <code>internal/nats</code> <code>internal/dagnats</code> <code>internal/goakt</code> <code>internal/llm</code> <code>internal/collab</code> <code>internal/datastar</code> <code>internal/components</code> <code>internal/search</code> <code>internal/capabilities</code> <code>internal/installer</code> <code>features/app</code> <code>features/credits</code> <code>features/genui</code> <code>features/sounds</code></p>
-        <p class="foot-line"><span class="label">Proof</span> <code>DAGNATS_ENABLED=false go run ./cmd/web</code></p>
+        <p class="foot-line"><span class="label">Inside</span> <!--SERVANT-PATHS:START-->24 wired libraries<!--SERVANT-PATHS:END--> · each row names the package it owns (<a href="./docs/unit-contracts/">unit contracts</a>)</p>
+        <p class="foot-line"><span class="label">Proof</span> turn one off and boot; the binary still builds</p>
         <p class="foot-line remove"><span class="label">Remove it</span> The binary still builds. One wired capability is off (untouched recipes keep working).</p>
         <p class="foot-line doc"><a href="./docs/configuration/">Configuration</a> · <a href="./docs/scope-taxonomy/">Scope taxonomy</a> · <a href="./docs/unit-contracts/">Unit contracts</a></p>
       </div>
@@ -555,19 +505,19 @@
           </div>
         </div>
         <div class="bricks">
-          <div class="brick"><span class="brick-name">App config</span><span class="brick-desc">env config (single source of truth for vars + defaults)</span><span class="brick-path">config</span></div>
-          <div class="brick"><span class="brick-name">cloudcfg</span><span class="brick-desc">local cloud-connection settings (sync.json, 0600)</span><span class="brick-path">cloudcfg</span></div>
-          <div class="brick"><span class="brick-name">CRUD wire</span><span class="brick-desc">todo CRUD wire protocol (subjects + payloads + publisher)</span><span class="brick-path">natswire</span></div>
-          <div class="brick"><span class="brick-name">Demo seed</span><span class="brick-desc">fresh-install demo account (one idempotent Signup)</span><span class="brick-path">demo</span></div>
-          <div class="brick"><span class="brick-name">Host gate</span><span class="brick-desc">host-capacity gate for heavy Go tests (skip on saturated boxes)</span><span class="brick-path">hostgate</span></div>
-          <div class="brick"><span class="brick-name">Instance</span><span class="brick-desc">stable instance identity for cross-instance durables and event origins</span><span class="brick-path">instance</span></div>
-          <div class="brick"><span class="brick-name">license</span><span class="brick-desc">offline entitlement tokens (Ed25519 license/account activation)</span><span class="brick-path">license</span></div>
-          <div class="brick"><span class="brick-name">Observability</span><span class="brick-desc">core observability (slog + tracing)</span><span class="brick-path">observability</span></div>
-          <div class="brick"><span class="brick-name">Prompts</span><span class="brick-desc">prompt library: .prompt files (Dotprompt shape) and their loader</span><span class="brick-path">prompts</span></div>
-          <div class="brick"><span class="brick-name">RBAC</span><span class="brick-desc">RBAC with Casbin (embedded model + policy, enforced at the mux)</span><span class="brick-path">rbac</span></div>
-          <div class="brick"><span class="brick-name">recipe</span><span class="brick-desc">recipe engine: declaration seam, receipt and drift check for installable extensions</span><span class="brick-path">recipe</span></div>
-          <div class="brick"><span class="brick-name">Secrets</span><span class="brick-desc">age-decrypted env loader</span><span class="brick-path">secrets</span></div>
-          <div class="brick"><span class="brick-name">Shell</span><span class="brick-desc">one app shell (sidebar + module header + work area), the theme catalog, and the DaisyUI asset block every page renders</span><span class="brick-path">ui</span></div>
+          <div class="brick"><span class="brick-name">App config</span><span class="brick-desc">env config (single source of truth for vars + defaults)</span></div>
+          <div class="brick"><span class="brick-name">cloudcfg</span><span class="brick-desc">local cloud-connection settings (sync.json, 0600)</span></div>
+          <div class="brick"><span class="brick-name">CRUD wire</span><span class="brick-desc">todo CRUD wire protocol (subjects + payloads + publisher)</span></div>
+          <div class="brick"><span class="brick-name">Demo seed</span><span class="brick-desc">fresh-install demo account (one idempotent Signup)</span></div>
+          <div class="brick"><span class="brick-name">Host gate</span><span class="brick-desc">host-capacity gate for heavy Go tests (skip on saturated boxes)</span></div>
+          <div class="brick"><span class="brick-name">Instance</span><span class="brick-desc">stable instance identity for cross-instance durables and event origins</span></div>
+          <div class="brick"><span class="brick-name">license</span><span class="brick-desc">offline entitlement tokens (Ed25519 license/account activation)</span></div>
+          <div class="brick"><span class="brick-name">Observability</span><span class="brick-desc">core observability (slog + tracing)</span></div>
+          <div class="brick"><span class="brick-name">Prompts</span><span class="brick-desc">prompt library: .prompt files (Dotprompt shape) and their loader</span></div>
+          <div class="brick"><span class="brick-name">RBAC</span><span class="brick-desc">RBAC with Casbin (embedded model + policy, enforced at the mux)</span></div>
+          <div class="brick"><span class="brick-name">recipe</span><span class="brick-desc">recipe engine: declaration seam, receipt and drift check for installable extensions</span></div>
+          <div class="brick"><span class="brick-name">Secrets</span><span class="brick-desc">age-decrypted env loader</span></div>
+          <div class="brick"><span class="brick-name">Shell</span><span class="brick-desc">one app shell (sidebar + module header + work area), the theme catalog, and the DaisyUI asset block every page renders</span></div>
         </div>
         <div class="core-actions">
           <button class="try-remove" type="button" id="try-remove">Try to remove one</button>
@@ -577,7 +527,7 @@
       </div>
 
       <div class="chapter-foot">
-        <p class="foot-line"><span class="label">Inside</span> units · <code>internal/db</code> <code>internal/dbschema</code> <code>internal/auth</code> <code>internal/rbac</code> <code>internal/server</code> <code>internal/queue</code> <code>internal/secrets</code> <code>internal/natswire</code> <code>internal/demo</code> <code>internal/observability</code> <code>internal/hostgate</code> <code>internal/instance</code> <code>internal/ui</code> <code>config</code> <code>web/resources</code></p>
+        <p class="foot-line"><span class="label">Inside</span> 4 anchors · 13 bricks — every package owned by a core row (<a href="./docs/unit-contracts/">unit contracts</a>)</p>
         <p class="foot-line"><span class="label">Proof</span> <code>make build</code></p>
         <p class="foot-line remove"><span class="label">Remove it</span> The binary stops building.</p>
         <p class="foot-line doc"><a href="./docs/architecture/">Architecture</a> · <a href="./docs/scope-taxonomy/">Scope taxonomy</a> · <a href="./docs/unit-contracts/">Unit contracts</a></p>
@@ -601,28 +551,31 @@
           <span class="tier"><b>T2</b> scoped lint</span>
           <span class="tier"><b>T3</b> scoped tests</span>
           <span class="tier"><b>T3.5</b> ci-local-fast</span>
+          <span class="tier"><b>T3.6</b> verify-local</span>
           <span class="tier"><b>T4</b> ci-local</span>
           <span class="tier"><b>T5</b> signoff</span>
         </div>
         <ul class="runner-list">
-          <li style="--i:0"><span class="check">✓</span><span>race</span><span class="runner-detail">go test -race ./...</span></li>
-          <li style="--i:1"><span class="check">✓</span><span>browser smokes</span><span class="runner-detail">scripts/test-web.sh</span></li>
-          <li style="--i:2"><span class="check">✓</span><span>site layout</span><span class="runner-detail">scripts/site-layout.test.mjs</span></li>
-          <li style="--i:3"><span class="check">✓</span><span>contracts</span><span class="runner-detail">internal/capabilities</span></li>
-          <li style="--i:4"><span class="check">✓</span><span>host gate</span><span class="runner-detail">internal/hostgate</span></li>
-          <li style="--i:5"><span class="check">✓</span><span>RBAC coverage</span><span class="runner-detail">internal/rbac/coverage_test.go</span></li>
-          <li style="--i:6"><span class="check">✓</span><span>gate tools</span><span class="runner-detail">internal/gate_tools_test.go</span></li>
-          <li style="--i:7"><span class="check">✓</span><span>release policy</span><span class="runner-detail">internal/release_policy_test.go</span></li>
-          <li style="--i:8"><span class="check">✓</span><span>toolchain pin</span><span class="runner-detail">internal/toolchain_pin_test.go</span></li>
-          <li style="--i:9"><span class="check">✓</span><span>API routes</span><span class="runner-detail">docs/api-routes.md</span></li>
-          <li style="--i:10"><span class="check">✓</span><span>unit contracts</span><span class="runner-detail">docs/unit-contracts.md</span></li>
-          <li style="--i:11"><span class="check">✓</span><span>install</span><span class="runner-detail">install.sh</span></li>
-          <li style="--i:12"><span class="check">✓</span><span>smoke prod image</span><span class="runner-detail">scripts/assert-deploy-build.sh</span></li>
+          <li style="--i:0"><span class="check">✓</span><span>race</span></li>
+          <li style="--i:1"><span class="check">✓</span><span>browser smokes</span></li>
+          <li style="--i:2"><span class="check">✓</span><span>site layout</span></li>
+          <li style="--i:3"><span class="check">✓</span><span>contracts</span></li>
+          <li style="--i:4"><span class="check">✓</span><span>host gate</span></li>
+          <li style="--i:5"><span class="check">✓</span><span>RBAC coverage</span></li>
+          <li style="--i:6"><span class="check">✓</span><span>gate tools</span></li>
+          <li style="--i:7"><span class="check">✓</span><span>release policy</span></li>
+          <li style="--i:8"><span class="check">✓</span><span>toolchain pin</span></li>
+          <li style="--i:9"><span class="check">✓</span><span>test value</span></li>
+          <li style="--i:10"><span class="check">✓</span><span>API routes</span></li>
+          <li style="--i:11"><span class="check">✓</span><span>unit contracts</span></li>
+          <li style="--i:12"><span class="check">✓</span><span>install</span></li>
+          <li style="--i:13"><span class="check">✓</span><span>binary boot</span></li>
+          <li style="--i:14"><span class="check">✓</span><span>smoke prod image</span></li>
         </ul>
       </div>
 
       <div class="chapter-foot">
-        <p class="foot-line"><span class="label">Inside</span> <code>make test</code> <code>make ci-local-fast</code> <code>make ci-local</code> <code>make signoff</code></p>
+        <p class="foot-line"><span class="label">Inside</span> <code>make test</code> · <code>make ci-local-fast</code> · <code>make verify-local</code> · <code>make ci-local</code> · <code>make signoff</code></p>
         <p class="foot-line"><span class="label">Proof</span> <code>make test</code> · <code>make ci-local</code></p>
         <p class="foot-line remove"><span class="label">Remove it</span> Nothing changes at runtime. You lose the right to refactor.</p>
         <p class="foot-line doc"><a href="./docs/code-quality/">Code quality</a> · <a href="./docs/local-ci/">Local CI</a></p>
@@ -632,7 +585,7 @@
     <article class="chapter" id="layer-gates" data-layer="gates" data-name="Gates" data-scope="gate" data-line="The net before the merge.">
       <div class="chapter-head"><span class="chapter-num">06</span><span class="chapter-meta">gate</span></div>
       <h2>Gates</h2>
-      <p class="chapter-lede">Every hook in the repo: pre-commit, pre-push, post-merge. Hooks run them locally; CI runs them again. A red gate is a finding, not an obstacle.</p>
+      <p class="chapter-lede">Every hook in the repo: pre-commit, pre-push, post-merge. Hooks run them locally; CI runs them again. A red gate is a finding, not an obstacle. Tap one to see what it catches; the job list and globs are in the docs.</p>
 
       <div class="viz gates" id="gates">
         <!--GATES:START-->
@@ -691,12 +644,12 @@
       </div>
 
       <div class="gate-map">
-        <p class="gate-map-row"><code>daisyui-lint</code> <span>Pinned <code>go tool daisyui-lint --strict</code> over <code>features/</code> + <code>internal/</code>. Reads <code>chrome.css</code>/<code>app.css</code> so this repo's own classes are not flagged. Guards the DaisyUI vocabulary the <a href="#layer-core">shell</a> owns and every feature uses; <code>check-classes</code> is its integrity half.</span></p>
-        <p class="gate-map-row"><code>datastar-lint</code> <span>Datastar attributes in <code>.templ</code> and the Go SDK calls that drive them. The <a href="#layer-servants">datastar</a> unit is the Go seam those pages render through (<code>internal/datastar</code>), not the lint target.</span></p>
+        <p class="gate-map-row"><code>daisyui-lint</code> <span>Guards the DaisyUI vocabulary the <a href="#layer-core">shell</a> owns and every feature uses: a typo'd or retired class renders with no styles and no error anywhere else. <code>check-classes</code> is its integrity half.</span></p>
+        <p class="gate-map-row"><code>datastar-lint</code> <span>Datastar attributes in a page and the Go SDK calls that drive them — an attribute that does nothing is invisible to every compiler. The Go seam is the <a href="#layer-servants">datastar</a> unit, not the lint target.</span></p>
       </div>
 
       <div class="chapter-foot">
-        <p class="foot-line"><span class="label">Inside</span> <code>.lefthook.yml</code> <code>rules/rules.go</code> <code>cmd/check-*</code> <code>bin/check-*</code></p>
+        <p class="foot-line"><span class="label">Inside</span> every hook in <code>.lefthook.yml</code> — the exact jobs and globs are in <a href="./docs/local-ci/">Local CI</a></p>
         <p class="foot-line"><span class="label">Proof</span> <code>make ci-local</code></p>
         <p class="foot-line remove"><span class="label">Remove it</span> The binary still ships. The net is gone.</p>
         <p class="foot-line doc"><a href="./docs/local-ci/">Local CI</a> · <a href="./docs/code-quality/">Code quality</a></p>
@@ -722,7 +675,7 @@
       </div>
 
       <div class="chapter-foot">
-        <p class="foot-line"><span class="label">Inside</span> Go 1.27 <code>go build ./cmd/web</code> <code>//go:embed</code> <code>cmd/desktop</code> <code>cmd/gui</code> <code>cmd/mobile</code></p>
+        <p class="foot-line"><span class="label">Inside</span> Go 1.27 · <code>//go:embed</code> — one build, every target</p>
         <p class="foot-line"><span class="label">Proof</span> <code>go build ./cmd/web</code></p>
         <p class="foot-line remove"><span class="label">Remove it</span> There is no binary.</p>
         <p class="foot-line doc"><a href="./docs/exception-to-go/">Exception to Go</a> · <a href="./docs/motivation/">Why Go</a> · <a href="./docs/desktop-mobile/">Desktop &amp; mobile</a></p>
@@ -840,12 +793,12 @@
           <article class="layer-card">
             <h3>Cross-instance</h3>
             <p>NATS JetStream. Records and docs converge across instances.</p>
-            <p class="layer-foot"><code>NATS_ENABLED=false</code></p>
+            <p class="layer-foot"><span class="layer-switch opt">runtime opt-out</span></p>
           </article>
           <article class="layer-card">
             <h3>Room ownership</h3>
             <p>GoAkt grains. One owner per room: roster, locks, supervision.</p>
-            <p class="layer-foot"><code>GOAKT_ENABLED=false</code></p>
+            <p class="layer-foot"><span class="layer-switch opt">runtime opt-out</span></p>
           </article>
         </div>
       </div>
@@ -855,7 +808,7 @@
           <article class="layer-card">
             <h3>Durable workflows</h3>
             <p>DagNats over JetStream. Kill the process mid-run; it resumes at the last incomplete step.</p>
-            <p class="layer-foot"><code>DAGNATS_ENABLED=false</code></p>
+            <p class="layer-foot"><span class="layer-switch opt">runtime opt-out</span></p>
           </article>
           <article class="layer-card layer-card-quiet">
             <h3>Background jobs</h3>
@@ -870,12 +823,12 @@
           <article class="layer-card">
             <h3>Collaboration</h3>
             <p>Loro CRDT. Offline edits merge; snapshots persist to Turso.</p>
-            <p class="layer-foot">remove <code>internal/collab/</code></p>
+            <p class="layer-foot"><span class="layer-switch">manual removal</span></p>
           </article>
           <article class="layer-card layer-card-quiet">
             <h3>Outbox + replay</h3>
             <p>A mutation is stored before it leaves the tab, then replayed on reconnect.</p>
-            <p class="layer-foot"><code>OFFLINE_SYNC_ENABLED=false</code></p>
+            <p class="layer-foot"><span class="layer-switch opt">runtime opt-out</span></p>
           </article>
         </div>
       </div>
@@ -897,12 +850,12 @@
       </div>
     </div>
     <div class="offline-facts">
-      <p class="offline-fact"><span class="label">Deduped by</span> <code>idem_key</code></p>
+      <p class="offline-fact"><span class="label">Deduped by</span> an idempotency key, so a replay is safe</p>
       <p class="offline-fact"><span class="label">Desktop</span> own local database — reads work offline</p>
-      <p class="offline-fact"><span class="label">Switch</span> <span><code>OFFLINE_SYNC_ENABLED=false</code><span class="offline-note">app-shell cache + NATS CRUD proxy; the outbox is never gated</span></span></p>
+      <p class="offline-fact"><span class="label">Switch</span> <span>one runtime opt-out<span class="offline-note">app-shell cache + CRUD proxy; the outbox is never gated</span></span></p>
       <p class="offline-fact"><span class="label">Try it</span> <span>disconnect, edit, reconnect</span></p>
     </div>
-      <p class="offline-unit">On the SCOPE axis, <a href="#layer-servants">offline-sync</a> is a servant. Here it is the mode above.</p>
+      <p class="offline-unit">On the removal-class axis, <a href="#layer-servants">offline-sync</a> is a servant. Here it is the mode above.</p>
   </aside>
 
   <p class="async-fine">One <code>make build</code>. No build tags, no stub files, no matrix.</p>
@@ -926,7 +879,7 @@
   <div class="agents-head">
     <p class="kicker">AI-ready</p>
     <h2>You decide what to build.<br><em>Agents handle the how.</em></h2>
-    <p class="agents-lede">A deterministic stack, SCOPE on every file, lint tuned for AI-written code, and docs that change with the code. The agent stops re-deciding and starts shipping.</p>
+    <p class="agents-lede">A deterministic stack, a removal class on every unit, lint tuned for AI-written code, and docs that change with the code. The agent stops re-deciding and starts shipping.</p>
   </div>
   <div class="principles">
     <div class="principle">
@@ -936,8 +889,8 @@
     </div>
     <div class="principle">
       <span class="principle-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20.59 13.41 13.4 20.6a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82Z"/><circle cx="7" cy="7" r="1.2"/></svg></span>
-      <h3>SCOPE on every file</h3>
-      <p>Core, Servant or Feature — agents know what is safe to remove.</p>
+      <h3>A removal class on every unit</h3>
+      <p>Core, Servant or Feature — one registry row per unit, so agents know what is safe to remove.</p>
     </div>
     <div class="principle">
       <span class="principle-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg></span>

@@ -168,7 +168,7 @@ var advisePresets = []advisePreset{
 		Idea:  "tiny client-side cues with mute and reduced-motion respect",
 		Match: []string{"sound", "audio", "feedback", "cue", "toggle"},
 		Keep:  []string{unitSounds},
-		Note:  "Zero-test client-side plugin; removal checklist is in its SCOPE doc. Mute toggle + reduced-motion included.",
+		Note:  "Zero-test client-side plugin; removal checklist is in the sounds row. Mute toggle + reduced motion included.",
 	},
 }
 

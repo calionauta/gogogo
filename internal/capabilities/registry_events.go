@@ -25,7 +25,7 @@ var eventsUnits = []Capability{
 	{
 		ID:         "analytics",
 		Kind:       KindServant,
-		Summary:    "analytics provider sink for the event bus (PostHog, default none)",
+		Summary:    "analytics provider sink for the event bus (off by default)",
 		Dirs:       []string{"internal/analytics"},
 		Files:      []string{"internal/server/analytics.go"},
 		DependsOn:  []string{"events"},

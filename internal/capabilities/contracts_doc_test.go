@@ -93,8 +93,8 @@ func renderUnitContracts(t *testing.T, root string) string {
 	b.WriteString("> Classes and removal rules: [Scope taxonomy](scope-taxonomy.md).\n\n")
 	b.WriteString("One card per unit: what surface it serves, which routes it registers,\n")
 	b.WriteString("which generated queries it calls, how it is hidden at runtime, and what\n")
-	b.WriteString("removing it takes. Cards are the first thing to read after the SCOPE line\n")
-	b.WriteString("of the file you are about to touch.\n\n")
+	b.WriteString("removing it takes. Cards are the first thing to read after the registry\n")
+	b.WriteString("row of the unit you are about to touch.\n\n")
 	renderRegistrySummary(&b, units)
 	for _, c := range units {
 		renderUnitCard(&b, rootFS, c)

@@ -38,7 +38,7 @@ Every component belongs to one of three removal classes, declared by its capabil
 
 These are **product-level demos** — what the end user sees. All are Feature layer: you can remove, replace, or keep them.
 
-| Feature | Package | SCOPE | Router wiring | Remove by |
+| Feature | Package | Class | Router wiring | Remove by |
 |---------|---------|:-----:|---------------|-----------|
 | **Auth** | `internal/auth/` + `features/authviews/` | 🟢/🔴 | `a.Handler()` mounted at `/api/auth/` in `buildChiMux` | Delete the login UI package; the middleware stays |
 | **Config + admin users + audit** | `features/config/` | 🟢 FEATURE | Mounted at `/config` in `buildChiMux` | Delete package + remove call. Page is auth-gated; secrets are masked via `mask.go`; user roles, session revocation and the `security_events` panel/CSV are admin-only. |
@@ -58,7 +58,7 @@ These are **product-level demos** — what the end user sees. All are Feature la
 
 These are the **plumbing layers**. Each is independently replaceable.
 
-| Component | Package | SCOPE | Startup | Swap / Remove by |
+| Component | Package | Class | Startup | Swap / Remove by |
 |-----------|---------|:-----:|---------|------------------|
 | **Database + Auth** (Turso/SQLite + owned sessions) | `internal/db/` + `internal/auth/` | 🔴 CORE | `db.Open(cfg)` + `auth.New(...)` in `BootChi` | Replace with your own DB + auth stack |
 | **Config** | `config/` | 🔴 CORE | `config.Load()` in `main.go` | Add/remove env vars |
@@ -233,9 +233,9 @@ main.go
    installer, a removable unit with its strips.
 
 New infra goes in `internal/<name>/`. Same pattern: create the package, wire it
-in `main.go` or `chi.go`, add the `SCOPE` line + registry unit, and state in the
-unit whether it is core, servant, or feature — `internal/` alone does not answer
-that (about half of it is servant).
+in `main.go` or `chi.go`, add the registry row (`internal/capabilities`), and
+state there whether it is core, servant, or feature — `internal/` alone does not
+answer that (about half of it is servant).
 
 ---
 
