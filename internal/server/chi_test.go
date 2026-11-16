@@ -381,26 +381,26 @@ func TestBootAnonymousNavigationRedirectsToLogin(t *testing.T) {
 		return resp
 	}
 
-	page := get("/todo?filter=active", map[string]string{
+	page := get("/dashboard?filter=active", map[string]string{
 		"Sec-Fetch-Mode": "navigate",
 		"Accept":         "text/html,application/xhtml+xml",
 	})
 	if page.StatusCode != http.StatusSeeOther {
-		t.Fatalf("anonymous navigation /todo = %d, want 303 to /login", page.StatusCode)
+		t.Fatalf("anonymous navigation /dashboard = %d, want 303 to /login", page.StatusCode)
 	}
 	loc := page.Header.Get("Location")
 	if !strings.HasPrefix(loc, "/login?") || !strings.Contains(loc, "auth=required") {
 		t.Fatalf("Location = %q, want /login?next=…&auth=required", loc)
 	}
-	if !strings.Contains(loc, url.QueryEscape("/todo?filter=active")) {
+	if !strings.Contains(loc, url.QueryEscape("/dashboard?filter=active")) {
 		t.Fatalf("Location = %q, want the requested page preserved", loc)
 	}
 
-	data := get("/todo", map[string]string{
+	data := get("/dashboard", map[string]string{
 		"Sec-Fetch-Mode": "same-origin",
 		"Accept":         "application/json",
 	})
 	if data.StatusCode != http.StatusUnauthorized {
-		t.Fatalf("anonymous data request /todo = %d, want 401 sign-in required", data.StatusCode)
+		t.Fatalf("anonymous data request /dashboard = %d, want 401 sign-in required", data.StatusCode)
 	}
 }
