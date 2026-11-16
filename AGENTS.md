@@ -6,7 +6,10 @@
 
 Datastar + Templ + Turso (sqlc) + owned auth + goqite + DagNats + NATS JetStream. Module `github.com/calionauta/gogogo`.
 **Naming:** repo/binary/deploy-dir/container/hostname share the project name; `gogogo` appears ~670× — never rename by hand (`scripts/rename-project.py --dry-run`, `make rename`). Scaffold via `go run ./cmd/gogogo` or `make rename`.
-**Upstream-first:** check `site/llms.txt` + `site/docs/<slug>/` before adding a feature/dependency; Todo is the reference, `docs/unit-contracts.md` lists owners. Read a slice before writing one: `gogogo recipe source <id>` (no receipt, no copy — installing is a separate, deliberate act). New features: `go run ./cmd/gogogo new feature <name>`. Languages: `gogogo locales` (`locales.yml` is the single record every gate reads).
+**Scaffold flags:** `--shape full|web|api|desktop|gui|mobile` prunes entrypoints (`docs/shape.md`; never changes what a page shows), `--recipes none|all|<ids>` drops demo slices (`none` is the default, gated on real imports — a slice a kept file still imports stays and the plan names the importer). Agents: `--no-tui --yes`, preview with `--dry-run --format json`.
+**Agent index:** start at `llms.txt` (hand-written entry index: start-here, by-task, invariants). `site/llms.txt` is the GENERATED docs index — read it plus `site/docs/<slug>/` when going upstream-first.
+**No checkout needed:** `go install github.com/calionauta/gogogo/cmd/gogogo@latest` (or `.../cmd/gogogo-mcp@latest`) gives the whole evolution surface; `llms.txt` names the order — `advise --need …` → `recipe source <id>` → `recipe install <id>` only when the copy must be owned.
+**Upstream-first:** check `llms.txt` + `site/docs/<slug>/` before adding a feature/dependency; Todo is the reference, `docs/unit-contracts.md` lists owners. Read a slice before writing one: `gogogo recipe source <id>` (no receipt, no copy — installing is a separate, deliberate act). New features: `go run ./cmd/gogogo new feature <name>`. Languages: `gogogo locales` (`locales.yml` is the single record every gate reads). Metric labels translate in the declaration's `translations:` block; analytics is a sink on the event bus (`docs/hooks-analytics.md`).
 **Build:** `go build ./cmd/web`, no tags; opt out at runtime (`NATS_ENABLED=false` etc.). Backup `scripts/backup.sh`; retention `docs/async-layers.md`.
 
 ## Stack
@@ -46,6 +49,8 @@ Read the SKILL.md by name before the first matching edit (symlinks in `.agents/s
 | `make signoff` | `check-operator-look` + `ci-local` + stamp before push — refuses a page/CSS diff with no recorded operator PASS |
 | `make setup` / `make go-bump` | Hooks (`core.hooksPath=.githooks`) / Go patch bump (minor is human-only) |
 | `go run ./cmd/gogogo new feature <name>` | Scaffold + gates + build proof |
+| `go run ./cmd/gogogo recipe source <id>` / `recipe receipts --write` | Read a slice without installing it / re-hash a recipe file you edited |
+| `go run ./cmd/gogogo --shape … --recipes …` | Scaffold a product (flags in Project Overview) |
 
 ## Don'ts
 
