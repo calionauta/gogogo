@@ -15,6 +15,20 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.71.0 (2026-11-16)
+
+## What's Changed
+* feat: domain events, analytics sinks, app shapes and runtime recipe state by @calionauta in https://github.com/calionauta/gogogo/pull/429
+* feat: kiosk mic in field, complete pt-BR i18n, consult-before-copy recipes by @calionauta in https://github.com/calionauta/gogogo/pull/431
+* test(server): stop using the demo slice as the package fixture by @calionauta in https://github.com/calionauta/gogogo/pull/432
+* docs(agent-index): shapes, scaffold flags and the read path for an agent by @calionauta in https://github.com/calionauta/gogogo/pull/433
+* fix(gates): catch an undocumented flag, and a stale landing before push by @calionauta in https://github.com/calionauta/gogogo/pull/435
+* docs(landing): keep the page conceptual, and sweep the retired SCOPE claim by @calionauta in https://github.com/calionauta/gogogo/pull/434
+* test(installer): prove the second scaffold, and fix what it found by @calionauta in https://github.com/calionauta/gogogo/pull/436
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.70.0...v0.71.0
+
 ## 0.70.0 (2026-11-14)
 
 ## What's Changed
