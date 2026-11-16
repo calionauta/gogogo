@@ -35,6 +35,7 @@ import { join } from "node:path";
 // never hide a regression, because a tree cannot mount a feature whose
 // package is not in it (the build would not compile).
 import { repoRoot, skipIfFeatureAbsent } from "./lib/features.mjs";
+import { traces } from "./lib/trace.mjs";
 
 if (skipIfFeatureAbsent(repoRoot, "whiteboard")) {
   process.exit(0);
@@ -61,6 +62,10 @@ const BROWSER_ARGS = [
 ];
 
 let browser;
+// Traced per context when SMOKE_TRACE is set by scripts/run-browser-suite.sh.
+// Inert otherwise; see scripts/lib/trace.mjs for why this is not two lines of
+// tracing.start() copied into each suite.
+const tracer = traces();
 
 const PORT = Number(process.env.WB_TEST_PORT || 8131);
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -241,6 +246,14 @@ async function main() {
 
   browser = await chromium.launch({ headless: true, args: BROWSER_ARGS });
   const context = await browser.newContext();
+  // Traced only when SMOKE_TRACE is set (scripts/run-browser-suite.sh sets it
+  // for EVERY attempt, the failed one included — the retry alone would record
+  // the run that passed). This suite launches ~13 contexts and closes most of
+  // them inline, so only the long-lived `context` is traced, and its trace is
+  // stopped BEFORE the mass-close further down — a stop() on a closed context
+  // throws and writes nothing, which is the silent-no-op trace.mjs exists to
+  // prevent.
+  await tracer.start(context, "main");
   await context.addCookies([{ name: "gogogo_auth", value: cookie, url: BASE + "/" }]);
   const page = await context.newPage();
 
@@ -1336,6 +1349,10 @@ async function main() {
   // per-origin connection pool, after which the new fetches hang with no
   // request on the wire.
   // ---------------------------------------------------------------------------
+  // Flush the trace of the long-lived `context` FIRST: the loop below closes
+  // every context, and Playwright cannot stop tracing a closed one (it throws
+  // and writes nothing). This is the last moment the evidence still exists.
+  await tracer.stopAll();
   for (const c of browser.contexts()) await c.close();
   const offCtx = await browser.newContext();
   await offCtx.addCookies([{ name: "gogogo_auth", value: cookie, url: BASE + "/" }]);
@@ -1512,6 +1529,7 @@ async function main() {
   // the one place a hang is hardest to read, because every assertion already
   // passed and the log looks complete. (2026-11-11: a CI run of this suite sat
   // for 44+ minutes with every assertion green.)
+  //
   await Promise.race([browser.close().catch(() => {}), sleep(10000)]);
 }
 
@@ -1524,6 +1542,11 @@ main()
     //
     // Bounded for the same reason as the happy path above: a close that
     // never returns is a hang nobody can see (the log looks complete).
+    //
+    // A thrown run that never reached the stop above still has a live context,
+    // so the trace is flushed here too. tracer.stopAll() is idempotent: a trace
+    // already stopped is not in `started` any more, so this cannot double-write.
+    await tracer.stopAll();
     await Promise.race([browser?.close().catch(() => {}), sleep(10000)]);
     server.kill("SIGKILL");
     rmSync(tmp, { recursive: true, force: true });

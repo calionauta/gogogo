@@ -658,6 +658,12 @@ jobs:
     timeout-minutes: 30
     env:
       GOTOOLCHAIN: local
+      # Suite logs and Playwright traces land here instead of a per-run mktemp
+      # file, so the upload-artifact step below can reach them AFTER the run —
+      # a log that dies with the runner is no evidence at all. The path is
+      # per-group because both matrix legs share a workspace layout but not a
+      # runner.
+      CI_LOG_DIR: ${{ github.workspace }}/ci-logs/browser-group-${{ matrix.client_group }}
       # Client suites create their own users. A production-like environment
       # on the runner would close signup by default; this is a test fixture,
       # not a product default.
@@ -808,6 +814,29 @@ jobs:
         # like the suites above.
         run: |
           SMOKE_BIN=/tmp/gogogo-ci-web bash scripts/run-browser-suite.sh chat-scroll.test.mjs
+      - name: Browser suite contract
+        if: matrix.client_group == 0
+        # The wrapper's promises, asserted: a failure is reported by its marker
+        # (never a positional tail), the FIRST attempt is the traced one, and
+        # every suite this workflow runs honours SMOKE_TRACE. Until this existed
+        # nothing checked any of the three, which is how the retry-only trace
+        # and the `tail -n 25` failure report survived while the header claimed
+        # the opposite. Runs in ~1s: fixture suites, no browser, no server.
+        run: bash scripts/check-run-browser-suite.test.sh
+      - name: Upload suite logs and traces
+        # ALWAYS, not `if: failure()`: a flake PASSES on retry yet its first
+        # attempt is the only evidence of the flake, and the wrapper's warning
+        # points at `$name.trace.zip`. An `if: failure()` upload would discard
+        # exactly the run that needs explaining.
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: browser-logs-group-${{ matrix.client_group }}
+          path: ${{ env.CI_LOG_DIR }}
+          # Retraces and screenshots are large; a flake's value is in the first
+          # day of debugging, not in a permanent archive.
+          retention-days: 7
+          if-no-files-found: warn
 
   prod-image:
     needs: [changes]
