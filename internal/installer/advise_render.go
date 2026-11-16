@@ -134,7 +134,7 @@ func renderForeignTree(doc adviseDoc, need string) string {
 
 func renderTemplate(doc adviseDoc, need string) string {
 	var b strings.Builder
-	b.WriteString("gogogo advise — opinions, not changes (nothing was installed):\n\n")
+	b.WriteString(binName + " advise — opinions, not changes (nothing was installed):\n\n")
 	b.WriteString("rules:\n")
 	for _, r := range doc.Rules {
 		fmt.Fprintf(&b, "  - %s\n", r)

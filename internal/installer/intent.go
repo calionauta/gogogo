@@ -135,17 +135,17 @@ func routeFor(intent, tree, dir string) []adviseStep {
 		}
 		return []adviseStep{
 			{
-				Run: "gogogo --check-update --dir " + where,
+				Run: binName + " --check-update --dir " + where,
 				Why: "read-only verdict on the tool AND the project; exit 3 means an " +
 					"update exists, which is a verdict, not an error",
 			},
 			{
-				Run: "gogogo migrate --dir " + where,
+				Run: binName + " migrate --dir " + where,
 				Why: "every release between the recorded base and the latest, plus the " +
 					"curated notes and the gates",
 			},
 			{
-				Run: "gogogo --check --dir " + where,
+				Run: binName + " --check --dir " + where,
 				Why: "after applying: does the tree still match the unit manifest",
 			},
 		}
@@ -155,13 +155,13 @@ func routeFor(intent, tree, dir string) []adviseStep {
 		}
 		return []adviseStep{
 			{
-				Run: "gogogo export <unit> --dir " + where + " --to <scratch> --module <your-module>",
+				Run: binName + " export <unit> --dir " + where + " --to <scratch> --module <your-module>",
 				Why: "export writes a scratch bundle (files) plus PORTING.md for the " +
 					"unit and its dependency closure, and never touches --dir — the " +
 					"hand-restore lines are listed verbatim in the bundle",
 			},
 			{
-				Run: "gogogo --check --dir " + where,
+				Run: binName + " --check --dir " + where,
 				Why: "confirms the tree matches the manifest again",
 			},
 		}
@@ -171,12 +171,12 @@ func routeFor(intent, tree, dir string) []adviseStep {
 				{Why: "new scaffolds INTO a gogogo checkout (it rewires the router and " +
 					"the capability registry), so it refuses a foreign tree"},
 				{
-					Run: "gogogo recipe source todo --dir <template>",
+					Run: binName + " recipe source todo --dir <template>",
 					Why: "READ the reference slice first: the whole file set, no receipt, " +
 						"no copy. Adapt the pattern into your own packages",
 				},
 				{
-					Run: "gogogo export todo --dir <template> --to /tmp/port-todo",
+					Run: binName + " export todo --dir <template> --to /tmp/port-todo",
 					Why: "or take the port bundle with its measured wiring (routes, " +
 						"imports to rewrite, what you write by hand) and a proof command",
 				},
@@ -184,16 +184,16 @@ func routeFor(intent, tree, dir string) []adviseStep {
 		}
 		return []adviseStep{
 			{
-				Run: "gogogo recipe source todo --dir " + where,
+				Run: binName + " recipe source todo --dir " + where,
 				Why: "read the reference slice before writing one (a slice is consulted, " +
 					"not installed: no receipt, no copy)",
 			},
 			{
-				Run: "gogogo new feature <name> --dir " + where + " --dry-run --format json",
+				Run: binName + " new feature <name> --dir " + where + " --dry-run --format json",
 				Why: "preview the plan: handler + page, wiring, capability unit, RBAC rows",
 			},
 			{
-				Run: "gogogo new feature <name> --dir " + where + " --yes",
+				Run: binName + " new feature <name> --dir " + where + " --yes",
 				Why: "apply, then the built-in proof runs templ, docs, registry " +
 					"conformance, flatdeps and the build",
 			},
@@ -201,16 +201,16 @@ func routeFor(intent, tree, dir string) []adviseStep {
 	case intentScaffold:
 		return []adviseStep{
 			{
-				Run: "gogogo --name my-app --no-tui --dry-run --format json --dir ./my-app",
+				Run: binName + " --name my-app --no-tui --dry-run --format json --dir ./my-app",
 				Why: "preview the plan: every capability the scaffold ships, with its " +
 					"removal class; nothing is written",
 			},
 			{
-				Run: "gogogo --name my-app --no-tui --yes --dir ./my-app",
+				Run: binName + " --name my-app --no-tui --yes --dir ./my-app",
 				Why: "apply: clone, rename, tidy, build proof",
 			},
 			{
-				Run: "gogogo recipe uninstall <id> --dir ./my-app --yes",
+				Run: binName + " recipe uninstall <id> --dir ./my-app --yes",
 				Why: "remove a feature you do not want, once the tree exists — the " +
 					"receipt decides what is safe to delete",
 			},
@@ -224,7 +224,7 @@ func routeFor(intent, tree, dir string) []adviseStep {
 func portRoute() []adviseStep {
 	return []adviseStep{
 		{
-			Run: "gogogo export <unit> --dir <template> --to /tmp/port-<unit>",
+			Run: binName + " export <unit> --dir <template> --to /tmp/port-<unit>",
 			Why: "copies the unit's owned files plus the exact wiring, import rewrites " +
 				"and proof into a scratch dir; your tree is never touched",
 		},

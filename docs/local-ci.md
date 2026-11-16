@@ -596,6 +596,16 @@ uses `node`/`go` without installing them first).
 `make ci-local` runs the same set locally, cheap steps first, then the
 race+browser fan-out (`scripts/ci-fanout.sh`).
 
+One gate in `ci-local` is slower than the rest and still earns its place:
+`make test-scaffold-chain` (also a step in the `checks` job) scaffolds twice —
+the template's binary produces a product, the product's OWN binary produces the
+next one — and proves the second hop keeps the product's identity. That hop is
+the one no other test reaches, and it is where a fork silently renamed nothing,
+cloned the template's org, and advertised the previous binary in its own
+`AGENTS.md`. It is not in `ci-local-fast`: two build proofs cost about a minute,
+and the identity only changes when the installer, the scaffold prompt or the
+rename do.
+
 The docs site BUILD is not part of `ci-local`: `pages.yml` builds `site/`
 (including the generated search index under `site/search/`) and runs
 `scripts/site-layout.test.mjs` before publishing. The site CHECKS are, because

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -15,29 +16,49 @@ import (
 // matter because the rewrite only touches text-like tracked sources.
 const binarySniffLen = 8192
 
-// renameOldName is the template's name, the string a rename removes from both
-// the CONTENTS and the PATHS.
+// renameIdentity answers "what is this tree called?" from the tree itself.
 //
-// It must survive its own pass. The rewrite replaces the bare name everywhere,
-// and this file is one of the files it rewrites — so a scaffolded tree used to
-// ship `const renameOldName = "my-app"`, and a SECOND scaffold from that tree
-// would look for the wrong "old" name and rename nothing. The marker below keeps
-// the literal intact; `TestRenameLeavesItsOwnConstantAlone` pins it.
-const renameOldName = renameNameSentinel
+// It used to be three compile-time constants. That worked exactly once: a
+// scaffold rewrites those constants, so the SECOND hop was correct only if the
+// rewrite happened to catch every one of them — and it did not catch the owner,
+// so a fork's tool cloned the template's org instead of its own. Reading
+// `go.mod` makes the answer true for any tree, on any hop, without a constant
+// that has to remember to rewrite itself.
+//
+// A tree with no readable module (a unit-test fixture) falls back to the
+// template constants, which is what those fixtures assume.
+func renameIdentity(root string) (owner, name, module string) {
+	if raw, err := os.ReadFile(filepath.Join(root, "go.mod")); err == nil {
+		for line := range strings.SplitSeq(string(raw), "\n") {
+			mod, ok := strings.CutPrefix(strings.TrimSpace(line), "module ")
+			if !ok {
+				continue
+			}
+			if o, n, ok := splitModulePath(strings.TrimSpace(mod)); ok {
+				return o, n, "github.com/" + o + "/" + n
+			}
+		}
+	}
+	return templateOwner, templateRepo, templateModulePath
+}
 
-// renameNameSentinel is the template's name, split so the rewrite's plain
-// strings.ReplaceAll cannot see it as a candidate. Concatenation is folded by
-// the compiler: no runtime cost, one line of defence.
-const renameNameSentinel = "gogo" + "go"
+// splitModulePath accepts `<host>/<owner>/<repo>` and nothing deeper: a test
+// binary's main package is four segments (…/internal/installer), which is not a
+// product identity.
+func splitModulePath(mod string) (owner, repo string, ok bool) {
+	parts := strings.Split(mod, "/")
+	if len(parts) != 3 || !strings.Contains(parts[0], ".") {
+		return "", "", false
+	}
+	return parts[1], parts[2], true
+}
 
 // renameTree ports the scripts/rename-project.py rules: module path first,
 // bare name second, Pages host only on owner change, and then the paths.
 // Shields sibling repos, skips generated site/docs output. Operates on tracked
 // files when inside a git checkout, otherwise walks the tree skipping .git.
 func renameTree(root, newName, newOwner string) error {
-	const oldName = renameOldName
-	const oldOwner = "calionauta"
-	oldModule := "github.com/" + oldOwner + "/" + oldName
+	oldOwner, oldName, oldModule := renameIdentity(root)
 	newModule := "github.com/" + newOwner + "/" + newName
 
 	foreign := []string{
@@ -67,10 +88,10 @@ func renameTree(root, newName, newOwner string) error {
 	// `cmd/my-app-mcp/go.mod`). Leaving the directories named gogogo makes each
 	// of those references point at nothing -- and the build proof stays green,
 	// because it never opens them.
-	if err := moveRenamePaths(t, root, newName); err != nil {
+	if err := moveRenamePaths(t, root, oldName, newName); err != nil {
 		return err
 	}
-	if err := repointRenameSymlinks(t, root, newName); err != nil {
+	if err := repointRenameSymlinks(t, root, oldName, newName); err != nil {
 		return err
 	}
 	// The receipts record a hash per copied file. Every rewrite above changed
@@ -120,8 +141,8 @@ func rehashReceipts(root string) error {
 // cmd/gogogo, cmd/gogogo-mcp and skills/gogogo-coding-standards. Only the
 // shallowest such prefix moves, so a directory moves once instead of each file
 // inside it and nothing is moved into itself.
-func moveRenamePaths(t *treeFS, root, newName string) error {
-	moves, err := renamePathMoves(root, newName)
+func moveRenamePaths(t *treeFS, root, oldName, newName string) error {
+	moves, err := renamePathMoves(root, oldName, newName)
 	if err != nil {
 		return err
 	}
@@ -135,12 +156,12 @@ func moveRenamePaths(t *treeFS, root, newName string) error {
 	return nil
 }
 
-func renamePathMoves(root, newName string) ([][2]string, error) {
+func renamePathMoves(root, oldName, newName string) ([][2]string, error) {
 	prefixes := map[string]struct{}{}
 	if err := walkRenameTree(root, func(rel string, _ os.FileInfo) error {
 		parts := strings.Split(rel, "/")
 		for i, part := range parts {
-			if strings.Contains(part, renameOldName) {
+			if strings.Contains(part, oldName) {
 				prefixes[strings.Join(parts[:i+1], "/")] = struct{}{}
 				break
 			}
@@ -168,7 +189,7 @@ func renamePathMoves(root, newName string) ([][2]string, error) {
 		if nested {
 			continue
 		}
-		moves = append(moves, [2]string{old, strings.ReplaceAll(old, renameOldName, newName)})
+		moves = append(moves, [2]string{old, strings.ReplaceAll(old, oldName, newName)})
 	}
 	return moves, nil
 }
@@ -177,7 +198,7 @@ func renamePathMoves(root, newName string) ([][2]string, error) {
 // see: `.agents/skills/<name>` is a tracked entry whose "content" is the target
 // string. Moving the skill directory without this leaves the registration
 // dangling and the skill silently invisible to an agent host.
-func repointRenameSymlinks(t *treeFS, root, newName string) error {
+func repointRenameSymlinks(t *treeFS, root, oldName, newName string) error {
 	return walkRenameTree(root, func(rel string, info os.FileInfo) error {
 		if info.Mode()&os.ModeSymlink == 0 {
 			return nil
@@ -187,7 +208,7 @@ func repointRenameSymlinks(t *treeFS, root, newName string) error {
 		if err != nil {
 			return fmt.Errorf("read link %s: %w", rel, err)
 		}
-		fixed := strings.ReplaceAll(target, renameOldName, newName)
+		fixed := strings.ReplaceAll(target, oldName, newName)
 		if fixed == target {
 			return nil
 		}
@@ -326,6 +347,10 @@ func rewriteRenameFile(
 	if newOwner != oldOwner {
 		text = strings.ReplaceAll(text, oldOwner+"/"+oldName, newOwner+"/"+newName)
 		text = strings.ReplaceAll(text, oldOwner+".github.io", newOwner+".github.io")
+		// The tool's own owner constant is what a FORK reads next: left alone,
+		// a product's tool clones the template's org (`calionauta/<product>`)
+		// instead of its own. The repo half follows the bare-name pass.
+		text = ownerConstantRE(oldOwner).ReplaceAllString(text, "${1}"+newOwner+"${2}")
 	}
 	text = strings.ReplaceAll(text, oldName, newName)
 	for token, repo := range placeholders {
@@ -337,6 +362,12 @@ func rewriteRenameFile(
 		}
 	}
 	return nil
+}
+
+// ownerConstantRE matches the tool's owner constant declaration, whatever the
+// spacing, so the rewrite does not depend on how the file is formatted.
+func ownerConstantRE(oldOwner string) *regexp.Regexp {
+	return regexp.MustCompile(`(templateOwner\s*=\s*")` + regexp.QuoteMeta(oldOwner) + `(")`)
 }
 
 func isBinary(chunk []byte) bool {

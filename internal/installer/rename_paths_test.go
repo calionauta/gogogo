@@ -17,11 +17,8 @@ import (
 // never opens them. What fails later is a test that does, with "no such file",
 // in a project whose own name is the only clue.
 func TestRenameTreeMovesNameBearingPaths(t *testing.T) {
-	requireTemplateIdentity(t)
-	// The rename's source name is the template's, whatever this tree calls
-	// itself: `renameOldName` is the literal a scaffold rewrites. These tests
-	// assert the template's own paths, so they only mean something in the
-	// template — a scaffolded product has already renamed them.
+	// These assertions name the TEMPLATE's own paths, so they only mean
+	// something in the template: a scaffolded product already renamed them.
 	requireTemplateIdentity(t)
 	root := t.TempDir()
 
@@ -111,24 +108,67 @@ func TestRenameTreeMovesNameBearingPaths(t *testing.T) {
 	}
 }
 
-// TestRenameLeavesItsOwnConstantAlone is the bug a second scaffold would hit:
-// the rename rewrites the bare template name everywhere, and rename.go carries
-// it in `renameOldName`. A scaffolded tree used to ship
-// `const renameOldName = "my-app"`, so scaffolding FROM that tree looked for
-// the wrong old name and renamed nothing.
-func TestRenameLeavesItsOwnConstantAlone(t *testing.T) {
+// TestRenameTreeSecondHopReadsTheTreeItIsIn is the two-hop guard.
+//
+// A scaffold rewrites the tree's identity, and the tree it produces is itself a
+// template: its tool scaffolds the next product. That only works if the rename
+// asks the tree what it is called instead of trusting a constant compiled into
+// the binary. It used to trust three constants and the rewrite caught two of
+// them, so a fork renamed nothing on the second hop and cloned the template's
+// org. The identity comes from go.mod now; this drives two hops in one process,
+// which a constant could never survive.
+func TestRenameTreeSecondHopReadsTheTreeItIsIn(t *testing.T) {
 	root := t.TempDir()
-	body := "package installer\n\nconst renameOldName = \"gogo\" + \"go\"\n"
-	writeFile(t, filepath.Join(root, "internal/installer/rename.go"), body)
+	writeFile(t, filepath.Join(root, "go.mod"), "module github.com/calionauta/gogogo\n\ngo 1.27\n")
+	identity := "package installer\n\nconst (\n\ttemplateOwner = \"calionauta\"\n\ttemplateRepo  = \"gogogo\"\n)\n"
+	writeFile(t, filepath.Join(root, "internal/installer/run.go"), identity)
+	writeFile(t, filepath.Join(root, "cmd/gogogo/main.go"), "package main\n")
 
-	if err := renameTree(root, "my-app", "me"); err != nil {
-		t.Fatalf("renameTree: %v", err)
+	if err := renameTree(root, "hopb", "e2e"); err != nil {
+		t.Fatalf("hop 1: %v", err)
 	}
-	got, err := os.ReadFile(filepath.Join(root, "internal/installer/rename.go"))
+	assertRenameIdentity(t, root, "github.com/e2e/hopb", `templateOwner = "e2e"`, `templateRepo  = "hopb"`)
+
+	// Hop 2: the same function, on the tree hop 1 produced, with no constant
+	// rewritten. This is the call a product's own tool makes.
+	if err := renameTree(root, "hopc", "acme"); err != nil {
+		t.Fatalf("hop 2: %v", err)
+	}
+	assertRenameIdentity(t, root, "github.com/acme/hopc", `templateOwner = "acme"`, `templateRepo  = "hopc"`)
+
+	// Nothing may still name the intermediate product.
+	var stale []string
+	if err := walkRenameTree(root, func(rel string, _ os.FileInfo) error {
+		raw, rerr := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
+		if rerr == nil && strings.Contains(string(raw), "hopb") {
+			stale = append(stale, rel)
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("walk: %v", err)
+	}
+	if len(stale) > 0 {
+		t.Fatalf("hop 2 left the intermediate name in: %v", stale)
+	}
+}
+
+// assertRenameIdentity checks the module line and the tool's own constants.
+func assertRenameIdentity(t *testing.T, root, module, ownerConst, repoConst string) {
+	t.Helper()
+	gomod, err := os.ReadFile(filepath.Join(root, "go.mod"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(got), `"gogo" + "go"`) {
-		t.Fatalf("the rename rewrote its own old-name constant:\n%s", got)
+	if !strings.HasPrefix(string(gomod), "module "+module+"\n") {
+		t.Fatalf("go.mod = %q, want module %s", string(gomod), module)
+	}
+	run, err := os.ReadFile(filepath.Join(root, "internal/installer/run.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{ownerConst, repoConst} {
+		if !strings.Contains(string(run), want) {
+			t.Fatalf("run.go is missing %q:\n%s", want, run)
+		}
 	}
 }

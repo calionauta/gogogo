@@ -267,6 +267,11 @@ const (
 
 const templateCloneURL = "https://github.com/" + templateOwner + "/" + templateRepo
 
+// binName is what an operator types for this tool: the tree's own name. Advice
+// that hardcoded "gogogo" sent a fork's reader to a command that does not
+// exist. The rename rewrites templateRepo, so this follows the tree.
+const binName = templateRepo
+
 // ensureCheckoutDir is the apply-path gate: an existing directory is used
 // as-is, a missing one is cloned from the template with explicit consent
 // (--yes, or an interactive [y/N]). Cloning rides on the same consent
