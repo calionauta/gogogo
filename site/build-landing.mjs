@@ -190,15 +190,6 @@ const features = featureOrder
   })
   .join("\n        ");
 
-const weights = `<div class="weights">
-        <p class="weights-title">Client weight <span>measured, not estimated</span></p>
-        <p class="weight"><span>Chat diagrams</span><span data-weight="Chat diagrams">~695 KB raw · ~269 KB gzip</span></p>
-        <p class="weight"><span>Shared notes</span><span data-weight="Shared notes">~36 KB raw · ~13 KB gzip</span></p>
-        <p class="weight"><span>Whiteboard</span><span data-weight="Whiteboard">~56 KB raw · ~20 KB gzip</span></p>
-        <p class="weight"><span>Shared shell (every page)</span><span data-weight="Shared shell (every page)">~48 KB raw · ~20 KB gzip</span></p>
-        <p class="weight zero"><span>Todo · Room · Landing · Config · Account</span><span>0 KB extra</span></p>
-      </div>`;
-
 // ---------- servants: all of them, grouped by the common opt-outs ----------
 // The class has ONE name: `servant` in the registry, in the JSON and here.
 // There is no second presentation vocabulary to translate.
@@ -208,18 +199,23 @@ const servantOrder = [...commonPlugins, ...units.filter((u) => u.kind === "serva
 
 function planRow(id) {
   const u = unit(id);
-  const env = u.runtimeOff || "manual removal";
   const tag = id === "offline-sync" ? '<span class="plan-tag">async mode</span>' : id === "datastar" ? '<span class="plan-tag">Go seam</span>' : "";
+  // No env-var column: the real switch is `docs/configuration.md`, and a landing
+  // page that lists 24 variable names is a config reference, not an overview.
   return `<label class="plan-row">
           <input type="checkbox" checked data-cap="${esc(u.id)}">
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">${esc(nameOf(u))}${tag}</span><span class="plan-desc">${esc(u.summary)}</span></span>
-          <span class="plan-env">${esc(env)}</span>
         </label>`;
 }
 
 const planCommon = commonPlugins.map(planRow).join("\n        ");
 const planRest = servantOrder.filter((id) => !commonPlugins.includes(id)).map(planRow).join("\n        ");
+
+// The Servants footer states the size of the level, not where each file lives:
+// "which package is this" is `docs/unit-contracts.md`'s job, and a 22-path list
+// on the landing page made a reader scan code addresses to learn one number.
+const servantCount = () => units.filter((x) => x.kind === "servant").length;
 
 const servants = `<div class="trim-head">
           <span class="trim-title">Switches — runtime opt-outs</span>
@@ -259,7 +255,7 @@ const bricks = coreOrder
   .filter((id) => !coreAnchors.includes(id))
   .map((id) => {
     const u = unit(id);
-    return `<div class="brick"><span class="brick-name">${esc(nameOf(u))}</span><span class="brick-desc">${esc(u.summary)}</span><span class="brick-path">${esc(pathOf(u))}</span></div>`;
+    return `<div class="brick"><span class="brick-name">${esc(nameOf(u))}</span><span class="brick-desc">${esc(u.summary)}</span></div>`;
   })
   .join("\n          ");
 
@@ -290,13 +286,18 @@ function counted(shown, total) {
 const kindCount = (kind) => units.filter((u) => u.kind === kind).length;
 const hookCount = hooks["pre-commit"].length + hooks["pre-push"].length + hooks["post-merge"].length;
 
+// The Tests band shows three examples plus the rest as a count. The runner list
+// is hand-written markup, so the count is read back from it: a hardcoded "+2"
+// cannot drift from the rows a reader actually sees.
+const runnerCount = () => (page.match(/<li style="--i:/g) || []).length;
+
 const bandChips = {
   contact: counted(["skills", "mcp", "cli"], 3),
   recipes: counted(["todo", "notes", "board"], kindCount("feature")),
   servants: counted(["nats", "dagnats", "goakt"], kindCount("servant")),
   core: counted(["db", "auth", "router"], kindCount("core")),
-  tests: counted(["race", "smoke", "layout"], 5),
-  gates: counted(["lint", "scope", "docs"], hookCount),
+  tests: counted(["race", "smoke", "layout"], runnerCount()),
+  gates: counted(["fmt", "lint", "docs"], hookCount),
   go: counted(["go 1.27", "embed"], 2),
 };
 
@@ -367,7 +368,6 @@ const gateNotes = {
   govulncheck: "a known CVE in a dependency",
   "ci-deps": "a workflow that uses Node or Go without installing it",
   "install-sh": "an installer that plants a go entry in $BIN_DIR",
-  "scope-lint": "a file without a SCOPE line",
   "class-integrity": "a DaisyUI class not in the registry",
   "daisyui-lint": "a retired or typo'd DaisyUI class",
   "flatdeps-lint": "a dependency that breaks the flat stack",
@@ -444,10 +444,19 @@ function between(source, start, end, body) {
   return source.slice(0, i + start.length) + "\n        " + body + "\n        " + source.slice(j);
 }
 
+// inlineBetween replaces an INLINE run (markers on the same line, like the
+// Servants footer's path list) without inserting newlines around it.
+function inlineBetween(source, start, end, body) {
+  const i = source.indexOf(start);
+  const j = source.indexOf(end);
+  if (i < 0 || j < 0 || j < i) throw new Error(`missing markers ${start} / ${end}`);
+  return source.slice(0, i + start.length) + body + source.slice(j);
+}
+
 let out = page;
 out = between(out, "<!--FEATURES:START-->", "<!--FEATURES:END-->", features);
-out = between(out, "<!--WEIGHTS:START-->", "<!--WEIGHTS:END-->", weights);
 out = between(out, "<!--PLUGINS:START-->", "<!--PLUGINS:END-->", servants);
+out = inlineBetween(out, "<!--SERVANT-PATHS:START-->", "<!--SERVANT-PATHS:END-->", `${servantCount()} wired libraries`);
 out = between(out, "<!--CORE:START-->", "<!--CORE:END-->", core);
 out = between(out, "<!--GATES:START-->", "<!--GATES:END-->", gates);
 out = between(out, "<!--SHAPES:START-->", "<!--SHAPES:END-->", shapeShelf);

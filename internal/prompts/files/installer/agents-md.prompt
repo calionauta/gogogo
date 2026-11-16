@@ -58,8 +58,8 @@ implementation before checking whether upstream already has it.
    code-quality, troubleshooting)
 3. For non-docs files, read the upstream blob at the same path:
    https://github.com/calionauta/gogogo/blob/master/<path>
-4. Reuse the upstream pattern (Todo is the reference implementation; SCOPE
-   annotations say what is safe to delete). Only add a new library when no
+4. Reuse the upstream pattern (Todo is the reference implementation; the
+   capability rows say what is safe to delete). Only add a new library when no
    upstream page covers the need — and document why in the commit message.
 
 ## Trim provenance

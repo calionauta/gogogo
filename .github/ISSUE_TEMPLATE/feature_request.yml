@@ -34,9 +34,9 @@ body:
   - type: textarea
     id: scope
     attributes:
-      label: Scope impact
-      description: Which SCOPE axis does this touch (core / plugin / feature)?
-      placeholder: removal=plugin, delete features/xyz/ to opt out.
+      label: Removal class
+      description: Which removal class does this touch (core / servant / feature)?
+      placeholder: servant — delete features/xyz/ to opt out.
     validations:
       required: false
   - type: textarea

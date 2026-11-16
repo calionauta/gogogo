@@ -17,7 +17,7 @@ the reminder (`internal/dagnats/reminder.go`): seed → sleep until `due_at` →
 deliver to the inbox, the durable-delay path described in
 [Notifications](notifications.md).
 
-Remove via the `SCOPE` header in `internal/dagnats/dagnats.go` (package +
+Remove via the `dagnats` row in `internal/capabilities` (package +
 `cmd/web/dagnats.go` + wiring calls).
 
 ## Capability table (DagNats v0.0.30)

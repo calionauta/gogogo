@@ -7,8 +7,8 @@
 
 One card per unit: what surface it serves, which routes it registers,
 which generated queries it calls, how it is hidden at runtime, and what
-removing it takes. Cards are the first thing to read after the SCOPE line
-of the file you are about to touch.
+removing it takes. Cards are the first thing to read after the registry
+row of the unit you are about to touch.
 
 ## Registry at a glance
 
@@ -145,7 +145,7 @@ one app shell (sidebar + module header + work area), the theme catalog, and the 
 
 ## `analytics` — servant
 
-analytics provider sink for the event bus (PostHog, default none)
+analytics provider sink for the event bus (off by default)
 
 - **Owned:** `internal/analytics`, `internal/server/analytics.go`
 - **Runtime off:** `ANALYTICS_PROVIDER=none`

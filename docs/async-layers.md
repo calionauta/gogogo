@@ -467,7 +467,7 @@ engine won't boot; downstream consumers handle nil gracefully.
 
 **Product features** (Todo, Whiteboard, Room, Notes) have no runtime flag. To remove them,
 delete the package directory and remove the wiring call from
-`internal/server/chi.go` — that is the [SCOPE removal pattern](scope-taxonomy.md).
+`internal/server/chi.go` — that is the [removal pattern](scope-taxonomy.md).
 
 They coexist in the same binary. They do not compete.
 
@@ -526,7 +526,7 @@ service worker (app-shell cache) and the NATS CRUD proxy. The write path is not
 gated by the flag — the outbox runs on every page, and losing a queued write is
 worse than the cache it protects.
 
-The SCOPE unit `offline-sync` is a servant (it can be removed); on this async
+The `offline-sync` unit is a servant (it can be removed); on this async
 axis it is the mode above, not one of the seven layers.
 
 ## Related

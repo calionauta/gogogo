@@ -317,8 +317,6 @@ html { scroll-padding-top: 84px; }
 
 .why-links a:hover { border-color: var(--accent); color: var(--accent); }
 
-.nowrap { white-space: nowrap; }
-
 .why-code {
   margin: 0;
   padding: 26px;
@@ -673,13 +671,10 @@ html { scroll-padding-top: 84px; }
 .foot-line .label,
 .plan-group,
 .plan-tag,
-.weights-title,
 .tiers-label,
-.plan-env,
 .band-num,
 .band-chips span,
 .band-final,
-.brick-path,
 .pillar-lock,
 .gate-group,
 .gate,
@@ -709,7 +704,6 @@ html { scroll-padding-top: 84px; }
 }
 
 .tile-note,
-.runner-detail,
 .async-switch,
 .foot-made,
 .trim-note {

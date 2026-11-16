@@ -845,7 +845,7 @@ a.tile:hover .tile-arrow { color: var(--accent); transform: translate(1px, -1px)
 
 .plan-row {
   display: grid;
-  grid-template-columns: 16px minmax(0, 1fr) auto;
+  grid-template-columns: 16px minmax(0, 1fr);
   align-items: center;
   gap: 12px;
   padding: 11px 12px;
@@ -888,7 +888,6 @@ a.tile:hover .tile-arrow { color: var(--accent); transform: translate(1px, -1px)
 .plan-main { display: grid; gap: 1px; min-width: 0; }
 .plan-name { font-weight: 600; font-size: 14.5px; line-height: 1.3; }
 .plan-desc { font-size: 12px; line-height: 1.4; color: var(--muted); }
-.plan-env { font: 9.5px/1.4 var(--mono); color: var(--faint); white-space: nowrap; }
 
 .trim-summary {
   margin: 10px 12px 0;
@@ -1029,7 +1028,7 @@ html:not(.js) .try-remove { display: none; }
 
 .runner-list li {
   display: grid;
-  grid-template-columns: 16px auto minmax(0, 1fr);
+  grid-template-columns: 16px minmax(0, 1fr);
   gap: 10px;
   align-items: baseline;
   font: 12.5px/1.4 var(--mono);
@@ -1037,13 +1036,6 @@ html:not(.js) .try-remove { display: none; }
 }
 
 .runner-list .check { color: #3f7a54; font-weight: 700; }
-
-.runner-detail {
-  font-size: 10.5px;
-  color: var(--faint);
-  text-align: right;
-  overflow-wrap: anywhere;
-}
 
 .js .runner-list li { opacity: 0; transform: translateY(4px); }
 .js .chapter.is-active .runner-list li { animation: row-in .35s forwards; animation-delay: calc(.32s + var(--i, 0) * .09s); }
@@ -1668,7 +1660,6 @@ html:not(.js) .try-remove { display: none; }
 
   .pillars { grid-template-columns: 1fr 1fr; }
 
-  .runner-detail { display: none; }
 
   .foot-line .label { min-width: 64px; }
 
@@ -1796,38 +1787,6 @@ html:not(.js) .try-remove { display: none; }
   stroke-linejoin: round;
 }
 
-.weights {
-  margin-top: 14px;
-  padding: 16px 18px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--paper-2);
-}
-
-.weights-title {
-  margin: 0 0 10px;
-  font: 600 10px/1 var(--mono);
-  letter-spacing: .1em;
-  text-transform: uppercase;
-  color: var(--faint);
-}
-
-.weights-title span { margin-left: 6px; color: var(--accent); }
-
-.weight {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  margin: 0;
-  padding: 5px 0;
-  border-top: 1px solid var(--line-soft);
-  font: 11.5px/1.5 var(--mono);
-  color: var(--muted);
-}
-
-.weight span:last-child { text-align: right; color: var(--ink-soft); }
-.weight.zero span:last-child { color: #3f7a54; }
-
 .plan-group {
   margin: 12px 12px 2px;
   font: 600 9px/1 var(--mono);
@@ -1839,12 +1798,6 @@ html:not(.js) .try-remove { display: none; }
 .plan-group:first-of-type { margin-top: 4px; }
 
 .plan-row { padding: 9px 12px; }
-
-.plan-env {
-  max-width: 230px;
-  text-align: right;
-  white-space: normal;
-}
 
 .plan-tag {
   margin-left: 6px;
@@ -1883,7 +1836,6 @@ html:not(.js) .try-remove { display: none; }
 
 .brick-name { font: 600 12.5px/1.2 var(--sans); }
 .brick-desc { font-size: 11.5px; line-height: 1.45; color: var(--muted); }
-.brick-path { font: 9.5px/1.4 var(--mono); color: var(--faint); }
 
 .gate-group {
   margin: 14px 0 6px;
@@ -2031,24 +1983,16 @@ html:not(.js) .try-remove { display: none; }
 @media (max-width: 900px) {
   .intro h2 { font-size: clamp(38px, 8vw, 56px); }
   .agent-list { grid-template-columns: 1fr; }
-  .weights { margin-top: 12px; }
 }
 
 @media (max-width: 620px) {
   .tiles, .bricks { grid-template-columns: 1fr; }
   .tile { min-height: 0; }
   .plan-row { grid-template-columns: 16px minmax(0, 1fr); }
-  .plan-env {
-    grid-column: 2;
-    max-width: none;
-    text-align: left;
-    margin-top: 3px;
-  }
-  .gate { font-size: 9px; padding: 4px 6px; }
+    .gate { font-size: 9px; padding: 4px 6px; }
   .gate-map { padding: 10px 12px; }
   .gate-map-row { grid-template-columns: 1fr; gap: 2px; }
   .scope-legend { justify-content: flex-start; }
-  .weight { font-size: 10.5px; }
 }
 
 /* ---------- app shape shelf (responsive) ---------- */
@@ -2207,6 +2151,7 @@ html:not(.js) .try-remove { display: none; }
 .layer-foot code { font-size: 9.5px; }
 
 .layer-switch.on { color: #3f7a54; }
+.layer-switch.opt { color: #356a8a; }
 
 @media (max-width: 900px) {
   .async-tabs { grid-template-columns: 1fr; }

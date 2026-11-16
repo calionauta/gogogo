@@ -55,7 +55,7 @@ web/
   resources/                      Embedded static assets (AssetHandler: /static/ + root /sw.js)
 ```
 
-The annotated version of this tree, with SCOPE markers on every entry, is in
+The annotated version of this tree, with a removal class on every entry, is in
 [Scope taxonomy](scope-taxonomy.md).
 
 ## Dependency direction
@@ -276,9 +276,9 @@ constructor list.
 See [Scope taxonomy](scope-taxonomy.md) for the full rules.
 
 > **Native boundary (not a layer).** `native` is a reserved implementation
-> boundary, not a fourth SCOPE value. There is no Zig code or toolchain in
+> boundary, not a fourth removal class. There is no Zig code or toolchain in
 > this repo. If a justified case ever arrives, the Go API lives in its normal
-> package with the usual SCOPE and Zig sources stay inside it behind a small
+> package with the usual class and Zig sources stay inside it behind a small
 > C ABI — see [Native boundary](exception-to-go.md). Do not create a top-level
 > `native/` directory speculatively.
 

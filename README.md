@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <b>Your product structure is ready. Summon your agent to evolve.</b>
+  <b>The foundation is done. Your agent ships the product.</b>
 </p>
 
 <p align="center">

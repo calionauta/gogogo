@@ -47,7 +47,7 @@ approach had a deeper issue.**
 | `make daisyui-lint` | DaisyUI class vocabulary in `.templ`/HTML: a typo'd or retired class renders with no styles and no error anywhere else. Runs the pinned `go tool daisyui-lint --strict` (version in `go.mod`) over `features/` + `internal/` and reads `chrome.css`/`app.css`, so classes this repo defines are not reported as foreign |
 | `make check-classes` | The integrity half of the same vocabulary: a `ui-*`/`app-*`/`is-*` class used in a `.templ` but absent from `chrome.css`, a kit-table class in `docs/ui-shell.md` that no longer exists, a dead selector with no consumer, or a DaisyUI part (`join-item`, `dropdown-content`, `toggle`) on the wrong host element |
 | `make fmt` | `gofumpt` + `goimports` formatting only |
-| `make ci-local` | Full local gate, identical to CI: check-generated → check-sizes → datastar-lint → css-check → check-no-jsx → check-classes → daisyui-lint → check-flatdeps → check-secrets-env → check-dagnats-pin → check-skill-frontmatter → install-sh-guard → golangci-lint → race tests → build → binary boot smoke → Playwright smoke |
+| `make ci-local` | Full local gate, identical to CI: check-host-capacity → reap-stale → check-browser-cleanup → check-generated → check-shape → check-recipes → check-sizes → datastar-lint → css-check → check-no-jsx → check-ci-scripts → check-classes → daisyui-lint → check-flatdeps → check-product-boundary → check-typed-states → check-domains → check-secrets-env → check-dagnats-pin → check-skill-frontmatter → install-sh-guard → check-prompts → golangci-lint → race tests → build → binary boot smoke → Playwright smoke |
 | `make check-stelow-drift` | Verifies the vendored `stelow-workflow-coding-standards` copy still matches its pinned upstream commit AND that upstream `main` has not moved. Advisory in pre-commit (never blocks on a network call); `--strict` here and in the weekly `stelow-drift` workflow. Update with `scripts/refresh-stelow.sh` — never by hand. |
 
 We deliberately keep `gofumpt` and `goimports` as **formatters** (not linters)
@@ -125,7 +125,7 @@ the machine's free RAM.
 
 The lefthook hooks (`make setup`) run `gofumpt`, `goimports`, `datastar-lint`,
 `daisyui-lint`, `check-classes`, a CSS staleness check, `go mod tidy`, the
-SCOPE annotation linter, and a host-aware `golangci-lint`
+registry-conformance check, and a host-aware `golangci-lint`
 (`scripts/lint-safe.sh`) on every commit — so formatting and lint violations
 never reach the remote. Jobs are glob-filtered (only run when matching files are
 staged) and executed in parallel.
