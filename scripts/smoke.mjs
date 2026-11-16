@@ -342,8 +342,27 @@ async function verifyAccountMenu(page) {
     "the inbox rail item has no collapsed unread dot",
   );
 
+  // The dropdown has TWO documented dismissal paths (features/authviews/
+  // controls.templ: data-on:keydown__window for Escape, data-on:click__outside
+  // for a click elsewhere). This used to press Escape, click the TRIGGER, and
+  // then wait for the panel to be hidden — but the trigger is a <details>
+  // <summary>, so that click REOPENED the menu and the wait raced the open. It
+  // passed whenever the two toggles happened to land in the helpful order and
+  // failed under load, which reads as a flake and is really a contradiction
+  // between the assertion and the gesture. Assert each path on its own.
   await page.keyboard.press("Escape");
+  await panel.waitFor({ state: "hidden", timeout: 5000 });
+
+  // Re-open, then click outside the dropdown: the other dismissal path, and the
+  // one the reported bug was about ("it does not close when I click outside").
+  // Dispatched rather than clicked: the handler is `data-on:click__outside`, and
+  // a real pointer click needs an element with a box. The obvious targets are
+  // either a link that navigates (`.app-rail-brand-link` -> "/") or a zero-height
+  // flex spacer, so the event is dispatched on the page body instead — which is
+  // what "outside the menu" means for this handler.
   await trigger.click();
+  await panel.waitFor({ state: "visible", timeout: 5000 });
+  await page.locator("body").dispatchEvent("click");
   await panel.waitFor({ state: "hidden", timeout: 5000 });
 
   if (bad === 0) {

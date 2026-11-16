@@ -100,6 +100,36 @@ shared resync button refetches — offline tabs stay visible (so the
 visibility refetch never fires) and a replay broadcast landing mid
 re-establishment is missed with nothing after it.
 
+### Reading a flake
+
+`scripts/run-browser-suite.sh` reports a failure by its **marker**, never by
+position in the log. Each suite writes one through `console.error` (`✗` in the
+node suites, `❌` in `smoke`/`chat-scroll`), so the wrapper extracts those lines
+from anywhere in the file. It used `tail -n 25` until 2026-11-16, and CI run
+43870137994 shipped the trap: `notes-caret` closes with 23 consecutive green
+`✓` lines, they filled the whole window, and the step announced “FAILED twice”
+while printing **zero** failed assertions (33 of that suite’s 81 assertions run
+before the window even starts). A log with no marker is now reported as such —
+that is a suite that died before reporting (a throw, a crash, a supervisor
+kill), which is a finding, not a green tail.
+
+**Both attempts are traced, and the first one is the point.** The wrapper pins
+`SMOKE_TRACE` for the first attempt (`<name>.trace.zip`) and the retry
+(`<name>.retry.trace.zip`); `scripts/lib/trace.mjs` writes one file per traced
+context (`<base>-<label>.zip`) because Playwright writes one file per
+`tracing.stop` and these suites are multi-context by design. The **failed**
+attempt is the one whose timeline holds evidence — a trace of the run that
+passed records nothing going wrong — so the retry-only trace this started as
+(until 2026-11-16) collected the wrong run.
+
+Both matrix legs upload their `CI_LOG_DIR` as the `browser-logs-group-N`
+artifact on `if: always()`. A flake *passes*, so a failure-only upload would
+discard exactly the run that needs explaining. The whole contract is asserted
+by `scripts/check-run-browser-suite.test.sh` (in `make check-ci-scripts`),
+which also **fails if a suite CI runs ignores `SMOKE_TRACE`** — the state three
+of the five were in until 2026-11-16. Run it after touching the wrapper, any
+browser suite, or the `browser:` job.
+
 `make ci-local-fast` runs the same cheap-but-decisive checks
 (`templ`, `datastar-lint`, `css-check`) plus **scoped** lint and
 race tests, narrowed by `scripts/changed-packages.sh` to the packages your

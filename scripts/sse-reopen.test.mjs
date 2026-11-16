@@ -21,6 +21,7 @@ import { join, resolve } from "node:path";
 // never hide a regression, because a tree cannot mount a feature whose
 // package is not in it (the build would not compile).
 import { repoRoot, skipIfFeatureAbsent } from "./lib/features.mjs";
+import { traces } from "./lib/trace.mjs";
 
 if (skipIfFeatureAbsent(repoRoot, "todo")) {
   process.exit(0);
@@ -33,6 +34,12 @@ const BASE = `http://127.0.0.1:${PORT}`;
 
 let server = null;
 let browser = null;
+
+// Each of the three cases drives its OWN short-lived context, so the trace is
+// stopped per case (before that context closes) rather than once at the end:
+// a stop() on a closed context writes nothing, which is the silent-no-op this
+// module exists to prevent. Inert unless SMOKE_TRACE is set.
+const tracer = traces();
 
 async function signupCookie(email) {
   const res = await fetch(BASE + "/api/auth/signup/credential", {
@@ -105,6 +112,8 @@ try {
     }
     if (streamSeen) throw new Error("stream opened without Datastar — unexpected");
     console.log("  ✓ unloadable Datastar fails loud (no silent-dead stream)");
+    await tracer.start(context, "case1");
+    await tracer.stopAll();
     await context.close();
   }
 
@@ -172,6 +181,8 @@ try {
       throw new Error(`session banner still probes /api/session (${sessionProbes} requests)`);
     }
     console.log(`  ✓ one session stream for 3 tabs (${sessionStreams} request(s)), no poll, requests still flow`);
+    await tracer.start(context, "case2");
+    await tracer.stopAll();
     await context.close();
   }
 
@@ -201,6 +212,8 @@ try {
       throw new Error("fallback did not fail loud on missing helper (errors seen: " + JSON.stringify(errors) + ")");
     }
     console.log("  ✓ helper-unloadable fails loud with the helper message, never ExecuteExpression");
+    await tracer.start(context, "case3");
+    await tracer.stopAll();
     await context.close();
   }
 

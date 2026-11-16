@@ -36,6 +36,7 @@ import { join } from "node:path";
 // never hide a regression, because a tree cannot mount a feature whose
 // package is not in it (the build would not compile).
 import { repoRoot, skipIfFeatureAbsent } from "./lib/features.mjs";
+import { traces } from "./lib/trace.mjs";
 
 if (skipIfFeatureAbsent(repoRoot, "notes")) {
   process.exit(0);
@@ -64,6 +65,10 @@ const BROWSER_ARGS = [
 ];
 
 let browser;
+// One tracer for the whole suite: it starts a trace per context (the two
+// authenticated users and the fresh-context read) and writes them all from the
+// finally below. Inert unless SMOKE_TRACE is set by run-browser-suite.sh.
+const tracer = traces();
 const PORT = Number(process.env.NOTES_TEST_PORT || 8132);
 const BASE = `http://127.0.0.1:${PORT}`;
 const A_EMAIL = "notes-test-a@local.dev";
@@ -215,6 +220,12 @@ async function main() {
   browser = await chromium.launch({ headless: true, args: BROWSER_ARGS });
   const ctxA = await browser.newContext();
   const ctxB = await browser.newContext();
+  // Traced when SMOKE_TRACE is set (scripts/run-browser-suite.sh sets it for
+  // EVERY attempt, the failed one included). Two authenticated users are the
+  // point of this suite, so each context gets its own trace file rather than
+  // one stop() overwriting the other.
+  await tracer.start(ctxA, "a");
+  await tracer.start(ctxB, "b");
   await ctxA.addCookies([{ name: "gogogo_auth", value: tokenA, url: BASE }]);
   await ctxB.addCookies([{ name: "gogogo_auth", value: tokenB, url: BASE }]);
   const A = await ctxA.newPage();
@@ -733,6 +744,11 @@ async function main() {
   // Read it from a FRESH context (no localStorage draft to fall back on): only
   // the server having the text proves the batch was applied.
   const ctxFresh = await browser.newContext();
+  // No trace here on purpose: this context is closed at line ~757, well before
+  // the suite's stopAll(), and a stop() on a closed context writes nothing. A
+  // tracer that silently collects nothing is the exact defect this module
+  // exists to remove, so the short-lived context is left untraced rather than
+  // registered and lost.
   await ctxFresh.addCookies([{ name: "gogogo_auth", value: tokenA, url: BASE }]);
   const F = await ctxFresh.newPage();
   await gotoNote(F, `${BASE}/notes/${docOffline}`);
@@ -1275,6 +1291,9 @@ async function main() {
     ok("no uncaught page errors");
   }
 
+  // Write the traces BEFORE closing: stop() needs live contexts, and the
+  // happy path closes the browser here, not in the finally below.
+  await tracer.stopAll();
   await browser.close();
 }
 
@@ -1284,6 +1303,10 @@ main()
     // Close the browser FIRST and unconditionally: this is the only place a
     // failed run gets here (the happy path calls browser.close() itself), so
     // skipping it leaks the whole Chromium process tree onto the shared host.
+    //
+    // The trace is written BEFORE either close: stop() needs a live context,
+    // and a run that threw is exactly the one whose timeline anyone wants.
+    await tracer.stopAll();
     await browser?.close().catch(() => {});
     server.kill("SIGKILL");
     rmSync(tmp, { recursive: true, force: true });
