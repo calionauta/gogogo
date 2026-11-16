@@ -21,8 +21,8 @@ place instead of drifting per file.
 
 A new feature is a recipe before it is a diff. Search before writing:
 
-1. `gogogo recipe list --dir .` lists every capability and installed recipe
-   with its kind, origin and state. `gogogo recipe describe <id>` (MCP:
+1. `{{project}} recipe list --dir .` lists every capability and installed recipe
+   with its kind, origin and state. `{{project}} recipe describe <id>` (MCP:
    `recipe_list` / `recipe_describe`) shows its routes, tables, slots, metrics,
    panel and whether it already measures what you were about to measure.
 2. Pick the closest slice as the **primary base**. `todo` is the structural
@@ -35,7 +35,7 @@ A new feature is a recipe before it is a diff. Search before writing:
    `basedOn: [primary-id, secondary-id]`. It is provenance, not a dependency:
    the code was copied and edited, and the next reader should see the pattern
    you inherited.
-5. If nothing fits, scaffold with `gogogo new feature <name>` and use `todo` as
+5. If nothing fits, scaffold with `{{project}} new feature <name>` and use `todo` as
    the shape. Say in the commit message why no base recipe fit.
 
 Never invent a second definition of something a recipe already declares — a
@@ -64,8 +64,8 @@ implementation before checking whether upstream already has it.
 
 ## Trim provenance
 
-{{project}} was scaffolded with cmd/gogogo (see the template's
-cmd/gogogo/README.md for the alternatives analysis). Removed units are gone
+{{project}} was scaffolded with cmd/{{project}} (see the template's
+cmd/{{project}}/README.md for the alternatives analysis). Removed units are gone
 from disk with their wiring calls — not disabled behind flags. To remove more
 later, follow docs/scope-taxonomy.md#removing-a-component and prove with
 go build ./cmd/web.
@@ -77,9 +77,9 @@ removed-paths: {{removed_paths}}
 
 Those four lines are machine-read, not decoration. The scaffolded-from: line
 records the template revision this tree came from (and template-commit: the
-commit it resolved to), which is what makes gogogo --check-update --dir . able
+commit it resolved to), which is what makes {{project}} --check-update --dir . able
 to say whether THIS project is behind upstream, instead of only whether the
-installed tool is. The removed: line is what gogogo --check --dir . reads it
+installed tool is. The removed: line is what {{project}} --check --dir . reads it
 to tell a deliberately trimmed tree (CHECK-TRIMMED, exit 0) apart
 from real manifest drift (CHECK-FAIL, exit 1). Keep it in sync if you remove units by
 hand; a tree with no removed: line is checked strictly. The removed-paths:
@@ -93,8 +93,8 @@ removals as missing.
 The scaffolded-from: line above is the base this tree came from. Two read-only
 commands compare it, and neither changes anything:
 
-    gogogo --check-update --dir .   # tool and project vs the latest release
-    gogogo migrate --dir .          # what changed between here and latest
+    {{project}} --check-update --dir .   # tool and project vs the latest release
+    {{project}} migrate --dir .          # what changed between here and latest
 
 --check-update exits 3 when an update exists. That is a VERDICT, not a failure:
 do not treat its non-zero status as an error, and do not wrap it in set -e
@@ -106,6 +106,6 @@ migrate output as a list to apply deliberately. The template never merges into
 this tree — you own every line of it.
 
 When the request is "keep this current", "add unit X" or "add a feature",
-gogogo advise --intent update|add-unit|new-feature --dir . prints the exact
+{{project}} advise --intent update|add-unit|new-feature --dir . prints the exact
 command sequence for this tree, instead of you reconstructing it from the docs.
 

@@ -503,6 +503,13 @@ jobs:
             exit 1
           fi
           echo "✓ CSS bundles match their sources"
+      - name: Scaffold of a scaffold (the second hop keeps the product's identity)
+        # Two real scaffolds: the template's binary, then the product's own.
+        # The only test that exercises a fork renaming itself — the hop that
+        # broke twice (stale identity constants, AGENTS.md rendered from the
+        # embedded prompt). Slow, so it lives here and in `ci-local`, not in
+        # `ci-local-fast`.
+        run: make test-scaffold-chain
 
   race:
     needs: [changes]

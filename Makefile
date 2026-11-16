@@ -17,7 +17,7 @@ SMOKE_BIN ?= $(OS_TMPDIR)/gogogo-ci-local-web
 # build does not use the wails3 CLI at all — it is a plain `go build` — so no
 # copy of the version belongs here to drift from the module graph.
 
-.PHONY: check-typed-states check-product-boundary check-operator-look operator-look-pass operator-look-fail all build desktop desktop-smoke desktop-sync-smoke mobile run-desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean templ fmt css css-install datastar-lint test test-recipe verify-local verify-local-share lint check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui gui-build gui-test run-gui lint-gui mygo mygo-build mygo-test run-mygo mygo-smoke check-generated install-sh-guard check-classes check-ci-scripts daisyui-lint vocabulary check-docs docs-index check-mcp site site-check check-shape check-domains check-prompts
+.PHONY: check-typed-states check-product-boundary check-operator-look operator-look-pass operator-look-fail all build desktop desktop-smoke desktop-sync-smoke mobile run-desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean templ fmt css css-install datastar-lint test test-recipe test-scaffold-chain verify-local verify-local-share lint check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui gui-build gui-test run-gui lint-gui mygo mygo-build mygo-test run-mygo mygo-smoke check-generated install-sh-guard check-classes check-ci-scripts daisyui-lint vocabulary check-docs docs-index check-mcp site site-check check-shape check-domains check-prompts
 
 all: build
 
@@ -149,6 +149,16 @@ test-fast:
 # installed file (tests included), and a second list would be a second truth.
 # A recipe with no test files fails the run — that is `recipe check`'s error,
 # surfaced at the moment you asked for the tests.
+# The second hop: the template's binary scaffolds a product, then the product's
+# OWN binary scaffolds the next one. Slow (two build proofs, ~1 min), so it runs
+# in `ci-local` and CI, never in `ci-local-fast`. What it guards: the rename's
+# identity (a fork renames nothing and clones the template's org if its
+# constants are stale) and AGENTS.md's command examples (rendered from the
+# embedded prompt, so a fork used to advertise the fork's binary).
+test-scaffold-chain:
+	@echo "→ scaffold of a scaffold (two hops, real binaries)"
+	@RUN_SCAFFOLD_CHAIN=1 go test -count=1 -timeout 600s -run TestScaffoldChain ./internal/installer/
+
 test-recipe:
 	@test -n "$(R)" || { echo "usage: make test-recipe R=<recipe-id> [DIR=<checkout>]"; exit 2; }
 	@go run ./cmd/gogogo recipe test $(R) --dir $(or $(DIR),.)
@@ -606,6 +616,7 @@ ci-local: check-host-capacity reap-stale check-browser-cleanup check-generated c
 	@go build $(LDFLAGS) -o $(SMOKE_BIN) ./cmd/web/
 	@echo "→ binary boot smoke test (cheap gate: fail here, not after minutes)"
 	@RUN_SMOKE=1 SMOKE_BIN=$(SMOKE_BIN) go test -count=1 -timeout 180s -run TestSmoke_BootedBinaryServesAndSyncs ./cmd/web/
+	@$(MAKE) --no-print-directory test-scaffold-chain
 	@npx playwright install chromium
 	@echo "→ race tests + browser smokes (parallel fan-out, one log per suite)"
 	@CI_LOG_DIR=$(OS_TMPDIR)/gogogo-ci-logs SMOKE_BIN=$(SMOKE_BIN) bash scripts/ci-fanout.sh

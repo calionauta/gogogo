@@ -112,8 +112,10 @@ func TestWriteAgentsRecordsTemplateBase(t *testing.T) {
 	}
 	// The section that turns the marker into an action a downstream agent can
 	// take. Losing it silently leaves the marker describing a command nobody
-	// knows about.
-	for _, want := range []string{"## Keeping this project current", "gogogo migrate --dir ."} {
+	// knows about. The command names THIS project's binary: the text is rendered
+	// from the embedded prompt, so a literal template name would tell a fork's
+	// agent to run the template's tool.
+	for _, want := range []string{"## Keeping this project current", "my-app migrate --dir ."} {
 		if !strings.Contains(text, want) {
 			t.Errorf("AGENTS.md must point at the upgrade commands (%q missing):\n%s", want, text)
 		}

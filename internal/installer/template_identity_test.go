@@ -24,7 +24,7 @@ func requireTemplateIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read go.mod: %v", err)
 	}
-	if !containsModule(string(raw), "github.com/calionauta/"+renameOldName) {
+	if !containsModule(string(raw), templateModulePath) {
 		t.Skip("this checkout is not the template: the paths asserted here were renamed by the scaffold")
 	}
 }

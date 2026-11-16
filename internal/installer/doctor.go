@@ -62,7 +62,7 @@ func runDoctor(args []string, stdout io.Writer) error {
 		b, _ := jsonMarshal(rep)
 		fmt.Fprintln(stdout, string(b))
 	} else {
-		fmt.Fprintf(stdout, "gogogo doctor: %d checks, %d fail\n", len(rep.Checks), fails)
+		fmt.Fprintf(stdout, "%s doctor: %d checks, %d fail\n", binName, len(rep.Checks), fails)
 		for _, c := range rep.Checks {
 			fmt.Fprintf(stdout, "  %-4s %-30s %s\n", c.Status, c.ID, c.Name)
 			if c.Fix != "" && c.Status == checkFail {
@@ -278,14 +278,14 @@ func checkDrift() doctorCheck {
 	if err != nil {
 		return doctorCheck{
 			ID: "generate.drift", Name: "generated drift (templ/sqlc/css/docs)",
-			Status: checkSkip, Fix: "gogogo generate --check",
+			Status: checkSkip, Fix: binName + " generate --check",
 		}
 	}
 	if len(stale) > 0 {
 		return doctorCheck{
 			ID: "generate.drift", Name: "generated drift (templ/sqlc/css/docs)",
 			Status: checkWarn, Version: fmt.Sprintf("%d stale", len(stale)),
-			Fix: "gogogo generate --check, then commit (stale: " + strings.Join(firstN(stale, 3), ", ") + ")",
+			Fix: binName + " generate --check, then commit (stale: " + strings.Join(firstN(stale, 3), ", ") + ")",
 		}
 	}
 	return doctorCheck{ID: "generate.drift", Name: "generated drift (templ/sqlc/css/docs)", Status: checkPass}
@@ -380,10 +380,10 @@ func newestIn(dir string) (string, error) {
 func checkRecipes() doctorCheck {
 	ids, err := recipe.ListReceipts(".")
 	if err != nil {
-		return doctorCheck{ID: "recipe.declarations", Name: "recipe declarations", Status: checkSkip, Fix: "gogogo recipe check --format json"}
+		return doctorCheck{ID: "recipe.declarations", Name: "recipe declarations", Status: checkSkip, Fix: binName + " recipe check --format json"}
 	}
 	if len(ids) == 0 {
-		return doctorCheck{ID: "recipe.declarations", Name: "recipe declarations", Status: checkSkip, Fix: "gogogo recipe check --format json"}
+		return doctorCheck{ID: "recipe.declarations", Name: "recipe declarations", Status: checkSkip, Fix: binName + " recipe check --format json"}
 	}
 	blocked := 0
 	warnings := 0
