@@ -122,7 +122,7 @@ func createDoc(t *testing.T, base string, cookie *http.Cookie, route string) {
 // role: a viewer cannot open the inbox or the chat, so those cards carry
 // no button.
 func TestDashboardCountsMatchThePages(t *testing.T) {
-	requireTodo(t)
+	requireSlices(t, "todo", "notes", "whiteboard")
 	base, signIn := bootDemoStack(t, true)
 	admin := signIn(demo.Email)
 	viewer := signIn(demo.Email2)
