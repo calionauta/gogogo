@@ -281,12 +281,19 @@ check-sizes:
 check-host-capacity:
 	@bash scripts/check-host-capacity.sh
 
-# check-fast-capacity is the T3.5 pre-flight with the lighter budget
+# check-fast-capacity is the T4 pre-flight with the lighter budget
 # (see the --fast thresholds in scripts/check-host-capacity.sh). A big
 # changeset on a wedged box degrades further below via -p 1 instead of
 # wedging it.
 check-fast-capacity:
 	@bash scripts/check-host-capacity.sh --fast
+
+# check-site-deployed answers "is the published docs site on master?" from the
+# Pages deployment record instead of by reading the rendered HTML. The trigger
+# only fires on docs/ and site/ paths, so a tip that touches neither is behind
+# on purpose and reports clean. Needs network and gh auth; not in ci-local.
+check-site-deployed:
+	@bash scripts/check-site-deployed.sh
 
 # check-ci-scripts runs the contract tests of the shell scripts that DECIDE what
 # CI does: the changeset classifier (which gates skip) and the race-suite shard
