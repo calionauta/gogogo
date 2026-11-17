@@ -718,6 +718,17 @@ smoke-clean:
 	@echo "→ Removing smoke artifacts…"
 	@rm -f $(SMOKE_BIN)
 	@rm -rf $(OS_TMPDIR)/gogogo-smoke-* $(OS_TMPDIR)/gogogo-prod-smoke-* $(OS_TMPDIR)/wb-client-test-* $(OS_TMPDIR)/notes-caret-test-* $(OS_TMPDIR)/gogogo-docwatch-* $(OS_TMPDIR)/gogogo-ci-logs
+	@# verify-local builds a 125 MB binary into a mktemp dir and removes it via
+	@# an EXIT trap. A Ctrl-C or a closed terminal kills the shell before the
+	@# trap runs, so those dirs accumulate silently — six of them had banked
+	@# 747 MB. They are always disposable: the script rebuilds on next run.
+	@# Same for gremlins (test-value), which copies the whole module per run and
+	@# panics instead of reporting when the copy fails.
+	@stale=$$(du -skc $(OS_TMPDIR)/gogogo-verify.* $(OS_TMPDIR)/gremlins-* 2>/dev/null | tail -1 | cut -f1); \
+	if [ -n "$$stale" ] && [ "$$stale" -gt 0 ]; then \
+		echo "  → removing $$((stale / 1024)) MB left by an interrupted verify-local/test-value run"; \
+		rm -rf $(OS_TMPDIR)/gogogo-verify.* $(OS_TMPDIR)/gremlins-*; \
+	fi
 	@echo "  ✓ smoke artifacts removed (Playwright browsers kept: shared cache)"
 
 # signoff runs the full local CI then stamps the current commit green via
