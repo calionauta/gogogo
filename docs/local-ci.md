@@ -61,6 +61,21 @@ be explained is doing no work.
 | **T6** full local gate | `make ci-local` (refuses first via `check-host-capacity` when the box cannot carry it) | ~6min | Full pre-push check (= CI) |
 | **T7** signoff local | `make signoff` (= T6 + `gh signoff -f`) | ~6min | Same as T6, plus it commits the verification to git |
 
+### After the merge: did the docs site actually publish
+
+The ladder above stops at the push. The site publishes from `master` on a path
+filter (`docs/**`, `site/**`), so a merge that touched either owes a publish and
+a merge that touched neither does not.
+
+    make check-site-deployed
+
+It reads the Pages deployment record rather than the rendered page, because the
+rendered page cannot tell you *which commit* you are looking at, and a run
+cancelled by the concurrency group reads as "not deployed" even when the later
+run published both changes. Exit 0 means the site is on master's tip or on a
+tip that owes no publish; exit 1 names the unpublished commits. It needs network
+and `gh` auth, so it is deliberately **not** part of `ci-local`.
+
 ### Do the new tests pin anything (test-value + diff-cover)
 
 The race suite proves the tests pass; two review aids prove they pin:
