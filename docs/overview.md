@@ -27,39 +27,22 @@ router, reactive frontend, task queue… — and the project stalls at the
 *decisions*, installations, and configurations. Not at the code.
 
 This template answers those decisions once, ships them wired together, and
-documents how to change or remove each piece.
+documents how to change or remove each piece — starting with what runs and how
+to switch each part off: [Features](features.md).
 
-## One template, five products
+## Why the gates exist
 
-A product shape is a row of the enum, not a fork: `full`, `web`, `api`,
-`desktop`, `gui`, `mobile`. `APP_SHAPE` — or the committed
-`.gogogo/shape.yml` record — decides which entrypoints ship and which surfaces
-answer. The `api` shape is the one that changes behaviour: page routes are not
-mounted (a page path answers 404 from the tree), while `/api`, `/health`, the
-auth API and the assets keep serving from the same binary — no build tags, no
-second boot path. The enum, the record and the `check-shape` gate live in
-[App shape](shape.md).
+A stack is only as trustworthy as the failures it catches, and the ones that
+matter here are silent: they survive the build, pass review, and surface in
+production. Four gates carry most of that weight — the dependency guard (no
+framework creeps in one reasonable-looking import at a time), the product
+boundary (the product never depends on the developer tooling), the UI linters (a
+mistyped class renders with no styles and no error anywhere), and the test-value
+gate (a test that cannot fail still counts as coverage).
 
-## Not a framework
-
-Frameworks call your code and keep you on their release train. This template
-does the opposite: it answers the stack decisions once, ships them wired and
-documented, and gets out of the way — you rename it, you own every line, and
-nothing upgrades underneath you. Upstream movement arrives as a list you read
-and apply, never as a release to keep up with: [Upgrading](upgrading.md). It
-does ship frameworks inside (DagNats, GoAkt, Wails), and each of them is
-removable per the [scope taxonomy](scope-taxonomy.md): nothing you keep is
-load-bearing by accident. For an LLM agent this means zero new DSL to learn —
-plain Go, stable third-party surfaces, and the skill files, instead of a moving
-proprietary framework. The claim is about your code, not about the dependency
-graph: nothing sits between you and the handlers, and what ships alongside is
-listed as removable units rather than hidden behind an API.
-
-The claim is executable, not aspirational: `make check-product-boundary` fails
-when the product binary (`cmd/web`) imports the evolution tools
-(`internal/installer`, `internal/capabilities`, `internal/shape`, `cmd/gogogo*`)
-or when the installer imports the server. If the tree ever needed the tool to
-run, the gate says so before a user finds out.
+The rest is breadth — hygiene, secrets, prose that must match the code, route
+contracts, vendored drift. Where each one runs, and why the cheap ones stay in
+pre-commit while the slow ones wait: [Local CI](local-ci.md).
 
 ## Who it is for
 
@@ -90,24 +73,51 @@ run, the gate says so before a user finds out.
   provider) behind an injectable interface, callable from handlers. It calls a
   *remote* provider API; it is **not** a local-model runtime.
 
-## What makes it different
+## Seven async layers, and what to remove
 
-Most templates force you to pick **one** async strategy. This one ships **seven**
-complementary layers in a single build and lets you opt out at runtime:
+Most templates force you to pick **one** async strategy. This one ships all seven
+in a single build and lets you opt out at runtime or delete the unit:
 
-| Layer | Solves |
-|---|---|
-| `goqite` | background jobs + SSE hub |
-| `dagnats` | durable multi-step workflows as declarative JSON |
-| Loro CRDT | conflict-free collaborative state |
-| SSE record stream | visibility-scoped record-change push + re-list |
-| SSE Hub | ephemeral signals over the Datastar protocol |
-| JetStream | cross-instance broadcast and state |
-| GoAkt grains | one addressable owner per room (roster, locks, supervision) |
+```text
+goqite        background jobs + SSE hub delivery    (always on)
+dagnats       durable multi-step workflows          DAGNATS_ENABLED=false
+Loro CRDT     collaborative state, offline merges   remove internal/collab/
+SSE record    visibility-scoped record-change push  (always on)
+SSE ephemeral UI signals over the Datastar protocol  (always on)
+JetStream     cross-instance broadcast and state    NATS_ENABLED=false
+GoAkt grains  one addressable owner per room        GOAKT_ENABLED=false
+```
 
-See [Seven async layers](async-layers.md) for why each exists and when you
-should disable it, and [Stack in layers, not silos](stack-layers.md) for the
-full dependency picture.
+Why each exists and when to disable it: [Seven async layers](async-layers.md).
+The full dependency picture: [Stack in layers](stack-layers.md). What disappears
+when you delete a unit — and the difference between *core*, *servant* and
+*feature*: [Scope taxonomy](scope-taxonomy.md).
+
+## Not a framework
+
+Frameworks call your code and keep you on their release train. This template
+does the opposite: it answers the stack decisions once, ships them wired and
+documented, and gets out of the way — you rename it, you own every line, and
+nothing upgrades underneath you. Upstream movement arrives as a list you read
+and apply, never as a release to keep up with: [Upgrading](upgrading.md).
+
+It does ship frameworks inside (DagNats, GoAkt, Wails), and each one is
+removable per the [scope taxonomy](scope-taxonomy.md): nothing you keep is
+load-bearing by accident. The claim is executable — `make check-product-boundary`
+fails when the product binary imports the evolution tools — and its price is
+named rather than hidden: Turso Database is pre-1.0, there is no admin UI or
+generic REST to lean on, and the copy model's cost lands on whoever upgrades.
+[The flat-stack decision](architecture-decision.md) ·
+[costs and tradeoffs](stack-tradeoffs.md#the-flat-stack-the-cost).
+
+## One template, six products
+
+The same server ships as a full product, a web app, an API-only backend, or the
+server behind the desktop, GUI and mobile shells. A **shape** is a closed enum
+declared once at scaffold time and proved against the tree — not a per-unit
+checklist. The `api` shape is the one that changes behaviour: page routes are not
+mounted, so a page path answers 404 from the route tree while `/api`, `/health`
+and the assets keep serving from the same binary. [App shape](shape.md).
 
 ## Try it live
 
@@ -120,12 +130,3 @@ window makes you both at once. The admin-only env view is at [`/config`](https:/
 (sign in first) and the DagNats workflow console
 at `/dagnats/` (admin **and** `ADMIN_EMAILS`; closed on a production demo; the development demo adds `demo1` to the allowlist). What each surface
 gives you: [Admin & Dashboard](admin-dashboard.md).
-
-## Related
-
-- [Motivation](motivation.md) — the thesis: Go for almost everything, Zig as the named exception.
-- [Getting started](getting-started.md) — create your repo from the template, rename it, run it.
-- [Architecture](architecture.md) — how the layers depend on each other.
-- [Features](features.md) — every capability and its runtime opt-out.
-- [Security model](security.md) — sessions, RBAC, audit, CSP, secrets and residual risks.
-- [Configuration](configuration.md) — every environment variable.
