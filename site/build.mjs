@@ -652,7 +652,7 @@ function build() {
   writeFileSync(join(OUT, "docs", "index.html"),
     pageShell("Docs", "", `<h1>${esc(NAME)} docs</h1>\n${groups}`, `<a href="../">← ${NAME} home</a>`, idxNav));
   // llms.txt (stable map: one line per page)
-  const llms = `# ${NAME} docs\n\n> Full-stack Go web app template that ships as one binary: Turso/SQLite + Templ + Datastar + Tailwind, plus seven complementary async layers (goqite, DagNats, Loro CRDT, SSE Hub record-sync, SSE Hub ephemeral signals, JetStream, GoAkt grains). Full map below; complete texts in llms-full.txt.\n\n` +
+  const llms = `# ${NAME} docs\n\n> Agent-native product foundation in Go that ships as one binary: Turso/SQLite + Templ + Datastar + Tailwind, plus seven complementary async layers (goqite, DagNats, Loro CRDT, SSE Hub record-sync, SSE Hub ephemeral signals, JetStream, GoAkt grains). Full map below; complete texts in llms-full.txt.\n\n` +
     MANIFEST.map((p) => `## ${p.title}\n${p.desc}\n${BASE}/docs/${p.slug}/\n`).join("\n");
   writeFileSync(join(OUT, "llms.txt"), llms);
   // llms-full.txt (concatenated sources)
