@@ -502,7 +502,7 @@ cover-diff:
 #   make go-bump              # newest patch of the tree's line
 #   make go-bump DRY=1        # report what would move, write nothing
 #   make go-bump TO=1.27.4    # name the target explicitly
-.PHONY: check-locales check-locales-strict all build desktop desktop-smoke desktop-sync-smoke mobile run-desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui gui-build gui-test run-gui lint-gui check-generated install-sh-guard check-classes check-ci-scripts check-docs docs-index
+.PHONY: test-value test-value-pkg check-locales check-locales-strict all build desktop desktop-smoke desktop-sync-smoke mobile run-desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui gui-build gui-test run-gui lint-gui check-generated install-sh-guard check-classes check-ci-scripts check-docs docs-index
 go-bump:
 	@go run ./cmd/bump-go-toolchain $(if $(TO),--to $(TO)) $(if $(DRY),--dry-run)
 
@@ -657,6 +657,33 @@ ci-local-fast: check-fast-capacity reap-stale check-generated check-shape check-
 	@echo "→ tests (race, changed packages only)"
 	@PKGS=$$(bash scripts/changed-packages.sh); if [ -z "$$PKGS" ]; then echo "  (no Go packages changed — ran cheap checks only)"; else N=$$(echo $$PKGS | wc -w); if [ "$$N" -gt "$${FAST_MAX_PARALLEL_PKGS:-8}" ]; then echo "  ($$N changed packages > $${FAST_MAX_PARALLEL_PKGS:-8}: serial -p 1 to bound shared-host load)"; go test -race -count=1 -p 1 $$PKGS; else go test -race -count=1 $$PKGS; fi; fi
 	@echo "✅ ci-local-fast passed (full gate before push: make ci-local)"
+
+# test-value measures whether the tests ASSERT, which coverage cannot see:
+# `go test -cover` on a package with 90% coverage and almost no assertions
+# passes every hand-made mutant (n > 100 -> n >= 100, n == 0 -> n != 0). Mutation
+# testing makes that gap visible by re-running the tests against a mutated
+# source; a mutant no test kills is an assertion nobody wrote.
+#
+# Report by default, on purpose. A threshold nobody baselined fails the first PR
+# that touches any package and teaches people to bypass the check. Read the
+# trend, then enforce with MUTATION_GATE=1 once a package has a baseline.
+#
+# Scope: changed packages (scripts/changed-packages.sh), capped at 3, so this is
+# a pre-push / periodic audit rather than part of ci-local-fast — gremlins costs
+# ~75-150s per package.
+#
+# Not in doctor: doctor asks "is this checkout healthy", mutation asks "are the
+# assertions real" — a slow, opinion-bearing question that does not belong in a
+# pre-flight someone runs before every command.
+test-value:
+	@bash bin/check-mutation-drift.sh
+
+# test-value-pkg runs the same measurement against one package, which is how to
+# get a baseline before wiring the trend into a gate:
+#   make test-value-pkg P=./internal/i18n
+test-value-pkg:
+	@test -n "$(P)" || { echo "  ❌ P is required: make test-value-pkg P=./internal/i18n"; exit 2; }
+	@PKGS="$(P)" bash bin/check-mutation-drift.sh
 
 # smoke boots the built binary in a headless browser, fails on uncaught client
 # errors, and exercises offline todo add/delete through IndexedDB + reconnect
