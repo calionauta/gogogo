@@ -125,6 +125,12 @@ func runAllChecks(only ...string) (doctorReport, int) {
 	add(checkBinaryWarn("tool.zig", "zig", "brew install zig (wails-cross / MyGo lite)", "*"))
 	// mygo CLI is opt-in (packaging only; plain go build needs no CLI) — missing is warn, not fail
 	add(checkBinaryWarn("tool.mygo", "mygo", "go tool github.com/egoist/mygo/cmd/mygo (MyGo packaging; make mygo needs no CLI)", "*"))
+	// gremlins powers `make test-value` (mutation testing). It is pinned in
+	// go.mod's tool block, so the fix is to restore the pin rather than
+	// installing an unpinned binary — an unpinned mutator would make the
+	// measurement depend on whatever the machine resolved that day.
+	// Opt-in like zig/mygo: a missing mutator never blocks a build.
+	add(checkGoToolWarn("go.tool.gremlins", "gremlins", "go get -tool github.com/go-gremlins/gremlins/cmd/gremlins"))
 	// Desktop/mobile (warn only)
 	switch runtime.GOOS {
 	case "darwin":
@@ -210,6 +216,25 @@ func checkBinaryWarn(id, name, fix, min string) doctorCheck {
 		ver = path
 	}
 	return doctorCheck{ID: id, Name: name, Status: checkPass, Version: ver, Required: min}
+}
+
+// checkGoToolWarn probes a tool pinned in go.mod's `tool` block by asking the
+// go command for it, not the PATH: a `go tool` binary lives in the module cache
+// and is invoked as `go tool <name>`, so a PATH probe would report a false
+// failure on a perfectly healthy checkout.
+func checkGoToolWarn(id, name, fix string) doctorCheck {
+	out, err := exec.Command("go", "tool", name, "--version").CombinedOutput()
+	if err != nil {
+		return doctorCheck{ID: id, Name: name, Status: checkWarn, Required: "pinned in go.mod", Fix: fix}
+	}
+	ver := strings.TrimSpace(string(out))
+	if i := strings.Index(ver, "\n"); i >= 0 {
+		ver = ver[:i]
+	}
+	if ver == "" {
+		ver = "pinned"
+	}
+	return doctorCheck{ID: id, Name: name, Status: checkPass, Version: ver, Required: "pinned in go.mod"}
 }
 
 func checkXcodeSDK() doctorCheck {
