@@ -445,6 +445,13 @@ jobs:
         # mirror it never asked for. Tolerate that exit code, then let the
         # install and the compiler check be the gate.
         run: |
+          # gcc ships with the ubuntu-latest image (build-essential). Only pay
+          # the apt round-trip (~4s per job, and the flaky source this comment
+          # already describes) when the compiler is actually missing.
+          if gcc --version >/dev/null 2>&1; then
+            echo "✓ gcc already present: $(gcc --version | head -1)"
+            exit 0
+          fi
           sudo apt-get update -qq || echo "⚠️ apt update reported a broken third-party source; installing from the image's indexes"
           sudo apt-get install -y gcc
           gcc --version | head -1
@@ -630,6 +637,13 @@ jobs:
         # mirror it never asked for. Tolerate that exit code, then let the
         # install and the compiler check be the gate.
         run: |
+          # gcc ships with the ubuntu-latest image (build-essential). Only pay
+          # the apt round-trip (~4s per job, and the flaky source this comment
+          # already describes) when the compiler is actually missing.
+          if gcc --version >/dev/null 2>&1; then
+            echo "✓ gcc already present: $(gcc --version | head -1)"
+            exit 0
+          fi
           sudo apt-get update -qq || echo "⚠️ apt update reported a broken third-party source; installing from the image's indexes"
           sudo apt-get install -y gcc
           gcc --version | head -1
@@ -737,6 +751,13 @@ jobs:
         # mirror it never asked for. Tolerate that exit code, then let the
         # install and the compiler check be the gate.
         run: |
+          # gcc ships with the ubuntu-latest image (build-essential). Only pay
+          # the apt round-trip (~4s per job, and the flaky source this comment
+          # already describes) when the compiler is actually missing.
+          if gcc --version >/dev/null 2>&1; then
+            echo "✓ gcc already present: $(gcc --version | head -1)"
+            exit 0
+          fi
           sudo apt-get update -qq || echo "⚠️ apt update reported a broken third-party source; installing from the image's indexes"
           sudo apt-get install -y gcc
           gcc --version | head -1
