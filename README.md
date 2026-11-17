@@ -84,10 +84,10 @@ shipping   one binary · make build · env-var opt-outs
 One `make build` compiles all of it: no build tags, no second boot path, no
 matrix, no runtime CSS or JS build, no service to operate.
 
-## App shapes: one template, five products
+## App shapes: one template, six products
 
 The same `cmd/web` binary ships as a full product, a web app, an API-only
-backend, or the server behind the desktop and mobile shells. `APP_SHAPE` (or the
+backend, or the server behind the desktop, GUI and mobile shells. `APP_SHAPE` (or the
 committed `.gogogo/shape.yml` record) picks the entrypoints and the surfaces.
 
 ```bash
