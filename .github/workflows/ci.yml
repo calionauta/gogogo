@@ -858,7 +858,7 @@ jobs:
         # points at `$name.trace.zip`. An `if: failure()` upload would discard
         # exactly the run that needs explaining.
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: browser-logs-group-${{ matrix.client_group }}
           path: ${{ env.CI_LOG_DIR }}
