@@ -15,6 +15,21 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.71.1 (2026-11-17)
+
+## What's Changed
+* ci(browser): report failures by marker, trace the attempt that failed by @calionauta in https://github.com/calionauta/gogogo/pull/437
+* ci: run the product pre-gates once, not once per browser leg by @calionauta in https://github.com/calionauta/gogogo/pull/438
+* docs: claim the agent-native product foundation category by @calionauta in https://github.com/calionauta/gogogo/pull/442
+* chore(site): bump the docsite pin to the agent-native blurb by @calionauta in https://github.com/calionauta/gogogo/pull/443
+* ci: skip the apt round-trip when gcc is already on the image by @calionauta in https://github.com/calionauta/gogogo/pull/440
+* test: flatten the feedback ladder to T1-T7 and gate its two pages by @calionauta in https://github.com/calionauta/gogogo/pull/444
+* docs: say why the gates exist on the overview, and cut its duplicates by @calionauta in https://github.com/calionauta/gogogo/pull/445
+* test: measure whether the tests assert, scoped to changed packages by @calionauta in https://github.com/calionauta/gogogo/pull/441
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.71.0...v0.71.1
+
 ## 0.71.0 (2026-11-16)
 
 ## What's Changed
