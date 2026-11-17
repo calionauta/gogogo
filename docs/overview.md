@@ -1,8 +1,8 @@
 # Overview
 
-A full-stack Go product structure that ships as **one binary**. It is not a
-framework: the tree is copied once, then owned and edited — and an agent evolves
-it through the `gogogo` CLI and MCP rather than through an upstream release. No external
+An **agent-native product foundation in Go** that ships as **one binary**. It is
+not a framework: the tree is copied once, then owned and edited — and an agent
+evolves it through the `gogogo` CLI and MCP rather than through an upstream release. No external
 database, no Redis, no queue service, no CDN, no JS build step. Turso
 (embedded Turso Database) provides the database, owned argon2id code provides auth,
 and Datastar delivers reactive UI over server-rendered HTML and SSE. Turso

@@ -18,11 +18,11 @@
 
 ---
 
-A complete Go product — backend, frontend, database, auth, jobs, realtime,
-durable workflows and offline writes — that compiles to **one binary**. Every
-slice is code you own and can delete; every heavy dependency has an off switch.
-A CLI and an MCP server let an agent change the tree and prove the build
-instead of guessing at it.
+An **agent-native product foundation in Go** — backend, frontend, database,
+auth, jobs, realtime, durable workflows and offline writes — that compiles to
+**one binary**. Every slice is code you own and can delete; every heavy
+dependency has an off switch. A CLI and an MCP server let an agent change the
+tree and prove the build instead of guessing at it.
 
 **Not a framework.** Nothing is versioned out from under you: the scaffold
 copies the tree, and `git` is the update path.

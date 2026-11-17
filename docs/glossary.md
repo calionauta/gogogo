@@ -40,6 +40,7 @@ word that replaced it. One concept, one name, one place.
 | **product surface** | `cmd/web` routes + `POST /api/ext/invoke`, under the product's own session and RBAC. What a product's users and their agents call. | `cmd/web` |
 | **gate** | A check that can fail the build. A gate that only prints is a warning, and says so. | `Makefile`, `bin/` |
 | **agent index** | The map an agent reads first: `llms.txt`, then the page it points at. | `llms.txt` |
+| **agent-native product foundation** | The category gogogo claims in public (repo about, page title). **Agent** = the actor the build is designed around: the CLI/MCP reads the whole capability map and proves the build, so it never guesses at a tree. **Product** = the second surface it exists for: `cmd/web` routes, under the product's own session, where the product's users and their agents call `POST /api/ext/invoke`. **Foundation** = the shape: copied once, owned at once, so `git` is the update path — where a framework is rented, and this is not one. The two halves are named separately in the glossary on purpose: *agent-native* alone would claim a runtime agent surface this deliberately does not ship (see **evolution surface**, **product surface**). | repo about, `site/index.html` |
 
 ## Words to stop using
 

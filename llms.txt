@@ -1,5 +1,8 @@
 # llms.txt — agent entry index for gogogo
 
+> gogogo — agent-native product foundation in Go: one binary with DB, auth, jobs,
+> realtime and offline sync, and a CLI/MCP the agent drives to build it. Not a framework.
+>
 > Read AGENTS.md first. It points here for orientation; this file points
 > everywhere else. Fetch only what the task needs — do not read the whole
 > tree "to be safe" (see `cali-code-navigation`: orient with ripwire first).
