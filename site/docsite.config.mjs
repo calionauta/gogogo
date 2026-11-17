@@ -15,7 +15,7 @@ export default {
 ],
   manifest: [
   { group: "Get started", slug: "overview", file: "overview.md",
-    desc: "What gogogo is, who it is for, and the seven async layers it ships." },
+    desc: "What gogogo is, who it is for, why its gates exist, and the seven async layers it ships." },
   { group: "Get started", slug: "motivation", file: "motivation.md",
     desc: "The thesis behind the stack: Go for almost everything, Zig as the named exception, and how to choose without hype." },
   { group: "Get started", slug: "architecture-decision", file: "architecture-decision.md",
