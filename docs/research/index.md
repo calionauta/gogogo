@@ -38,7 +38,7 @@ individual notes.
 
 | page | reviewed | answers |
 |---|---|---|
-| [App shapes](app-shapes-2026-11.md) | 2026-11-12 | one template, five products: the closed shape enum (`web`/`api`/`desktop`/`gui`/`mobile`/`full`), where it is recorded, the `shape check` gate, the phase order, and why `api` is the only expensive shape |
+| [App shapes](app-shapes-2026-11.md) | 2026-11-12 | one template, six products: the closed shape enum (`web`/`api`/`desktop`/`gui`/`mobile`/`full`), where it is recorded, the `shape check` gate, the phase order, and why `api` is the only expensive shape |
 | [Scaffold choice](scaffold-choice-2026-10.md) | 2026-10-30 | why the prompt offers only the installer units, the three lists that disagree, and the `Scaffold` class that makes every capability an explicit keep-or-drop |
 | [Extensibility](extensibility-2026-11.md) | 2026-11-01 | recipe extensions: why `buildmode=plugin` is out, why a copied-and-owned recipe (not a pinned package) is the right unit, what breaks when code is meant to be edited, why schema must be declared rather than copied, and the ordered spikes that can falsify the idea |
 | [Recipe metrics and panel spec](recipe-metrics-panel-2026-11.md) | 2026-11-09 | declarative dashboard metrics (one COUNT per entry) and chat panel spec (name/prompt/writable): what was adopted vs. rejected, the SlicePanel base, the recipe-check evaluator, and the in-repo catalog decision |
