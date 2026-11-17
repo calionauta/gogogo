@@ -37,7 +37,7 @@ if [ -n "${TEST_PKGS_FILE:-}" ]; then
 	fi
 fi
 
-# Full-suite guard: this script runs EVERY web package (the T4-equivalent
+# Full-suite guard: this script runs EVERY web package (the T6-equivalent
 # workload). On a small shared host that wedges the box — and co-tenant
 # agents share these cores — so refuse first, exactly like `make ci-local`.
 # Skipped where it cannot bite: GitHub CI runners (CI=true) carry the load

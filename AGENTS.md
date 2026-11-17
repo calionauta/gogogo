@@ -81,7 +81,7 @@ Normative: `docs/exception-to-go.md`. Go ~95-99%, zero Zig in tree. Bans: "Zig i
 
 ## Hooks
 
-lefthook pre-commit (fmt, `govulncheck`, `datastar-lint`, `css-check`, `api-routes`, `registry-conformance`, skill-frontmatter, advisory drifts); pre-push `govulncheck`+`deadcode` (host-gated, may skip) + `operator-look` (refuses a page/CSS diff with no recorded PASS). Details `docs/local-ci.md`: T1 format → T2 lint → T3 tests → T3.5 `ci-local-fast` → T3.6 `verify-local` (the operator's click) → T4 `ci-local` → T5 `signoff`.
+lefthook pre-commit (fmt, `govulncheck`, `datastar-lint`, `css-check`, `api-routes`, `registry-conformance`, skill-frontmatter, advisory drifts); pre-push `govulncheck`+`deadcode` (host-gated, may skip) + `operator-look` (refuses a page/CSS diff with no recorded PASS). Details `docs/local-ci.md`: T1 format → T2 lint → T3 tests → T4 `ci-local-fast` → T5 `verify-local` (the operator's click) → T6 `ci-local` → T7 `signoff`.
 
 ## Gotchas
 

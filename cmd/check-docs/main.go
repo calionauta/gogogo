@@ -198,6 +198,7 @@ func run() error {
 	}
 	problems := checkCounts(root, files)
 	problems = append(problems, checkLineCounts(root, files)...)
+	problems = append(problems, checkTierLists(root)...)
 	problems = append(problems, checkRetiredTerms(root, files)...)
 	trimmed := trimmedPaths(root)
 	problems = append(problems, checkPaths(root, files, trimmed)...)
