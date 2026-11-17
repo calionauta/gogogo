@@ -1,6 +1,6 @@
 # gogogo
 
-> Full-stack Go web app template — back-end + front-end + DB + auth + LLM + deploy in one binary.
+> Agent-native product foundation in Go — back-end + front-end + DB + auth + LLM + deploy in one binary.
 
 ## Project Overview
 
