@@ -45,14 +45,21 @@ Cascade up as confidence grows. Each tier catches a different failure class;
 lower tiers are ~10× cheaper, so promote only when (a) you are about to
 push/merge, or (b) the change touches an area the next tier checks.
 
+Seven stops in cost order, one integer each. Two of them used to carry a
+fractional label, which read as "sub-steps of the tier before" when neither is
+one: the fast gate re-runs T1+T2 repo-wide, and the operator's click is not a
+test at all. They were renumbered rather than kept, because a label that has to
+be explained is doing no work.
+
 | Tier | Command | Cost | Catches |
 |---|---|---|---|
 | **T1** format + build | `gofumpt -l -d <files>` + `go build ./...` | ~10s | Format drift, compile errors |
 | **T2** lint scoped | `go vet` + `make lint-safe` (host-aware: scoped + memory-capped) + `make templ` / `make datastar-lint` (when `.templ` changed) | ~15–20s | Shadow, mnd, nolintlint, revive, staticcheck, Datastar attribute mistakes |
 | **T3** tests scoped | `go test -race -count=1 <changed-pkg>` | ~5–30s | Race detector on tests, business logic |
-| **T3.5** fast gate | `make ci-local-fast` | **~2–30s** | T1+T2 for the whole repo's cheap checks, plus race tests for **only the changed packages** (auto-detected) |
-| **T4** full local gate | `make ci-local` (refuses first via `check-host-capacity` when the box cannot carry it) | ~6min | Full pre-push check (= CI) |
-| **T5** signoff local | `make signoff` (= T4 + `gh signoff -f`) | ~6min | Same as T4, plus it commits the verification to git |
+| **T4** fast gate | `make ci-local-fast` | **~2–30s** | T1+T2 for the whole repo's cheap checks, plus race tests for **only the changed packages** (auto-detected) |
+| **T5** the operator's click | `make verify-local` | ~60s of human time | Builds the real binary on a fresh database, prints a URL, one account and the routes the diff touched — the judgment no gate replaces (see [When the operator must click](#when-the-operator-must-click-and-how-to-ask)) |
+| **T6** full local gate | `make ci-local` (refuses first via `check-host-capacity` when the box cannot carry it) | ~6min | Full pre-push check (= CI) |
+| **T7** signoff local | `make signoff` (= T6 + `gh signoff -f`) | ~6min | Same as T6, plus it commits the verification to git |
 
 ### Do the new tests pin anything (test-value + diff-cover)
 
@@ -186,7 +193,7 @@ structural, not a filter someone has to maintain.
 (lighter floors — 3 GB RAM, 2 cores, 1.5 load/core, 1 GB disk) refuses a
 wedged box before scoped race starts, and past 8 changed packages
 (`FAST_MAX_PARALLEL_PKGS`) the race run degrades to serial (`-p 1`) to
-bound shared-host load. Refused means the same as T4: scope to one
+bound shared-host load. Refused means the same as T6: scope to one
 package by hand, or let the PR's CI be the gate.
 
 Heavy Go tests guard themselves too: `internal/hostgate.SkipIfConstrained`
@@ -237,7 +244,7 @@ one account, prints the checklist, and removes everything when you press Enter
 (agents: no TTY, so it stops after `--ttl`, default 30 min). Your data is never
 touched — never point it at a live instance.
 
-PASS → `make ci-local` (T4) / `make signoff` / push. FAIL → fix now: an edit and
+PASS → `make ci-local` (T6) / `make signoff` / push. FAIL → fix now: an edit and
 ten seconds, instead of six minutes of gate plus a CI round trip.
 
 ### The look is enforced, not just advised
@@ -307,13 +314,13 @@ No global pre-commit guard by choice: refusing hooks would skip
 `secrets-scan`, which must see every commit — the heavy job (lint) is capped
 instead, and `govulncheck` only runs on `go.mod`/`go.sum` changes.
 
-### Where T4 may run (host-capacity pre-flight)
+### Where T6 may run (host-capacity pre-flight)
 
 - **`make ci-local` refuses first on a box that cannot carry it.**
   `scripts/check-host-capacity.sh` (the `check-host-capacity` prerequisite)
   measures free RAM, cores, 5-minute load and free disk, then fails with the
   offending dimension and the override. A small shared host (lint peak alone
-  is ~2.6 GB RSS; T4 stacks that with the race suite plus three Chromiums)
+  is ~2.6 GB RSS; T6 stacks that with the race suite plus three Chromiums)
   would otherwise pin at 99% CPU and stop answering, starving production and
   co-tenants — that outage is what the gate exists to prevent.
 - **Refused != blocked.** Run `make ci-local-fast` locally and let the PR's

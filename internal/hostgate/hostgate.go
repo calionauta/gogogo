@@ -28,7 +28,7 @@ import (
 )
 
 // Thresholds are the floors for ONE heavy test (repo copy + forked vet).
-// Lighter than the T4 gate (whole suite + browsers): a single heavy test
+// Lighter than the T6 gate (whole suite + browsers): a single heavy test
 // needs headroom, not a whole machine.
 type Thresholds struct {
 	// MinRAMMB refuses below this MemAvailable (MiB).

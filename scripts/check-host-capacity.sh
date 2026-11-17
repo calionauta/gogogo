@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# check-host-capacity.sh — pre-flight for `make ci-local` (the T4 gate).
+# check-host-capacity.sh — pre-flight for `make ci-local` (the T6 gate).
 #
-# Why: T4 runs full-repo lint + the full race suite + four parallel
+# Why: T6 runs full-repo lint + the full race suite + four parallel
 # Playwright suites. Measured 5:50–7:11 on a 10-core Mac; on a small
 # shared host the same workload pins CPU at 99% and the box stops
 # answering (production and co-tenant agents starve), or dies weirdly
@@ -12,7 +12,7 @@
 #
 # Checks (every branch measured; thresholds overridable via env):
 #   RAM:    MemAvailable >= CI_LOCAL_MIN_RAM_MB (default 6144).
-#           T4 stacks the lint peak (~2.6 GB RSS) with the race suite
+#           T6 stacks the lint peak (~2.6 GB RSS) with the race suite
 #           plus three Chromium instances, so it needs headroom well
 #           above the lint-only budget (4096).
 #   CPU:    cores >= CI_LOCAL_MIN_CORES (default 4) AND 5-min loadavg
@@ -20,7 +20,7 @@
 #           The core floor exists because the fan-out runs four heavy
 #           jobs; below it every browser wait flakes. The load ceiling
 #           exists because a box ALREADY saturated (prod traffic, another
-#           agent mid-run) must not take on T4 on top.
+#           agent mid-run) must not take on T6 on top.
 #   Disk:   free on the repo filesystem >= CI_LOCAL_MIN_DISK_MB
 #           (default 2048). Near-full filesystems fail every step with
 #           misleading errors (linker "no space left", not red tests).
@@ -29,7 +29,7 @@
 #   CI_LOCAL_FORCE=1   run anyway (prints the failed dimensions first).
 #
 # Usage: bash scripts/check-host-capacity.sh [--fast]
-#   Exit 0: the box can carry T4. Exit 1: it cannot — run
+#   Exit 0: the box can carry T6. Exit 1: it cannot — run
 #   `make ci-local-fast` locally and let the PR's CI be the full gate.
 #
 #   --fast checks the lighter ci-local-fast budget instead (scoped lint +
@@ -51,10 +51,10 @@ if [ "${1:-}" = "--fast" ]; then
 	MIN_CORES=${CI_LOCAL_FAST_MIN_CORES:-2}
 	MAX_LOAD_PER_CORE=${CI_LOCAL_FAST_MAX_LOAD_PER_CORE:-1.5}
 	MIN_DISK_MB=${CI_LOCAL_FAST_MIN_DISK_MB:-1024}
-	GATE_NAME="make ci-local-fast (T3.5)"
+	GATE_NAME="make ci-local-fast (T4)"
 	FALLBACK_MSG="run single-package scopes (go test <pkg>) when the load settles,"
 else
-	GATE_NAME="make ci-local (T4)"
+	GATE_NAME="make ci-local (T6)"
 	FALLBACK_MSG="run 'make ci-local-fast' locally"
 fi
 

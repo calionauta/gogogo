@@ -24,7 +24,7 @@ Read the SKILL.md by name before the first matching edit (symlinks in `.agents/s
 - `gogogo-recipe-authoring` — recipe contract (owns/must-not-touch, slots, receipts, declared metrics/outcomes, upgrade path). Read before creating/editing a recipe.
 - `cali-code-navigation` — ripwire orient-first; `cali-ops-deploy-github-tailscale` — server/secrets.
 - **Tools (enforced by `make check-agent-tools`):** `ripwire` (orient), `cymbal` (`cymbal index .`), `xerj` (docs/prose, data outside repo), `sem` (diff/history). Rule: symbol/call-graph → ripwire/cymbal; history/diff → `sem`; meaning over code+prose → xerj.
-- **Docs:** behavior changes update the page that describes them in the SAME commit — `docs/` for prose, `llms.txt` for the agent index, `skills/` for the authoring contract, `site/index.html` for the landing. `docs/glossary.md` is where a term is DEFINED (one meaning per term; a new term is defined there in the same commit; the retired names are rejected by `make check-docs`). Counts live only in generated `docs/unit-contracts.md`; `make check-docs` rejects hand counts, dead paths, invented subcommands, undocumented CLI verbs and a stale generated MCP table. The pre-commit staleness hook names the page to review; the PR body names the page you touched. Research/evaluations → `docs/research/` (`Reviewed:` + hub row + MANIFEST + `make docs-index`).
+- **Docs:** behavior changes update the page that describes them in the SAME commit — `docs/` for prose, `llms.txt` for the agent index, `skills/` for the authoring contract, `site/index.html` for the landing. `docs/glossary.md` is where a term is DEFINED (one meaning per term; a new term is defined there in the same commit; the retired names are rejected by `make check-docs`). Counts live only in generated `docs/unit-contracts.md`; `make check-docs` rejects hand counts, dead paths, invented subcommands, undocumented CLI verbs, a stale generated MCP table, and a feedback tier that one page names and another does not (`AGENTS.md` and `docs/local-ci.md` describe the same ladder). The pre-commit staleness hook names the page to review; the PR body names the page you touched. Research/evaluations → `docs/research/` (`Reviewed:` + hub row + MANIFEST + `make docs-index`).
 
 ## Surfaces
 
@@ -81,7 +81,7 @@ Normative: `docs/exception-to-go.md`. Go ~95-99%, zero Zig in tree. Bans: "Zig i
 
 ## Hooks
 
-lefthook pre-commit (fmt, `govulncheck`, `datastar-lint`, `css-check`, `api-routes`, `registry-conformance`, skill-frontmatter, advisory drifts); pre-push `govulncheck`+`deadcode` (host-gated, may skip) + `operator-look` (refuses a page/CSS diff with no recorded PASS). Details `docs/local-ci.md`: T1 format → T2 lint → T3 tests → T3.5 `ci-local-fast` → T3.6 `verify-local` (the operator's click) → T4 `ci-local` → T5 `signoff`.
+lefthook pre-commit (fmt, `govulncheck`, `datastar-lint`, `css-check`, `api-routes`, `registry-conformance`, skill-frontmatter, advisory drifts); pre-push `govulncheck`+`deadcode` (host-gated, may skip) + `operator-look` (refuses a page/CSS diff with no recorded PASS). Details `docs/local-ci.md`: T1 format → T2 lint → T3 tests → T4 `ci-local-fast` → T5 `verify-local` (the operator's click) → T6 `ci-local` → T7 `signoff`.
 
 ## Gotchas
 
