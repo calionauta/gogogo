@@ -15,6 +15,20 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.71.2 (2026-11-18)
+
+## What's Changed
+* docs: answer "did the site publish?" from the deployment record, not the page by @calionauta in https://github.com/calionauta/gogogo/pull/446
+* docs: correct the shape count to six, and stop omitting cmd/gui by @calionauta in https://github.com/calionauta/gogogo/pull/450
+* fix(queue,credits): lease heartbeat, panic recovery, and the phantom billing failure by @calionauta in https://github.com/calionauta/gogogo/pull/451
+* chore(ci): bump actions/upload-artifact from 5 to 7 in the actions group by @dependabot[bot] in https://github.com/calionauta/gogogo/pull/449
+* chore(skills): bump vendored stelow coding standards to 0055d093ffff by @github-actions[bot] in https://github.com/calionauta/gogogo/pull/448
+* fix(db,test): serialize tursogo's native-library extraction by @calionauta in https://github.com/calionauta/gogogo/pull/452
+* refactor(db): move driver loading behind internal/dbload, and repair a killed extraction by @calionauta in https://github.com/calionauta/gogogo/pull/453
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.71.1...v0.71.2
+
 ## 0.71.1 (2026-11-17)
 
 ## What's Changed
