@@ -29,13 +29,36 @@ copies the tree, and `git` is the update path.
 
 ## Quick start
 
+Install the binary, then hand the MCP to your agent — it is the surface you
+actually use, because it answers "should this be gogogo?" from any directory
+and plans before it builds.
+
 ```bash
-curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh | sh -s -- --run
-# Open http://localhost:8080  ·  demo1@demo.app / demo1234456
+curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh | sh
+claude mcp add gogogo -- ~/.local/bin/gogogo-mcp   # or .mcp.json / Codex TOML / opencode / pi
 ```
 
-Manual: `gh repo create my-app --template calionauta/gogogo --clone`, then
-`make rename NAME=my-app`, `make dev`.
+Then ask for what you want built. The server calls `advise_stack`, shows the
+plan, and **asks for the name, owner, directory, shape and languages before it
+writes anything** — `confirm:true` is a guard against an accidental write, not
+consent.
+
+Prefer a shell? The CLI runs the same engine, same plans, same proofs:
+
+```bash
+gogogo advise --need "an internal tool with logins and a dashboard"
+gogogo --name my-app --owner my-org --dry-run --format json   # nothing written
+gogogo --name my-app --owner my-org --yes                     # clone, rename, build proof
+```
+
+Just want to see it run: `curl … | sh -s -- --run`, or scaffold by hand with
+`gh repo create my-app --template calionauta/gogogo --clone`, then
+`make rename NAME=my-app` and `make dev`.
+
+**Not for a landing page.** `GET /` is a redirect — a guest goes to `/login`
+and no marketing page ships. A static or conversion page is another tool's job;
+a product with accounts and state behind a session is this one. A public page
+**plus** an app behind login does fit.
 
 ## Try it live
 
@@ -145,8 +168,13 @@ Taxonomy: [docs/scope-taxonomy](docs/scope-taxonomy.md).
 ## For AI agents
 
 - [`llms.txt`](llms.txt) — what to read per task.
+- Start with `skills/gogogo-adopt/SKILL.md`: whether gogogo fits at all, the
+  ask-before-scaffolding rule, MCP vs CLI, and how to port into an existing app.
+- The MCP server (`cmd/gogogo-mcp`) is the strongest entry point: it carries
+  `instructions` the client loads before any tool call, so the route (advise →
+  plan → **ask** → apply) survives a client that never installed a skill.
 - `go run ./cmd/gogogo advise|doctor|generate|shape|recipe|export|new feature` —
-  the same evolution engine the MCP server (`cmd/gogogo-mcp`) exposes.
+  the same evolution engine the MCP exposes, one verb at a time.
 - Those tools build and evolve a checkout. A product's users and their agents
   call the running server (`POST /api/ext/invoke`) under session and RBAC, never
   the installer MCP. See

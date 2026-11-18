@@ -31,7 +31,6 @@ being one.
 | **UI shell + themes** | DaisyUI v5, four palettes | — |
 | **Persistence** | Turso (sqlc) | — |
 | **Desktop-edge sync** | NATS Leaf Node | `NATS_LEAFNODE_URL` unset |
-| **Landing page** | Templ | — |
 | **Config + admin users** | Templ | — |
 
 ## What each capability does
@@ -58,7 +57,7 @@ being one.
 - **UI shell + themes** — every page renders inside one shell (`internal/ui`); the palettes (`light`, `dark`, `lofi`, `dim`) are DaisyUI themes chosen from the account panel in the sidebar and catalogued in `internal/themes`. On phones (≤720px) a bottom dock (Todo/Board/Chat/Menu, DaisyUI `dock`) gives one-tap navigation on every module, including Chat, where the composer sits above the bar. See [UI themes](ui-themes.md).
 - **Persistence** — One schema/data layer: `internal/db` migrations + generated queries; the driver is platform-selected: tursogo on web/desktop, `ncruces/go-sqlite3` on Android; `cmd/gui` uses ncruces explicitly over the same schema.
 - **Desktop-edge sync** — Leaf-Node live event sync (CRUD + Loro) for desktop/edge clients; offline CRUD replay on reconnect is a follow-up.
-- **Landing page** — The app's own public page on `GET /` (not the GitHub Pages promo site, which is never installed). No auth, no DB. Todo demo lives at `/todo`.
+- **Root page** — `GET /` is a redirect, not a page: a guest goes to `/login` and a session goes to its home. The template ships **no marketing page** on purpose (a landing page is a separate concern and never installed); the todo demo lives at `/todo`.
 - **Config + admin users** — Admin-only `GET /config` (always on, even with RBAC off): env-decrypted values, masked secrets, runtime constants, user role changes, session revocation, the audit panel and CSV. Role/session mutations require the admin's password (or a current code on a passwordless admin).
 
 ## Adding a new feature
@@ -90,7 +89,7 @@ The [Todo feature](todo-example.md) is the full reference implementation.
 
 | Surface | URL | Notes |
 |---|---|---|
-| Landing page | `/` | Public. Same page for guests and signed-in users |
+| Root | `/` | Public redirect: guest → `/login`, session → its home |
 | Dashboard | `/dashboard` | Auth-gated. One card per destination that reports data; the counts match what each page shows; a recipe that declares an outcome also shows its success/total ratio, with the counter signal beside it |
 | Todo demo | `/todo` | Auth-gated. Seeded demo account |
 | Account security | `/account` | Auth-gated. Email verification, password change, TOTP enrollment/recovery, session list/revoke |

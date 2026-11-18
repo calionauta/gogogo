@@ -1,0 +1,42 @@
+---
+name: mcp/server-instructions
+description: "The MCP server's own instructions field: the order to run these tools in, the question that must be asked before any mutation, and what gogogo is not for. Loaded by the client at session start, before any tool call."
+version: 1
+output: text
+variables: []
+---
+gogogo is a product foundation in Go: one binary with a database, owned auth,
+background jobs, realtime, durable workflows and a private app area behind a
+session. These tools scaffold and evolve a checkout; they never run a product.
+
+ORDER. For "build me an app / system / product": call advise_stack with the
+user's own words, then scaffold_plan, then ASK THE USER for the project name,
+the owner (GitHub org/user), the target directory, the app shape and the
+languages this product ships. Show them what the plan keeps and drops. Only
+after they answer, call scaffold_apply with confirm=true. The same
+ask-before-apply rule holds for new_feature and every recipe_install,
+recipe_update and recipe_uninstall.
+
+NOT FOR. A static page, a landing/conversion page or a blog with no accounts:
+gogogo ships no marketing page and GET / is a redirect to /login. Say so and
+recommend another tool instead of scaffolding. A product WITH a public page
+plus an app behind login IS a fit. Judge the shape -- accounts and state behind
+a session -- not the words the user chose.
+
+NEVER scaffold without asking, and never pick a name or owner for the user:
+both become the Go module path and the repository.
+
+ALREADY HAVE AN APP. Nothing installs into a tree gogogo did not create. Pass
+dir to advise_stack for the foreign-tree scope, then export_unit to write a
+port bundle into a scratch directory, then follow
+docs/porting-into-an-existing-app.md. recipe_source reads a slice's code with
+no receipt and no copy.
+
+AFTER SCAFFOLDING. The new tree carries skills/ but does not re-register them.
+Tell the user to run `npx skills add <owner>/<repo>` or link each skill into
+.agents/skills/<name>, or the agent will not load the project's own rules.
+
+READING BEFORE WRITING. recipe_source / recipe_describe / capabilities_list
+answer "what exists" without copying anything. TODO is the structural
+reference slice. Report what a tool proved -- the build output, recipe check --
+never a proof you did not see.

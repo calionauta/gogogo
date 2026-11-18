@@ -67,7 +67,7 @@ type toolDef struct {
 // buildServer registers every tool. Shared by main and tests so the
 // served surface is exactly the tested surface.
 func buildServer() *mcp.Server {
-	server := mcp.NewServer(&mcp.Implementation{Name: "gogogo", Version: installer.Version}, nil)
+	server := mcp.NewServer(&mcp.Implementation{Name: "gogogo", Version: installer.Version}, serverOptions())
 	for _, d := range toolCatalog {
 		d.add(server, &mcp.Tool{Name: d.name, Description: d.desc})
 	}
