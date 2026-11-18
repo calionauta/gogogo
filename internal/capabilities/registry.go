@@ -28,7 +28,7 @@ var baseUnits = []Capability{
 		ID:      "queue",
 		Kind:    KindCore,
 		Summary: "SSE Hub (realtime fan-out) + goqite jobs + workers + retry",
-		Dirs:    []string{"internal/queue", "internal/tursotest"},
+		Dirs:    []string{"internal/queue"},
 		Note: "Core, and the Hub is the load-bearing half: every streaming " +
 			"handler (todo, genui, chat, notes, whiteboard, review, room) " +
 			"names *queue.SSEHub in its constructor, so no tree that removed it " +
@@ -67,7 +67,7 @@ var baseUnits = []Capability{
 		ID:      "database",
 		Kind:    KindCore,
 		Summary: "flat data layer: Turso Database connection + migrations + sqlc queries",
-		Dirs:    []string{"internal/db", "internal/dbschema"},
+		Dirs:    []string{"internal/db", "internal/dbload", "internal/dbschema"},
 		Note: "Core: handlers call the generated dbgen.* functions directly; " +
 			"migrations under internal/dbschema/migrations are the schema (driver-free " +
 			"so zero-CGO targets share it; internal/db owns only the tursogo open).",
