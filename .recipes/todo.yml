@@ -37,7 +37,7 @@ files:
   features/todo/components/todo_item_templ.go: b90bd80ff4b76c771c1174684d42c7feb73fa75f84c3011a5fbe2bb75fb2c317
   features/todo/components/todo_list.templ: c735e449d5f1f8310882b68ba30bfdbdf3ae5160703068f20e7ab9c4cc420d79
   features/todo/components/todo_list_templ.go: 503d3c9efff710cc8343e251128c0e0c5042954f8a20f3a7c6647dd944b38192
-  features/todo/embed.go: e6ba82d62728258995c1cfbeb21f21490ddc54d9d83e526cae52aa9aa5a93e92
+  features/todo/embed.go: 736928828b96e76c3d820a37d6dcb66384056ff87ed10a4b0fc341f9658ae464
   features/todo/event.go: c5c3bd97a987ee9b71b8f2c22ac46ea4fc561f2d907cb35382dfe3a7c848eb46
   features/todo/handlers/bench_test.go: b9a0a3d6a9fc9e038273f026c9589fe60e23fd9ca04a0bd1d1a2c94149e3a7e3
   features/todo/handlers/bridge.go: 582edc869e5a21194bfcc24ec315cf17a549d66cbc99d7da439cf5dd374ff09b
@@ -69,7 +69,7 @@ files:
   features/todo/handlers/panel_action.go: 6f5657564cb6c7f023adab480f8fb4eacb21dc5a280f15de6626397bd83d4992
   features/todo/handlers/panel_action_test.go: 2eaf297f7666935d6c70fd98fef69daa22541a6a0c5e26ab03b9d7bee1d24bf5
   features/todo/handlers/presence_propagation_test.go: a62a4ca0d1a6e8229e6ecc7b097b6a7064de9e0a2dd631aa57fdc10019502ba8
-  features/todo/handlers/recipe.go: 340c579685d162950f9f638306c7b2db9b883e25d402e167e281748ad8c3b957
+  features/todo/handlers/recipe.go: 492561c744f17826e26778c059be432fd030869c8731eff4738a59327acfbf2b
   features/todo/handlers/recipe_migration_test.go: 368240e27a6d5fa7dd7d5d9894954a83de5ffc4e5454bf4e6af6c124bfcbb553
   features/todo/handlers/register.go: 4cfd93e53ee5288b5765f5fecbe0321f6dfbc141922de3085e1e8c0ca52ec38d
   features/todo/handlers/replay_propagation_test.go: 0e16618981b67ff9423fe89e5fc0c3a411a44c7e30d463c29e88681af7d45f35

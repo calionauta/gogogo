@@ -58,7 +58,6 @@ import (
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/todo"
-	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/desktopboot"
@@ -262,5 +261,5 @@ func persistSessionIfNeeded(st *windowState, tokPath string) {
 // todos. It lives here, not in desktopboot: the shared boot must not know which
 // slices exist.
 func todoMigrationSet() dbschema.MigrationSet {
-	return dbschema.MigrationSet{ID: todohandlers.RecipeID, FS: todo.Migrations, Dir: "migrations"}
+	return dbschema.MigrationSet{ID: todo.RecipeID, FS: todo.Migrations, Dir: "migrations"}
 }

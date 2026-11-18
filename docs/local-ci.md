@@ -184,6 +184,33 @@ Use it while iterating; the full `ci-local` (and `make signoff`) remain the
 authoritative pre-push gate — `ci-local-fast` does not replace CI coverage, it
 just stops a CSS tweak from paying for the todo suite.
 
+### The release binaries are built here too: `make release-build-guard`
+
+`bin/check-release-build.sh` answers one question: does every binary the
+release SHIPS build the way the release builds it. It reads the `main:` entries
+out of `.goreleaser.yaml` (so a fourth build added there cannot be forgotten
+here) and runs `CGO_ENABLED=0 go build` for each, across
+linux/darwin/windows × amd64/arm64. Nothing is written (`-o /dev/null`), and it
+runs after "Warm module cache" in CI, so it costs seconds. It is part of both
+`ci-local` and `ci-local-fast`.
+
+It exists because nothing did that before. `.goreleaser.yaml` cross-compiles all
+three binaries with `CGO_ENABLED=0` from one Linux runner; `cmd/gui` imported
+`features/todo/handlers` for a single constant (`RecipeID`) and thereby pulled in
+`internal/recipe/register` → `internal/collab` → `loro-go`, which needs cgo. The
+`CGO_ENABLED=0` build died on `undefined: DiffEvent`, and **every release from
+v0.63.0 to v0.71.2 failed with zero assets** — the first line of the landing
+page, `curl … | sh`, was a 404 for nine releases. A host-native `go build ./...`
+cannot see it (the host has cgo on, and `cmd/web` is built with cgo in the
+Dockerfile), and the only job that built the shipped combination was
+`release.yml`, which runs after the tag exists and which nobody read.
+
+The general rule this encodes: **a build that only works with cgo is a build
+that does not ship.** If a release binary needs a cgo dependency, either remove
+it from that binary's import graph (the `cmd/gui` fix) or move that binary to a
+per-OS runner with cgo on — which costs the one-runner matrix, so it is the
+heavier answer, not the default one.
+
 ### A recipe's tests have a name: `make test-recipe R=<id>`
 
 The changed-package scope answers "what did this diff touch". `test-recipe`
