@@ -4,7 +4,7 @@ package collab
 import (
 	"log/slog"
 
-	"github.com/aholstenson/loro-go"
+	"github.com/calionauta/loro-go"
 	natsio "github.com/nats-io/nats.go"
 
 	"github.com/calionauta/gogogo/internal/queue"

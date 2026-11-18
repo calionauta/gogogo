@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	loro "github.com/aholstenson/loro-go"
+	loro "github.com/calionauta/loro-go"
 )
 
 // textBody is the root Loro Text container holding a note's characters.

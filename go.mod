@@ -14,11 +14,11 @@ tool (
 require (
 	filippo.io/age v1.3.2
 	github.com/a-h/templ v0.3.1070
-	github.com/aholstenson/loro-go v0.5.0
 	github.com/arl/statsviz v0.8.2
 	github.com/avast/retry-go/v4 v4.7.0
 	github.com/calionauta/ai-credits v0.6.0
 	github.com/calionauta/daisyui-lint v0.2.1
+	github.com/calionauta/loro-go v0.5.2
 	github.com/casbin/casbin/v3 v3.11.0
 	github.com/danmestas/dagnats v0.0.30
 	github.com/egoist/mygo v0.8.3
@@ -192,16 +192,3 @@ require (
 	google.golang.org/grpc v1.84.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 )
-
-// loro-go ships fat-LTO archives, which Go 1.27.4 refuses to pass to the C
-// linker ("disallowed LTO section __LLVM,__bitcode"). This fork is the same Go
-// code, with the bitcode stripped from the archives it ships, so a cgo build
-// still links. Drop the replace once upstream publishes bitcode-free archives —
-// see PATCHED.md in the fork and docs/troubleshooting.md.
-//
-// upstream v0.5.0 — the marker `.github/workflows/loro-upstream-watch.yml` reads.
-// It must stay on ONE line: the watcher greps for `upstream vX.Y.Z`, and a
-// marker broken across two comment lines silently makes the watcher a no-op
-// (which is exactly what happened between 2026-11-11 and the fix below — the
-// job failed every Monday with an empty baseline and nobody read it).
-replace github.com/aholstenson/loro-go => github.com/calionauta/loro-go v0.5.1
