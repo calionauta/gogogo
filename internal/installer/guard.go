@@ -75,3 +75,18 @@ func allowedRoots() []string {
 	}
 	return out
 }
+
+// guardWritable is the read-only rail for a verb that may or may not write:
+// dryRun and "print the plan, then stop for --yes" change nothing, and the
+// read-only message promises that planning still works. Only the call that
+// would actually touch the tree is refused.
+//
+// It runs BEFORE anything judges the tree. A read-only machine must answer
+// "read-only", never "not a gogogo checkout" — the second reads like a bug and
+// sends an operator looking at the wrong thing.
+func guardWritable(dir string, willWrite bool) error {
+	if !willWrite {
+		return nil
+	}
+	return guardMutable(dir)
+}

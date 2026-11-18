@@ -40,6 +40,11 @@ func runRecipeInstall(args []string, stdout io.Writer, requireExisting bool) err
 	if err != nil {
 		return err
 	}
+	// It was missing on this path entirely: GOGOGO_READONLY=1 refused scaffold
+	// and `new`, but `recipe install` walked past it and wrote.
+	if railErr := guardWritable(opt.dir, opt.yes); railErr != nil {
+		return railErr
+	}
 	source, err := loadInstallSource(opt)
 	if err != nil {
 		return err

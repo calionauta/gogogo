@@ -179,7 +179,7 @@ and no tool call can lift them:
 
 | Variable | Effect |
 |---|---|
-| `GOGOGO_READONLY=1` | every mutation refuses (`scaffold_apply`, `new_feature`, `recipe_install/update/uninstall`…). `advise_stack`, `scaffold_plan`, `capabilities_list`, `recipe_source`, `version_status` and `check` keep working |
+| `GOGOGO_READONLY=1` | every mutation refuses: `scaffold_apply`, `new_feature`, `recipe_install`/`update`/`uninstall`, `recipe_enable`/`disable`. `advise_stack`, `scaffold_plan`, `capabilities_list`, `recipe_source`, `version_status` and `check` keep working — and a plan (`--dry-run`, or a verb without `confirm:true`) still prints |
 | `GOGOGO_ALLOWED_ROOTS=/abs/a:/abs/b` | confines `dir` / `from` to those roots (`os.PathListSeparator`-separated). A path outside is refused before anything is read or cloned |
 
 Use `GOGOGO_READONLY=1` when the agent should advise ("is gogogo right for

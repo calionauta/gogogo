@@ -171,6 +171,12 @@ func runRecipeSetState(args []string, enabled bool, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
+	// The read-only rail. enable/disable write a row to the app database, which
+	// changes what mounts on the next boot — a mutation, even though no file in
+	// the checkout moves.
+	if railErr := guardMutable(opt.dir); railErr != nil {
+		return railErr
+	}
 	root, aerr := filepath.Abs(opt.dir)
 	if aerr != nil {
 		return &ExitError{code: 1, msg: "recipe " + command + ": " + aerr.Error()}
