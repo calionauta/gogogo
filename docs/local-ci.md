@@ -184,6 +184,48 @@ Use it while iterating; the full `ci-local` (and `make signoff`) remain the
 authoritative pre-push gate — `ci-local-fast` does not replace CI coverage, it
 just stops a CSS tweak from paying for the todo suite.
 
+### A feature's recipe id has one spelling: `TestRecipeIDConvention`
+
+Every in-tree feature names itself once, beside the declaration that reports it:
+
+```go
+// features/<name>/handlers/
+const RecipeID = "<id>"
+```
+
+That id is three things at once — the namespace the feature's DDL is applied
+under (`dbschema.MigrationSet.ID`), the name its declaration answers to over
+MCP, and the key its `.recipes/<id>.yml` receipt is filed under — so a fourth
+spelling does not fail to compile, it silently files one feature's schema under
+another name. `TestRecipeIDConvention` (in `internal/capabilities`, so it runs
+in the ordinary `go test ./...` and in both `ci-local` targets) pins it in both
+directions and needs no new Make target:
+
+| Rule | Why |
+|---|---|
+| one `const RecipeID` per feature, in `features/<name>/handlers/` | 12 of 12 features, one spelling |
+| the value is a string **literal** | the gate reads source; it does not evaluate |
+| it matches `.recipes/<name>.yml`'s `id:` | constant, declaration and receipt cannot drift |
+| the constant lives nowhere else in the tree | the half that catches a "helpful" move |
+| a duplicate id across features fails | the ledger keys on it |
+
+It exists because that exception shipped. `RecipeID` was briefly moved out of
+`features/todo/handlers` into `features/todo` — sound about the symptom (the
+native shell must not link cgo) and wrong about the cure, because it made `todo`
+the one feature in twelve whose constant lived somewhere else. A per-feature
+exception is the class of change the boundary gates exist to refuse. The shell
+now spells the id as a local literal and pins it with
+`TestTodoRecipeIDMatchesTheUnit`; test files are not compiled into the released
+binary, so the assertion costs the cgo boundary nothing.
+
+The general shape, worth reusing: **when a non-handler caller needs one value
+from a package it must not link, do not move the value — restate it locally and
+pin it with a test.** The test carries the coupling; the binary does not.
+
+A scaffold template (`internal/installer/new_scaffold.go`) contains the same
+`const RecipeID` because it EMITS the convention; the gate recognises template
+payloads by the `"{{module}}/` placeholder and exempts them.
+
 ### The release binaries are built here too: `make release-build-guard`
 
 `bin/check-release-build.sh` answers one question: does every binary the

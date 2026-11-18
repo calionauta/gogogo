@@ -7,6 +7,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 )
 
 // The poll loop is the native window's realtime-read path: refresh off the UI
@@ -130,5 +132,20 @@ func signInSecondNative(t *testing.T, s *windowState) {
 	s.signIn()
 	if snap := s.snapshot(); !snap.signedIn {
 		t.Fatalf("second sign-in failed: %s", snap.authErr)
+	}
+}
+
+// TestTodoRecipeIDMatchesTheUnit pins the literal in main.go against the unit's
+// own declaration. The literal exists so this binary does not import
+// features/todo/handlers (see the comment on todoRecipeID): handlers registers
+// through internal/recipe/register -> internal/collab -> loro-go, which needs
+// cgo, and this binary ships with CGO_ENABLED=0. A test file is never compiled
+// into the released binary, so importing handlers HERE is free — and it turns a
+// silent drift (a renamed recipe writing its schema under a stale id) into a
+// failing test.
+func TestTodoRecipeIDMatchesTheUnit(t *testing.T) {
+	if todoRecipeID != todohandlers.RecipeID {
+		t.Fatalf("cmd/gui writes the todo schema under %q, but the unit declares %q",
+			todoRecipeID, todohandlers.RecipeID)
 	}
 }

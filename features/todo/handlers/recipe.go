@@ -12,11 +12,11 @@ import (
 	"github.com/calionauta/gogogo/internal/recipe"
 )
 
-// RecipeID is the recipe id the todo unit declares itself under. It is aliased,
-// not redefined: the constant lives in features/todo beside the DDL it names, so
-// a caller that only needs the migration id (cmd/gui) does not have to import
-// this package and drag the handler tree into its build.
-const RecipeID = todo.RecipeID
+// RecipeID is the recipe id the todo unit declares itself under. It lives
+// beside the declaration, like every other feature's — a per-feature exception
+// (this one was briefly "owned" by features/todo instead) is the drift
+// `make check-recipe-ids` now refuses.
+const RecipeID = "todo"
 
 // Route patterns, one spelling each: a rename that missed one would split the
 // declared surface from the mounted one, which the composition gate refuses.
