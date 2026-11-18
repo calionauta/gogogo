@@ -65,3 +65,29 @@ if [ "$fail" -ne 0 ]; then
   exit 2
 fi
 echo "  ✓ install.sh bootstrap contract holds"
+
+# 3. The installer must hand over the MCP, or the front door stays unlabelled.
+#
+# The page and docs now lead with "wire the MCP", and install.sh installs
+# gogogo-mcp on PATH — then used to say nothing about it, so the one next step
+# nobody guesses went unprinted. Text-only, like the guards above: it must be
+# PRINTED (never executed), because a script that edits a client's config file
+# on its own breaks configurations it cannot see.
+if grep -qE 'claude mcp add .*gogogo-mcp' install.sh && grep -qE 'gogogo advise --need' install.sh; then
+  note "✅ installer prints the MCP wiring and the no-agent CLI path"
+else
+  echo "  ❌ install.sh no longer prints how to wire the MCP (and the CLI"
+  echo "     fallback) — it installs gogogo-mcp and says nothing about it"
+  fail=1
+fi
+
+# ... and it must not wire itself. Editing ~/.claude.json or a Codex TOML from
+# an installer is the failure mode this note exists to prevent.
+if grep -nE '^[^#]*(jq [^|]*(claude|cursor)\.json|\.codex/config\.toml)' install.sh >/dev/null 2>&1; then
+  echo "  ❌ install.sh edits a client config file — print the command, never run it"
+  fail=1
+else
+  note "✅ installer never edits a client config"
+fi
+
+exit $fail

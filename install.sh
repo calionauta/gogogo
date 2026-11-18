@@ -137,6 +137,23 @@ fi
 
 "$BIN_DIR/gogogo" --version
 
+# The MCP is the entry point most people want next, and the one nobody guesses:
+# a binary on PATH is not a wired client. Printed (not run) because every
+# client spells it differently and a script that edits ~/.claude.json or a
+# Codex TOML on its own is a script that breaks someone's config.
+if [ "${1:-}" != "--run" ]; then
+  echo
+  echo "next — hand it to your agent (the MCP is the surface you actually use):"
+  echo "  claude mcp add gogogo -- $BIN_DIR/gogogo-mcp"
+  echo "  # Codex / OpenCode / Pi: see docs/mcp.md"
+  echo "then ask for what you want built — it plans, and asks you for the name,"
+  echo "owner and languages before it writes anything."
+  echo
+  echo "no agent? the same engine is on the command line:"
+  echo "  gogogo advise --need 'an internal tool with logins and a dashboard'"
+  echo "just want to see it run:  $0 --run   (or: gogogo --run)"
+fi
+
 # One-line mode: after installing, become the scaffold (`--run` takes the
 # terminal via /dev/tty because stdin here is the download pipe, not the
 # keyboard). Humans only — agents use the printed path, never this.
