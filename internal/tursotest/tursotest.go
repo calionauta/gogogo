@@ -68,12 +68,6 @@ func CacheDir() string {
 	return filepath.Join(root, "turso-go")
 }
 
-// Modes the library itself uses for its cache directory and files.
-const (
-	cacheDirPerm  = 0o755
-	cacheFilePerm = 0o644
-)
-
 func lock() (unlock func(), err error) {
 	dir := CacheDir()
 	// #nosec G703 -- a cache dir this process chose, not request input.
