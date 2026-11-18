@@ -28,7 +28,7 @@ var baseUnits = []Capability{
 		ID:      "queue",
 		Kind:    KindCore,
 		Summary: "SSE Hub (realtime fan-out) + goqite jobs + workers + retry",
-		Dirs:    []string{"internal/queue"},
+		Dirs:    []string{"internal/queue", "internal/tursotest"},
 		Note: "Core, and the Hub is the load-bearing half: every streaming " +
 			"handler (todo, genui, chat, notes, whiteboard, review, room) " +
 			"names *queue.SSEHub in its constructor, so no tree that removed it " +
