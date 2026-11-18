@@ -564,7 +564,7 @@ jobs:
         run: bash scripts/assert-public-ready.test.sh
 
   race:
-    needs: [changes]
+    needs: [changeset, changes]
     # A docs-only changeset skips the suite, and so does one that touches no Go
     # package at all (scope_kind=none: CSS, markdown, deploy files). Running 80
     # packages for those is the waste this job now avoids, and `skipped` reports
