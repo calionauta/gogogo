@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	turso_libs "github.com/tursodatabase/turso-go-platform-libs"
 	"golang.org/x/sys/unix"
@@ -58,6 +59,17 @@ func warmDriver() error {
 	defer func() { _ = unix.Flock(int(f.Fd()), unix.LOCK_UN) }()
 
 	if _, err := turso_libs.LoadTursoLibrary(turso_libs.LoadTursoLibraryConfig{}); err != nil {
+		// The one error worth a sentence here: tursogo's extraction is not
+		// atomic, so a killed process can leave a truncated library that every
+		// later boot rejects with a bare hash comparison. Without this, the
+		// operator reads a hash mismatch and has no idea the fix is "delete a
+		// cache directory". Any other failure passes through as-is — guessing
+		// at causes we cannot identify would be worse than the raw error.
+		if strings.Contains(err.Error(), "hash sum mismatch") {
+			return fmt.Errorf("db: load the turso native library: %w\n\n"+
+				"a hash mismatch on a file that already exists means a previous\n"+
+				"extraction was interrupted; delete %s and restart", err, cacheDirForMessage())
+		}
 		return fmt.Errorf("db: load the turso native library: %w", err)
 	}
 	return nil
