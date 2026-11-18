@@ -141,6 +141,13 @@ jobs:
       pkgs: ${{ steps.scope.outputs.pkgs }}
       scope_kind: ${{ steps.scope.outputs.kind }}
     steps:
+      # The scope step reads the diff and shells out to
+      # scripts/changed-packages.sh, so this job needs the tree. `changeset`
+      # does its own checkout for the same reason; the split kept the two jobs
+      # independent, so each owns its own.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # the classifier diffs base...HEAD, so history must exist
       - name: Install the pinned Go toolchain manually
         # The scope step below shells out to scripts/changed-packages.sh, which
         # runs `go list`. Leaving that to the runner's preinstalled Go is the
