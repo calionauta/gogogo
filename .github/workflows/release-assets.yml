@@ -1,0 +1,72 @@
+name: Release assets watch
+
+# A published release that carries no binaries is invisible until someone
+# tries to install. From v0.63.0 to v0.71.2 that lasted nine releases: the
+# landing page's first line is `curl … | sh`, and it 404'd the whole time.
+#
+# release.yml already asserts the asset COUNT at publish time, but two failure
+# modes slip past it:
+#   * the goreleaser job dies before that step runs (the run goes red, nobody
+#     reads it — nine releases);
+#   * release-please publishes the release and goreleaser never triggers.
+# A daily look at the newest published release catches both, and costs one API
+# call. This is deliberately NOT on the pull-request path: a PR cannot know
+# what the last published release contains, and making every push depend on
+# GitHub would slow the loop for a fact that only changes on a tag.
+#
+# Manual run: gh workflow run release-assets.yml -f tag=v0.71.2
+
+on:
+  schedule:
+    # Daily, off the hour: GitHub queues cron jobs at :00 and delays them under
+    # load, which reads as a flaky gate.
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to check (empty = newest published)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-assets-watch
+  cancel-in-progress: false
+
+jobs:
+  assets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            bin/check-release-assets.sh
+            install.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Check the newest published release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag || '' }}
+        run: |
+          set -euo pipefail
+          if [ -n "$TAG" ]; then
+            bin/check-release-assets.sh "$TAG"
+          else
+            bin/check-release-assets.sh
+          fi
+
+      - name: Explain the failure to whoever reads the run
+        if: failure()
+        run: |
+          echo "::error::The newest published release is not installable."
+          echo "A visitor's first command is \`curl … | sh\`, which downloads an"
+          echo "asset from the latest release. If the release has none, the"
+          echo "landing page's first line is a 404."
+          echo ""
+          echo "Fix path: check the release.yml run for that tag. If goreleaser"
+          echo "failed, the cause is almost always a binary that does not build"
+          echo "with CGO_ENABLED=0 (see \`make release-build-guard\`, which now"
+          echo "runs on every PR precisely so this cannot reach a tag)."
