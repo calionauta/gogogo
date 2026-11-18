@@ -28,11 +28,13 @@
 //	ensure_windows.go  LockFileEx (Windows has no flock)
 //	ensure_none.go     the no-op, for drivers with nothing to extract
 //
-// # Two copies, on purpose
+// # One implementation, for product and tests alike
 //
-// This package is duplicated as internal/tursotest (tests cannot import the
-// product tree). tests_driver_cache_test.go fails the moment the two copies
-// drift. When the loader moves, it moves in both, in one commit.
+// There is no test-side copy. A _test.go file imports this package like any
+// other (hundreds already import the product tree), so a second copy would be
+// two implementations to keep in step — and the first attempt at this guard
+// shipped exactly that mistake, then nearly shipped a repair that deleted
+// nothing because the copy nobody exercised had the bug.
 package dbload
 
 import (
