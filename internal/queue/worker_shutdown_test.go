@@ -96,7 +96,7 @@ func TestWorkerStopIsPromptWhenQueueFails(t *testing.T) {
 		t.Fatalf("New: %v", err)
 	}
 
-	pool := NewWorkerPool(q.q, q.Hub(), q.Registry(), 4)
+	pool := NewWorkerPool(q, q.Hub(), q.Registry(), 4)
 	pool.Start()
 
 	// Close the queue out from under the workers so every receive fails. This

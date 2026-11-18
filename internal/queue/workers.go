@@ -4,7 +4,9 @@ package queue
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -36,8 +38,11 @@ const (
 // centralized in RetryConfig, and the worker pool never blocks longer
 // than MaxDelay between attempts.
 type WorkerPool struct {
-	q        *goqite.Queue
-	qMu      sync.RWMutex // protects q against concurrent Close()
+	// q is the OWNING Queue, not a goqite handle: the pool must go through its
+	// locked accessors so a concurrent Close cannot invalidate what a worker is
+	// mid-call on. It used to carry a raw *goqite.Queue plus a qMu that nothing
+	// ever write-locked, which made the mutex decorative.
+	q        queueSource
 	hub      *SSEHub
 	reg      *HandlerRegistry
 	retry    *RetryConfig
@@ -47,12 +52,27 @@ type WorkerPool struct {
 	ctx      context.Context //nolint:containedctx // lifecycle context for the pool, not request-scoped
 	cancel   context.CancelFunc
 	stopOnce sync.Once
+
+	// beatInterval and lease override the production timing in tests. Zero means
+	// the package constants. Fields rather than package vars so two pools in one
+	// process cannot see each other's values.
+	beatInterval time.Duration
+	lease        time.Duration
 }
 
 // NewWorkerPool wires a worker pool with default retry settings
 // (DefaultRetryConfig: 3 attempts, 2s→30s exponential backoff, ±20% jitter).
 // Call SetRetry to override.
-func NewWorkerPool(q *goqite.Queue, hub *SSEHub, reg *HandlerRegistry, count int) *WorkerPool {
+// queueSource is the slice of Queue the pool needs. Declared at the consumer
+// (Go interfaces belong where they are used) so a test can drive the pool with
+// a fake, and so the pool cannot reach for anything else on the queue.
+type queueSource interface {
+	receiveAndWait(ctx context.Context, timeout time.Duration) (*goqite.Message, error)
+	deleteMessage(ctx context.Context, id goqite.ID) error
+	extend(ctx context.Context, id goqite.ID, lease time.Duration) error
+}
+
+func NewWorkerPool(q queueSource, hub *SSEHub, reg *HandlerRegistry, count int) *WorkerPool {
 	return &WorkerPool{
 		q:      q,
 		hub:    hub,
@@ -159,14 +179,9 @@ func (wp *WorkerPool) worker(id int) {
 			return
 		}
 
-		q := wp.qGuard()
-		if q == nil {
-			return // Queue was closed; stop draining.
-		}
-
-		msg, err := q.ReceiveAndWait(wp.ctx, time.Second)
+		msg, err := wp.q.receiveAndWait(wp.ctx, time.Second)
 		if err != nil {
-			if wp.stopping() {
+			if wp.stopping() || errors.Is(err, ErrQueueClosed) {
 				return // a teardown, not a queue failure
 			}
 			slog.Warn("queue worker: receive error", "worker_id", id, "error", err)
@@ -186,13 +201,136 @@ func (wp *WorkerPool) worker(id int) {
 		}
 		slog.Debug("queue worker: received", "worker_id", id)
 
-		wp.processMessage(context.Background(), msg)
+		if rec := wp.runLeased(msg); rec != nil {
+			// The handler panicked: do NOT delete, and hand the message back.
+			wp.releasePanicked(msg.ID)
+			continue
+		}
 
-		if q := wp.qGuard(); q != nil {
-			if err := q.Delete(context.Background(), msg.ID); err != nil {
-				slog.Warn("queue worker: delete error", "worker_id", id, "error", err)
+		if err := wp.q.deleteMessage(context.Background(), msg.ID); err != nil {
+			if errors.Is(err, ErrQueueClosed) {
+				return // shutdown drained the queue out from under us
+			}
+			slog.Warn("queue worker: delete error", "worker_id", id, "error", err)
+		}
+	}
+}
+
+// runLeased runs one message while keeping its lease alive, and reports whether
+// the handler finished.
+//
+// Both defers are load-bearing and were missing:
+//
+//   - stopBeat() MUST be deferred. Called straight-line, a panicking handler
+//     skipped it: the heartbeat kept ticking (it exits on the pool's ctx, so it
+//     is not a permanent leak) and kept EXTENDING the lease of a message the
+//     worker had walked away from — so that job was never redelivered for as
+//     long as the pool lived. Invisible to goleak, because the goroutine does
+//     die at shutdown, and invisible to a "the worker survived" test, because
+//     it did. Only "did the job come back?" catches it.
+//   - recover() keeps ONE message's failure from being a worker's death. Without
+//     it the panic unwound `worker()`, wg.Done ran, and the pool ran with one
+//     fewer worker forever; nothing restarts it.
+//
+// A recovered panic does not consume the job: the caller skips the delete and
+// releases the lease, so goqite hands the message to another attempt.
+//
+// It returns the recovered value (nil when the handler finished), not a bool:
+// the caller needs to know WHICH panic happened for its log line, and a bool
+// forced a second field or a re-derivation.
+func (wp *WorkerPool) runLeased(msg *goqite.Message) (recovered any) {
+	// Keep the lease alive for as long as the handler runs, so the visibility
+	// timeout can stay short (fast crash recovery) without re-delivering a slow
+	// job mid-flight. Nothing called goqite.Extend before; the lease was made 10
+	// minutes long instead, which meant a crashed worker's job sat invisible for
+	// 10 minutes.
+	stopBeat := wp.heartbeat(msg.ID)
+	defer stopBeat()
+
+	defer func() {
+		if rec := recover(); rec != nil {
+			slog.Error("queue worker: handler panicked",
+				append(jobAttrs(jobTypeOf(msg.Body)),
+					"message_id", msg.ID, "panic", rec, "stack", string(debug.Stack()))...)
+			recovered = rec
+		}
+	}()
+
+	wp.processMessage(context.Background(), msg)
+	return nil
+}
+
+// heartbeat extends the message's visibility every queueHeartbeatInterval until
+// the returned stop func is called. Callers must call it (defer/stop) before
+// deleting the message: an extension that lands after the delete is harmless,
+// but a goroutine left running is a leak the queue tests would catch.
+func (wp *WorkerPool) heartbeat(id goqite.ID) (stop func()) {
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		// Snapshotted OUTSIDE the goroutine's loop, before any tick: both are
+		// fixed for the life of this heartbeat.
+		interval := queueHeartbeatInterval
+		if wp.beatInterval > 0 {
+			interval = wp.beatInterval // test seam: no 20s wait in the suite
+		}
+		lease := queueVisibilityTimeout
+		if wp.lease > 0 {
+			lease = wp.lease // test seam: a short lease so "never redelivered" is observable
+		}
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-wp.ctx.Done():
+				return
+			case <-ticker.C:
+				// WithoutCancel: the pool context being cancelled is how we are
+				// told to stop, and a cancelled ctx would also fail the extend
+				// of a job that is still running fine.
+				if err := wp.q.extend(context.WithoutCancel(wp.ctx), id, lease); err != nil {
+					if !errors.Is(err, ErrQueueClosed) && !wp.stopping() {
+						slog.Warn("queue worker: extend lease failed",
+							"message_id", id, "error", err)
+					}
+					return
+				}
 			}
 		}
+	})
+	return func() {
+		close(done)
+		wg.Wait()
+	}
+}
+
+// releasePanicked makes a message whose handler panicked immediately
+// receivable again, instead of waiting out a lease nobody is extending.
+//
+// This is not belt-and-braces, and both halves were measured against goqite:
+//
+//   - Stopping the heartbeat does not SHORTEN a lease, it only stops EXTENDING
+//     it. The row keeps the `timeout` its last extend wrote, so the message
+//     stays invisible for up to a full lease before goqite hands it out again.
+//   - While invisible it is gone from the queue's point of view. Leaving it
+//     alone is therefore indistinguishable from a crashed process — the right
+//     trade for a real crash, the wrong one here: the process is alive and could
+//     retry now.
+//
+// Extending by 0 writes `timeout = now`, the documented way to make a job
+// immediately receivable. What makes repeating that safe is the recorded panic:
+// a handler that panics every time is retried promptly, and every attempt logs
+// its type, message id and stack.
+func (wp *WorkerPool) releasePanicked(id goqite.ID) {
+	// WithoutCancel: the pool's ctx is already done during shutdown, and
+	// releasing a lease is cleanup that must still run then.
+	if err := wp.q.extend(context.WithoutCancel(wp.ctx), id, 0); err != nil &&
+		!errors.Is(err, ErrQueueClosed) {
+		slog.Warn("queue worker: could not release the lease of a panicked job; "+
+			"it will be redelivered when the lease expires",
+			"message_id", id, "error", err)
 	}
 }
 
@@ -262,11 +400,4 @@ func jobTypeOf(body []byte) string {
 		return ""
 	}
 	return j.Type
-}
-
-// qGuard returns the underlying goqite queue or nil if it has been closed.
-func (wp *WorkerPool) qGuard() *goqite.Queue {
-	wp.qMu.RLock()
-	defer wp.qMu.RUnlock()
-	return wp.q
 }

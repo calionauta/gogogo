@@ -9380,9 +9380,6 @@
     .hover\:bg-base-200:hover {
       background-color: var(--color-base-200);
     }
-    .hover\:opacity-90:hover {
-      opacity: 90%;
-    }
     .hover\:shadow-md:hover {
       --tw-shadow: 0 4px 6px -1px var(--tw-shadow-color, rgb(0 0 0 / 0.1)), 0 2px 4px -2px var(--tw-shadow-color, rgb(0 0 0 / 0.1));
       box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);

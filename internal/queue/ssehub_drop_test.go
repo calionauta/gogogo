@@ -71,8 +71,13 @@ func TestSSEHub_EveryDropReasonIsReported(t *testing.T) {
 				mu.Unlock()
 			}))
 
-			// A full, unbuffered-into client: capacity 0 so any send is a drop.
-			slow := make(chan []byte)
+			// A full client: capacity 1 with the slot already taken, so the very
+			// next non-blocking send is a drop. It must be BUFFERED — Register
+			// rejects capacity 0 (an unbuffered channel never accepts a
+			// non-blocking send, so it would make every event a drop and hide
+			// real backpressure behind a setup mistake).
+			slow := make(chan []byte, 1)
+			slow <- []byte("occupied")
 			// Register under the id each case targets. The replay case registers
 			// its own id inside run(), so it registers nothing here.
 			if tc.reason != "slow-client-replay" {

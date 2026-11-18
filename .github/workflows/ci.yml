@@ -47,32 +47,32 @@ jobs:
   # These runners are GitHub-hosted (4vCPU/16GB each); do NOT copy this
   # fan-out onto a small self-hosted box — local `make ci-local` keeps its
   # host-capacity gates for exactly that reason.
-  changes:
-    # Changeset classifier: docs-only changes (docs/, site/, markdown,
-    # LICENSE, stelow notes, .gitignore) cannot affect the Go build or the
-    # embedded CSS — docs/*.md is validated by pages.yml (site-check) and
-    # the pre-commit hooks, and src/css/input.css no longer scans site/.
-    # The heavy jobs below skip on docs-only, but this workflow ALWAYS
-    # runs so the required `ci` status still reports (a trigger-level
-    # paths-ignore would skip the whole workflow and leave `ci` pending
-    # forever on docs PRs — the exact failure this replaces).
-    # Owned git-diff logic, no third-party action: PRs diff base...HEAD,
-    # pushes diff before...after, anything else (dispatch, shallow
-    # weirdness) fails open to a full run.
+  changeset:
+    # The changeset classifier, ALONE. It answers one question — "is this diff
+    # inert?" — in ~5s (checkout + git diff), and it is the only thing most
+    # gates actually need.
+    #
+    # WHY IT IS A SEPARATE JOB FROM `changes`. `changes` also computes the Go
+    # test scope, which needs the pinned toolchain, a restored module cache and
+    # `go list` over the whole module: measured 27s on run 44142988832 (5s of
+    # diff, then 22s of toolchain + cache + `go list`). Every gate used to wait
+    # on that 27s because `needs: [changes]` was the only way to read
+    # docs_only — so checks/browser/prod-image/site paid 27s of serial prefix
+    # for a boolean that was ready at 5s. Only `race` consumes the package
+    # list, so only `race` needs the expensive half.
+    #
+    # Measured effect on the same run's job durations: the five non-Go gates
+    # start at +6s instead of +32s, and the wall's critical path moves from
+    # prod-image (183s) to race shard 1 (169s) — ~15s off every PR.
+    #
+    # The heavy jobs still skip on docs-only, but this workflow ALWAYS runs so
+    # the required `ci` status still reports (a trigger-level paths-ignore
+    # would skip the whole workflow and leave `ci` pending forever on docs
+    # PRs — the exact failure this replaces).
     runs-on: ubuntu-latest
-    # One ceiling per job, on purpose: a step that never returns otherwise
-    # holds a runner until GitHub's 6-hour default, and a gate that cannot
-    # fail is not a gate. The browser job's own fence (30) is the longest
-    # because its suites are the slowest; every value is well above the
-    # measured cost, so this is a hung-runner backstop, not a deadline.
-    timeout-minutes: 10
+    timeout-minutes: 5
     outputs:
       docs_only: ${{ steps.filter.outputs.docs_only }}
-      # pkgs: the packages the race suite must run, newline-separated, already
-      # expanded to their transitive dependents. Empty means "no Go package is
-      # affected". Written by the scope step below; consumed by the race job.
-      pkgs: ${{ steps.scope.outputs.pkgs }}
-      scope_kind: ${{ steps.scope.outputs.kind }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -120,8 +120,28 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           bash bin/check-docs-staleness.sh --diff "${{ github.event.pull_request.base.sha }}..HEAD"
-      - if: steps.filter.outputs.docs_only != 'true'
-        name: Install the pinned Go toolchain manually
+
+  changes:
+    # The Go test scope: which packages `race` must run. Kept separate from
+    # `changeset` because it is the expensive half (toolchain + module cache +
+    # `go list`, measured 27s) and only `race` consumes its output.
+    needs: [changeset]
+    if: needs.changeset.outputs.docs_only != 'true'
+    runs-on: ubuntu-latest
+    # One ceiling per job, on purpose: a step that never returns otherwise
+    # holds a runner until GitHub's 6-hour default, and a gate that cannot
+    # fail is not a gate. The browser job's own fence (30) is the longest
+    # because its suites are the slowest; every value is well above the
+    # measured cost, so this is a hung-runner backstop, not a deadline.
+    timeout-minutes: 10
+    outputs:
+      # pkgs: the packages the race suite must run, newline-separated, already
+      # expanded to their transitive dependents. Empty means "no Go package is
+      # affected". Written by the scope step below; consumed by the race job.
+      pkgs: ${{ steps.scope.outputs.pkgs }}
+      scope_kind: ${{ steps.scope.outputs.kind }}
+    steps:
+      - name: Install the pinned Go toolchain manually
         # The scope step below shells out to scripts/changed-packages.sh, which
         # runs `go list`. Leaving that to the runner's preinstalled Go is the
         # failure bin/check-ci-deps.sh exists to prevent — it cannot see a `go`
@@ -130,11 +150,10 @@ jobs:
         # fetch one mid-step).
         run: |
           bash bin/install-go-toolchain.sh
-      - if: steps.filter.outputs.docs_only != 'true'
-        name: Restore Go module download cache
-        # This job is the serial prefix on EVERY other job (`needs: [changes]`),
-        # so its cost is the wall's cost. It was 60s, 50s of it a cold
-        # `go mod download`; with the zip cache restored it is ~10s.
+      - name: Restore Go module download cache
+        # 50s of this job used to be a cold `go mod download`; with the zip
+        # cache restored it is ~10s. Only `race` waits on this job now, so a
+        # slow restore here costs one shard's start, not the whole wall.
         uses: actions/cache@v6
         continue-on-error: true
         with:
@@ -142,13 +161,11 @@ jobs:
           key: go-mod-dl-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
           restore-keys: |
             go-mod-dl-${{ runner.os }}-
-      - if: steps.filter.outputs.docs_only != 'true'
-        name: Warm module cache
+      - name: Warm module cache
         # `go list` resolves the module graph; the proxy answers storms with
         # transient INTERNAL_ERRORs that go does not retry on its own.
         run: bash bin/go-mod-download.sh
       - id: scope
-        if: steps.filter.outputs.docs_only != 'true'
         # Test selection, PR-only. A merged commit always runs the full suite:
         # an error in the selection then cannot accumulate silently across PRs,
         # and a master push does not block anything (deploy runs in parallel).
@@ -236,8 +253,8 @@ jobs:
             echo "scope: $(printf '%s\n' "$SELECTED" | wc -l) of $(full | wc -l) packages"
           fi
   checks:
-    needs: [changes]
-    if: needs.changes.outputs.docs_only != 'true'
+    needs: [changeset]
+    if: needs.changeset.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -490,7 +507,15 @@ jobs:
       - name: Set up Node (CSS build)
         uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          # 22, not 20, for two measured reasons.
+          # (1) TOOLCACHE: ubuntu-24.04 ships Node 22.23.4, so this resolves
+          #     from the image instead of downloading a tarball. The "Set up
+          #     Node" step measured 3.0s here and 15.0s in the Playwright jobs.
+          # (2) SECURITY: @axe-core/playwright requires node >=22.12.0 and CI
+          #     was installing it under 20 (npm warn EBADENGINE on every run).
+          #     The dependency a security gate is built on should not be
+          #     installed under an engine it does not support.
+          node-version: "22"
       - name: CSS build
         # css-check builds what it diffs. A check that diffs a file it did
         # not rebuild compares it to itself: empty by construction, green
@@ -544,7 +569,7 @@ jobs:
     # package at all (scope_kind=none: CSS, markdown, deploy files). Running 80
     # packages for those is the waste this job now avoids, and `skipped` reports
     # through the aggregator as green by construction.
-    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.scope_kind != 'none'
+    if: needs.changeset.outputs.docs_only != 'true' && needs.changes.outputs.scope_kind != 'none'
     # Three shards. The cost table isolates internal/installer (a third of the
     # suite, and it saturates the box alone), so the split is: shard 0 = the
     # outlier, shards 1-2 = the remaining ~79 packages bin-packed. Measured
@@ -668,8 +693,8 @@ jobs:
           TEST_PKGS_FILE="$RUNNER_TEMP/shard.txt" bash scripts/test-web.sh -race -count=1 -v
 
   browser:
-    needs: [changes]
-    if: needs.changes.outputs.docs_only != 'true'
+    needs: [changeset]
+    if: needs.changeset.outputs.docs_only != 'true'
     # Two groups, one runner each. The five suites are ~120s serial and the
     # setup around them ~80s, so the split buys the smaller half of that for the
     # price of a second runner. The parallelism is across RUNNERS on purpose:
@@ -764,7 +789,13 @@ jobs:
       - name: Set up Node (Playwright)
         uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          # 22, not 20. The runner image already carries 22.23.4 (toolcache, no
+          # download) and @axe-core/playwright — the library the a11y gate is
+          # built on — declares node >=22.12.0. Under 20 npm printed
+          # EBADENGINE on every run and axe happened to work; installing a
+          # security tool under an unsupported engine is the kind of latent
+          # breakage that surfaces as "the gate stopped running" months later.
+          node-version: "22"
       - name: Install JS deps
         # The client suites import the playwright library: install from the
         # lockfile. (Previously this arrived incidentally — make css ran npm
@@ -868,8 +899,8 @@ jobs:
           if-no-files-found: warn
 
   prod-image:
-    needs: [changes]
-    if: needs.changes.outputs.docs_only != 'true'
+    needs: [changeset]
+    if: needs.changeset.outputs.docs_only != 'true'
     # Committed sources + Dockerfile only (no Go/Node): a broken image
     # fails fast in parallel instead of after the whole suite.
     runs-on: ubuntu-latest
@@ -903,7 +934,9 @@ jobs:
       - name: Set up Node (Playwright)
         uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          # 22 for the same reason as the browser job above: toolcache hit and
+          # @axe-core/playwright's engine floor.
+          node-version: "22"
       - name: Install JS deps
         run: npm ci --no-audit --no-fund
       - name: Restore Playwright browsers
@@ -971,7 +1004,10 @@ jobs:
     # Skipped gates (docs-only changesets) are green by construction:
     # only `failure` fails this job, so the required status always
     # reports even when the heavy jobs never ran.
-    needs: [changes, checks, race, browser, prod-image, site, release-guard]
+    # `changes` is listed even though only `race` needs it: the aggregator
+    # reports on every gate by name, and a job missing from `needs` is a gate
+    # whose failure never reaches the required status.
+    needs: [changeset, changes, checks, race, browser, prod-image, site, release-guard]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 10

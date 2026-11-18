@@ -136,10 +136,31 @@ func NewSSEHub(opts ...HubOption) *SSEHub {
 // events buffered since the hub was created, just synchronously
 // (no goroutine is spawned).
 //
+// ch MUST BE BUFFERED (cap > 0). The hub delivers with
+// `select { case ch <- data: default: drop }`, so on an unbuffered channel
+// that select takes `default` EVERY time a reader is not already parked: the
+// client would receive events only by luck, and every miss would be logged as
+// "slow client" while the client itself was perfectly healthy. That failure is
+// silent, intermittent, and looks like a slow browser — it cost a debugging
+// session once. So an unbuffered channel is rejected here, at setup, which is
+// where the mistake is visible; production uses
+// config.DefaultClientQueueSize.
+//
+// The check is a panic rather than an error because Register has no error
+// return and this is a programming mistake, not a runtime condition: it fires
+// during handler setup (a `defer h.Unregister` runs immediately, no partial
+// state), and any HTTP-scoped panic becomes a logged 500 through
+// server.recoveryMiddleware rather than a dead connection.
+//
 // Safe to call multiple times with the same clientID; the channel
 // is replaced and the buffer is preserved (so a re-connecting tab
 // doesn't lose intermediate events).
 func (h *SSEHub) Register(clientID, userID string, ch chan []byte) {
+	if cap(ch) == 0 {
+		panic("queue: SSEHub.Register needs a BUFFERED channel; an unbuffered one " +
+			"never accepts a non-blocking send, so the client silently misses events " +
+			"(use config.DefaultClientQueueSize)")
+	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.clients[clientID] = ch
@@ -147,8 +168,10 @@ func (h *SSEHub) Register(clientID, userID string, ch chan []byte) {
 
 	// Drain the replay buffer SYNCHRONOUSLY. We hold the write lock
 	// so a concurrent Send either sees us as already-registered and
-	// pushes to the channel, or — if it grabbed the lock first
-	// pushes to the buffer (which we'll drain next call).
+	// pushes to the channel, or — if it grabbed the lock first —
+	// pushes to the buffer (which we'll drain now). That is why sendLocal
+	// holds its read lock across the lookup AND the send; releasing it in
+	// between made this drain miss events that no channel would ever read.
 	//
 	// Drop-on-full: a slow client during replay is the same
 	// backpressure path as a slow live client; the event is gone,
@@ -222,19 +245,35 @@ func (h *SSEHub) Send(clientID string, data []byte) {
 
 // sendLocal is the pre-bridge delivery path: the client's channel, or the
 // replay buffer when it is not registered on THIS instance.
+//
+// The lookup of h.clients and the send happen in ONE lock hold, on purpose.
+// Split (lookup under RLock, send after RUnlock) a concurrent Register lands
+// in between and replaces the channel — then drains AND deletes the replay
+// buffer, which is the authority for "this client has been served up to
+// here". The event went to a channel no handler reads any more and was in no
+// buffer either: silently lost, every time a tab reconnected at the wrong
+// instant. "Register holds the write lock" only guarantees anything to a
+// sender that holds the read lock across the whole decision.
+//
+// Only the not-registered path touches h.buffer, and it does so after
+// releasing the read lock (an append is a write; under RLock it would race
+// other senders). That keeps the documented late-event behaviour: an event
+// landing just before a client registers is replayed by Register's drain.
 func (h *SSEHub) sendLocal(clientID string, data []byte) {
 	h.mu.RLock()
 	ch, registered := h.clients[clientID]
+	if registered {
+		// Deferred so the release cannot drift away from the acquire: the send
+		// MUST happen before the unlock (see the invariant above), and a
+		// hand-written pair reads as if a future early return could skip it.
+		defer h.mu.RUnlock()
+		h.deliverOrDrop(clientID, ch, data, "slow-client")
+		return
+	}
 	h.mu.RUnlock()
 
-	if registered {
-		select {
-		case ch <- data:
-			return
-		default:
-			h.onDrop(clientID, data, "slow-client")
-		}
-	}
+	// Not registered on this instance: append to the replay buffer. This is a
+	// WRITE, so it cannot happen under the read lock — it takes its own.
 	h.bufferEvent(clientID, data)
 }
 
@@ -442,43 +481,4 @@ func (h *SSEHub) CountUserClients() int {
 		}
 	}
 	return count
-}
-
-// bufferEvent appends data to the per-client replay buffer, dropping
-// the oldest event if the buffer is full. Caller must NOT hold the
-// mutex (this function acquires it).
-func (h *SSEHub) bufferEvent(clientID string, data []byte) {
-	if h.maxBuffer <= 0 {
-		// Replay disabled — keep the most recent event only in a
-		// single-slot "in case a client connects later" buffer? No:
-		// honour the contract. Drop.
-		h.onDrop(clientID, data, "replay-disabled")
-		return
-	}
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	buf := h.buffer[clientID]
-	if len(buf) >= h.maxBuffer {
-		// Ring buffer: drop oldest.
-		buf = buf[1:]
-	}
-	h.buffer[clientID] = append(buf, data)
-}
-
-// deliverOrDrop attempts a non-blocking send on ch, reporting a full channel to
-// onDrop with reason. This is the backpressure contract in one place: producers
-// never block on a slow client.
-//
-// It exists because the same select appeared at four fan-out sites — the replay
-// drain in Register, Broadcast, BroadcastExcept and BroadcastToUser — differing
-// only in the reason string. Four copies meant the policy could drift between
-// them (one site gaining a timeout, another changing what counts as "slow")
-// without any test noticing. Callers hold at least a read lock; this helper
-// takes no lock of its own.
-func (h *SSEHub) deliverOrDrop(clientID string, ch chan []byte, data []byte, reason string) {
-	select {
-	case ch <- data:
-	default:
-		h.onDrop(clientID, data, reason)
-	}
 }

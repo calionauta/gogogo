@@ -64,24 +64,6 @@ func (s *Service) Authorize(ctx context.Context, model, prompt string) (llm.Sett
 	}, nil
 }
 
-func settleCall(ctx context.Context, s *Service, rsv *credits.Reservation, model string, u provider.Usage) {
-	rec := fromGoAIUsage("", "", model, u) // model + tokens drive the cost
-	if !hasTokens(u) {
-		_ = s.Credits.Release(ctx, rsv) // error/abort → release, bill nothing
-		return
-	}
-	cost, err := s.Credits.Credits(ctx, rec)
-	if err != nil {
-		_ = s.Credits.Release(ctx, rsv)
-		return
-	}
-	if err := s.Credits.Settle(ctx, rsv, cost); err != nil {
-		// A failed settle leaves the reservation open; Reconcile expires it
-		// (no double charge). The caller surfaces non-zero usage otherwise.
-		_ = err
-	}
-}
-
 func hasTokens(u provider.Usage) bool {
 	return u.InputTokens+u.OutputTokens+u.CacheReadTokens+u.CacheWriteTokens+u.ReasoningTokens > 0
 }

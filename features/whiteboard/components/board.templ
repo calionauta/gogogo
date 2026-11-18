@@ -109,32 +109,54 @@ templ boardsBody(boards []BoardMeta) {
 	</div>
 }
 
-// WhiteboardListFragment renders just the whiteboard list grid. It is the
-// target of the @get('/api/whiteboards/fragment') resync, of the delete
-// patch, and it carries the id="whiteboard-list" selector that the server
-// sets datastar-selector for.
+// WhiteboardListFragment renders the whiteboard index. It is the target of the
+// @get('/api/whiteboards/fragment') resync, of the delete patch, and it carries
+// the id="whiteboard-list" selector that the server sets datastar-selector for.
+//
+// The rows are the notes index's `menu` shape, on purpose: notes and
+// whiteboards are the same thing to a user (a document you open by clicking a
+// row), so they must not read as two different products.
+//
+// WHY NOT `grid` + `ui-card`. This fragment used to be `<div class="grid">`
+// wrapping one `ui-card ui-card-body flex flex-row` per row, which loses two
+// ways at once:
+//   - `.ui-card` / `.ui-card-body` are ONE component pair. `ui-card` is the
+//     card's OUTER box (column flex, `height: 100%`) and `ui-card-body` is the
+//     padding INSIDE it. Stacking both on one element asks for a card whose
+//     content box is also its own frame, and then `flex-row` disagrees with
+//     `.ui-card-body`'s `flex-direction: column`.
+//   - The tie goes to whichever stylesheet is stronger, and it is NOT the one
+//     you would expect: chrome.css is hand-written and unlayered, while
+//     `.flex-row` lives in app.min.css inside `@layer utilities`. Tailwind v4
+//     emits every utility into a cascade layer, and unlayered CSS beats ANY
+//     layer regardless of order — so `column` wins, the row's link and its
+//     delete button stack vertically, and the row reads as a cramped block
+//     centred in the column.
 templ WhiteboardListFragment(boards []BoardMeta) {
-	<div id="whiteboard-list" class="grid gap-2">
+	<div id="whiteboard-list">
 		if len(boards) == 0 {
 			<div class="ui-card">
 				<div class="ui-empty">
 					<p class="text-sm text-base-content/60">{ i18n.T(ctx, "whiteboard.empty", nil) }</p>
 				</div>
 			</div>
-		}
-		for _, b := range boards {
-			<div class="ui-card ui-card-body flex flex-row items-center gap-2 hover:opacity-90">
-				<a class="flex-1 min-w-0" href={ templ.URL("/whiteboard/" + b.DocID) }>
-					<div class="font-mono text-sm truncate">{ b.DocID }</div>
-					<div class="text-xs text-base-content/60 flex items-center gap-2">
-						<span>version { strconv.Itoa(b.DocVer) }</span>
-						@authorBadge(b.Author, b.IsMine)
-					</div>
-				</a>
-				if b.CanDelete {
-					@deleteBoardButton(b.DocID, b.Author)
+		} else {
+			<ul class="menu bg-base-200 rounded-box w-full">
+				for _, b := range boards {
+					<li>
+						<div class="flex items-center justify-between gap-2">
+							<a href={ templ.URL("/whiteboard/" + b.DocID) } class="flex-1 min-w-0">
+								<span class="font-mono text-sm truncate">{ b.DocID }</span>
+								<span class="text-xs text-base-content/50 ml-2">version { strconv.Itoa(b.DocVer) }</span>
+								@authorBadge(b.Author, b.IsMine)
+							</a>
+							if b.CanDelete {
+								@deleteBoardButton(b.DocID, b.Author)
+							}
+						</div>
+					</li>
 				}
-			</div>
+			</ul>
 		}
 	</div>
 }

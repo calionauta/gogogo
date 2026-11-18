@@ -248,6 +248,23 @@ assert_set "a touched .templ pulls its package and its dependents" \
 assert_empty "without the flag a .templ change yields nothing" \
     "$(scope "${FX}")"
 
+# ── 5b. a testdata/ change seeds the package that OWNS it ──
+# The Go spelling of a dependency the import graph cannot see. A fixture read
+# from disk never appears in .Imports, so a diff that only touches it used to
+# select ZERO packages while the test that reads it went red: measured on the
+# real tree, corrupting internal/server/testdata/pages/account.digest fails
+# `go test ./internal/server` and the selector reported nothing to run.
+reset_fixture
+mkdir -p "${FX}/templpage/testdata"
+printf 'digest\n' > "${FX}/templpage/testdata/page.digest"
+assert_set "a testdata/ change pulls its owning package and its dependents" \
+    "$(scope "${FX}" --with-dependents)" \
+    "${FX}/templpage" "${FX}/templuser"
+
+# …and it stays out of lint scope: testdata/ holds no Go code to lint.
+assert_empty "without the flag a testdata/ change yields nothing" \
+    "$(scope "${FX}")"
+
 # ── 6. shared plumbing invalidates everything (fail-open) ──
 reset_fixture
 printf '\n# touched\n' >> "${FX}/Makefile"

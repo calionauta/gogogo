@@ -318,15 +318,20 @@ func (f *FederatedPresence) renewLease(ctx context.Context) {
 		}
 		f.publish(doc, peers)
 	}
-	f.expireRemote()
+	f.expireAndBroadcast(ctx)
 }
 
-// expireRemote forgets rosters whose instance stopped refreshing them.
-func (f *FederatedPresence) expireRemote() {
+// expireRemote forgets rosters whose instance stopped refreshing them, and
+// returns the docs whose peer set actually changed so the caller can
+// re-broadcast the merged count. A doc whose rosters were all still fresh is
+// not returned, so an idle tick publishes nothing.
+func (f *FederatedPresence) expireRemote() []string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	now := time.Now()
+	var changed []string
 	for doc, byInstance := range f.remote {
+		before := len(byInstance)
 		for inst, r := range byInstance {
 			if now.Sub(r.seen) > rosterTTL {
 				delete(byInstance, inst)
@@ -335,7 +340,11 @@ func (f *FederatedPresence) expireRemote() {
 		if len(byInstance) == 0 {
 			delete(f.remote, doc)
 		}
+		if len(byInstance) != before {
+			changed = append(changed, doc)
+		}
 	}
+	return changed
 }
 
 // remoteCount reports how many peer instances currently report docID.
@@ -370,7 +379,7 @@ func (f *FederatedPresence) onSnapshot(m *natsio.Msg) {
 	// The merged count is what the tabs render, so re-broadcast it on every
 	// peer change — locally and, via the doc bridge, to the other instances'
 	// tabs (which merge the same snapshots and reach the same union).
-	f.broadcastCount(docID)
+	f.broadcastCount(context.Background(), docID)
 }
 
 // recordRemote stores a peer roster, reporting whether the merged view changed.
@@ -388,12 +397,47 @@ func (f *FederatedPresence) recordRemote(docID string, snap rosterSnapshot) bool
 	return changed
 }
 
+// recordStalePeerForTest plants a peer roster that is already past rosterTTL,
+// so a test can exercise expiry without waiting 30s. Test-only.
+func (f *FederatedPresence) RecordStalePeerForTest(docID, instance string, peers []string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.remote[docID] == nil {
+		f.remote[docID] = make(map[string]remoteRoster)
+	}
+	f.remote[docID][instance] = remoteRoster{
+		peers: peers,
+		seen:  time.Now().Add(-2 * rosterTTL),
+	}
+}
+
+// ExpireNowForTest runs one lease-expiry pass synchronously. It calls the
+// PRODUCTION path (expireAndBroadcast) rather than a copy of it: a test that
+// re-implements the loop cannot catch a bug in the loop.
+func (f *FederatedPresence) ExpireNowForTest(ctx context.Context) {
+	f.expireAndBroadcast(ctx)
+}
+
+// expireAndBroadcast drops rosters whose instance stopped refreshing them and
+// re-broadcasts the merged count for each doc whose peer set changed.
+//
+// A peer instance leaving CHANGES the count the tabs render, so it needs the
+// same re-broadcast a peer joining gets. Expiring without this left the "N
+// online" pill showing the departed instance until the next lease tick happened
+// to fire — up to rosterTTL of a wrong count, and the person the user was
+// watching leave is exactly the case they notice.
+func (f *FederatedPresence) expireAndBroadcast(ctx context.Context) {
+	for _, doc := range f.expireRemote() {
+		f.broadcastCount(ctx, doc)
+	}
+}
+
 // broadcastCount sends the merged roster as the authoritative count frame.
-func (f *FederatedPresence) broadcastCount(docID string) {
+func (f *FederatedPresence) broadcastCount(ctx context.Context, docID string) {
 	if f.hub == nil {
 		return
 	}
-	peers, err := f.List(context.Background(), docID)
+	peers, err := f.List(ctx, docID)
 	if err != nil {
 		return
 	}

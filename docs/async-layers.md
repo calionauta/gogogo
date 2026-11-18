@@ -25,11 +25,15 @@ JetStream    → multi-instance broadcast + cross-instance state (opt-out: NATS_
 GoAkt grains → one addressable owner per room/doc: roster, locks, supervision (opt-out: GOAKT_ENABLED=false; collaborative presence falls back to PeerSet)
 ```
 
-Jobs run once: the queue visibility window (10min) exceeds the slowest
-legitimate job, so a slow LLM call is never re-executed mid-flight
-(goqite redelivers past the window, up to MaxReceive — persistence
-dedupes by idem key, live SSE sends do not, so keep handlers fast or
-the window long).
+Jobs run once, and the lease is what guarantees it. The visibility window is
+short (30s) and a worker EXTENDS it every 10s for as long as its handler runs
+(`WorkerPool.heartbeat`), so a live job is never re-delivered no matter how long
+the model takes, while a crashed worker is recovered in 30s instead of a full
+window. Before the heartbeat the window had to cover the slowest legitimate job
+(10min), which meant one constant carried both "long enough for a slow call" and
+"short enough to notice a dead worker" — it cannot be both. Handlers stay fast
+anyway: goqite caps redelivery at MaxReceive, and persistence dedupes by idem key
+while live SSE sends do not.
 
 ## Transport matrix (queryable)
 
@@ -104,7 +108,10 @@ and cursors ride the bridge.
 Federation is snapshots, not deltas: each instance republishes its full roster on
 a 10s lease, a remote entry expires after three missed leases (a SIGKILLed pod
 cannot announce its own death), and an orderly shutdown publishes an empty roster
-so peers drop those connections at once. Convergence comes from the next
+so peers drop those connections at once. Expiry RE-BROADCASTS the merged count
+(`expireAndBroadcast`) exactly like a join or a leave: dropping a peer changes
+what the tabs render, and a departed instance must not linger in the count until
+some unrelated event happens to push a frame. Convergence comes from the next
 snapshot, never from sequencing or acks. Both wires are core NATS, best-effort,
 and neither is persisted.
 

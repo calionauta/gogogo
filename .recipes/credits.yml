@@ -6,11 +6,11 @@ upstream:
   ref: master
   path: features/credits
 files:
-  features/credits/biller.go: 03b98e8301137a6bb88b2aceda499a1a815045ad0be07b2c51d7ff6ba166a744
+  features/credits/biller.go: 87e57fba52817982f42cb9661a1fd6ba8a5ba78f18b4c601b4ead9c4a32a8408
   features/credits/biller_test.go: b445fa9f0b00304278a41e84d031e700a95780cb091e0bfc26c1dff86e149ea6
   features/credits/credits.go: 547cb6979e416dad610112c7bdff1cc82e97b1d607d1fcebc3734aa21b92d8a7
-  features/credits/gateway.go: 3de972e627629cb3d1b49664d678836f1f08c9fe6d0a9522e4daedf4a28b83b5
-  features/credits/gateway_test.go: 05fdb0efb84bb74310aa8cee06f3e1eea68a27de26e2744388f9404848095800
+  features/credits/gateway.go: 4bf4e35ff282da2a78e0143811ce47ea73d5f45c8a5b627551740c73aa87fed9
+  features/credits/gateway_test.go: ba577d6af8e05fe4629bab04a2ee9d4d3dab7d9545e20da36595a0e12bf52e92
   features/credits/handlers/chi.go: ab7202af4951c3be4b4d1b5303c70a3691040ed5a2a455420354d83770fc94a9
   features/credits/handlers/chi_test.go: ff694c632ef43dfd45477ca54e35027b73d601703815b727cb107b4062f57236
   features/credits/handlers/driver_android.go: 0456c4150c6674aecad5b2cad51eddb04c4d4691cf2629b85b8afded40814cf7

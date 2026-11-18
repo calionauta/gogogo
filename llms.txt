@@ -58,6 +58,15 @@
 
 ## Invariants (do not relearn these)
 
+- Concurrency: `-race` proves no unsafe memory access, NOT that an interleaving
+  is correct. A decision and the action it licenses are ONE lock hold — releasing
+  between "where does this go" and "put it there" loses the update silently, and
+  channels make it race-free. Errors inside their own nil-check never get here
+  (ruleguard `SwallowedErrorInCheck`); temporal properties (`a call must not
+  outlive its lease`) need a model, not a linter. Details and the three failure
+  modes:
+  `skills/gogogo-coding-standards/references/go-concurrency-deltas.md#lost-updates-the-bugs--race-cannot-see`.
+
 - Flat stack only: chi handlers + dbgen queries, no framework.
 - A new direct dependency needs a pass through docs/dependency-principles.md and
   a one-line trade-off record in the PR body; raising the native floor (a new

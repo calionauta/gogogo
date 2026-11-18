@@ -6,9 +6,9 @@ upstream:
   ref: master
   path: features/whiteboard
 files:
-  features/whiteboard/components/board.templ: 1fade6c8c136945b701f1916a1d9c2940f18934277cd1ae71118d0d616d32c22
-  features/whiteboard/components/board_templ.go: fc2473c2b9e43ebc88db07be99aaa026e423d0993976d61e196a95e61a6fcca5
-  features/whiteboard/components/board_test.go: 4a6dc998db694b7da81fa490b466f45d46cf82d77b6e6b19d2d0e16e3998ae16
+  features/whiteboard/components/board.templ: 1be4bb1afd540fdd7e3eb8ecd52bd3fd9694f6315deed23d1ddacac7a3b60b2f
+  features/whiteboard/components/board_templ.go: e6d448cf59e181692447f6f12a0ba4e4b3a1fee02f1f0bbcef2ad90bdd4b3f25
+  features/whiteboard/components/board_test.go: 88776e96d64f93e313f3331e0eba30ba657abfebfd27f46e9d1fafb3b92c9780
   features/whiteboard/embed.go: 211f94c30a286c4e7307af6344c77abf76f224a1ae949b8463ab44d86d7870d0
   features/whiteboard/handlers/chi.go: e1265b3ad6f246fc25a0fc61f334b0782e25185ff0b8516fe0ccc4d374d67b6e
   features/whiteboard/handlers/chi_test.go: 8c22cb5fcdbbc52bfd8f6353c3ad82c45cc47f2c6d653926bdfa8f27c400b9ab

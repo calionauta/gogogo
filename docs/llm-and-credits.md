@@ -123,6 +123,18 @@ pricing by actual token usage, conservative reserve/settle for unknown-output
 calls, lazy monthly entitlements, Stripe top-ups, and a reconciler. It stays
 completely dormant unless enabled.
 
+**A reservation is a lease, and a lease can lapse before the answer does.** The
+reserve is held for 5 minutes; the reconciler expires stale ones every 10. A model
+call that outlives its lease therefore settles against an already-refunded
+reservation, and `Settle` fails its compare-and-set with "already closed". That
+is expected, not exceptional: `settleCall` charges the real cost as a separate
+ledger debit keyed `settle-gap:<reservation id>`, so a call is billed exactly once
+even when recovery is replayed (the ledger's UNIQUE idempotency key makes the
+second attempt a no-op). The debit is logged at WARN with the reason
+`settle_after_lease_expiry`, and any OTHER settle error is logged at ERROR rather
+than discarded — a silent branch there is what let this go unnoticed while the
+ledger stayed perfectly consistent.
+
 ```bash
 # Managed mode: Todo AI Suggest reserves before the call and settles at GoAI's
 # actual usage. Insufficient balance blocks the call before it reaches a provider.

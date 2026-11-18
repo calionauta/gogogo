@@ -17,7 +17,7 @@ require (
 	github.com/aholstenson/loro-go v0.5.0
 	github.com/arl/statsviz v0.8.2
 	github.com/avast/retry-go/v4 v4.7.0
-	github.com/calionauta/ai-credits v0.5.0
+	github.com/calionauta/ai-credits v0.6.0
 	github.com/calionauta/daisyui-lint v0.2.1
 	github.com/casbin/casbin/v3 v3.11.0
 	github.com/danmestas/dagnats v0.0.30
