@@ -30,17 +30,22 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 
 fail=0
-echo "→ release build guard (CGO_ENABLED=0, goreleaser's matrix)"
+echo "→ release build guard (goreleaser's own matrix and flags)"
 
-# The binaries come from .goreleaser.yaml, not from this file: a fourth build
-# added there and forgotten here would be a guard with a hole.
-BINARIES=$(awk '
-  /^builds:/            { inbuilds=1; next }
-  inbuilds && /^[a-z]/  { inbuilds=0 }
-  inbuilds && /main:/   { sub(/.*main:[ ]*/, ""); sub(/[ ]*#.*/, ""); print }
+# The binaries AND their flags come from .goreleaser.yaml, not from this file:
+# a fourth build added there and forgotten here would be a guard with a hole,
+# and a build that legitimately turns cgo ON must not be failed by a guard that
+# hardcodes it off. So read `main:` and that build's own CGO_ENABLED.
+PARSED=$(awk '
+  /^builds:/                { inbuilds=1; next }
+  inbuilds && /^[a-z]/      { inbuilds=0 }
+  inbuilds && /^  - id:/    { if (main != "") print main "=" (cgo==""?"0":cgo); cgo=""; main="" }
+  inbuilds && /main:/       { m=$0; sub(/.*main:[ ]*/, "", m); sub(/[ ]*#.*/, "", m); main=m }
+  inbuilds && /CGO_ENABLED=/ { c=$0; sub(/.*CGO_ENABLED=/, "", c); sub(/[^0-9].*/, "", c); cgo=c }
+  END                       { if (main != "") print main "=" (cgo==""?"0":cgo) }
 ' .goreleaser.yaml)
 
-if [ -z "$BINARIES" ]; then
+if [ -z "$PARSED" ]; then
   echo "❌ could not read any 'main:' entries from .goreleaser.yaml"
   exit 1
 fi
@@ -52,10 +57,12 @@ fi
 OSES="linux darwin windows"
 ARCHES="amd64 arm64"
 
-for main in $BINARIES; do
+for entry in $PARSED; do
+  main="${entry%%=*}"
+  cgo="${entry##*=}"
   for os in $OSES; do
     for arch in $ARCHES; do
-      if out=$(CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" \
+      if out=$(CGO_ENABLED="$cgo" GOOS="$os" GOARCH="$arch" \
                go build -o /dev/null "$main" 2>&1); then
         continue
       fi

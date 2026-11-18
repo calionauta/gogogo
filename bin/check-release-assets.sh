@@ -62,9 +62,20 @@ echo "→ release asset guard ($REPO $TAG)"
 #   1. the release has assets at all  (the v0.63.0..v0.71.2 failure)
 #   2. the asset install.sh actually fetches is one of them  (a rename that
 #      leaves a release "non-empty" but still undownloadable)
+# Distinguish "the release does not exist" from "it exists and is empty": they
+# point at different runs, and telling an operator to check release.yml for a
+# tag that was never published sends them to a workflow that never ran.
+if ! gh release view "$TAG" --repo "$REPO" --json tagName >/dev/null 2>&1; then
+  echo "  ❌ no published release for $TAG in $REPO"
+  echo "     Nothing to install: this tag was never released, or it was deleted."
+  echo "     If it WAS released, the release-please run that cuts it is the one"
+  echo "     to read (release.yml only runs after the tag exists)."
+  exit 1
+fi
+
 ASSETS=$(gh release view "$TAG" --repo "$REPO" --json assets -q '.assets[].name' 2>/dev/null)
 if [ -z "$ASSETS" ]; then
-  echo "  ❌ $TAG has no assets"
+  echo "  ❌ $TAG exists but carries no assets"
   echo "     release-please published the release, but the goreleaser run that"
   echo "     attaches the binaries failed. Check the release.yml run for $TAG."
   exit 1

@@ -930,7 +930,7 @@ claude mcp add gogogo -- ~/.local/bin/gogogo-mcp</code></pre>
       <p class="step-num">01</p>
       <h3>Install the binary</h3>
       <ul class="step-list">
-        <li>Needs curl and git.</li>
+        <li>Needs curl, tar and shasum — no Go, no git.</li>
         <li>Puts <code>gogogo</code> and <code>gogogo-mcp</code> in <code>~/.local/bin</code>.</li>
       </ul>
       <div class="install-block">
@@ -959,7 +959,7 @@ claude mcp add gogogo -- ~/.local/bin/gogogo-mcp</code></pre>
         <div class="panels">
           <div class="panel panel-claude"><pre><code>{ "mcpServers": { "gogogo": { "command": "/home/you/.local/bin/gogogo-mcp" } } }</code></pre><p class="install-note">Save as <code>.mcp.json</code> in your project, or run <code>claude mcp add gogogo -- ~/.local/bin/gogogo-mcp</code>.</p></div>
           <div class="panel panel-codex"><pre><code>[mcp_servers.gogogo]
-command = "/home/you/.local/bin/gogogo-mcp"</code></pre><p class="install-note">In <code>~/.codex/config.toml</code> (every project) or <code>.codex/config.toml</code> (this project).</p></div>
+command = "/home/you/.local/bin/gogogo-mcp"</code></pre><p class="install-note">Or one command: <code>codex mcp add gogogo -- /home/you/.local/bin/gogogo-mcp</code>. The TOML is the same thing, for <code>~/.codex/config.toml</code> (every project) or <code>.codex/config.toml</code> (this one).</p></div>
           <div class="panel panel-opencode"><pre><code>opencode mcp add gogogo -- ~/.local/bin/gogogo-mcp</code></pre><p class="install-note">Or in <code>opencode.json</code>: <code>"mcp": {"gogogo": {"type": "local", "command": ["/home/you/.local/bin/gogogo-mcp"]}}</code>.</p></div>
           <div class="panel panel-pi"><pre><code>pi mcp add gogogo -- ~/.local/bin/gogogo-mcp</code></pre><p class="install-note">Pi reads the standard <code>mcpServers</code> format too — migrating from another client just works.</p></div>
         </div>

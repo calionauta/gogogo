@@ -18,6 +18,14 @@ require (
 	github.com/avast/retry-go/v4 v4.7.0
 	github.com/calionauta/ai-credits v0.6.0
 	github.com/calionauta/daisyui-lint v0.2.1
+	// loro-go: a forked module path, not upstream, because upstream ships
+	// fat-LTO archives that Go 1.27.4 refuses to hand the C linker
+	// (CVE-2026-97033..97043 hardening). Same Go code; only the archives
+	// differ. See the fork's PATCHED.md.
+	//
+	// upstream v0.5.0 — the marker loro-upstream-watch.yml greps. Keep it on
+	// ONE line: split across two comment lines the grep goes empty and the
+	// job silently no-ops (which is what happened 2026-11-11 -> 11-18).
 	github.com/calionauta/loro-go v0.5.2
 	github.com/casbin/casbin/v3 v3.11.0
 	github.com/danmestas/dagnats v0.0.30

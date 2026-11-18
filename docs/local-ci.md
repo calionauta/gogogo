@@ -230,11 +230,12 @@ payloads by the `"{{module}}/` placeholder and exempts them.
 
 `bin/check-release-build.sh` answers one question: does every binary the
 release SHIPS build the way the release builds it. It reads the `main:` entries
-out of `.goreleaser.yaml` (so a fourth build added there cannot be forgotten
-here) and runs `CGO_ENABLED=0 go build` for each, across
-linux/darwin/windows × amd64/arm64. Nothing is written (`-o /dev/null`), and it
-runs after "Warm module cache" in CI, so it costs seconds. It is part of both
-`ci-local` and `ci-local-fast`.
+**and each build's own `CGO_ENABLED`** out of `.goreleaser.yaml` — so a fourth
+build added there cannot be forgotten here, and a build that legitimately turns
+cgo on is not failed by a guard with a hardcoded `0` — then runs that
+combination across linux/darwin/windows × amd64/arm64. Nothing is written
+(`-o /dev/null`), and it runs after "Warm module cache" in CI, so it costs
+seconds. It is part of both `ci-local` and `ci-local-fast`.
 
 It exists because nothing did that before. `.goreleaser.yaml` cross-compiles all
 three binaries with `CGO_ENABLED=0` from one Linux runner; `cmd/gui` imported
