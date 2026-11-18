@@ -85,3 +85,13 @@ jobs:
           fi
           gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json assets \
             --jq '.assets[].name' | sed 's/^/  ✓ /'
+
+      - name: Verify install.sh can actually fetch it
+        # The count above answers "is the release empty". This answers the
+        # question a USER asks: does the tarball install.sh builds exist, and
+        # does the checksum file it verifies against exist. A rename in one
+        # place passes the count and still 404s the bootstrap.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: bin/check-release-assets.sh "$TAG"

@@ -211,6 +211,33 @@ it from that binary's import graph (the `cmd/gui` fix) or move that binary to a
 per-OS runner with cgo on — which costs the one-runner matrix, so it is the
 heavier answer, not the default one.
 
+### The other half: `bin/check-release-assets.sh`
+
+Building correctly is necessary, not sufficient — the assets still have to
+reach the release. `release-please` publishes the GitHub release when the
+release PR merges, and `release.yml` attaches the binaries afterwards, so a
+release whose build fails is already public when it fails. That is the shape of
+the nine-release outage: `release.yml`'s own "Verify the release carries the
+installer assets" step exists (it was added after v0.43.0–v0.51.0 shipped
+empty), but a job that dies BEFORE that step still produces a public, empty
+release, and a red run nobody reads is indistinguishable from no check at all.
+
+`bin/check-release-assets.sh` asks the question a user asks: does the tarball
+`install.sh` builds exist in the release, and does the checksum file it verifies
+against exist. It reads the tarball pattern out of `install.sh` itself, so a
+rename in one place cannot pass the guard while breaking the other. It has two
+callers, and they are deliberately not the PR path:
+
+| Where | When | Catches |
+|---|---|---|
+| last step of `release.yml` | per release | a release whose assets landed wrong |
+| `.github/workflows/release-assets.yml` | daily, `:17` | a release goreleaser never attached to, or a job that died early |
+
+Neither belongs on a pull request: a PR cannot know what the last PUBLISHED
+release contains, and spending a network round trip on every push to learn a
+fact that only changes on a tag is the wrong trade. The offline form
+(`--offline`) exits 0 so a dev box without `gh` is never a false red.
+
 ### A recipe's tests have a name: `make test-recipe R=<id>`
 
 The changed-package scope answers "what did this diff touch". `test-recipe`
