@@ -60,6 +60,12 @@ func Open(cfg *config.Config) (*sql.DB, error) {
 		}
 	}
 
+	// Fail here, once, rather than at the first query of whichever goroutine
+	// happens to touch the pool first. See warmDriver.
+	if err := warmDriver(); err != nil {
+		return nil, err
+	}
+
 	sqlDB, err := sql.Open(Driver, localDSN(path))
 	if err != nil {
 		return nil, fmt.Errorf("db: open %q: %w", path, err)

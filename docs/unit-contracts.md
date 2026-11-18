@@ -101,7 +101,7 @@ prompt library: .prompt files (Dotprompt shape) and their loader
 
 SSE Hub (realtime fan-out) + goqite jobs + workers + retry
 
-- **Owned:** `internal/queue`
+- **Owned:** `internal/queue`, `internal/tursotest`
 - **Note:** Core, and the Hub is the load-bearing half: every streaming handler (todo, genui, chat, notes, whiteboard, review, room) names *queue.SSEHub in its constructor, so no tree that removed it compiles without it — even with NATS off. The job queue shares the package because workers stream through the same hub.
 
 ## `rbac` — core
