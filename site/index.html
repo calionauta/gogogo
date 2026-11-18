@@ -61,7 +61,7 @@
     <h1>The foundation is done.<br><em>Your agent</em> ships the product.</h1>
     <p class="hero-sub">One binary, and a CLI/MCP the agent drives it with.</p>
     <div class="hero-ctas">
-      <a class="btn primary" href="#install">Get started</a>
+      <a class="btn primary" href="#wire">Wire your agent</a>
       <a class="btn" href="https://gogogo.calionauta.com/" rel="noopener">Try it live</a>
       <a class="btn" href="./docs/">Read the docs</a>
     </div>
@@ -76,10 +76,14 @@
     <p class="install-label">Start with the agent, not the installer</p>
     <pre><code>curl -sSfL https://<wbr>raw.githubusercontent.com/<wbr>calionauta/<wbr>gogogo/<wbr>master/<wbr>install.sh | sh
 claude mcp add gogogo -- ~/.local/bin/gogogo-mcp</code></pre>
-    <p class="install-note">The installer puts <code>gogogo</code> and <code>gogogo-mcp</code> on your PATH. The MCP is the part you actually use: it answers <em>“should this be gogogo?”</em> from any directory, then plans and asks before it builds.</p>
+    <p class="install-note">Two commands. The MCP is the part you use.</p>
   </div>
-  <p class="hero-fine">Then tell your agent what you want built. It calls <code>advise_stack</code>, shows you the plan, and asks for the name, owner and languages <em>before</em> it writes anything. Prefer a shell? The <a href="#install">CLI runs the same engine</a>.</p>
-  <p class="hero-fine">Live demo: <a href="https://gogogo.calionauta.com/" rel="noopener">gogogo.calionauta.com</a> — <code>demo1@demo.app</code> / <code>demo1234456</code> (<code>demo2@demo.app</code> same password for two-user contention).</p>
+  <ul class="hero-facts">
+    <li>Your agent answers <em>“should this be gogogo?”</em> before it builds anything.</li>
+    <li>It shows the plan and asks for name, owner and languages first.</li>
+    <li>Prefer a shell? The <a href="#install">CLI runs the same engine</a>.</li>
+  </ul>
+  <p class="hero-fine">Live demo: <a href="https://gogogo.calionauta.com/" rel="noopener">gogogo.calionauta.com</a> · <code>demo1@demo.app</code> / <code>demo1234456</code></p>
 </section>
 
 <header class="intro">
@@ -918,40 +922,28 @@ claude mcp add gogogo -- ~/.local/bin/gogogo-mcp</code></pre>
   <div class="install-head">
     <p class="kicker">Start here</p>
     <h2>Run. Ship. <em>Summon.</em></h2>
-    <p class="install-lede">One install puts the binary and the evolution MCP on your PATH. Then wire your developer agent. Humans type; developer agents call.</p>
+    <p class="install-lede">One install puts the binary and the MCP on your PATH. Then you talk to your agent.</p>
   </div>
 
   <ol class="steps">
     <li class="step">
       <p class="step-num">01</p>
       <h3>Install the binary</h3>
-      <p class="step-copy">Needs curl and git. Puts <code>gogogo</code> and <code>gogogo-mcp</code> in <code>~/.local/bin</code>.</p>
+      <ul class="step-list">
+        <li>Needs curl and git.</li>
+        <li>Puts <code>gogogo</code> and <code>gogogo-mcp</code> in <code>~/.local/bin</code>.</li>
+      </ul>
       <div class="install-block">
         <pre><code>curl -sSfL https://<wbr>raw.githubusercontent.com/<wbr>calionauta/<wbr>gogogo/<wbr>master/<wbr>install.sh | sh</code></pre>
       </div>
     </li>
-    <li class="step">
+    <li class="step step-wide" id="wire">
       <p class="step-num">02</p>
-      <h3>Or drive it from a shell</h3>
-      <p class="step-copy">No MCP needed: same engine, same plans, same proofs. Ask first, preview, then apply with the name and owner <em>you</em> chose.</p>
-      <div class="install-block">
-        <pre><code>gogogo advise --need "an internal tool with logins and a dashboard"
-gogogo --name my-app --owner my-org --dry-run --format json
-gogogo --name my-app --owner my-org --yes</code></pre>
-      </div>
-    </li>
-    <li class="step">
-      <p class="step-num">03</p>
-      <h3>Just want to see it run?</h3>
-      <p class="step-copy">Scaffold into a scratch directory and boot it. Then open <code>localhost:8080</code>.</p>
-      <div class="install-block">
-        <pre><code>gogogo --run</code></pre>
-      </div>
-    </li>
-    <li class="step step-wide">
-      <p class="step-num">04</p>
       <h3>Wire your agent</h3>
-      <p class="step-copy">One block in your client config. Clients spawn without a shell, so replace <code>~</code> with your absolute home path (<code>echo $HOME</code>).</p>
+      <ul class="step-list">
+        <li>One entry in your client config — the MCP is the surface you use.</li>
+        <li>Clients spawn without a shell: use an absolute path, not <code>~</code>.</li>
+      </ul>
 
       <div class="tabs mcp-tabs">
         <input type="radio" name="mcp-client" id="tab-claude" checked>
@@ -971,6 +963,38 @@ command = "/home/you/.local/bin/gogogo-mcp"</code></pre><p class="install-note">
           <div class="panel panel-opencode"><pre><code>opencode mcp add gogogo -- ~/.local/bin/gogogo-mcp</code></pre><p class="install-note">Or in <code>opencode.json</code>: <code>"mcp": {"gogogo": {"type": "local", "command": ["/home/you/.local/bin/gogogo-mcp"]}}</code>.</p></div>
           <div class="panel panel-pi"><pre><code>pi mcp add gogogo -- ~/.local/bin/gogogo-mcp</code></pre><p class="install-note">Pi reads the standard <code>mcpServers</code> format too — migrating from another client just works.</p></div>
         </div>
+      </div>
+    </li>
+    <li class="step">
+      <p class="step-num">03</p>
+      <h3>Ask for what you want built</h3>
+      <ul class="step-list">
+        <li>Your agent calls <code>advise_stack</code> first — it answers whether this should be gogogo at all.</li>
+        <li>Then it shows you the plan and asks for name, owner and languages before writing anything.</li>
+      </ul>
+    </li>
+    <li class="step">
+      <p class="step-num">04</p>
+      <h3>Prefer a shell?</h3>
+      <ul class="step-list">
+        <li>The CLI runs the same engine as the MCP — same plans, same proofs.</li>
+        <li>Ask, preview, then apply with the name and owner <em>you</em> chose.</li>
+      </ul>
+      <div class="install-block">
+        <pre><code>gogogo advise --need "an internal tool with logins and a dashboard"
+gogogo --name my-app --owner my-org --dry-run --format json
+gogogo --name my-app --owner my-org --yes</code></pre>
+      </div>
+    </li>
+    <li class="step">
+      <p class="step-num">05</p>
+      <h3>Just want to see it run?</h3>
+      <ul class="step-list">
+        <li>Scaffold into a scratch directory and boot it.</li>
+        <li>Then open <code>localhost:8080</code>.</li>
+      </ul>
+      <div class="install-block">
+        <pre><code>gogogo --run</code></pre>
       </div>
     </li>
   </ol>
