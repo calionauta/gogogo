@@ -51,7 +51,7 @@ todo CRUD wire protocol (subjects + payloads + publisher)
 
 flat data layer: Turso Database connection + migrations + sqlc queries
 
-- **Owned:** `internal/db`, `internal/dbschema`
+- **Owned:** `internal/db`, `internal/dbload`, `internal/dbschema`
 - **Note:** Core: handlers call the generated dbgen.* functions directly; migrations under internal/dbschema/migrations are the schema (driver-free so zero-CGO targets share it; internal/db owns only the tursogo open).
 
 ## `demo-seed` — core
@@ -101,7 +101,7 @@ prompt library: .prompt files (Dotprompt shape) and their loader
 
 SSE Hub (realtime fan-out) + goqite jobs + workers + retry
 
-- **Owned:** `internal/queue`, `internal/tursotest`
+- **Owned:** `internal/queue`
 - **Note:** Core, and the Hub is the load-bearing half: every streaming handler (todo, genui, chat, notes, whiteboard, review, room) names *queue.SSEHub in its constructor, so no tree that removed it compiles without it — even with NATS off. The job queue shares the package because workers stream through the same hub.
 
 ## `rbac` — core

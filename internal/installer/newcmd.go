@@ -79,6 +79,14 @@ func runNew(ctx context.Context, args []string, stdin io.Reader, stdout io.Write
 	if err != nil {
 		return err
 	}
+	// The rail first, before anything looks at the tree. An operator who sets
+	// GOGOGO_READONLY=1 must read "read-only", not a downstream symptom ("not a
+	// gogogo checkout", "no .recipe.yml") — that reads like a bug and sends
+	// them looking at the wrong thing. buildNewPlan probes the tree, so it has
+	// to come after this, not before.
+	if railErr := guardWritable(opt.dir, opt.yes && !opt.dryRun); railErr != nil {
+		return railErr
+	}
 	plan, err := buildNewPlan(opt)
 	if err != nil {
 		return err
@@ -116,36 +124,6 @@ func runNew(ctx context.Context, args []string, stdin io.Reader, stdout io.Write
 }
 
 // newEnvelope is the single JSON document a mutating `new` emits.
-type newEnvelope struct {
-	Name       string   `json:"name"`
-	Dir        string   `json:"dir"`
-	Created    []string `json:"created"`
-	Edits      []string `json:"edits"`
-	BuildOk    bool     `json:"buildOk"`
-	BuildError string   `json:"buildError,omitempty"`
-	Next       []string `json:"next"`
-}
-
-// printNewEnvelope writes the apply result. A proof failure is reported in
-// the envelope AND returned, so both a human reading the transcript and an
-// agent branching on the exit code see the same verdict.
-func printNewEnvelope(w io.Writer, opt newOptions, plan newPlan, applyErr error) {
-	env := newEnvelope{
-		Name:    opt.name,
-		Dir:     opt.dir,
-		Created: []string{plan.paths.handler, plan.paths.page, plan.paths.card},
-		Edits:   []string{plan.paths.chi, plan.paths.registry, plan.paths.policy},
-		BuildOk: applyErr == nil,
-		Next:    newNextSteps(opt.name),
-	}
-	if applyErr != nil {
-		env.BuildError = applyErr.Error()
-	}
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	_ = enc.Encode(env)
-}
-
 // parseNewArgs accepts both `new reports` and `new --dir X reports`.
 func parseNewArgs(args []string, stdout io.Writer) (newOptions, error) {
 	fs := flag.NewFlagSet("gogogo new feature", flag.ContinueOnError)

@@ -12,10 +12,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/calionauta/gogogo/config"
+	"github.com/calionauta/gogogo/internal/dbload"
 )
 
 // Driver is the database/sql driver name for this platform: tursogo on
@@ -26,11 +26,6 @@ const Driver = sqlDriver
 // returning SQLITE_BUSY. Turso serializes writes; 10s matches the previous
 // single-writer stance and absorbs the burst of a page render plus a job.
 const busyTimeoutMS = 10_000
-
-// dirPerm is the mode for the database parent dir created on first boot.
-// Group/other read+execute lets backups and sidecars inspect data/ without
-// write access; the database file itself keeps the process umask.
-const dirPerm = 0o755
 
 // Open opens the application database from cfg.
 //
@@ -54,15 +49,10 @@ func Open(cfg *config.Config) (*sql.DB, error) {
 	if path == "" {
 		path = filepath.Join(cfg.DataDir, "app.db")
 	}
-	if dir := filepath.Dir(path); dir != "" && dir != "." {
-		if err := os.MkdirAll(dir, dirPerm); err != nil {
-			return nil, fmt.Errorf("db: create data dir %q: %w", dir, err)
-		}
-	}
-
-	// Fail here, once, rather than at the first query of whichever goroutine
-	// happens to touch the pool first. See warmDriver.
-	if err := warmDriver(); err != nil {
+	// Prepares the driver's native library and the database's directory, so a
+	// failure surfaces here, once, rather than at the first query of whichever
+	// goroutine touches the pool first. See internal/dbload.
+	if err := dbload.PrepareWorkspace(path); err != nil {
 		return nil, err
 	}
 

@@ -26,10 +26,19 @@ type recipeUninstallArgs struct {
 // receipt removed. Three rules, all from Spike 3: only pristine files are
 // deleted, the receipt stays (it still records the data owner), and the
 // generated registration stops importing the package in the same step.
+// runRecipeUninstall deletes a recipe's files. It guards the read-only rail
+// FIRST, before the tree is touched or even judged: uninstall is the last verb
+// that should slip past GOGOGO_READONLY=1, and it did — exactly like
+// `recipe install` — until a test started asking. The rail names itself; a
+// downstream "not a gogogo checkout" reads like a bug and sends the operator
+// looking at the wrong thing.
 func runRecipeUninstall(args []string, stdout io.Writer) error {
 	opt, err := parseRecipeUninstallArgs(args)
 	if err != nil {
 		return err
+	}
+	if railErr := guardMutable(opt.dir); railErr != nil {
+		return railErr
 	}
 	root, aerr := filepath.Abs(opt.dir)
 	if aerr != nil {
@@ -38,17 +47,9 @@ func runRecipeUninstall(args []string, stdout io.Writer) error {
 	if !looksLikeTemplate(root) {
 		return &ExitError{code: 1, msg: "recipe uninstall: " + opt.dir + " is not a gogogo checkout"}
 	}
-	r, lerr := recipe.LoadReceipt(root, opt.id)
-	if lerr != nil {
-		if os.IsNotExist(lerr) {
-			return &ExitError{code: 1, msg: fmt.Sprintf(
-				"recipe uninstall: %s is not installed (no %s)", opt.id, recipe.ReceiptPath(opt.id))}
-		}
-		return &ExitError{code: 1, msg: "recipe uninstall: " + lerr.Error()}
-	}
-	if r.Removed != "" {
-		return &ExitError{code: 1, msg: fmt.Sprintf(
-			"recipe uninstall: %s was already removed (%s)", opt.id, r.Removed)}
+	r, rerr := loadUninstallReceipt(root, opt.id)
+	if rerr != nil {
+		return rerr
 	}
 	drift, derr := recipe.Check(root, r)
 	if derr != nil {
@@ -425,4 +426,24 @@ func regenerateBundledUnits(root string) error {
 		return &ExitError{code: 1, msg: "recipe uninstall: write units.gen.go: " + werr.Error()}
 	}
 	return nil
+}
+
+// loadUninstallReceipt reads the receipt a removal is based on, naming the two
+// states that are not failures but are not removable either: never installed,
+// and already removed. Split out of runRecipeUninstall to keep that function
+// under the complexity gate after the read-only rail was added to it.
+func loadUninstallReceipt(root, id string) (recipe.Receipt, error) {
+	r, err := recipe.LoadReceipt(root, id)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return r, &ExitError{code: 1, msg: fmt.Sprintf(
+				"recipe uninstall: %s is not installed (no %s)", id, recipe.ReceiptPath(id))}
+		}
+		return r, &ExitError{code: 1, msg: "recipe uninstall: " + err.Error()}
+	}
+	if r.Removed != "" {
+		return r, &ExitError{code: 1, msg: fmt.Sprintf(
+			"recipe uninstall: %s was already removed (%s)", id, r.Removed)}
+	}
+	return r, nil
 }

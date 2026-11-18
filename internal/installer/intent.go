@@ -199,22 +199,7 @@ func routeFor(intent, tree, dir string) []adviseStep {
 			},
 		}
 	case intentScaffold:
-		return []adviseStep{
-			{
-				Run: binName + " --name my-app --no-tui --dry-run --format json --dir ./my-app",
-				Why: "preview the plan: every capability the scaffold ships, with its " +
-					"removal class; nothing is written",
-			},
-			{
-				Run: binName + " --name my-app --no-tui --yes --dir ./my-app",
-				Why: "apply: clone, rename, tidy, build proof",
-			},
-			{
-				Run: binName + " recipe uninstall <id> --dir ./my-app --yes",
-				Why: "remove a feature you do not want, once the tree exists — the " +
-					"receipt decides what is safe to delete",
-			},
-		}
+		return scaffoldRoute()
 	}
 	return nil
 }
@@ -233,6 +218,47 @@ func portRoute() []adviseStep {
 		{
 			Run: "go build ./...",
 			Why: "the proof is YOUR app's build, not the template's",
+		},
+	}
+}
+
+// scaffoldRoute is the greenfield route, and the only one that rewrites a module
+// path and creates a repository. It has four steps so that step 2 can be
+// advice: an agent that jumps from the preview to the apply writes a project
+// name, an owner and a locale set it invented into the module path, the
+// repository and every import. The plan is the deliverable of that step, not a
+// prelude to guessing.
+func scaffoldRoute() []adviseStep {
+	where := "<the path they chose>"
+	name := "<the name they gave>"
+	owner := "<the owner they gave>"
+	return []adviseStep{
+		{
+			Run: binName + " --name " + name + " --owner " + owner +
+				" --no-tui --dry-run --format json --dir " + where,
+			Why: "preview the plan: every capability the scaffold ships, with its " +
+				"removal class; nothing is written",
+		},
+		{
+			// Advice only, no command, and it must stay that way: a route that
+			// prints a command the operator would have to correct is worse than
+			// no route. A static or landing page is another tool either way —
+			// GET / redirects a guest to /login and no marketing page ships.
+			Why: "ASK THE USER before applying: the project name, the GitHub " +
+				"owner, the target directory, the shape and the languages " +
+				"(" + binName + " locales --set). Quote the slices this plan drops " +
+				"and the ones it keeps. Never apply on your own.",
+		},
+		{
+			Run: binName + " --name " + name + " --owner " + owner +
+				" --no-tui --yes --dir " + where,
+			Why: "apply: clone, rename, tidy, build proof — only with the values " +
+				"the user just gave",
+		},
+		{
+			Run: binName + " recipe uninstall <id> --dir " + where + " --yes",
+			Why: "remove a feature you do not want, once the tree exists — the " +
+				"receipt decides what is safe to delete",
 		},
 	}
 }

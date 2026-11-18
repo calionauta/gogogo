@@ -11,12 +11,34 @@ as the fallback.
 
 ## 0. Recommended: the installer
 
-One line, on a machine with only curl + git. It installs, asks,
-scaffolds, proves, and hands the terminal to `make dev` (Ctrl-C stops dev):
+One line, on a machine with only curl + git. It installs `gogogo` and
+`gogogo-mcp`, asks, scaffolds, proves, and hands the terminal to `make dev`
+(Ctrl-C stops dev):
 
 ```bash
 curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh | sh -s -- --run
 ```
+
+**Prefer your agent?** Install without `--run`, wire the MCP, and let the agent
+drive. Same engine, same plans, same proofs — and the agent will read the
+`instructions` the server sends before its first tool call:
+
+```bash
+curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh | sh
+claude mcp add gogogo -- ~/.local/bin/gogogo-mcp   # Codex/OpenCode/Pi: see mcp.md
+```
+
+Then ask for what you want built. The intended order is `advise_stack` →
+`scaffold_plan` → **the agent asks you** for name, owner, directory, shape and
+languages → `scaffold_apply`. `confirm:true` guards against an accidental
+write; it is not your consent. Skills that teach this end to end:
+[`skills/gogogo-adopt`](https://github.com/calionauta/gogogo/tree/master/skills/gogogo-adopt).
+
+**This is a product foundation, not a page builder.** `GET /` redirects a guest
+to `/login` and no marketing page ships: a static, landing or conversion page
+is another tool's job. A public page **plus** an app behind login does fit —
+decide by shape (accounts and state behind a session), not by the word the user
+chose.
 
 - No checkout needed: missing directories are cloned first (asks, or `--yes`).
 - No Go needed: a user-space toolchain is bootstrapped when missing.
@@ -85,6 +107,22 @@ On a host that has a production secrets file (it sets `ENVIRONMENT=production`),
 run the dev loop with `ENVIRONMENT=development DEMO_ACCOUNTS_ENABLED=true
 SIGNUP_ENABLED=true make dev` so the demo pair is seeded and the login form
 advertises it.
+
+### Your agent's skills after scaffolding
+
+The scaffold copies `skills/` (renamed: `<project>-coding-standards`, plus
+`gogogo-ui`, `gogogo-adopt` and the vendored pins) but **does not re-register
+them**: a host loads a skill by name from `.agents/skills/<name>`, and the
+template's symlinks point at template names. So after the scaffold, do one of:
+
+```bash
+npx skills add <owner>/<repo>          # the host installs what it understands
+ln -sfn ../../skills/gogogo-ui .agents/skills/gogogo-ui   # or link by hand
+```
+
+Keep the directory name and the link name identical, or
+`make check-skill-frontmatter` fails. Without this the tree's rules exist and
+nothing reads them.
 
 ## 0b. Opinions before changes: `advise`
 

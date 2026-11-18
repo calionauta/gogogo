@@ -71,12 +71,14 @@
   </div>
 </section>
 
-<section class="hero-start" aria-label="Start with the installer">
+<section class="hero-start" aria-label="Start with the agent">
   <div class="install-block hero-install">
-    <p class="install-label">Start with the installer</p>
-    <pre><code>curl -sSfL https://<wbr>raw.githubusercontent.com/<wbr>calionauta/<wbr>gogogo/<wbr>master/<wbr>install.sh | sh -s -- --run</code></pre>
-    <p class="install-note">Needs curl and git — that's it. The command does the rest.</p>
+    <p class="install-label">Start with the agent, not the installer</p>
+    <pre><code>curl -sSfL https://<wbr>raw.githubusercontent.com/<wbr>calionauta/<wbr>gogogo/<wbr>master/<wbr>install.sh | sh
+claude mcp add gogogo -- ~/.local/bin/gogogo-mcp</code></pre>
+    <p class="install-note">The installer puts <code>gogogo</code> and <code>gogogo-mcp</code> on your PATH. The MCP is the part you actually use: it answers <em>“should this be gogogo?”</em> from any directory, then plans and asks before it builds.</p>
   </div>
+  <p class="hero-fine">Then tell your agent what you want built. It calls <code>advise_stack</code>, shows you the plan, and asks for the name, owner and languages <em>before</em> it writes anything. Prefer a shell? The <a href="#install">CLI runs the same engine</a>.</p>
   <p class="hero-fine">Live demo: <a href="https://gogogo.calionauta.com/" rel="noopener">gogogo.calionauta.com</a> — <code>demo1@demo.app</code> / <code>demo1234456</code> (<code>demo2@demo.app</code> same password for two-user contention).</p>
 </section>
 
@@ -163,17 +165,18 @@
           <span class="console-tag">evolution surface</span>
         </div>
         <div class="agent-tabs">
-          <input type="radio" name="agent-tab" id="agent-skills" checked>
+          <input type="radio" name="agent-tab" id="agent-mcp" checked>
           <input type="radio" name="agent-tab" id="agent-cli">
-          <input type="radio" name="agent-tab" id="agent-mcp">
+          <input type="radio" name="agent-tab" id="agent-skills">
           <div class="agent-labels">
-            <label for="agent-skills">Skills</label>
-            <label for="agent-cli">CLI</label>
             <label for="agent-mcp">MCP</label>
+            <label for="agent-cli">CLI</label>
+            <label for="agent-skills">Skills</label>
           </div>
           <div class="agent-panels">
             <div class="agent-panel panel-skills">
               <ul class="agent-list">
+                <li><code>gogogo-adopt</code><span>Whether it fits, the ask-first route, porting into an existing app.</span></li>
                 <li><code>gogogo-coding-standards</code><span>Go + template rules, concurrency, testing, Datastar.</span></li>
                 <li><code>gogogo-ui</code><span>DaisyUI vocabulary, shell, themes, compositions.</span></li>
                 <li><code>gogogo-recipe-authoring</code><span>Copy-and-evolve recipe contract, slots, update path.</span></li>
@@ -183,6 +186,9 @@
             </div>
             <div class="agent-panel panel-cli">
               <ul class="agent-list">
+                <li><code>advise</code><span>Same engine as the MCP, one verb at a time.</span></li>
+                <li><code>--dry-run</code><span>Preview the scaffold; nothing is written.</span></li>
+                <li><code>export</code><span>Port one unit into an app you already have.</span></li>
                 <li><code>--run</code><span>Scaffold a repo and run it, one command.</span></li>
                 <li><code>doctor --json</code><span>Read-only preflight; JSON for agents/CI.</span></li>
                 <li><code>recipe install</code><span>Copy a recipe in: code + declaration + receipt.</span></li>
@@ -194,6 +200,8 @@
             </div>
             <div class="agent-panel panel-mcp">
               <ul class="agent-list">
+                <li><code>advise_stack</code><span>Does this fit? Answers from any dir. The first call.</span></li>
+                <li><code>scaffold_plan</code><span>Preview the tree + the slices it drops. Writes nothing.</span></li>
                 <li><code>capabilities_list</code><span>The full unit registry.</span></li>
                 <li><code>recipe_list</code><span>Built-ins + installed recipes, summary and verbs.</span></li>
                 <li><code>recipe_describe</code><span>Verbs, <code>{id}</code>/body params, omissions.</span></li>
@@ -924,14 +932,24 @@
     </li>
     <li class="step">
       <p class="step-num">02</p>
-      <h3>Scaffold and run</h3>
-      <p class="step-copy">Rename, trim the units you skipped, and prove it builds. Then open <code>localhost:8080</code>.</p>
+      <h3>Or drive it from a shell</h3>
+      <p class="step-copy">No MCP needed: same engine, same plans, same proofs. Ask first, preview, then apply with the name and owner <em>you</em> chose.</p>
+      <div class="install-block">
+        <pre><code>gogogo advise --need "an internal tool with logins and a dashboard"
+gogogo --name my-app --owner my-org --dry-run --format json
+gogogo --name my-app --owner my-org --yes</code></pre>
+      </div>
+    </li>
+    <li class="step">
+      <p class="step-num">03</p>
+      <h3>Just want to see it run?</h3>
+      <p class="step-copy">Scaffold into a scratch directory and boot it. Then open <code>localhost:8080</code>.</p>
       <div class="install-block">
         <pre><code>gogogo --run</code></pre>
       </div>
     </li>
     <li class="step step-wide">
-      <p class="step-num">03</p>
+      <p class="step-num">04</p>
       <h3>Wire your agent</h3>
       <p class="step-copy">One block in your client config. Clients spawn without a shell, so replace <code>~</code> with your absolute home path (<code>echo $HOME</code>).</p>
 

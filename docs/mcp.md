@@ -171,6 +171,40 @@ its own TLS/reverse-proxy and identity story, not this port.
 Generated code follows [`skills/gogogo-coding-standards`](https://github.com/calionauta/gogogo/tree/master/skills/gogogo-coding-standards)
 (Go rules; `advise_stack` output cites it).
 
+### Safeties: what the operator sets, not the model
+
+An agent holding these tools has the CLI's full power. The bounds are
+environment variables the operator exports before the client spawns the server,
+and no tool call can lift them:
+
+| Variable | Effect |
+|---|---|
+| `GOGOGO_READONLY=1` | every mutation refuses: `scaffold_apply`, `new_feature`, `recipe_install`/`update`/`uninstall`, `recipe_enable`/`disable`. `advise_stack`, `scaffold_plan`, `capabilities_list`, `recipe_source`, `version_status` and `check` keep working — and a plan (`--dry-run`, or a verb without `confirm:true`) still prints |
+| `GOGOGO_ALLOWED_ROOTS=/abs/a:/abs/b` | confines `dir` / `from` to those roots (`os.PathListSeparator`-separated). A path outside is refused before anything is read or cloned |
+
+Use `GOGOGO_READONLY=1` when the agent should advise ("is gogogo right for
+this?") without building, and `GOGOGO_ALLOWED_ROOTS` on a shared machine or a
+gateway fronting several projects. Both are unset by default, which is
+local-CLI behavior. Implementation: `internal/installer/guard.go`.
+
+### `instructions`: the route, before any tool call
+
+The server sends an `instructions` field at initialize — the one surface a
+client loads **without the user installing a skill**. It carries the three
+things a tool description cannot enforce on its own:
+
+1. the order — `advise_stack` → `scaffold_plan` → **ask the operator for the
+   project name, owner, directory, shape and languages** → `scaffold_apply`;
+2. that `confirm:true` is a guard against an accidental write, **not** consent;
+3. what this is not for — a static, landing or conversion page has no unit
+   here (`GET /` redirects a guest to `/login`). A public page **plus** an app
+   behind login does fit.
+
+The text is a prompt file, not a Go literal
+(`internal/prompts/files/mcp/server-instructions.prompt`, enforced by
+`make check-prompts`), and `cmd/gogogo-mcp/instructions_test.go` keeps it under
+2048 characters because clients truncate the tail.
+
 ### The four `advise_stack` scopes
 
 Three are chosen from `need` alone; the fourth is the opt-in `dir` probe.
@@ -221,8 +255,12 @@ the verdict into work, use the CLI's `gogogo migrate` — see
 1. `advise_stack` with the use-case in plain words (empty `need` returns
    the full map).
 2. `scaffold_plan` to preview the plan.
-3. `scaffold_apply` with `confirm:true` to execute.
-4. For recipes: `recipe_status` first, then `recipe_install`, `recipe_update`, or `recipe_uninstall` with `confirm:true` (or `dryRun:true` for install/update).
+3. **Report the plan and ask** for the project name, owner, target directory,
+   shape and languages. The operator owns those; an invented name becomes the
+   Go module path and the repository.
+4. `scaffold_apply` with `confirm:true` to execute — only with the values from
+   step 3.
+5. For recipes: `recipe_status` first, then `recipe_install`, `recipe_update`, or `recipe_uninstall` with `confirm:true` (or `dryRun:true` for install/update).
 
 Full catalog with parameter shapes: [`cmd/gogogo-mcp`](https://github.com/calionauta/gogogo/tree/master/cmd/gogogo-mcp).
 Agent strategies and the scripted CLI equivalent: [getting-started](getting-started.md#0b-opinions-before-changes-advise).

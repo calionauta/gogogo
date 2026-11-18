@@ -139,6 +139,36 @@ ncruces is a driver, not a second database: same SQLite file format, same
 schema. Being cgo-free also keeps the production cross-compile
 (`GOOS=linux` from any runner) clean.
 
+#### Swapping the driver
+
+Everything driver-specific about *loading* a driver lives in `internal/dbload`,
+behind one call. `internal/db` and every `TestMain` call it; nothing else names a
+driver. Swapping to ncruces, or to another driver, is therefore:
+
+1. `internal/db/driver_*.go` — the driver name and the DSN spelling (already
+   split per platform: tursogo on web/desktop, ncruces on Android).
+2. `internal/dbload/ensure_*.go` — the loader. A driver with nothing to extract
+   uses `ensure_none.go`'s shape (`ineffective = true`, a no-op `lock`), which
+   is what the Android build already compiles. A driver that extracts a native
+   library keeps the posix/windows files; if its extraction is atomic, delete
+   them and make `Ensure` a plain load.
+3. `internal/dbload/dbload_test.go` — `TestNothingToLoadOnAndroid` already pins
+   the split, so an `android` build that forgets step 2 fails instead of
+   silently taking a lock to extract a library that does not exist.
+
+The extraction race this guards against is not hypothetical: tursogo writes its
+embedded library with `os.Create` → copy → verify, so two processes starting
+together corrupt the shared cache and both fail with a hash mismatch. That is
+the normal case under `go test ./...` (one binary per package, concurrently) and
+it took the ai-credits suite red three runs in a row. `internal/dbload`'s
+package doc carries the measurements.
+
+A cache left half-written by a killed process heals at the next boot: `Ensure`
+recognises the mismatch, discards the tree and reloads once. It cannot retry
+within a single process — tursogo's `InitLibrary` is a `sync.Once` and panics on
+failure, so one attempt per process is all the driver offers. With
+`restart: unless-stopped`, the repaired cache means the restart succeeds.
+
 ### Why `ncruces/go-sqlite3`?
 
 It is the pure-Go (no cgo) SQLite driver for the targets above — registered as

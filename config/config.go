@@ -24,7 +24,7 @@
 //	GOAI_MODEL          (default: "gpt-4o-mini")  — LLM model ID
 //	SIMULATE_LLM        (default: "true" in dev) — enable simulated LLM
 //	NATS_ENABLED        (default: true)  — enable NATS JetStream
-//	NATS_STORE_DIR      (default: "data/nats")
+//	NATS_STORE_DIR      (default: "<DATA_DIR>/nats")
 //	NATS_LEAFNODE_URL   (default: "")    — connect as NATS Leaf Node
 //	NATS_LEAFNODE_LISTEN (default: "")   — host:port the hub accepts leaf nodes on
 //	DAGNATS_ENABLED     (default: true)  — enable DagNats workflows
@@ -35,7 +35,7 @@
 //	CREDITS_ENABLED     (default: false) — enable ai-credits managed/BYOK billing
 //	CREDITS_ENC_KEY     (default: "") — 32 raw bytes or 64 hex chars for BYOK key storage
 //	BYOK_PROVIDERS      (default: "") — provider=url pairs for the BYOK relay
-//	DAGNATS_STORE_DIR   (default: "data/dagnats")
+//	DAGNATS_STORE_DIR   (default: "<DATA_DIR>/dagnats")
 //	OFFLINE_SYNC_ENABLED (default: true) — toggle hybrid offline sync
 //	SEARCH_MODE          (default: "substring") — todo search layer:
 //	                       "substring" | "fuzzy" | "bm25"; unknown values
@@ -165,7 +165,7 @@ func Load() *Config {
 	cfg.AuthMode = strings.ToLower(getEnv("AUTH_MODE", AuthLocal))
 	cfg.AllowOpenRemote = envBool("AUTH_OPEN_ALLOW_REMOTE", false)
 	cfg.NATS.Enabled = envBool("NATS_ENABLED", defaultNATSEnabled())
-	cfg.NATS.StoreDir = getEnv("NATS_STORE_DIR", "data/nats")
+	cfg.NATS.StoreDir = getEnv("NATS_STORE_DIR", filepath.Join(cfg.DataDir, "nats"))
 	cfg.NATS.Listen = getEnv("NATS_LISTEN", "")
 	cfg.NATS.Token = os.Getenv("NATS_TOKEN")
 	cfg.NATS.LeafListen = getEnv("NATS_LEAFNODE_LISTEN", "")
@@ -174,7 +174,7 @@ func Load() *Config {
 	cfg.DagNats.Enabled = envBool("DAGNATS_ENABLED", defaultDagNatsEnabled())
 	cfg.DagNats.HTTPAddr = getEnv("DAGNATS_HTTP_ADDR", "127.0.0.1:8090")
 	cfg.DagNats.NATSPort = envInt("DAGNATS_NATS_PORT", defaultDagNatsNATSPort)
-	cfg.DagNats.StoreDir = getEnv("DAGNATS_STORE_DIR", "data/dagnats")
+	cfg.DagNats.StoreDir = getEnv("DAGNATS_STORE_DIR", filepath.Join(cfg.DataDir, "dagnats"))
 	cfg.DagNats.GreetPacing = envDuration("DAGNATS_GREET_PACING", defaultGreetPacing)
 
 	cfg.GoAkt.Enabled = envBool("GOAKT_ENABLED", true)

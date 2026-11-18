@@ -120,13 +120,16 @@ var advisePresets = []advisePreset{
 		Name: "marketing-site",
 		Idea: "static public pages, no auth, no app state",
 		Match: []string{
-			"marketing", "homepage", "site", "hero",
+			"marketing", "homepage", "site", "hero", "landing", "lander",
+			"waitlist", "squeeze",
 			// "website" and "blog" are THE lay words for a public site and
 			// universal loanwords (EN/PT/ES/FR/DE).
 			"website", "blog",
 		},
 		Keep: []string{"(a landing page is yours to write — the template has none)"},
-		Note: "Public GET / with no auth. Brand lives here; /todo is the app behind it.",
+		Note: "A visitor-facing page with no accounts is another tool's job: GET / " +
+			"redirects a guest to /login, so there is no page here to fill in. " +
+			"The app behind a login is this template.",
 	},
 	{
 		Name: "content-model",
@@ -188,9 +191,17 @@ var adviseRules = []string{
 		"DAGNATS_ENABLED=false, OFFLINE_SYNC_ENABLED=false, unset " +
 		"GOAI_API_KEY. Removal deletes; " +
 		"switches flip back.",
+	"Decide by SHAPE, not by the word the user chose: accounts and state " +
+		"behind a session is a product (this template); a page that only " +
+		"converts is not. 'A landing page AND the app behind it' fits — the " +
+		"public page is theirs to write, and it is not a unit here.",
 	"Never add a dependency before checking the registry below and " +
 		"https://calionauta.github.io/gogogo/llms.txt — todo is the " +
 		"reference implementation.",
+	"Adoption, not authoring: read skills/gogogo-adopt before proposing a " +
+		"scaffold — it holds the ask-first rule (name, owner, directory, " +
+		"shape and locales are the operator's call), MCP vs CLI, and the port " +
+		"path for a tree this build did not create.",
 	"Go coding standards live in the gogogo-coding-standards skill " +
 		"(https://github.com/calionauta/gogogo — install: " +
 		"npx skills add calionauta/gogogo): Go idioms plus the concurrency, " +
