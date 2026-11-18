@@ -59,11 +59,18 @@ for total in 1 2 3 6; do
 	[ "$distinct" -eq "$lines" ] || fail "total=$total: a package appears in two shards"
 done
 
-# ── 2. the measured outlier is isolated, not balanced ──
+# ── 2. an outlier is isolated, not balanced against the tail ──
+# ASSERTED AGAINST AN INJECTED TABLE, NOT THE MEASURED ONE. The mechanism is
+# "a package at or above OUTLIER gets a shard to itself while shards remain";
+# the seconds are measured data that rots. This case used to hardcode
+# "shard 0 of 2 is internal/installer", so when that package fell from 360s to
+# 6s the SPLIT was right and this test was red — a test that breaks on a data
+# refresh is a test that gets deleted instead of refreshed.
+#
 # The fixture has to be big enough that balancing WOULD contaminate shard 0:
-# the non-installer side must out-sum the outlier, or the greedy packer leaves
-# shard 0 alone by accident and this case passes with the mechanism switched off
-# (it did — a 6-package fixture summed to 253s against the outlier's 360s).
+# the tail must out-sum the outlier, or the greedy packer leaves it alone by
+# accident and the case passes with the mechanism switched off (it did — a
+# 6-package fixture summed to 253s against a 360s outlier).
 heavy="${TMP}/heavy.txt"
 cat >"$heavy" <<'EOF'
 /repo/internal/installer
@@ -73,20 +80,43 @@ cat >"$heavy" <<'EOF'
 /repo/internal/demo
 /repo/features/notes/handlers
 EOF
-out=$(SHARD_UNIVERSE_FILE="$heavy" bash "$SCRIPT" 0 2)
+heavy_costs="${TMP}/heavy-costs.txt"
+cat >"$heavy_costs" <<'EOF'
+internal/installer 360
+internal/server 130
+features/todo/handlers 120
+bin 79
+internal/demo 61
+features/notes/handlers 56
+EOF
+out=$(SHARD_COSTS_FILE="$heavy_costs" SHARD_UNIVERSE_FILE="$heavy" bash "$SCRIPT" 0 2)
 case "$out" in
 "/repo/internal/installer") ;;
-*) fail "shard 0 of 2 should be internal/installer alone, got: ${out}" ;;
+*) fail "with an injected 360s outlier, shard 0 of 2 should be it alone, got: ${out}" ;;
 esac
 # …and the tail must still be complete, including a package that is NOT an
 # outlier. Matched without a pipe: `printf | grep -q` closes the pipe early and
 # pipefail turns that into exit 141 (measured — this case was flaky until it was
 # rewritten as a case match).
-tail_out=$(SHARD_UNIVERSE_FILE="$heavy" bash "$SCRIPT" 1 2)
+tail_out=$(SHARD_COSTS_FILE="$heavy_costs" SHARD_UNIVERSE_FILE="$heavy" bash "$SCRIPT" 1 2)
 case $'\n'"$tail_out"$'\n' in
 *$'\n'/repo/internal/server$'\n'*) ;;
 *) fail "shard 1 of 2 lost a package that is not an outlier" ;;
 esac
+# …and the SAME universe with a table where nothing is an outlier must NOT
+# reserve a shard: the isolation is driven by the data, not by the name.
+flat_costs="${TMP}/flat-costs.txt"
+cat >"$flat_costs" <<'EOF'
+internal/installer 6
+internal/server 6
+features/todo/handlers 6
+bin 6
+internal/demo 6
+features/notes/handlers 6
+EOF
+flat0=$(SHARD_COSTS_FILE="$flat_costs" SHARD_UNIVERSE_FILE="$heavy" bash "$SCRIPT" 0 2 | grep -c . || true)
+[ "$flat0" -gt 1 ] ||
+	fail "a flat cost table must not isolate any package, but shard 0 held $flat0 package(s)"
 
 # ── 3. an unknown package lands in exactly one shard ──
 # The cost table is measured data and will rot; the partition may not.

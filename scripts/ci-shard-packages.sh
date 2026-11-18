@@ -13,24 +13,28 @@
 # count puts internal/installer next to 33 other packages and changes nothing
 # worth measuring. The outlier has to be isolated.
 #
-# Measured package wall-times (race, ubuntu-latest 4 vCPU), CI run 40789079197
-# on 2026-10-29 — the run that motivated this file:
+# Measured package wall-times (race, ubuntu-latest 4 vCPU), re-measured
+# 2026-11-17 from CI run 44142988832 and confirmed across 8 consecutive runs
+# (44133461426…44165959359):
 #
-#   internal/installer            360s   <- 58% of the whole job
-#   internal/server               130s
-#   features/todo/handlers        120s
-#   bin                            79s
-#   internal/demo                  61s
-#   features/notes/handlers        56s
-#   features/whiteboard/handlers   42s
-#   internal/rbac                  28s
-#   (everything else, 60 packages) ~150s
+#   features/todo/handlers        64s
+#   bin                           53s
+#   features/whiteboard/handlers  50s
+#   features/notes/handlers       49s
+#   internal/server               36s
+#   internal/demo                 17s
+#   ... long tail ...
+#   internal/installer             6s
 #
-# Sum of all 68 packages: 1102s of test time for a 620s job. internal/installer
-# is special in two ways: it is a third of the total, and it saturates the vCPUs
-# on its own (each unit copies the repo and forks a `go vet ./...`, bounded two
-# at a time by trimVetParallel). Balancing it against other packages by summed
-# cost just gives it more work to starve on — it gets a shard to itself.
+# WHY internal/installer IS NO LONGER THE OUTLIER. The 2026-10-29 table gave it
+# 360s (58% of the job) because each unit copied the repo and forked
+# `go vet ./...`. The fixture was then narrowed, and the package now measures
+# 6s in every run of the last 8 — a 60x drop. A stale cost table is not a
+# correctness bug (the union of shards is still exactly web-packages.sh), it is
+# an efficiency bug with a measured shape: with `internal/installer 360` the
+# greedy packer reserves shard 0 for a 6s package and the theoretical makespan
+# is 360s; with the real numbers it is 182s and the three shards finish within
+# 14s of each other. Re-measure before editing this table.
 #
 # REFRESHING THE TABLE (do this when the race job's shape changes):
 #   gh run view <run-id> --log | grep -E '^race.*(ok|FAIL)\s+[^ ]+\s+[0-9.]+s'
@@ -41,34 +45,42 @@ set -euo pipefail
 
 # OUTLIER: a package at or above this measured cost gets a shard of its own
 # (while shards remain), instead of being balanced against the others.
-OUTLIER=300
+# 60, not 300: the heaviest package now measures 64s, so "a shard to itself"
+# costs a runner and saves nothing unless the package is genuinely dominant.
+# Isolating a 64s package from a 50s one buys 14s; isolating it from 6s packages
+# buys nothing and starves the tail. Keep this at the point where a package is
+# worth more than the packing it distorts.
+OUTLIER=60
 
 # cost <package-dir-suffix> <seconds> — suffix match, so a moved parent
 # directory does not silently drop the entry.
 costs() {
 	cat <<'EOF'
-internal/installer 360
-internal/server 130
-features/todo/handlers 120
-bin 79
-internal/demo 61
-features/notes/handlers 56
-features/whiteboard/handlers 42
-internal/rbac 28
-internal/auth 17
-features/review/handlers 17
-features/chat/handlers 16
+features/todo/handlers 64
+bin 53
+features/whiteboard/handlers 50
+features/notes/handlers 49
+internal/server 36
+internal/demo 17
+features/config/handlers 17
 features/room/handlers 16
 features/account/handlers 16
-features/config/handlers 15
+features/chat/handlers 15
+features/review/handlers 13
 internal/queue 12
-internal/dagnats 10
-internal/llm/fakeserver 9
-features/notifications/handlers 8
-internal/capabilities 6
-rules 5
+internal/auth 10
+internal/authpages 10
+internal/dagnats 9
+internal/rbac 9
+cmd/check-docs 9
+features/graph/handlers 8
+internal/capabilities 8
+features/todo/service 8
+features/dashboard/handlers 8
+features/notifications/handlers 7
+internal/llm/fakeserver 6
+internal/installer 6
 internal/nats 5
-cmd/check-docs 4
 internal/goakt 3
 features/credits/handlers 3
 cmd/web 3
@@ -76,8 +88,16 @@ features/landing/handlers 3
 EOF
 }
 
+cost_table() {
+	if [ -n "${SHARD_COSTS_FILE:-}" ]; then
+		grep -v '^[[:space:]]*$' "$SHARD_COSTS_FILE"
+	else
+		costs
+	fi
+}
+
 if [ "${1:-}" = "--costs" ]; then
-	costs
+	cost_table
 	exit 0
 fi
 
@@ -116,6 +136,13 @@ fi
 # package list (`<<<`), so piping `costs` into it leaves the writer connected to
 # a pipe nobody reads — it loses the race and pipefail surfaces a 141 (measured:
 # this made the script fail 4 runs in 10 before the test found it).
+#
+# SHARD_COSTS_FILE overrides the table. It exists so the CONTRACT TEST can
+# assert the mechanism (an outlier gets a shard to itself) without asserting the
+# MEASURED DATA, which rots: the test used to hardcode "shard 0 of 2 is
+# internal/installer", and when that package dropped from 360s to 6s the split
+# was correct while the test was red. A test that fails when the data changes is
+# a test that gets deleted.
 python3 -c '
 import sys
 
@@ -164,4 +191,4 @@ for cost, path in costed:
 result = "\n".join(sorted(assigned[index]))
 if result:
     print(result)
-' "$OUTLIER" "$index" "$total" "$(costs)" <<<"$all"
+' "$OUTLIER" "$index" "$total" "$(cost_table)" <<<"$all"

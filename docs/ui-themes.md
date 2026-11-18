@@ -62,6 +62,33 @@ URL change touches one file. Every URL is versioned through
 cache the file immutably instead of revalidating it on every navigation
 (see `resources.AssetHandler`).
 
+## Two stylesheets, two cascade layers — and layers decide ties
+
+`app.min.css` (Tailwind v4 + DaisyUI, built from `src/css/input.css`) and
+`chrome.css` (hand-written kit) load together, and they do NOT have equal
+weight. Tailwind v4 emits every utility inside `@layer utilities`, while
+`chrome.css` is unlayered, and **unlayered CSS beats any cascade layer
+regardless of source order**. So when a utility and a kit class disagree on the
+same property, the kit class wins — even though the utility looks more specific
+as you read the markup.
+
+Two consequences worth knowing before composing classes:
+
+- **Never stack a kit component onto a utility that fights its own direction.**
+  `.ui-card-body` sets `flex-direction: column`; adding Tailwind's `flex-row` to
+  the same element silently loses, and the row renders as a column. The
+  whiteboard index shipped exactly that way: rows stacked, with the delete
+  button under the link instead of beside it.
+- **`ui-card` and `ui-card-body` are one pair, not two options.** `ui-card` is
+  the card's OUTER box (column flex, `height: 100%`), `ui-card-body` is the
+  padding INSIDE it. Putting both on one element asks for a card whose content
+  box is also its own frame.
+
+When two list screens are the same thing to a user, they get the same shape:
+the whiteboard index reuses the notes index's `menu` list rather than inventing
+a grid, and `TestWhiteboardListMatchesNotesListShape` fails if the two drift
+apart.
+
 ## Related
 
 - Agents: read `skills/gogogo-ui/SKILL.md` (template UI rules over the

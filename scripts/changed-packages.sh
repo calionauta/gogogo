@@ -29,6 +29,16 @@
 #                     A touched .templ seeds its directory too: the generated
 #                     _templ.go is what enters the build, and `make templ` may
 #                     not have run yet.
+#                     A touched testdata/ file seeds the package directory that
+#                     CONTAINS it. This is the Go spelling of the dependency the
+#                     import graph cannot see: internal/server/testdata/pages/
+#                     *.digest is read from disk by TestPagesDigest, and
+#                     internal/i18n/testdata/untranslated.json is the ratchet
+#                     baseline — neither appears in any .Imports list, so a diff
+#                     that only touches one selected ZERO packages and the gate
+#                     went green over a broken contract (measured: corrupting
+#                     account.digest fails `go test ./internal/server` while the
+#                     selector reported nothing to run).
 #
 # Both modes fail open to the full list. Running too much costs time; running
 # too little costs a broken merge.
@@ -189,19 +199,40 @@ if [ "$with_dependents" -eq 1 ]; then
 else
   seed_files=$(echo "$files" | grep -E '\.go$' || true)
 fi
-if [ -z "$seed_files" ]; then
+# testdata/ is invisible to the import graph (see the header). Its files are
+# collected as OWNING DIRECTORIES, not as files: they are not compiled, so the
+# dirname pass below must not run on them (doing so selected `internal` instead
+# of `internal/server` — the first version of this patch did exactly that).
+td_dirs=""
+if [ "$with_dependents" -eq 1 ]; then
+  td_dirs=$(
+    { echo "$files" | grep -E '(^|/)testdata/' || true; } | while read -r f; do
+      if [ "${f}" != "${f#testdata/}" ]; then
+        printf '.\n'
+      else
+        printf '%s\n' "${f%%/testdata/*}"
+      fi
+    done | sort -u
+  )
+fi
+
+if [ -z "$seed_files" ] && [ -z "$td_dirs" ]; then
   exit 0
 fi
 
 rel_dirs=$(
-  echo "$seed_files" | while read -r f; do
-    d=$(dirname "$f")
-    # Test scope: a deleted file still moved its package, as long as the package
-    # (its directory) is still there.
-    if [ -f "$f" ] || { [ "$with_dependents" -eq 1 ] && [ -d "$d" ]; }; then
-      echo "$d"
-    fi
-  done | sort -u
+  {
+    echo "$seed_files" | while read -r f; do
+      [ -n "$f" ] || continue
+      d=$(dirname "$f")
+      # Test scope: a deleted file still moved its package, as long as the
+      # package (its directory) is still there.
+      if [ -f "$f" ] || { [ "$with_dependents" -eq 1 ] && [ -d "$d" ]; }; then
+        echo "$d"
+      fi
+    done
+    printf '%s\n' "$td_dirs"
+  } | grep -v '^$' | sort -u
 )
 
 if [ "$with_dependents" -eq 1 ]; then

@@ -49,6 +49,36 @@ func newTestService(t *testing.T) *Service {
 	return &Service{Credits: svc, Model: "fake-1"}
 }
 
+// newTestServiceWithDB is newTestService plus the handle, for the assertions
+// that have to read an internal table (settlement_outbox) rather than a
+// service method: the row's status IS the contract, so proving it needs SQL.
+func newTestServiceWithDB(t *testing.T) (*Service, *sql.DB) {
+	t.Helper()
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	// One connection: ":memory:" is per-connection, so a second one would be a
+	// different, empty database and every read here would find no table.
+	db.SetMaxOpenConns(1)
+
+	svc, err := credits.New(db, credits.Config{
+		MonthlyCredits: 1000,
+		PricingReader:  strings.NewReader(unitPricing),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.EnsureSchema(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.EnsureMonthlyGrant(context.Background(), "user-1", ""); err != nil {
+		t.Fatal(err)
+	}
+	return &Service{Credits: svc, Model: "fake-1"}, db
+}
+
 // A failed managed call must bill nothing: the reserve is released, so the
 // balance returns exactly to the monthly grant.
 func TestRunManagedFailedCallBillsNothing(t *testing.T) {

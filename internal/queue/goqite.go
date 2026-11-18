@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"sync"
 	"time"
 
 	"maragu.dev/goqite"
@@ -46,21 +47,35 @@ var goqiteSchema string
 // are exported via accessor methods rather than directly so callers
 // can't bypass Close()'s nil-out of the goqite handle.
 type Queue struct {
-	q   *goqite.Queue
+	// mu guards q and closed, and its rule has two tiers (see handle()):
+	// short calls hold it for the whole call so Close waits for them; the long
+	// poll releases it before parking so Close is not blocked for a second.
+	// Close nils q and closes the database, so a caller that copies the pointer
+	// out and uses it later is using a handle whose db is gone — a nil-pointer
+	// panic, not an error.
+	mu     sync.RWMutex
+	q      *goqite.Queue
+	closed bool
+
 	hub *SSEHub
 	reg *HandlerRegistry
 	db  *sql.DB
 
-	// retry overrides WorkerPool's default backoff. Nil means
-	// DefaultRetryConfig. Set via SetRetry before StartWorkers.
-	retry *RetryConfig
+	// extended is a test seam: called after each successful lease extension so a
+	// test can observe the heartbeat without a real 30s wait. Nil in production.
+	extended func()
 
-	// workers is the pool StartWorkers created. Close() stops it, so the
-	// caller does not have to hold onto the return value to shut the pool
-	// down — before this, `StartWorkers()`'s result was routinely discarded
-	// and WorkerPool.Stop() was therefore unreachable from production
-	// shutdown (workers kept running against a closed database).
+	// workers is the pool StartWorkers created. Close() stops it, so the caller
+	// does not have to hold onto the return value to shut the pool down —
+	// before this, `StartWorkers()`'s result was routinely discarded and
+	// WorkerPool.Stop() was therefore unreachable from production shutdown
+	// (workers kept running against a closed database).
+	//
+	// Both are guarded by mu like q: Close reads and clears them, so an
+	// unsynchronized StartWorkers could otherwise hand a pool to a Close that
+	// has already run and leave it draining a closed database.
 	workers *WorkerPool
+	retry   *RetryConfig
 }
 
 // New opens a SQLite-backed goqite queue, applies the schema, and returns a
@@ -108,16 +123,30 @@ func NewAt(dataDir string) (*Queue, error) {
 	}, nil
 }
 
-// queueVisibilityTimeout is how long a received job stays invisible
-// before goqite re-delivers it (up to MaxReceive=3 total receives).
-// The 5s library default fits fast jobs, but this queue carries
-// unbounded LLM round-trips (chat/suggest): a 30s model call was
-// re-executed twice more while still running, and every execution
-// fanned its answer live (persistence dedupes by idem key, SSE sends
-// do not — hence triple answers from one click). 10 minutes covers
-// the slowest legitimate job; a crashed worker's job waits that long
-// to be picked up again, which is the documented trade.
-const queueVisibilityTimeout = 10 * time.Minute
+// queueVisibilityTimeout is how long a received job stays invisible before
+// goqite re-delivers it (up to MaxReceive=3 total receives).
+//
+// The 5s library default fits fast jobs, but this queue carries unbounded LLM
+// round-trips (chat/suggest): a 30s model call was re-executed twice more while
+// still running, and every execution fanned its answer live (persistence
+// dedupes by idem key, SSE sends do not — hence triple answers from one click).
+// The old fix was to raise the lease to 10 minutes, which covered the slowest
+// legitimate job by making a CRASHED worker's job wait 10 minutes for anyone to
+// notice — the same constant had to be both "long enough for the slowest job"
+// and "short enough to recover fast", and nothing can be both.
+//
+// A lease is now short and is kept alive: the worker extends it every
+// queueHeartbeatInterval for as long as the handler runs (see
+// WorkerPool.heartbeat). So a live job is never re-delivered no matter how
+// long it takes, and a dead worker is recovered in 30s instead of 10min. No
+// goqite.Extend call existed anywhere before, which is what made the long lease
+// necessary.
+const queueVisibilityTimeout = 30 * time.Second
+
+// queueHeartbeatInterval is how often a leased job has its visibility extended.
+// A third of the lease, so two consecutive missed beats still leave the job
+// hidden while the worker is alive (a slow scheduler tick is not a crash).
+const queueHeartbeatInterval = queueVisibilityTimeout / 3
 
 // applyGoqiteSchema creates the goqite table if it does not exist.
 // Safe to call on every startup: the SELECT-then-CREATE pattern is
@@ -144,18 +173,60 @@ func applyGoqiteSchema(ctx context.Context, db *sql.DB) error {
 // ErrQueueClosed is returned when an operation is attempted on a closed queue.
 var ErrQueueClosed = errors.New("queue: closed")
 
+// handle returns the goqite queue with the read lock held for as long as the
+// caller needs it. ok is false once Close has run: callers then answer
+// ErrQueueClosed instead of driving a handle whose database is gone.
+//
+// TWO-TIER RULE, and it matters which one a caller is on:
+//
+//   - Short calls (Enqueue, Delete) hold the lock for the whole call. Close
+//     blocks until they finish, so the database is never closed under them.
+//   - The long poll (ReceiveAndWait) releases the lock BEFORE waiting, because
+//     it parks for up to a second and Close would block on it — the pool would
+//     deadlock in Stop() waiting for the workers that Close is waiting for.
+//     That is safe because database/sql's own contract covers it: DB.Close
+//     stops new queries and waits for in-flight ones, so a parked Receive
+//     either finishes or fails with "database is closed". The lock exists to
+//     stop a nil q dereference, not to serialize the driver.
+//
+// It returns an unlock func rather than letting callers dereference q directly
+// because the failure mode is silent in the wrong shape: `h.queue()` used as a
+// plain getter reintroduces exactly the copy-then-use window this lock exists
+// to close.
+func (q *Queue) handle() (gq *goqite.Queue, unlock func(), ok bool) {
+	q.mu.RLock()
+	if q.closed || q.q == nil {
+		q.mu.RUnlock()
+		return nil, func() {}, false
+	}
+	return q.q, q.mu.RUnlock, true
+}
+
 // Enqueue wraps goqite.Send with a typed body. The data must already be
 // a marshalled queue.Job envelope when going through HandlerRegistry.
 func (q *Queue) Enqueue(ctx context.Context, data []byte) error {
+	gq, unlock, ok := q.handle()
+	if !ok {
+		return ErrQueueClosed
+	}
+	defer unlock()
 	slog.Info("queue: Enqueue called", "body_len", len(data))
-	err := q.q.Send(ctx, goqite.Message{Body: data})
+	err := gq.Send(ctx, goqite.Message{Body: data})
 	slog.Info("queue: Enqueue result", "err", err)
 	return err
 }
 
-// ReceiveAndWait blocks for up to timeout waiting for a message.
+// ReceiveAndWait blocks for up to timeout waiting for a message. It returns
+// ErrQueueClosed when the queue is closed, including when Close runs WHILE the
+// call is parked: the handle stays valid until this call returns, so Close
+// waits for it instead of closing the database underneath it.
 func (q *Queue) ReceiveAndWait(ctx context.Context, timeout time.Duration) (*goqite.Message, error) {
-	return q.q.ReceiveAndWait(ctx, timeout)
+	gq, unlock, ok := q.handle()
+	if !ok {
+		return nil, ErrQueueClosed
+	}
+	unlock() // see the two-tier rule on handle(): do not hold across the poll
+	return gq.ReceiveAndWait(ctx, timeout)
 }
 
 // Hub returns the SSEHub for streaming to browser clients.
@@ -166,19 +237,69 @@ func (q *Queue) Hub() *SSEHub { return q.hub }
 // place. Production never calls this — it exists so a test that has to
 // exercise the retry PATH does not also have to sit through the real
 // 2s→4s backoff, which makes retry coverage cost seconds per test.
-func (q *Queue) SetRetry(cfg RetryConfig) { q.retry = &cfg }
+func (q *Queue) SetRetry(cfg RetryConfig) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	q.retry = &cfg
+}
 
 // StartWorkers launches workerCount goroutines that drain the queue
 // and dispatch through the HandlerRegistry. Returns the pool so
 // callers can stop it explicitly on shutdown.
 func (q *Queue) StartWorkers() *WorkerPool {
-	wp := NewWorkerPool(q.q, q.hub, q.reg, workerCount)
+	q.mu.Lock()
+	if q.closed {
+		// Nothing to drain: the queue is gone, and a pool started here would
+		// spend its life logging ErrQueueClosed. Return an inert pool so the
+		// caller's Stop() is still a no-op rather than a nil dereference.
+		q.mu.Unlock()
+		wp := NewWorkerPool(q, q.hub, q.reg, workerCount)
+		return wp
+	}
+	wp := NewWorkerPool(q, q.hub, q.reg, workerCount)
 	if q.retry != nil {
 		wp.SetRetry(*q.retry)
 	}
-	wp.Start()
 	q.workers = wp
+	q.mu.Unlock()
+
+	wp.Start()
 	return wp
+}
+
+// receiveAndWait and delete are the worker pool's two queue calls. The pool
+// used to hold the raw *goqite.Queue, which meant Close could nil the field and
+// close the database while a worker was between qGuard() and Receive — a
+// nil-pointer send in the pool, and a dead driver underneath it.
+func (q *Queue) receiveAndWait(ctx context.Context, timeout time.Duration) (*goqite.Message, error) {
+	return q.ReceiveAndWait(ctx, timeout)
+}
+
+// extend keeps a leased message invisible for another full lease. It returns
+// ErrQueueClosed during shutdown so a heartbeat stops cleanly instead of
+// logging a failure it cannot act on.
+func (q *Queue) extend(ctx context.Context, id goqite.ID, lease time.Duration) error {
+	gq, unlock, ok := q.handle()
+	if !ok {
+		return ErrQueueClosed
+	}
+	defer unlock()
+	if err := gq.Extend(ctx, id, lease); err != nil {
+		return err
+	}
+	if q.extended != nil {
+		q.extended()
+	}
+	return nil
+}
+
+func (q *Queue) deleteMessage(ctx context.Context, id goqite.ID) error {
+	gq, unlock, ok := q.handle()
+	if !ok {
+		return ErrQueueClosed
+	}
+	defer unlock()
+	return gq.Delete(ctx, id)
 }
 
 // Registry returns the handler registry. Production code calls
@@ -198,9 +319,15 @@ func (q *Queue) Registry() *HandlerRegistry { return q.reg }
 // worker goroutine, which is also what makes this a bounded shutdown rather than
 // a race with the process exiting.
 func (q *Queue) Close() {
-	if q.workers != nil {
-		q.workers.Stop()
-		q.workers = nil
+	// Stop the pool BEFORE taking the write lock: Stop waits for the workers,
+	// and a worker is inside a queue call holding the read lock at this very
+	// moment. Taking the write lock first would deadlock against them.
+	q.mu.Lock()
+	wp := q.workers
+	q.workers = nil
+	q.mu.Unlock()
+	if wp != nil {
+		wp.Stop()
 	}
 	// Drop live SSE registrations so shutdown holds no stale channels.
 	// Live streams still exit via their request context (HTTP shutdown);
@@ -208,8 +335,19 @@ func (q *Queue) Close() {
 	if q.hub != nil {
 		q.hub.Close()
 	}
+	// Only now invalidate the handle. The write lock waits for any in-flight
+	// Enqueue/Receive/Delete (and any pool that was built by another goroutine
+	// and has not started yet) to return, so the database is closed after its
+	// last user, never under it.
+	q.mu.Lock()
+	q.closed = true
 	q.q = nil
-	if q.db != nil {
-		_ = q.db.Close()
+	db := q.db
+	q.db = nil
+	q.mu.Unlock()
+	// In-flight Receives are already past handle() and parked in the driver;
+	// DB.Close stops new queries and waits for those to finish.
+	if db != nil {
+		_ = db.Close()
 	}
 }

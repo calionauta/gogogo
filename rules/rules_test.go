@@ -97,6 +97,7 @@ func fixtures() []ruleFixture {
 	all = append(all, stdoutFixtures()...)
 	all = append(all, htmlFixtures()...)
 	all = append(all, roleFixtures()...)
+	all = append(all, swallowedErrFixtures()...)
 	all = append(all,
 		ruleFixture{
 			name: "the corrected select shape stays quiet",

@@ -257,3 +257,90 @@ func TestFederatedWithoutAttachIsLocal(t *testing.T) {
 		t.Fatalf("list = %v, %v; want [c-a]", got, lerr)
 	}
 }
+
+// TestFederatedExpiryRebroadcastsCount pins the ONE case the merged count got
+// wrong even though the union was right: a peer instance disappearing on lease
+// expiry.
+//
+// Joining a doc re-broadcasts the count (onSnapshot) and leaving does too
+// (Join/Leave announce). Expiry had no re-broadcast at all, so when an instance
+// died without retracting — a killed pod, a dropped NATS connection — the
+// "N online" pill kept counting it until some unrelated event happened to fire.
+// The person the user was watching disappear is exactly the case they notice.
+//
+// The assertion is "a frame arrives AFTER the expiry", which needs the channel
+// quiet first: an earlier join frame still in flight would otherwise satisfy it
+// on the buggy code too (measured — that is why the quiesce step is here).
+//
+// RED-PROOFED: make renewLease's expiry loop a no-op and this times out.
+func TestFederatedExpiryRebroadcastsCount(t *testing.T) {
+	p, hubs := federation(t)
+	ctx := context.Background()
+
+	if _, err := p[0].Join(ctx, "doc-1", "c-a"); err != nil {
+		t.Fatalf("join a: %v", err)
+	}
+	if _, err := p[1].Join(ctx, "doc-1", "c-b"); err != nil {
+		t.Fatalf("join b: %v", err)
+	}
+	waitUnion(t, "doc-1", p, "c-a", "c-b")
+
+	frames := collectCountFrames(t, hubs[0], "doc-1")
+	quiesce(t, frames)
+
+	// A peer that recorded a roster and then stopped refreshing it — a killed
+	// pod, from this instance's point of view.
+	p[0].RecordStalePeerForTest("doc-1", "dead-instance", []string{"c-ghost"})
+	quiesce(t, frames)
+
+	p[0].ExpireNowForTest(ctx)
+
+	select {
+	case got := <-frames:
+		if slices.Contains(got, "c-ghost") {
+			t.Fatalf("count frame after expiry still lists the departed peer: %v", got)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("no count frame after a peer's roster expired — the pill keeps showing " +
+			"the departed instance until something else happens to re-broadcast")
+	}
+}
+
+// quiesce discards frames until the channel has been silent briefly, so the
+// next frame received is attributable to the action that follows.
+func quiesce(t *testing.T, frames <-chan []string) {
+	t.Helper()
+	for {
+		select {
+		case <-frames:
+		case <-time.After(150 * time.Millisecond):
+			return
+		}
+	}
+}
+
+// collectCountFrames subscribes to the doc's count broadcasts on hub.
+func collectCountFrames(t *testing.T, hub *queue.SSEHub, docID string) <-chan []string {
+	t.Helper()
+	out := make(chan []string, 64)
+	ch := make(chan []byte, 64)
+	hub.Register("count-watcher", docID, ch)
+	hub.SetDoc("count-watcher", docID) // Register alone does not scope to a doc
+	go func() {
+		for raw := range ch {
+			var msg collab.PresenceMsg
+			if err := json.Unmarshal(raw, &msg); err != nil {
+				continue
+			}
+			if msg.Type != "count" {
+				continue
+			}
+			select {
+			case out <- msg.Peers:
+			default:
+			}
+		}
+	}()
+	t.Cleanup(func() { hub.Unregister("count-watcher") })
+	return out
+}

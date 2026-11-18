@@ -104,7 +104,7 @@ func TestQueueWorkerRetriesOnError(t *testing.T) {
 	// Build the pool directly so we can install a fast retry config
 	// BEFORE Start (StartWorkers would snapshot the default 2s backoff,
 	// which is too slow for a unit test).
-	wp := NewWorkerPool(q.q, q.hub, q.reg, workerCount)
+	wp := NewWorkerPool(q, q.hub, q.reg, workerCount)
 	wp.SetRetry(RetryConfig{Attempts: 3, Delay: 10 * time.Millisecond, MaxDelay: 50 * time.Millisecond})
 	wp.Start()
 	defer wp.Stop()

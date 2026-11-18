@@ -635,15 +635,37 @@ without opening a PR:
 gh workflow run ci.yml --ref <branch> -f scope_packages="internal/queue features/notes/handlers"
 ```
 
-Those four skip on a **docs-only changeset** — a `changes` classifier job reads
-the PR (`base...HEAD`) or push (`before...after`) diff and marks it when every
-path is `docs/`, `site/`, `*.md`, `LICENSE`, `.stelow/` or `.gitignore`; an
-unreadable diff (force-push, shallow history, dispatch) fails **open** to a full
-run. A trigger-level `paths-ignore` would be cheaper but skips the workflow
-entirely, leaving the required `ci` status pending forever on a docs PR — the
-classifier always runs, so `ci` always reports. Each job provisions its own
-toolchain and deps (`bin/check-ci-deps.sh`, pre-commit + CI, fails a job that
-uses `node`/`go` without installing them first).
+Those four skip on a **docs-only changeset** — a `changeset` job reads the PR
+(`base...HEAD`) or push (`before...after`) diff and marks it when every path is
+`docs/`, `site/`, `*.md`, `LICENSE`, `.stelow/` or `.gitignore`; an unreadable
+diff (force-push, shallow history, dispatch) fails **open** to a full run. A
+trigger-level `paths-ignore` would be cheaper but skips the workflow entirely,
+leaving the required `ci` status pending forever on a docs PR — the classifier
+always runs, so `ci` always reports. Each job provisions its own toolchain and
+deps (`bin/check-ci-deps.sh`, pre-commit + CI, fails a job that uses
+`node`/`go` without installing them first).
+
+**Two jobs, not one, on purpose.** `changeset` (checkout + `git diff`) answers
+"is this diff inert?" in ~5s, and that boolean is all `checks`, `browser`,
+`prod-image` and `race`'s skip condition need. `changes` adds the pinned
+toolchain, a restored module cache and `go list` to answer the SECOND question —
+which packages `race` must run — and measures 27s. They were one job, so every
+gate paid that 27s of serial prefix for a boolean that was ready at 5s, and the
+wall's critical path was `prod-image` instead of a race shard. Splitting them
+moves the five non-Go gates from `+32s` to `+6s` and takes ~15s off every PR
+(measured on run 44142988832's job durations, not estimated). Only `race` reads
+`changes.outputs.pkgs`.
+
+**Re-measure the cost table before trusting the shard split.**
+`scripts/ci-shard-packages.sh` carries measured per-package wall-times, and a
+stale entry is an efficiency bug, not a correctness one: the union of shards is
+always exactly `web-packages.sh`, but `internal/installer` kept its 2026-10-29
+cost of 360s long after the fixture was narrowed, so the packer reserved a whole
+runner for a package that now measures 6s — a 60x error that survived eight
+consecutive runs. The cost table below is refreshed from
+`gh run view <id> --log | grep -E '^race.*ok'`; `OUTLIER` is the threshold at
+which a package is worth a runner of its own, and it is only correct relative to
+the current maximum (64s today, so 60, not the 300 that matched a 360s outlier).
 
 `make ci-local` runs the same set locally, cheap steps first, then the
 race+browser fan-out (`scripts/ci-fanout.sh`).

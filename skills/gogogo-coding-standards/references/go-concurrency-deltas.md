@@ -219,3 +219,42 @@ r.Remove("old.go")
 Use it whenever you write into a path derived from untrusted or user-supplied
 tree content (installer/CLI, unpacking). Keep the lexical check too, as
 defense in depth. See `internal/installer/tree.go`.
+
+## Lost updates: the bugs `-race` cannot see
+
+`-race` proves no two goroutines touch the same memory unsafely. It says nothing
+about two goroutines each making a correct step whose INTERLEAVING loses data.
+Channels are race-free and still lose events; a lease can be extended race-free
+and still be expired before the job finishes. Four of these shipped here and
+were found by modelling the design, not by running it.
+
+**The shape to look for.** An operation that (a) reads shared state, (b) releases
+the lock, then (c) acts on what it read:
+
+```go
+h.mu.RLock(); ch := h.clients[id]; h.mu.RUnlock()
+h.mu.Lock();  delete(h.buffer, id); ...   // another goroutine, elsewhere
+select { case ch <- data: }               // (c) after (b): goes nowhere
+```
+
+Rule: **a decision and the action it licenses are one lock hold.** Never
+`Unlock` between "I looked up where this goes" and "I put it there". If the
+action needs a write (append to a buffer), take the write lock — do not "reuse"
+the read lock you already released.
+
+**Three failure modes, three different guards.**
+
+| Failure | `-race` | `go vet`/linters | What actually catches it |
+|---|---|---|---|
+| Lost update between correct halves (above) | silent | silent | a lock-shape assertion, e.g. park the delivery and `TryLock` to assert the hold |
+| Error discarded in its own nil-check (`if err != nil { _ = err }`) | silent | `errcheck` with `check-blank: true` does NOT flag it | ruleguard rule `SwallowedErrorInCheck` (`rules/rules.go`) |
+| Semantic race across two clocks/leases (a reservation expires while its request runs) | silent | silent | model it — see below |
+
+**When a rule is not reachable by inspection, model it.** A temporal property
+("this call cannot outlive its lease", "no event is lost across a reconnect") is
+not visible in any single function, so no linter can state it. For those, write a
+small TLA+ model and check it with everystate (Rust, no Java): `npx everystate
+Spec.tla`. It is a DELIBERATE tool for designing a protocol (lease, queue,
+reconnect, fan-out), not a CI gate — a spec encodes assumptions about the
+implementation and silently lies once those change. The durable output of a
+modelling pass is the failing test it motivates, not the spec.

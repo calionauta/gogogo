@@ -106,6 +106,10 @@ func (s *Service) RunManaged(
 	if err := s.Credits.Settle(ctx, rsv, creditsCharged); err != nil {
 		return nil, fmt.Errorf("credits: settle: %w", err)
 	}
+	// The direct path owes the outbox row an outcome; see settleCall.
+	if err := s.Credits.MarkOutboxSettled(ctx, requestID); err != nil {
+		return nil, fmt.Errorf("credits: settled but the outbox row was not closed (request %s): %w", requestID, err)
+	}
 	mu, _ := s.Credits.Cost(ctx, u)
 	u.CostMicrounits = mu
 	u.CreditsCharged = creditsCharged

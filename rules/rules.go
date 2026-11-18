@@ -126,6 +126,44 @@ func TickerLoopWithoutExit(m dsl.Matcher) {
 // opening that name would fail at runtime — and were it reintroduced
 // beside the others it would create a second pool against the same
 // files. This rule keeps OUR code from instantiating it.
+// SwallowedErrorInCheck flags an error that is explicitly discarded INSIDE its
+// own nil-check:
+//
+//	if err := s.Foo(); err != nil {
+//	    _ = err        // <- silent failure
+//	}
+//
+// This is the shape of two bugs found by model checking this repo (see
+// /tmp-free reproduction in features/credits/settle.go's tests). The credits
+// settle path did exactly this on ErrReservationClosed: a slow LLM response
+// outlived its 5-minute reservation lease, Reconcile had already refunded the
+// reservation, the CAS in Settle returned "already closed", and the handler
+// threw the error away. The user kept the answer, paid nothing, the ledger
+// stayed consistent (the adjustment and the failed CAS share one transaction
+// and roll back together), and nothing logged a word. It was invisible to
+// `-race` (no data race), to go vet, and to every linter in this config —
+// `errcheck` with `check-blank: true` catches `_ = f()` at the CALL SITE, which
+// is a deliberate discard, but not the deliberate discard of an error you JUST
+// tested.
+//
+// Why the linter cannot do better than a shape rule: deciding whether a
+// swallowed error is a bug needs to know whether the reservation could have
+// expired, which is a temporal property of the system, not a property of the
+// code. That is what the TLA+ model was for. The rule catches the SIGNATURE of
+// that class, which is cheap and has no false positives in this tree: an error
+// discarded while it is provably non-nil is never correct, so the fix is always
+// "handle it, log it, or return it".
+func SwallowedErrorInCheck(m dsl.Matcher) {
+	// TWO ARMS, because the if-with-init form binds differently: `if err :=
+	// f(); err != nil { _ = err }` does NOT match the plain pattern (measured —
+	// the plain arm alone reported nothing on a fixture with the init form,
+	// and the bug this rule exists for was written in the init form).
+	m.Match(`if $x != nil { _ = $x }`).
+		Report(`error discarded inside its own nil-check: it is non-nil at this point, so this branch does nothing. Handle it, log it with context, or return it — a silent branch here is how a real failure (an expired reservation, a closed queue) becomes invisible`)
+	m.Match(`if $init; $x != nil { _ = $x }`).
+		Report(`error discarded inside its own nil-check: it is non-nil at this point, so this branch does nothing. Handle it, log it with context, or return it — a silent branch here is how a real failure (an expired reservation, a closed queue) becomes invisible`)
+}
+
 func ModerncDriverOpen(m dsl.Matcher) {
 	m.Match(`sql.Open("sqlite", $dsn)`).
 		Report(`sql.Open("sqlite") instantiates the modernc driver, which is not a dependency of this repo — the app database opens "turso" (see internal/db) and test/gui paths open "sqlite3". A second pool against the same files is never what you want.`)
