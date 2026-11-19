@@ -15,6 +15,16 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.71.4 (2026-11-19)
+
+## What's Changed
+* ci: the cache budget was spent on PRs, and the browser gate paid for apt it did not need by @calionauta in https://github.com/calionauta/gogogo/pull/457
+* docs: name the agent that actually ran, not the one in the example by @calionauta in https://github.com/calionauta/gogogo/pull/459
+* ci: prod-image stops re-saving every intermediate docker layer by @calionauta in https://github.com/calionauta/gogogo/pull/460
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.71.3...v0.71.4
+
 ## 0.71.3 (2026-11-19)
 
 ## What's Changed
