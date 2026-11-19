@@ -215,6 +215,10 @@ const chiGoFile = "internal/server/chi.go"
 // .go file at 500 lines, so wiring helpers live here.
 const bootHelpersFile = "internal/server/boot_helpers.go"
 
+// desktopMainFile is the desktop target's entrypoint: a separate target in the
+// same module, so `go mod tidy` parses it even when nothing shipped uses it.
+const desktopMainFile = "cmd/desktop/main.go"
+
 // Repeated trim targets, hoisted so a typo in a path is a compile error
 // rather than a trim that silently matches nothing.
 const (

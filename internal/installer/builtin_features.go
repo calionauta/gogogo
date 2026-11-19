@@ -31,13 +31,24 @@ var featureBuiltinUnits = []builtinUnit{
 				substrs: []string{
 					// The shared collab wiring fed into Deps.
 					"persister, docs, perr := bootCollab(cfg, queries)",
+					// The error branch belongs to the line above: a whole-line
+					// drop that left `if perr != nil {` behind produced a file
+					// whose only error was "undefined: perr", blamed on the
+					// operator's first build instead of on this declaration.
+					`return bootFail(cancelConsumer, sqlDB, "collab snapshots", perr)`,
+					// The transport import and the struct field that holds it.
+					`	"github.com/calionauta/gogogo/internal/collab"`,
 					"federated := bootPresence(hub)",
-					"Persister: persister, DocStore: docs, Presence: federated,",
+					"Collab: collab.Handoff{Persister: persister, Docs: docs, Presence: federated},",
 					"// Collaborator presence: ONE local seam for both features (the actor when",
 					"// GoAkt runs, the in-process PeerSet otherwise), so a deployment cannot end",
 					"// up with two rosters that disagree about the same tab. It is federated",
 					"// across instances in AttachPresenceFederation once NATS exists.",
 					"presence:             federated,",
+					// The ChiStack field the wiring above assigned.
+					"presence *collab.FederatedPresence",
+					"// presence is the roster seam both collaborative features share (created",
+					"// at boot, federated by AttachPresenceFederation). Nil = features trimmed.",
 					"upgradePresenceToActor(federated, appgoakt.NewDocPresence(roomHost))",
 					`MountSubtree(r, whiteboard.AssetPath, whiteboard.StaticHandler())`,
 					`MountSubtree(r, notes.AssetPath, notes.StaticHandler())`,
@@ -75,6 +86,12 @@ var featureBuiltinUnits = []builtinUnit{
 			},
 		},
 		desktopDropLines: []string{`internal/collab"`, `"time"`},
+		// loro-go is the CGO binding the transport is built on: with collab gone,
+		// nothing imports it, and `go mod tidy` will not drop a requirement on its
+		// own. Left pinned, every target keeps needing a C toolchain — the exact
+		// defect that shipped empty GUI releases (#454). The fork's replace line
+		// goes with it.
+		goModDrops: []string{"github.com/aholstenson/loro-go", "github.com/calionauta/loro-go"},
 		extraStrips: []fileStrip{
 			{
 				path: modulesFile,

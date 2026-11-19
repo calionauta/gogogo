@@ -192,8 +192,9 @@ func TestBuildChiMuxRoomDisabledPinsRouteAbsence(t *testing.T) {
 		a,
 		register.Deps{
 			Cfg: cfg, Auth: a, Queries: q, Hub: hub,
-			RealLLM: newReviewHandlerForTestLLM(), Persister: persister, DocStore: docs,
-			Queue: chiQForTest(t), Slots: slots,
+			RealLLM: newReviewHandlerForTestLLM(),
+			Collab:  collab.Handoff{Persister: persister, Docs: docs},
+			Queue:   chiQForTest(t), Slots: slots,
 			TodoRef: &register.TodoRef{}, InboxRef: &register.InboxRef{},
 		},
 	)

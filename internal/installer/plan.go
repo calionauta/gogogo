@@ -236,6 +236,15 @@ func applyRecipeSelection(p *scaffoldPlan, opt options) error {
 
 // withoutDroppedUnits takes the removed slices out of the capabilities list, so
 // the plan cannot say "feature: kiosk" and "drop recipes: kiosk" at once.
+//
+// It deliberately does NOT cascade to servants. DependsOn records the edges a
+// unit's own code needs to compile — it is not a reachability graph for "is this
+// still wanted": components, datastar, nats and events are depended on by
+// almost nobody yet are load-bearing for everything. A cascade over this graph
+// dropped 30 capabilities on a `--recipes none` run (measured), including the
+// Datastar runtime and the component library, so inferring removal from it is
+// how a template silently guts itself. Dropping a servant is a decision, and it
+// stays one: it needs an explicit request.
 func (p *scaffoldPlan) withoutDroppedUnits() {
 	if len(p.DropRecipes) == 0 || len(p.Keep) == 0 {
 		return

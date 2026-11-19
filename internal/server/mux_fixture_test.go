@@ -58,9 +58,9 @@ func buildMuxFixture(t *testing.T) *muxFixture {
 	mux := buildChiMux(a, register.Deps{
 		Cfg: cfg, Auth: a, Queries: dbgen.New(sqlDB),
 		Hub: queue.NewSSEHub(), SQLDB: sqlDB,
-		RealLLM:   newReviewHandlerForTestLLM(),
-		Persister: persister, DocStore: docs,
-		Queue: chiQForTest(t), Slots: slots,
+		RealLLM: newReviewHandlerForTestLLM(),
+		Collab:  collab.Handoff{Persister: persister, Docs: docs},
+		Queue:   chiQForTest(t), Slots: slots,
 		TodoRef: &register.TodoRef{}, InboxRef: &register.InboxRef{},
 	},
 	)

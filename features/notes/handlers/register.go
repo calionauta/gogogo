@@ -18,17 +18,18 @@ func Register(reg *recipe.Registry, d register.Deps) {
 	if hub == nil {
 		hub = queue.NewSSEHub()
 	}
-	persister := d.Persister
-	if persister == nil {
-		persister = collab.NewMemoryPersister()
+	// Same opaque handle whiteboard takes: register.Deps must not name this
+	// servant, or a tree without collab cannot be tidied.
+	transport, _ := d.Collab.(collab.Handoff)
+	if transport.Persister == nil {
+		transport.Persister = collab.NewMemoryPersister()
 	}
-	docs := d.DocStore
-	if docs == nil {
-		docs = collab.NewDocStore()
-		docs.SetPersister(persister)
+	if transport.Docs == nil {
+		transport.Docs = collab.NewDocStore()
+		transport.Docs.SetPersister(transport.Persister)
 	}
-	h := NewHandler(d.Queries, d.Auth, hub, persister, docs, d.Cfg)
-	h.SetPresence(d.Presence)
+	h := NewHandler(d.Queries, d.Auth, hub, transport.Persister, transport.Docs, d.Cfg)
+	h.SetPresence(transport.Presence)
 	reg.Add(h.Recipe())
 	// The feature owns its asset subtree too: the root mounts it through the
 	// seam so a tree without this slice has no line and no import to trim.

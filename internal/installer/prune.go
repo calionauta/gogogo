@@ -39,9 +39,18 @@ func pruneReferenceRecipes(opt options, drop []string, stdout io.Writer) error {
 // rows, nav entry, domain card, generated registration).
 func pruneOneRecipe(root, id string, stdout io.Writer) error {
 	if _, err := os.Stat(filepath.Join(root, recipe.ReceiptPath(id))); os.IsNotExist(err) {
-		// A tree that never carried the slice has nothing to remove.
+		// No receipt means no installed slice to uninstall.
 		return nil
 	}
+	// One confined handle for every write below: os.Root refuses a path that
+	// would leave the target even through a planted symlink, which a lexical
+	// join cannot see. The tree is opened per recipe so a corrupt checkout
+	// fails before any file is touched.
+	tree, treeErr := openTree(root)
+	if treeErr != nil {
+		return fmt.Errorf("scaffold: %w", treeErr)
+	}
+	defer func() { _ = tree.Close() }()
 	r, err := recipe.LoadReceipt(root, id)
 	if err != nil {
 		return fmt.Errorf("scaffold: reading receipt for %s: %w", id, err)
@@ -52,6 +61,22 @@ func pruneOneRecipe(root, id string, stdout io.Writer) error {
 	res, err := recipe.RemoveAll(root, r)
 	if err != nil {
 		return fmt.Errorf("scaffold: removing %s: %w", id, err)
+	}
+	// The receipt names the slice's OWN files; the shared lines that wire it
+	// into the server live in the unit's declaration, which no receipt records.
+	// Applying it here is what lets the package it fed actually go away.
+	if u, ok := builtinUnitByID(id); ok {
+		if err := applyDropEdits(tree, u); err != nil {
+			return fmt.Errorf("scaffold: removing wiring of %s: %w", id, err)
+		}
+		// The unit's other CAPABILITIES go with it: unitCaps says the whiteboard
+		// unit owns {whiteboard, collab, notes}, so a dropped bundle takes the
+		// transport it depends on — the registry's own promise ("removing the
+		// whiteboard bundle removes collab"), executed instead of described.
+		// Their shared wiring is the same server seam, edited once above.
+		if err := removeUnitCapabilities(tree, u); err != nil {
+			return fmt.Errorf("scaffold: removing capabilities of %s: %w", id, err)
+		}
 	}
 	if _, err := removeDerived(root, id, res.Removed, r); err != nil {
 		return fmt.Errorf("scaffold: removing derived surfaces of %s: %w", id, err)

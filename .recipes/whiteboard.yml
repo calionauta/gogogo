@@ -25,7 +25,7 @@ files:
   features/whiteboard/handlers/presence_cross_instance_test.go: 5f537ae45422afdf605cd45003f9bd9efbba5880a7620affd47ac70f46c4ac96
   features/whiteboard/handlers/presence_test.go: 31461c438b7be7eb5da5f0b95425c1821d2e3d643ac09291d5188b63af0155ad
   features/whiteboard/handlers/recipe.go: e02968f0fb8a5d72c43474eec12517ae230531f027501f0484371d7f97644fe1
-  features/whiteboard/handlers/register.go: 18de9f734b4a363defe266644adf549e1916c1770debb05e134c5f70bdfbd66a
+  features/whiteboard/handlers/register.go: df926d89613b0c22c17aecbaa9933eb0bbdd7520081cea855a57976c6f8c1cc6
   features/whiteboard/static/rough.min.js: d5d561189ea0ad7a2818d586dc964d84fa4751124a5270c6b267a41e53796e45
   features/whiteboard/static/whiteboard.js: 576891f40cf7070b95bbcd61e7e4bc2be899f92d5dd632bbc5c57d30892aada3
   features/whiteboard/handlers/genui_panel.go: 9fb36eba280c5c77f2c6410dc28b8be17842bda86c0fb4aa701a5cc09b6ade68
