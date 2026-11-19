@@ -114,6 +114,14 @@ this principle is what protects the result.
 
 - **Paid today.** `internal/collab` binds the Loro C library (CGO, rung 3) and
   the Turso driver dlopens a Rust shared object through `purego` (rung 2).
+- **Paid only when shipped.** The Loro price is conditional: `internal/collab`
+  is a servant, and a product scaffolded without a collaborative slice
+  (`--recipes none`, or a set that excludes `notes`/`whiteboard`) has neither
+  the package nor `loro-go` in its `go.mod`, so it builds with no C toolchain.
+  This is enforced, not intended: dropping the unit applies its declared wiring
+  and removes the capability directories and go.mod requirements, and the proof
+  build fails if the result does not tidy. The Turso driver is unconditional —
+  every product opens a database.
 - **Build side.** A C compiler is required everywhere — `gcc` locally,
   `musl-dev` in the image builder, `aarch64-linux-gnu-gcc` for the
   cross-build — and `-tags musl` selects the embedded platform library.
