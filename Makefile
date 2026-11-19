@@ -301,10 +301,11 @@ check-site-deployed:
 # milliseconds — and CI runs both in the `checks` job. Wired here too so a
 # wrong verdict is caught before a push rather than in the run it wasted.
 check-ci-scripts:
-	@echo "→ check-ci-scripts (changeset classifier + shard split + release-deploy + workflow-shell + browser-suite contracts)..."
+	@echo "→ check-ci-scripts (changeset classifier + shard split + release-deploy + workflow-shell + browser-suite + toolchain contracts)..."
 	@bash scripts/ci-changes-classifier.test.sh > /dev/null
 	@bash scripts/ci-shard-packages.test.sh > /dev/null
 	@bash bin/install-browser_test.sh > /dev/null
+	@bash bin/install-go-toolchain_test.sh > /dev/null
 	@bash bin/check-deploy-release_test.sh > /dev/null
 	@bash bin/check-workflow-shell_test.sh > /dev/null
 	@bash scripts/check-run-browser-suite.test.sh > /dev/null

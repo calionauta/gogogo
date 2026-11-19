@@ -82,6 +82,23 @@ if ! npx playwright install chromium; then
 	exit 1
 fi
 
+# THE LAUNCH PROBE COMES FIRST, and that ordering is the whole optimization.
+# The runner image already carries the shared libraries Playwright's Chromium
+# links against, so the apt phase below is usually pure cost. Measured on two
+# consecutive runs of the same commit (2026-11-19): run 44551759905 spent 113s
+# in this step, all of it apt ("Fetched 4283 kB in 9s" then a second 21.9 MB
+# fetch), while run 44556795112 spent 11s on the same code with the SAME cache
+# HIT for the browser binary. The binary was never the slow part. Probing first
+# makes the common case "no apt at all" and keeps the install as a fallback
+# that runs exactly when a library is genuinely missing.
+log "-> proving the browser launches"
+if launch_browser 0; then
+	log "OK: browser ready (no system dependency install needed)"
+	exit 0
+fi
+
+# The probe failed: either a library is missing or this host cannot use the
+# sandbox. Try the dependency install once, then re-probe.
 deps_ok=1
 if [ "$skip_deps" = "1" ]; then
 	log "-> skipping the system dependencies (PLAYWRIGHT_SKIP_DEPS=1)"
@@ -90,7 +107,7 @@ elif [ "$host_os" != "Linux" ]; then
 	log "-> skipping the system dependencies (not Linux: there is no apt here)"
 	deps_ok=0
 else
-	log "-> installing the system dependencies (apt; best effort)"
+	log "-> the browser did not launch; installing the system dependencies (apt; best effort)"
 	if run_bounded "$install_timeout" npx playwright install-deps chromium; then
 		log "OK: system dependencies installed"
 	else
@@ -103,19 +120,10 @@ else
 	fi
 fi
 
-log "-> proving the browser launches"
-if launch_browser 0; then
-	log "OK: browser ready"
-	exit 0
-fi
-
-if [ "$deps_ok" -eq 0 ]; then
-	log "-> retrying the launch after a dependency install"
-	if run_bounded "$install_timeout" npx playwright install-deps chromium; then
-		if launch_browser 0; then
-			log "OK: browser ready (after the dependency install)"
-			exit 0
-		fi
+if [ "$deps_ok" -eq 1 ]; then
+	if launch_browser 0; then
+		log "OK: browser ready (after the dependency install)"
+		exit 0
 	fi
 fi
 

@@ -84,16 +84,38 @@ run_case() { # run_case <description> <expect-exit> <expect-log-substring> [env.
 	cp "$log" "$tmp/last-calls"
 }
 
-echo "--- the happy path installs, deps first, and proves the launch ---"
-run_case "everything available" 0 "OK: browser ready"
+echo "--- the happy path installs the binary and proves the launch ---"
+# The ORDER is the contract: the launch probe runs BEFORE apt, so a runner that
+# already carries the libraries pays nothing. Measured on two consecutive runs
+# of the same commit (2026-11-19): 113s vs 11s in this step, both with the
+# browser cache HIT, the difference being apt alone.
+run_case "everything available" 0 "OK: browser ready (no system dependency install needed)"
 grep -q "npx playwright install chromium" "$tmp/last-calls" || {
 	echo "FAIL  the browser binary was never installed"; fails=$((fails + 1))
+}
+if grep -q "install-deps" "$tmp/last-calls"; then
+	echo "FAIL  a launching browser still paid for the apt phase"
+	fails=$((fails + 1))
+fi
+
+echo
+echo "--- a browser that cannot launch must first REACH for the deps ---"
+# The probe failing is the only thing that should trigger apt. If the launch
+# works, the install is dead cost; if it does not, the install is the fix.
+run_case "the launch fails, the deps are installed, then it still fails" 1 \
+	"the browser did not launch; installing the system dependencies" NODE_LAUNCH_FAIL=1
+grep -q "install-deps" "$tmp/last-calls" || {
+	echo "FAIL  a broken launch never tried installing the dependencies"
+	fails=$((fails + 1))
 }
 
 echo
 echo "--- a broken apt mirror must not take the browser down ---"
-run_case "apt fails, the browser still launches" 0 \
-	"WARNING: could not install the browser system dependencies" NPX_DEPS_FAIL=1
+# apt is attempted only after a failed launch, so this case drives the launch
+# failure too and asserts the recovery message, not just the exit code.
+run_case "apt fails, the warning is loud" 1 \
+	"WARNING: could not install the browser system dependencies" \
+	NPX_DEPS_FAIL=1 NODE_LAUNCH_FAIL=1
 
 echo
 echo "--- a broken browser download must take it down ---"

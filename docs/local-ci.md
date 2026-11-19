@@ -34,10 +34,19 @@ its own and reserves the git stamp for the explicit pre-push moment.
 > can be a newer release than the one golangci-lint bundles and would otherwise
 > produce false-positive listings.
 
-> **Signoff is advisory, by design.** This repo deploys on **push to `master`**
-> (not PR merge), so the signoff status is a *signal*, not a hard gate. We do
-> not run `gh signoff install` (which would gate PR merges) — it would be
-> meaningless for a push-to-deploy flow, so we leave it off.
+> **Signoff is advisory, by design.** Production deploys on a **release**
+> (`.github/workflows/deploy.yml` is dispatched by release-please with the tag
+> it just cut, and a push to `master` does not deploy), so the signoff status is
+> a *signal*, not a hard gate. We do not run `gh signoff install` (which would
+> gate PR merges) — a merge gate says nothing about a release that is cut from
+> an already-green `master`, so we leave it off.
+>
+> (This paragraph used to say the repo "deploys on push to `master`" and called
+> this a "push-to-deploy flow". That was wrong: `deploy.yml`'s header records
+> that the old trigger was a push with a path allow-list, and that the unit of
+> deployment became the *release* precisely so the badge could not name a tag
+> the box was not running. The conclusion — install no merge gate — survived the
+> correction; the reason given for it did not.)
 
 ## The feedback tiers
 
@@ -463,13 +472,20 @@ the contract:
 
 1. **the browser binary** (Playwright CDN or the restored cache) — the part
    the gates need, and it never touches apt;
-2. **the system dependencies** (apt) — best effort, time-boxed
-   (`PLAYWRIGHT_INSTALL_TIMEOUT`, default 300s), and a loud warning when it
-   fails;
-3. **the proof** — the browser must *launch*. Every install step above can
+2. **the proof** — the browser must *launch*. Every install step above can
    "succeed" while the binary cannot start (a missing library, a sandbox the
    runner forbids), and the suites downstream would fail with a message that
-   names neither the cause nor the fix.
+   names neither the cause nor the fix;
+3. **the system dependencies** (apt) — reached for *only when the probe in step
+   2 fails*, best effort, time-boxed (`PLAYWRIGHT_INSTALL_TIMEOUT`, default
+   300s), and a loud warning when it fails. Then the probe runs once more.
+
+Step 3 used to run unconditionally, before the probe. It cost **113s** in run
+44551759905 against **11s** in run 44556795112 on the same commit — both with
+the browser cache a HIT, the difference being apt alone (`Fetched 4283 kB in
+9s` then a second 21.9 MB fetch, against `Fetched 21.9 MB in 1s` on warm
+mirrors). The runner image already carries the libraries, so on a healthy
+runner the probe passes and apt never runs.
 
 The reason is a real incident, not a theory. On 2026-11-11 the GitHub runners
 stopped resolving the Ubuntu mirrors (`archive.ubuntu.com`,
@@ -485,7 +501,8 @@ Chromium links against — so a broken mirror must not be able to take the
 browser gate, the site gate or the Pages publish down with it.
 
 `bin/install-browser_test.sh` pins that order with stubs for `npx` and
-`node`: a broken apt must NOT fail the step (and must be loud), a broken
+`node`: a browser that launches must NOT pay for apt, a launch that fails MUST
+reach for it, a broken apt must NOT fail the step (and must be loud), a broken
 browser download MUST fail it, a browser that cannot launch MUST fail it, and
 `PLAYWRIGHT_SKIP_DEPS=1` must not call apt anyway. It runs in `make
 check-ci-scripts`, so the contract is checked locally and in CI.
@@ -732,6 +749,86 @@ without opening a PR:
 ```
 gh workflow run ci.yml --ref <branch> -f scope_packages="internal/queue features/notes/handlers"
 ```
+
+### The nightly run, and why the workflow has a `schedule` trigger
+
+`ci.yml` also runs on `schedule` (04:17 UTC daily). It is the same workflow,
+unselected: a scheduled run is not a `pull_request`, so the `changes` job takes
+its `kind=all` branch and every package runs. Nothing is cheaper for PRs
+because of it.
+
+What it adds is a **detector for the failures that only look green**. Test
+selection, cache hits and cost tables are all optimizations that fail silently:
+a cache that stopped hitting makes a run slower, never red; a stale per-package
+cost entry makes the shard split unbalanced, never wrong; a gate whose
+capability record drifted keeps passing because nothing it reads changed. A
+nightly full run re-derives all of it against the actual tree, on a day nobody
+is waiting.
+
+A failure here is a finding, not a broken `main`: the scheduled run does not
+report the required `ci` status, so it cannot block a merge. Treat it the way
+`stelow-drift.yml` and `update-loop.yml` are treated — a weekly/daily signal
+that something drifted, opened as a normal PR.
+
+### The flake budget: what the retry policy is judged on
+
+The browser suites retry a failed test once and mark it flaky; the race suite
+deliberately never retries (a retried race failure hides the bug it exists to
+find). That policy is only honest if the rate is measured — a retry that turns
+red into green is exactly how a chronically flaky test survives, because nobody
+ever sees the red.
+
+    bin/flake-budget.sh                  # last 30 CI runs on master
+    bin/flake-budget.sh --limit 60       # a longer window
+    bin/flake-budget.sh --branch <ref>   # another ref
+    bin/ci-wall-clock.sh --steps         # where the last run actually spent time
+
+It prints the share of runs that had a failing job before going green, against
+a **budget of 1%**, and names the jobs that appear inside otherwise-green runs.
+A job that shows up twice or more is the quarantine candidate: mark it
+known-flaky, keep running it, give it an owner and a date. One occurrence may
+be infrastructure — read the log before calling it flaky, and preserve the
+first failure's log, seed, shard and timing before retrying, because a retry
+destroys the only evidence of what actually happened.
+
+It does not gate, on purpose: a threshold in CI would go red for a reason that
+has nothing to do with the change under test, which is the failure mode the
+budget exists to prevent. Read it monthly, or when a run felt slow and retried.
+
+### The cache budget, and why only the default branch writes
+
+GitHub caps a repository at **10 GB** of Actions cache and evicts repo-wide by
+last access. Measured 2026-11-19 (`gh api repos/<owner>/<repo>/actions/caches`):
+23 entries, **11.0 GB** — already over the cap — of which 15 entries and
+**8.0 GB belonged to a single pull-request merge ref**, because
+`actions/cache@v6` saved from every ref that ran the key. That is the shape the
+restore/save split below fixes: one generation per key shape instead of one per
+open PR, so the budget is spent on entries that every run can use.
+
+**A correction, kept because it is the more useful lesson.** The first reading of
+this was that eviction had cost a browser job **113s** refetching Chromium (run
+44551759905) against **11s** on a warm cache (run 44556795112). Reading the job
+logs, both runs were a **cache HIT** for the browser binary. The 102s difference
+was the apt phase of `bin/install-browser.sh`, which ran unconditionally:
+`Fetched 4283 kB in 9s` followed by a second 21.9 MB fetch, against `Fetched
+21.9 MB in 1s` when the mirrors were warm. The cache was never involved.
+
+So that script now probes the launch FIRST and installs system dependencies only
+when the probe fails, which is the ordering that makes the common case free. Two
+measurements, two different causes, and only the second one was real — which is
+why the job log is the source and the cache listing is only a hint.
+
+So every cache in `ci.yml` is a **restore/save pair**: `actions/cache/restore`
+runs everywhere (restoring from any ref is the point of a cache), and
+`actions/cache/save` is gated on `github.ref == 'refs/heads/master'`. The budget
+stays at one generation per key shape instead of one per open PR. The Go
+toolchain tarball is cached the same way through `GO_TARBALL_CACHE`, and
+`bin/install-go-toolchain.sh` re-checks it with `gzip -t` before extracting, so a
+truncated entry costs a download rather than a broken toolchain.
+
+Do not "fix" a slow job by widening the save condition. A cache that writes
+from every ref and an eviction that follows is the expensive shape: it costs the
+refetch it was meant to avoid, plus the runs that raced for space.
 
 Those four skip on a **docs-only changeset** — a `changeset` job reads the PR
 (`base...HEAD`) or push (`before...after`) diff and marks it when every path is
