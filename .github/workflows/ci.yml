@@ -23,6 +23,20 @@ on:
         description: 'Package dirs to run instead of the classified scope (verifies the narrow path)'
         required: false
         default: ''
+  schedule:
+    # Nightly FULL run, 04:17 UTC. PRs get test selection and master gets a
+    # full run, so what this adds is the DETECTOR for everything that only
+    # looks green: a cache that stopped hitting (silently slower, never red),
+    # a cost table that no longer matches reality, and a gate whose own
+    # coverage depends on files that changed months ago. Nothing here is
+    # cheaper for PRs — a scheduled run is the one run per day that refuses
+    # selection, so a stale classifier cannot hide behind itself.
+    #
+    # `schtasks`-style off-peak minute (04:17, not 04:00) so it does not queue
+    # behind the top-of-hour crowd. A failure here is a finding, not a broken
+    # main: the `ci` aggregate is the required status, and a scheduled run does
+    # not report one.
+    - cron: '17 4 * * *'
 concurrency:
   # Cancel in-progress runs when a newer commit lands on the same ref (push+
   # PR both trigger on the same branch, so without this every push to a branch
@@ -148,6 +162,27 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # the classifier diffs base...HEAD, so history must exist
+      - name: Restore the Go toolchain tarball
+        # Keyed on go.mod, so a Go bump (`go 1.27.4` -> anything else) misses
+        # this cache exactly when the tarball changes. Worth caching because the
+        # download is both the slow part (~5-8s per job, four jobs) and the only
+        # part that flakes (HTTP/2 INTERNAL_ERROR against go.dev). The script
+        # re-checks the tarball with `gzip -t` before installing it, so a
+        # truncated entry costs a download, not a broken toolchain. Save on
+        # master only — see the budget note in the `checks` job.
+        id: go-toolchain-cache
+        uses: actions/cache/restore@v6
+        continue-on-error: true
+        with:
+          path: ~/.cache/go-toolchain
+          key: go-toolchain-${{ runner.os }}-${{ strategy.job-index }}-${{ hashFiles('go.mod') }}
+      - name: Save the Go toolchain tarball
+        if: github.ref == 'refs/heads/master' && steps.go-toolchain-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        continue-on-error: true
+        with:
+          path: ~/.cache/go-toolchain
+          key: ${{ steps.go-toolchain-cache.outputs.cache-primary-key }}
       - name: Install the pinned Go toolchain manually
         # The scope step below shells out to scripts/changed-packages.sh, which
         # runs `go list`. Leaving that to the runner's preinstalled Go is the
@@ -155,19 +190,37 @@ jobs:
         # call made inside a script, and an older runner Go would answer a
         # DIFFERENT question than the pinned toolchain the gates use (or try to
         # fetch one mid-step).
+        env:
+          GO_TARBALL_CACHE: ~/.cache/go-toolchain
         run: |
           bash bin/install-go-toolchain.sh
       - name: Restore Go module download cache
         # 50s of this job used to be a cold `go mod download`; with the zip
         # cache restored it is ~10s. Only `race` waits on this job now, so a
         # slow restore here costs one shard's start, not the whole wall.
-        uses: actions/cache@v6
+        #
+        # Restore and save are SEPARATE steps, and only the default branch
+        # saves (see the cache budget note in the `checks` job). actions/cache@v6
+        # saved from every ref when this was one step, and each
+        # `refs/pull/<n>/merge` kept a complete copy of every key shape.
+        id: go-mod-dl-cache
+        uses: actions/cache/restore@v6
         continue-on-error: true
         with:
           path: ~/go/pkg/mod/cache/download
           key: go-mod-dl-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
           restore-keys: |
             go-mod-dl-${{ runner.os }}-
+      - name: Save Go module download cache
+        # `cache-primary-key` is the key the restore resolved (its own key, or
+        # the entry a restore-key matched), so a save never duplicates an
+        # entry that already exists.
+        if: github.ref == 'refs/heads/master' && steps.go-mod-dl-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        continue-on-error: true
+        with:
+          path: ~/go/pkg/mod/cache/download
+          key: ${{ steps.go-mod-dl-cache.outputs.cache-primary-key }}
       - name: Warm module cache
         # `go list` resolves the module graph; the proxy answers storms with
         # transient INTERNAL_ERRORs that go does not retry on its own.
@@ -268,12 +321,35 @@ jobs:
       GOTOOLCHAIN: local
     steps:
       - uses: actions/checkout@v7
+      - name: Restore the Go toolchain tarball
+        # Keyed on go.mod, so a Go bump misses this cache exactly when the
+        # tarball changes. Worth caching because the download is both the slow
+        # part (~5-8s per job, four jobs) and the only part that flakes (HTTP/2
+        # INTERNAL_ERROR against go.dev). The script re-checks the tarball with
+        # `gzip -t` before installing it, so a truncated entry costs a download,
+        # not a broken toolchain. Save on master only — see the budget note in
+        # the `checks` job.
+        id: go-toolchain-cache
+        uses: actions/cache/restore@v6
+        continue-on-error: true
+        with:
+          path: ~/.cache/go-toolchain
+          key: go-toolchain-${{ runner.os }}-${{ strategy.job-index }}-${{ hashFiles('go.mod') }}
+      - name: Save the Go toolchain tarball
+        if: github.ref == 'refs/heads/master' && steps.go-toolchain-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        continue-on-error: true
+        with:
+          path: ~/.cache/go-toolchain
+          key: ${{ steps.go-toolchain-cache.outputs.cache-primary-key }}
       - name: Install the pinned Go toolchain manually
         # actions/setup-go extracts the toolchain via tar and has been
         # intermittently corrupting it on this runner image. Install the
         # official stable tarball from go.dev into /usr/local/go instead,
         # which is a separate, reliable path. Version must match the
         # `go` directive in go.mod (bumped for GO-2026 stdlib CVEs).
+        env:
+          GO_TARBALL_CACHE: ~/.cache/go-toolchain
         run: |
           bash bin/install-go-toolchain.sh
       - name: Restore Go build cache
@@ -281,26 +357,53 @@ jobs:
         # restore, not /usr/bin/tar — see commit d50d0fb for the flake this repo
         # turned caching off over) and continue-on-error, so an infra failure
         # costs a cold build instead of a red gate.
-        uses: actions/cache@v6
+        #
+        # THE CACHE BUDGET, and why save is gated on the default branch.
+        # GitHub caps a repository at 10 GB of cache and evicts by last access,
+        # repo-wide. Measured 2026-11-19 (`gh api .../actions/caches`): 23
+        # entries, 11.0 GB — already over the cap — of which 15 entries and
+        # 8.0 GB belonged to ONE pull-request merge ref, because
+        # `actions/cache@v6` saves from every ref that runs the key. Restoring
+        # from any ref stays allowed (that is the point of a cache); writing is
+        # master's alone, so the budget stays at one generation per key shape
+        # instead of one per open PR. docs/local-ci.md carries the measurement,
+        # including the Chromium slowdown that turned out NOT to be this.
+        id: go-build-cache
+        uses: actions/cache/restore@v6
         continue-on-error: true
         with:
           path: ~/.cache/go-build
           key: go-build-${{ runner.os }}-${{ github.job }}-${{ strategy.job-index }}-${{ hashFiles('go.mod', 'go.sum') }}
           restore-keys: |
             go-build-${{ runner.os }}-${{ github.job }}-
+      - name: Save Go build cache
+        if: github.ref == 'refs/heads/master' && steps.go-build-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        continue-on-error: true
+        with:
+          path: ~/.cache/go-build
+          key: ${{ steps.go-build-cache.outputs.cache-primary-key }}
       - name: Restore Go module download cache
         # Only ~/go/pkg/mod/cache/download (the zips), not the extracted tree.
         # Measured: caching the whole module directory was break-even to a loss
         # (23-33s restore vs 16-29s download). This is roughly a third of that
         # size, and with the zips present `go mod download` extracts locally
         # instead of going to the proxy.
-        uses: actions/cache@v6
+        id: go-mod-dl-cache
+        uses: actions/cache/restore@v6
         continue-on-error: true
         with:
           path: ~/go/pkg/mod/cache/download
           key: go-mod-dl-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
           restore-keys: |
             go-mod-dl-${{ runner.os }}-
+      - name: Save Go module download cache
+        if: github.ref == 'refs/heads/master' && steps.go-mod-dl-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        continue-on-error: true
+        with:
+          path: ~/go/pkg/mod/cache/download
+          key: ${{ steps.go-mod-dl-cache.outputs.cache-primary-key }}
       - name: Warm module cache
         # Cold runners download the full graph; the proxy answers storms
         # with transient INTERNAL_ERRORs, which go does not retry itself.
@@ -447,6 +550,19 @@ jobs:
         # rule to ERROR and fail the build with no code change here.
         run: make datastar-lint
       - name: Lint
+        # skip-cache stays TRUE, and this is the note that stops the next session
+        # from flipping it: the action's INTERNAL cache extracts through
+        # /usr/bin/tar and aborted jobs with "exit 2" (commit d50d0fb).
+        #
+        # A SEPARATE golangci-lint analysis cache was evaluated and dropped,
+        # 2026-11-19. Measured cost of the step: 30s, inside a 170s `checks` job
+        # (run 44556795112) — so lint is NOT what makes that job slow; the rest is
+        # scaffold-of-a-scaffold (25s), the cgo-off release binaries (17s),
+        # deadcode (11s) and govulncheck (5s). A restore of the analysis cache is
+        # the same shape this repo already measured as break-even-to-a-loss for
+        # the module cache (23-33s restore vs 16-29s saved), so it would buy
+        # seconds at the price of a second cache to reason about. Revisit only
+        # with a measurement showing lint above ~60s.
         uses: golangci/golangci-lint-action@v9
         with:
           version: v2.14.0
@@ -608,12 +724,35 @@ jobs:
       GOTOOLCHAIN: local
     steps:
       - uses: actions/checkout@v7
+      - name: Restore the Go toolchain tarball
+        # Keyed on go.mod, so a Go bump misses this cache exactly when the
+        # tarball changes. Worth caching because the download is both the slow
+        # part (~5-8s per job, four jobs) and the only part that flakes (HTTP/2
+        # INTERNAL_ERROR against go.dev). The script re-checks the tarball with
+        # `gzip -t` before installing it, so a truncated entry costs a download,
+        # not a broken toolchain. Save on master only — see the budget note in
+        # the `checks` job.
+        id: go-toolchain-cache
+        uses: actions/cache/restore@v6
+        continue-on-error: true
+        with:
+          path: ~/.cache/go-toolchain
+          key: go-toolchain-${{ runner.os }}-${{ strategy.job-index }}-${{ hashFiles('go.mod') }}
+      - name: Save the Go toolchain tarball
+        if: github.ref == 'refs/heads/master' && steps.go-toolchain-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        continue-on-error: true
+        with:
+          path: ~/.cache/go-toolchain
+          key: ${{ steps.go-toolchain-cache.outputs.cache-primary-key }}
       - name: Install the pinned Go toolchain manually
         # actions/setup-go extracts the toolchain via tar and has been
         # intermittently corrupting it on this runner image. Install the
         # official stable tarball from go.dev into /usr/local/go instead,
         # which is a separate, reliable path. Version must match the
         # `go` directive in go.mod (bumped for GO-2026 stdlib CVEs).
+        env:
+          GO_TARBALL_CACHE: ~/.cache/go-toolchain
         run: |
           bash bin/install-go-toolchain.sh
       - name: Restore Go build cache
@@ -635,26 +774,45 @@ jobs:
         # as the installer shard swinging between 207s and 404s of test time on
         # identical code (runs 40875871811 and 40879126850). One key per leg, and
         # each leg's cache stays useful.
-        uses: actions/cache@v6
+        #
+        # Restore anywhere, save on master only — the budget note is in the
+        # `checks` job; the reason is 8.0 GB of cache held by one PR merge ref.
+        id: go-build-cache
+        uses: actions/cache/restore@v6
         continue-on-error: true
         with:
           path: ~/.cache/go-build
           key: go-build-${{ runner.os }}-${{ github.job }}-${{ strategy.job-index }}-${{ hashFiles('go.mod', 'go.sum') }}
           restore-keys: |
             go-build-${{ runner.os }}-${{ github.job }}-
+      - name: Save Go build cache
+        if: github.ref == 'refs/heads/master' && steps.go-build-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        continue-on-error: true
+        with:
+          path: ~/.cache/go-build
+          key: ${{ steps.go-build-cache.outputs.cache-primary-key }}
       - name: Restore Go module download cache
         # Only ~/go/pkg/mod/cache/download (the zips), not the extracted tree.
         # Measured: caching the whole module directory was break-even to a loss
         # (23-33s restore vs 16-29s download). This is roughly a third of that
         # size, and with the zips present `go mod download` extracts locally
         # instead of going to the proxy.
-        uses: actions/cache@v6
+        id: go-mod-dl-cache
+        uses: actions/cache/restore@v6
         continue-on-error: true
         with:
           path: ~/go/pkg/mod/cache/download
           key: go-mod-dl-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
           restore-keys: |
             go-mod-dl-${{ runner.os }}-
+      - name: Save Go module download cache
+        if: github.ref == 'refs/heads/master' && steps.go-mod-dl-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        continue-on-error: true
+        with:
+          path: ~/go/pkg/mod/cache/download
+          key: ${{ steps.go-mod-dl-cache.outputs.cache-primary-key }}
       - name: Warm module cache
         # Cold runners download the full graph; the proxy answers storms
         # with transient INTERNAL_ERRORs, which go does not retry itself.
@@ -748,38 +906,78 @@ jobs:
       SMOKE_A11Y: "1"
     steps:
       - uses: actions/checkout@v7
+      - name: Restore the Go toolchain tarball
+        # Keyed on go.mod, so a Go bump misses this cache exactly when the
+        # tarball changes. Worth caching because the download is both the slow
+        # part (~5-8s per job, four jobs) and the only part that flakes (HTTP/2
+        # INTERNAL_ERROR against go.dev). The script re-checks the tarball with
+        # `gzip -t` before installing it, so a truncated entry costs a download,
+        # not a broken toolchain. Save on master only — see the budget note in
+        # the `checks` job.
+        id: go-toolchain-cache
+        uses: actions/cache/restore@v6
+        continue-on-error: true
+        with:
+          path: ~/.cache/go-toolchain
+          key: go-toolchain-${{ runner.os }}-${{ strategy.job-index }}-${{ hashFiles('go.mod') }}
+      - name: Save the Go toolchain tarball
+        if: github.ref == 'refs/heads/master' && steps.go-toolchain-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        continue-on-error: true
+        with:
+          path: ~/.cache/go-toolchain
+          key: ${{ steps.go-toolchain-cache.outputs.cache-primary-key }}
       - name: Install the pinned Go toolchain manually
         # actions/setup-go extracts the toolchain via tar and has been
         # intermittently corrupting it on this runner image. Install the
         # official stable tarball from go.dev into /usr/local/go instead,
         # which is a separate, reliable path. Version must match the
         # `go` directive in go.mod (bumped for GO-2026 stdlib CVEs).
+        env:
+          GO_TARBALL_CACHE: ~/.cache/go-toolchain
         run: |
           bash bin/install-go-toolchain.sh
       - name: Restore Go build cache
         # This job's cold `go build -o /tmp/gogo...` is 76s of CGO (loro-go) with
         # an empty cache; the same guardrail as the other Go jobs keeps a failed
-        # restore from turning a gate red.
-        uses: actions/cache@v6
+        # restore from turning a gate red. Save on master only (budget note in
+        # the `checks` job).
+        id: go-build-cache
+        uses: actions/cache/restore@v6
         continue-on-error: true
         with:
           path: ~/.cache/go-build
           key: go-build-${{ runner.os }}-${{ github.job }}-${{ strategy.job-index }}-${{ hashFiles('go.mod', 'go.sum') }}
           restore-keys: |
             go-build-${{ runner.os }}-${{ github.job }}-
+      - name: Save Go build cache
+        if: github.ref == 'refs/heads/master' && steps.go-build-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        continue-on-error: true
+        with:
+          path: ~/.cache/go-build
+          key: ${{ steps.go-build-cache.outputs.cache-primary-key }}
       - name: Restore Go module download cache
         # Only ~/go/pkg/mod/cache/download (the zips), not the extracted tree.
         # Measured: caching the whole module directory was break-even to a loss
         # (23-33s restore vs 16-29s download). This is roughly a third of that
         # size, and with the zips present `go mod download` extracts locally
         # instead of going to the proxy.
-        uses: actions/cache@v6
+        id: go-mod-dl-cache
+        uses: actions/cache/restore@v6
         continue-on-error: true
         with:
           path: ~/go/pkg/mod/cache/download
           key: go-mod-dl-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
           restore-keys: |
             go-mod-dl-${{ runner.os }}-
+      - name: Save Go module download cache
+        if: github.ref == 'refs/heads/master' && steps.go-mod-dl-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        continue-on-error: true
+        with:
+          path: ~/go/pkg/mod/cache/download
+          key: ${{ steps.go-mod-dl-cache.outputs.cache-primary-key }}
       - name: Warm module cache
         # Cold runners download the full graph; the proxy answers storms
         # with transient INTERNAL_ERRORs, which go does not retry itself.
@@ -819,14 +1017,29 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Restore Playwright browsers
         # Keyed on the lockfile, so a Playwright bump refetches Chromium instead
-        # of running the new driver against a stale binary. `--with-deps` in the
-        # smoke step still apt-installs the system libraries; only the browser
-        # download is cached, and a failed restore falls through to a fetch.
-        uses: actions/cache@v6
+        # of running the new driver against a stale binary. Only the browser
+        # download is cached, and a failed restore falls through to a fetch. The
+        # system libraries are NOT installed here: `bin/install-browser.sh`
+        # probes the launch first and reaches for apt only if it fails, because
+        # running it unconditionally cost 113s on a runner that already ships
+        # the libraries (docs/local-ci.md carries the two measurements).
+        #
+        # Save on master only: the split that keeps the repo inside GitHub's
+        # 10 GB cache cap (see the budget note in the `checks` job). Restoring
+        # from a PR stays allowed and costs nothing when master has the entry.
+        id: playwright-cache
+        uses: actions/cache/restore@v6
         continue-on-error: true
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Save Playwright browsers
+        if: github.ref == 'refs/heads/master' && steps.playwright-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        continue-on-error: true
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ steps.playwright-cache.outputs.cache-primary-key }}
       - name: Build
         # One binary for the client suites below (previously rebuilt per
         # suite). The suites below prove this artifact boots and serves.
@@ -853,7 +1066,14 @@ jobs:
         # Chromium so upgrades cannot pass Go checks while breaking signals.
         run: SMOKE_BIN=/tmp/gogogo-ci-web bash scripts/run-browser-suite.sh smoke.mjs
       - name: Whiteboard client regression tests
-        if: matrix.client_group == 0
+        # Group 1, not 0: measured 2026-11-19 (run 44551759905), group 0 held
+        # the 46s smoke + this 33s suite (151s total) while group 1 held the
+        # 38s notes + 34s SSE suites (254s total). Moving this 33s suite makes
+        # the legs 197s and 208s, which is a ~46s shorter run for free: the
+        # suites are independent, so nothing is lost but the imbalance. The
+        # legs are deliberately NOT path-filtered (`always()`), so adding
+        # suites here still cannot park a required check.
+        if: matrix.client_group == 1
         # The whiteboard client has no Go-side coverage for its transport
         # handling: response ordering and the 409 conflict path only exist in
         # whiteboard.js. A real regression lived here (adopting the server's
@@ -957,12 +1177,21 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Restore Playwright browsers
         # Same key as the browser job: this job loads every published page at 7
-        # widths, and a cold Chromium fetch is most of its 60-70s.
-        uses: actions/cache@v6
+        # widths, and a cold Chromium fetch is most of its 60-70s. Save on
+        # master only (budget note in the `checks` job).
+        id: playwright-cache
+        uses: actions/cache/restore@v6
         continue-on-error: true
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Save Playwright browsers
+        if: github.ref == 'refs/heads/master' && steps.playwright-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        continue-on-error: true
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ steps.playwright-cache.outputs.cache-primary-key }}
       - name: Install Chromium
         # Same script (and the same reason) as the browser job: a broken apt
         # mirror must not be able to take the site layout gate down, and the
