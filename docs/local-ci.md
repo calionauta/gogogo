@@ -782,6 +782,7 @@ ever sees the red.
     bin/flake-budget.sh --limit 60       # a longer window
     bin/flake-budget.sh --branch <ref>   # another ref
     bin/ci-wall-clock.sh --steps         # where the last run actually spent time
+    bin/cache-budget.sh                  # the Actions cache against the 10 GB cap
 
 It prints the share of runs that had a failing job before going green, against
 a **budget of 1%**, and names the jobs that appear inside otherwise-green runs.
@@ -837,6 +838,35 @@ The budget is spent like this (measured 2026-11-19, 39 entries, 11.04 GB):
 | 1.26 GB | 17 | `buildkit-blob` — docker layers pushed by `deploy.yml` |
 | 0.69 GB | 1 | `setup-go` — from `release.yml`, not this workflow |
 | 0.29 GB | 1 | `playwright` — Chromium, shared by both browser legs |
+
+### `bin/cache-budget.sh`: the number nobody was re-taking
+
+```bash
+bin/cache-budget.sh                 # this repo, against the 10 GB cap
+bin/cache-budget.sh --cap 20        # a raised cap
+bin/cache-budget.sh --json          # for a dashboard or a CI assertion
+bin/cache-budget.sh owner/repo      # another repository
+```
+
+Prints the total against the cap, the split by ref, the largest key shapes, and
+**two figures that need different fixes**: what pull-request refs still hold
+(ages out on its own now that only the default branch writes) and what duplicate
+generations hold (the expected price of a prefix `restore-key` surviving a
+dependency bump). It exits non-zero when over the cap, and prints nothing that
+looks like an instruction to delete: entries are immutable and eviction is
+GitHub's.
+
+It exists because the cache was measured three times by hand in one session and
+the numbers were different every time — first blaming eviction, then finding
+8.0 GB held by a single PR merge ref. `bin/ci-wall-clock.sh` makes the same
+argument for run time and `bin/flake-budget.sh` for retries. A cost that nobody
+re-measures rots silently; that is the whole reason for the three scripts.
+
+**The fix is not verifiable without this.** After #457 merged, the total was
+still 11.04 GB with **zero entries created since** — the only `master` run in
+that window was docs-only, so `checks`/`race`/`browser`/`prod-image` were all
+`skipped` and nothing touched the cache. Reading the total without reading the
+creation dates would have looked like the fix failed.
 
 One fix came out of it: **`cache-to: type=gha,mode=min`** in `deploy.yml` (was
 `mode=max`). `mode=max` stores every intermediate layer, including ones only a
