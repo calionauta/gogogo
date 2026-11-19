@@ -141,11 +141,17 @@ fi
 # a binary on PATH is not a wired client. Printed (not run) because every
 # client spells it differently and a script that edits ~/.claude.json or a
 # Codex TOML on its own is a script that breaks someone's config.
+#
+# `$HOME` is expanded by the reader's shell, which is the point: the clients
+# spawn without one, so a stored `~` never expands and the server fails with
+# ENOENT. Printing the literal path is the only form that works verbatim.
 if [ "${1:-}" != "--run" ]; then
   echo
   echo "next — hand it to your agent (the MCP is the surface you actually use):"
   echo "  claude mcp add gogogo -- $BIN_DIR/gogogo-mcp"
-  echo "  # Codex / OpenCode / Pi: see docs/mcp.md"
+  echo "  codex mcp add gogogo -- $BIN_DIR/gogogo-mcp"
+  echo "  opencode mcp add gogogo -- $BIN_DIR/gogogo-mcp"
+  echo "  pi mcp add gogogo -- $BIN_DIR/gogogo-mcp"
   echo "then ask for what you want built — it plans, and asks you for the name,"
   echo "owner and languages before it writes anything."
   echo

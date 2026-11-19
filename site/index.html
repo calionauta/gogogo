@@ -71,17 +71,43 @@
   </div>
 </section>
 
-<section class="hero-start" aria-label="Start with the agent">
-  <div class="install-block hero-install">
-    <p class="install-label">Start with the agent, not the installer</p>
-    <pre><code>curl -sSfL https://<wbr>raw.githubusercontent.com/<wbr>calionauta/<wbr>gogogo/<wbr>master/<wbr>install.sh | sh
-claude mcp add gogogo -- ~/.local/bin/gogogo-mcp</code></pre>
-    <p class="install-note">Two commands. The MCP is the part you use.</p>
+<section class="hero-start" aria-label="Install, then wire your agent">
+  <!-- Two steps, stated as two steps. The old block opened with "Start with the
+       agent, not the installer" and then showed an install command, which read
+       as a contradiction. Installing really is step one — what changes is that
+       the client wiring is now a picker instead of one hardcoded Claude line. -->
+  <div class="install-block hero-install" data-step="1">
+    <p class="install-label">1 · Install it once</p>
+    <pre><code>curl -sSfL https://<wbr>raw.githubusercontent.com/<wbr>calionauta/<wbr>gogogo/<wbr>master/<wbr>install.sh | sh</code></pre>
+    <p class="install-note">Puts <code>gogogo</code> and <code>gogogo-mcp</code> in <code>~/.local/bin</code>. Needs curl and shasum — no Go, no git.</p>
   </div>
+
+  <div class="install-block hero-install" data-step="2">
+    <p class="install-label">2 · Wire your agent</p>
+    <div class="tabs mcp-tabs hero-tabs">
+      <input type="radio" name="hero-client" id="hero-claude" checked>
+      <input type="radio" name="hero-client" id="hero-codex">
+      <input type="radio" name="hero-client" id="hero-opencode">
+      <input type="radio" name="hero-client" id="hero-pi">
+      <div class="tab-labels">
+        <label for="hero-claude">Claude Code</label>
+        <label for="hero-codex">Codex</label>
+        <label for="hero-opencode">OpenCode</label>
+        <label for="hero-pi">Pi</label>
+      </div>
+      <div class="panels">
+        <div class="panel"><pre><code>claude mcp add gogogo -- $HOME/.local/bin/gogogo-mcp</code></pre><p class="install-note">Verify with <code>claude mcp list</code>, then restart. <code>$HOME</code> expands to the absolute path clients need.</p></div>
+        <div class="panel"><pre><code>codex mcp add gogogo -- $HOME/.local/bin/gogogo-mcp</code></pre><p class="install-note">Verify with <code>codex mcp list</code>. Writes <code>[mcp_servers.gogogo]</code> to <code>~/.codex/config.toml</code>.</p></div>
+        <div class="panel"><pre><code>opencode mcp add gogogo -- $HOME/.local/bin/gogogo-mcp</code></pre><p class="install-note">Verify with <code>opencode mcp list</code>. Add <code>--global</code> to wire it for every project.</p></div>
+        <div class="panel"><pre><code>pi mcp add gogogo -- $HOME/.local/bin/gogogo-mcp</code></pre><p class="install-note">Verify with <code>pi mcp list</code>. Reads the standard <code>mcpServers</code> format too.</p></div>
+      </div>
+    </div>
+  </div>
+
   <ul class="hero-facts">
     <li>Your agent answers <em>“should this be gogogo?”</em> before it builds anything.</li>
     <li>It shows the plan and asks for name, owner and languages first.</li>
-    <li>Prefer a shell? The <a href="#install">CLI runs the same engine</a>.</li>
+    <li>No agent? The <a href="#install">CLI runs the same engine</a>, and so does <a href="./docs/mcp/">every other client</a>.</li>
   </ul>
   <p class="hero-fine">Live demo: <a href="https://gogogo.calionauta.com/" rel="noopener">gogogo.calionauta.com</a> · <code>demo1@demo.app</code> / <code>demo1234456</code></p>
 </section>
@@ -941,8 +967,8 @@ claude mcp add gogogo -- ~/.local/bin/gogogo-mcp</code></pre>
       <p class="step-num">02</p>
       <h3>Wire your agent</h3>
       <ul class="step-list">
-        <li>One entry in your client config — the MCP is the surface you use.</li>
-        <li>Clients spawn without a shell: use an absolute path, not <code>~</code>.</li>
+        <li>One command per client — the MCP is the surface you use.</li>
+        <li>Clients spawn without a shell, so a stored <code>~</code> is never expanded. The commands below pass <code>$HOME</code>, which your shell expands first.</li>
       </ul>
 
       <div class="tabs mcp-tabs">
@@ -957,11 +983,10 @@ claude mcp add gogogo -- ~/.local/bin/gogogo-mcp</code></pre>
           <label for="tab-pi">Pi</label>
         </div>
         <div class="panels">
-          <div class="panel panel-claude"><pre><code>{ "mcpServers": { "gogogo": { "command": "/home/you/.local/bin/gogogo-mcp" } } }</code></pre><p class="install-note">Save as <code>.mcp.json</code> in your project, or run <code>claude mcp add gogogo -- ~/.local/bin/gogogo-mcp</code>.</p></div>
-          <div class="panel panel-codex"><pre><code>[mcp_servers.gogogo]
-command = "/home/you/.local/bin/gogogo-mcp"</code></pre><p class="install-note">Or one command: <code>codex mcp add gogogo -- /home/you/.local/bin/gogogo-mcp</code>. The TOML is the same thing, for <code>~/.codex/config.toml</code> (every project) or <code>.codex/config.toml</code> (this one).</p></div>
-          <div class="panel panel-opencode"><pre><code>opencode mcp add gogogo -- ~/.local/bin/gogogo-mcp</code></pre><p class="install-note">Or in <code>opencode.json</code>: <code>"mcp": {"gogogo": {"type": "local", "command": ["/home/you/.local/bin/gogogo-mcp"]}}</code>.</p></div>
-          <div class="panel panel-pi"><pre><code>pi mcp add gogogo -- ~/.local/bin/gogogo-mcp</code></pre><p class="install-note">Pi reads the standard <code>mcpServers</code> format too — migrating from another client just works.</p></div>
+          <div class="panel"><pre><code>claude mcp add gogogo -- $HOME/.local/bin/gogogo-mcp</code></pre><p class="install-note">Verify with <code>claude mcp list</code>, then restart. Prefer a project file? Save <code>{ "mcpServers": { "gogogo": { "command": "/home/you/.local/bin/gogogo-mcp" } } }</code> as <code>.mcp.json</code> — a config file is read literally, so it needs the absolute path, not <code>$HOME</code>.</p></div>
+          <div class="panel"><pre><code>codex mcp add gogogo -- $HOME/.local/bin/gogogo-mcp</code></pre><p class="install-note">Verify with <code>codex mcp list</code>. Writes <code>[mcp_servers.gogogo]</code> with <code>command = "/home/you/.local/bin/gogogo-mcp"</code> to <code>~/.codex/config.toml</code> (every project) or <code>.codex/config.toml</code> (this one, which must be trusted).</p></div>
+          <div class="panel"><pre><code>opencode mcp add gogogo -- $HOME/.local/bin/gogogo-mcp</code></pre><p class="install-note">Verify with <code>opencode mcp list</code>. Add <code>--global</code> for every project; without it the entry goes in this project's <code>opencode.json</code> as <code>"mcp": {"gogogo": {"type": "local", "command": ["/home/you/.local/bin/gogogo-mcp"]}}</code>.</p></div>
+          <div class="panel"><pre><code>pi mcp add gogogo -- $HOME/.local/bin/gogogo-mcp</code></pre><p class="install-note">Verify with <code>pi mcp list</code>. Pi reads the standard <code>mcpServers</code> format too, so migrating from another client just works.</p></div>
         </div>
       </div>
     </li>
