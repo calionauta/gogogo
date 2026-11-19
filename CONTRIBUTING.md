@@ -36,9 +36,13 @@ most expensive work a maintainer does.
   be in the position of saying "I don't know, the model did it." Unattended bots
   that open or comment on issues/PRs without your approval are not allowed.
 - **Disclose in the PR body, not in commits.** Write one line in the pull
-  request description: which tool you used and what it did, e.g.
-  "AI assistance: Claude Code drafted the handler and tests; I reviewed,
-  trimmed, and verified them." This repo does **not** use AI attribution in
+  request description: which agent you used and what it did, e.g.
+  "AI assistance: <agent> drafted the handler and tests; I reviewed, trimmed,
+  and verified them." Name the agent that actually ran — these examples used to
+  say "Claude Code", and a PR in this repo then credited that tool for work
+  done by a different harness, while attributing the author's review to the
+  agent. Keep the subjects straight: the agent drafted, **you** reviewed,
+  rejected, corrected and verified. This repo does **not** use AI attribution in
   commit messages, release notes, or changelogs (no `Co-Authored-By:` /
   `Assisted-by:` / `Generated-by:` trailers, no AI mentions in `CHANGELOG.md`) —
   keep provenance in the PR description, where reviewers see it.

@@ -13,8 +13,15 @@ Closes #NNN (maintainer nod received: yes / no)
 
 ## AI disclosure
 
-<!-- Required, one line: which tool, what it did, what you verified. -->
-<!-- e.g. AI assistance: Claude Code drafted the handler and tests; I reviewed, trimmed, and verified them. -->
+<!-- Required, one line: which agent, what IT did, and what YOU did to verify it. -->
+<!-- Name the agent that actually ran, never one by habit. The Pi harness is not -->
+<!-- Claude, Codex or any other named client, and this template used to suggest -->
+<!-- "Claude Code" in its example — which is how this repo got a PR crediting a -->
+<!-- tool that never ran and attributing the author's review to the agent. -->
+<!-- Shape: AI assistance: <agent + what it drafted>; I <what I checked>. -->
+<!-- Keep the subjects straight: the agent did the drafting, YOU reviewed, -->
+<!-- rejected, corrected and verified. Never write "I" for something the agent -->
+<!-- did, and never credit the agent with the judgement call that shipped it. -->
 <!-- No AI trailers in commits, release notes, or CHANGELOG.md — keep provenance here. -->
 
 ## Verification
