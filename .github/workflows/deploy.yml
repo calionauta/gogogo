@@ -277,7 +277,17 @@ jobs:
             COMMIT=${{ steps.meta.outputs.short_sha }}
             BUILDTIME=${{ steps.meta.outputs.build_time }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # `mode=min`, NOT `mode=max`. Measured 2026-11-19: buildkit held
+          # 1.26 GB across 17 `buildkit-blob` entries, all of it re-saved by the
+          # `cache-to` below. `mode=max` stores EVERY intermediate layer,
+          # including ones only a from-scratch rebuild would reuse; `mode=min`
+          # keeps the layers of the final image, which is what the next build of
+          # this same Dockerfile actually pulls. The build job is gated on
+          # `needs.reconcile.outputs.behind == 'true'` (line 205), so it does not
+          # run every 30 minutes — but it does re-push the whole layer set each
+          # time it does run, and the repo's cache budget is 10 GB shared with
+          # every `go-build`, `go-mod-dl` and Playwright entry.
+          cache-to: type=gha,mode=min
 
       - name: Pin the digest
         id: pin

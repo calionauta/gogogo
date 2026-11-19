@@ -782,6 +782,7 @@ ever sees the red.
     bin/flake-budget.sh --limit 60       # a longer window
     bin/flake-budget.sh --branch <ref>   # another ref
     bin/ci-wall-clock.sh --steps         # where the last run actually spent time
+    bin/cache-budget.sh                  # the Actions cache against the 10 GB cap
 
 It prints the share of runs that had a failing job before going green, against
 a **budget of 1%**, and names the jobs that appear inside otherwise-green runs.
@@ -825,6 +826,83 @@ stays at one generation per key shape instead of one per open PR. The Go
 toolchain tarball is cached the same way through `GO_TARBALL_CACHE`, and
 `bin/install-go-toolchain.sh` re-checks it with `gzip -t` before extracting, so a
 truncated entry costs a download rather than a broken toolchain.
+
+### What is in the 11 GB, and the four fixes that did not survive measurement
+
+The budget is spent like this (measured 2026-11-19, 39 entries, 11.04 GB):
+
+| size | entries | what |
+|------|---------|------|
+| 6.54 GB | 14 | `go-build` — GOCACHE, one entry per job **and shard** |
+| 2.19 GB | 3 | `go-mod-dl` — the module zips |
+| 1.26 GB | 17 | `buildkit-blob` — docker layers pushed by `deploy.yml` |
+| 0.69 GB | 1 | `setup-go` — from `release.yml`, not this workflow |
+| 0.29 GB | 1 | `playwright` — Chromium, shared by both browser legs |
+
+### `bin/cache-budget.sh`: the number nobody was re-taking
+
+```bash
+bin/cache-budget.sh                 # this repo, against the 10 GB cap
+bin/cache-budget.sh --cap 20        # a raised cap
+bin/cache-budget.sh --json          # for a dashboard or a CI assertion
+bin/cache-budget.sh owner/repo      # another repository
+```
+
+Prints the total against the cap, the split by ref, the largest key shapes, and
+**two figures that need different fixes**: what pull-request refs still hold
+(ages out on its own now that only the default branch writes) and what duplicate
+generations hold (the expected price of a prefix `restore-key` surviving a
+dependency bump). It exits non-zero when over the cap, and prints nothing that
+looks like an instruction to delete: entries are immutable and eviction is
+GitHub's.
+
+It exists because the cache was measured three times by hand in one session and
+the numbers were different every time — first blaming eviction, then finding
+8.0 GB held by a single PR merge ref. `bin/ci-wall-clock.sh` makes the same
+argument for run time and `bin/flake-budget.sh` for retries. A cost that nobody
+re-measures rots silently; that is the whole reason for the three scripts.
+
+**The fix is not verifiable without this.** After #457 merged, the total was
+still 11.04 GB with **zero entries created since** — the only `master` run in
+that window was docs-only, so `checks`/`race`/`browser`/`prod-image` were all
+`skipped` and nothing touched the cache. Reading the total without reading the
+creation dates would have looked like the fix failed.
+
+One fix came out of it: **`cache-to: type=gha,mode=min`** in `deploy.yml` (was
+`mode=max`). `mode=max` stores every intermediate layer, including ones only a
+from-scratch rebuild would reuse; `mode=min` keeps the final image's layers,
+which is what the next build of the same Dockerfile pulls.
+
+Four other candidate fixes were **measured and rejected**. They are recorded
+because each looked obviously right and would have cost something real:
+
+1. **Unify `go-build` into one cache those jobs share.** Local measurement: a
+   unified cache is 1 513 MB against 1 927 MB summed for the per-job ones, so
+   "−21%" looked free. Compiling the actual `-race` workload into it proved the
+   opposite: **2 636 MB**, because `-race` artifacts are instrumented builds and
+do not share objects with the non-race ones — a unified cache has to hold both
+   sets. It was also **5.4× slower per shard** (12.0s vs 2.2s) because a
+   dedicated shard cache already contains exactly the instrumented objects. Keep
+   the per-job keys.
+2. **Delete the `restore-keys` prefixes** to stop duplicate generations. The
+   prefixes are what make a `go.sum` change cheap; without them every commit is
+   an exact-key miss. The docs are explicit that `cache-hit` is `true` **only**
+   on an exact match, so a prefix match already reports `false` and the save
+   still runs — the duplicate generation is the *expected* cost of the prefix,
+   not a bug in it. `go.sum` moved in **40 of the last 40 commits** here, so
+   removing the prefix would mean a cold cache every run.
+3. **Prune the cache by mtime before saving** (the suggestion in golang/go
+   #69879, whose proposal to make the trim cutoff configurable was *declined*).
+   Measured: `find <GOCACHE> -type f -mmin +90 -delete` freed **0 MB**, because
+   everything in a CI cache is fresh from the run that is saving it.
+4. **`GOCACHEPROG`** (Go 1.24+, entry-by-entry remote cache) is the structurally
+   correct answer and needs a server the repo does not run; it is a separate
+   project, not a workflow edit.
+
+The remaining 1.66 GB of obvious waste — `checks-0` holding two generations
+(1223 + 1271 MB) and `race-1` two more (438 + 438) — is the prefix doing its job
+across a `go.sum` bump. It ages out when the generation stops matching, which
+is why the budget has to be judged over weeks rather than at one instant.
 
 Do not "fix" a slow job by widening the save condition. A cache that writes
 from every ref and an eviction that follows is the expensive shape: it costs the
