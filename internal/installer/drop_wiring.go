@@ -384,16 +384,25 @@ func dropReceiptServants(tree *treeFS, recipeID string) error {
 			return fmt.Errorf("removing %s: %w", dir, err)
 		}
 	}
-	// A capability's owned FILES go when the package they IMPORT is gone, or the
-	// tree keeps a file importing what was just deleted. presence.go is the case
-	// that bit: it is whiteboard's declared file, yet notes is often the last
-	// consumer, so keying removal on the recipe that happened to run never
-	// matched. Its import is internal/collab, and that is what decides.
+	return removeOrphanedOwnedFiles(tree)
+}
+
+// removeOrphanedOwnedFiles removes every capability-owned Go file whose import
+// names a package that no longer exists.
+//
+// It is separate from dropReceiptServants because BOTH removal paths need it and
+// only one had it: the uninstall swept orphaned files, and a scaffold dropping the
+// same slices left presence.go importing the directory it had just deleted, so a
+// clean `--recipes none` still failed `go mod tidy`.
+//
+// presence.go is the file that motivated it: owned by whiteboard, usually last
+// used by notes, so keying removal on whichever recipe happened to run never
+// matched. Its import is internal/collab, and that is what decides. Non-Go owned
+// files are skipped — c.Files lists assets too, and parsing one as Go aborted the
+// whole removal with a JavaScript syntax error.
+func removeOrphanedOwnedFiles(tree *treeFS) error {
 	for _, c := range capabilities.All {
 		for _, f := range c.Files {
-			// Only Go files can be orphaned by an import. c.Files also lists
-			// non-Go assets (pele.global.js), and parsing one as Go failed the
-			// whole uninstall with a syntax error from a file nobody touched.
 			if !strings.HasSuffix(f, ".go") {
 				continue
 			}

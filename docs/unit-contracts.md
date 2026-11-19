@@ -172,7 +172,7 @@ capability registry + installer engine (CLI and MCP share it)
 
 Loro CRDT transport: DocStore, sync workers, presence
 
-- **Owned:** `internal/collab`, `internal/server/presence_test.go`
+- **Owned:** `internal/collab`, `internal/server/presence_test.go`, `internal/server/collab_fixture_test.go`
 - **Store calls:** `dbgen.DeleteSnapshot`, `dbgen.GetSnapshot`, `dbgen.UpsertSnapshot`
 - **Why that class:** Bundled into the whiteboard unit: whiteboard embeds collab types (no-compile without it) and collab without whiteboard was dead until notes arrived as the second consumer (features/notes shares the transport on its own subject space). Split trigger met — see the notes entry: removing the whiteboard bundle removes collab, which notes needs.
 - **Note:** Shared by whiteboard + notes on the flat stack (their chi slices wire the transport). Snapshot durability is runtime: COLLAB_SNAPSHOTS=memory keeps snapshots process-local (draw without Turso writes; docs start empty after a restart). Files is empty on purpose: the importers outside internal/collab are EDITED (line drops), never deleted — internal/server/chi.go is core.

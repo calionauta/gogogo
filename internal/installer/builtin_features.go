@@ -116,10 +116,16 @@ var featureBuiltinUnits = []builtinUnit{
 		// package by name, so `go mod tidy` parses them and reports "finding
 		// module for .../internal/collab" for a tree that builds fine without
 		// them — the error that made a clean scaffold look broken.
+		// The two tests that build the bundle call a shared fixture, which is
+		// declared as a collab-owned file in the registry and leaves with the
+		// package. The CALL goes with it: a nil Collab is what a trimmed tree
+		// passes, and register.Deps treats nil as "no transport" — but leaving the
+		// call behind is "undefined: collabTransportFixture", so it is dropped too.
 		testDrops: []fileDrop{
-			{path: "internal/server/chi_test.go", substrs: []string{collabImportSuffix}},
-			{path: "internal/server/mux_fixture_test.go", substrs: []string{collabImportSuffix}},
+			{path: "internal/server/chi_test.go", substrs: []string{"Collab:  collabTransportFixture"}},
+			{path: "internal/server/mux_fixture_test.go", substrs: []string{"Collab:  collabTransportFixture"}},
 		},
+
 		// loro-go is the CGO binding the transport is built on: with collab gone,
 		// nothing imports it, and `go mod tidy` will not drop a requirement on its
 		// own. Left pinned, every target keeps needing a C toolchain — the exact

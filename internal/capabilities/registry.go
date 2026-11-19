@@ -205,7 +205,12 @@ var baseUnits = []Capability{
 		// so a tree without internal/collab cannot compile it. Deleted with
 		// the transport; the goakt unit deletes it too (either removal alone
 		// breaks the file, and removal deletes are idempotent).
-		Files: []string{"internal/server/presence_test.go"},
+		Files: []string{
+			"internal/server/presence_test.go",
+			// The shared test fixture builds this bundle; it goes with it, so the
+			// tests that only need a Deps value keep compiling in a trimmed tree.
+			"internal/server/collab_fixture_test.go",
+		},
 		Note: "Shared by whiteboard + notes on the flat stack (their chi " +
 			"slices wire the transport). Snapshot durability is runtime: " +
 			"COLLAB_SNAPSHOTS=memory keeps snapshots process-local (draw " +

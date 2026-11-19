@@ -14,7 +14,6 @@ import (
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/internal/auth"
-	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
@@ -181,11 +180,11 @@ func TestBuildChiMuxRoomDisabledPinsRouteAbsence(t *testing.T) {
 	if aerr != nil {
 		t.Fatalf("auth new: %v", aerr)
 	}
-	persister, perr := collab.NewTursoPersister(q)
-	if perr != nil {
-		t.Fatalf("persister: %v", perr)
-	}
-	docs := collab.NewDocStore()
+	// collabFixture hands back the transport bundle, or nil in a tree trimmed
+	// without collab. Building the persister inline here made this test (which
+	// asserts a ROUTE is absent, and has nothing to do with the transport) the
+	// last thing importing a package the trim had just deleted, so `go vet ./...`
+	// failed on a tree that otherwise built.
 	hub := queue.NewSSEHub()
 	slots := recipe.NewSlotRegistry()
 	mux := buildChiMux(
@@ -193,7 +192,7 @@ func TestBuildChiMuxRoomDisabledPinsRouteAbsence(t *testing.T) {
 		register.Deps{
 			Cfg: cfg, Auth: a, Queries: q, Hub: hub,
 			RealLLM: newReviewHandlerForTestLLM(),
-			Collab:  collab.Handoff{Persister: persister, Docs: docs},
+			Collab:  collabTransportFixture(t, sqlDB),
 			Queue:   chiQForTest(t), Slots: slots,
 			TodoRef: &register.TodoRef{}, InboxRef: &register.InboxRef{},
 		},
