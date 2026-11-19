@@ -55,13 +55,12 @@ var featureBuiltinUnits = []builtinUnit{
 					"// presence is the roster seam both collaborative features share (created",
 					"// at boot, federated by AttachPresenceFederation). Nil = features trimmed.",
 					"upgradePresenceToActor(federated, appgoakt.NewDocPresence(roomHost))",
-					`MountSubtree(r, whiteboard.AssetPath, whiteboard.StaticHandler())`,
-					`MountSubtree(r, notes.AssetPath, notes.StaticHandler())`,
-					"// Features that embed their OWN assets (whiteboard.js + rough.min.js,",
-					"// notes.js) register their subtree here; the core /static/ mount never",
-					"// serves them. A feature trim drops its line and its import.",
-					`	"github.com/calionauta/gogogo/features/whiteboard"`,
-					`	"github.com/calionauta/gogogo/features/notes"`,
+					// The per-feature static mounts and their imports used to be
+					// dropped here line by line. Since handlers self-register
+					// through Deps.MountStatic, those lines live in the feature's own
+					// handlers/register.go, which leaves with the owned directory — so
+					// the drops are gone rather than stale. chi.go's comment at the
+					// mount site says the same thing.
 				},
 			},
 			{
@@ -94,6 +93,12 @@ var featureBuiltinUnits = []builtinUnit{
 				// survive the package's removal: its signature names them. Absent
 				// from this list, the tree compiled right up to "undefined: collab"
 				// in a file nobody suspected.
+				//
+				// Since the split, bootCollab lives in internal/server, not in
+				// cmd/web: mainStrips defaults to cmd/web's main, so this rule has
+				// to name its file. A path-less rule silently matched nothing and
+				// the declaration drift test caught it.
+				path:              bootHelpersFile,
 				startMarker:       "// one helper keeps the two lines that must agree in one place.",
 				endIsClosingBrace: true,
 				endBrace:          "}", // top-level func: its brace sits in column 0
@@ -131,7 +136,11 @@ var featureBuiltinUnits = []builtinUnit{
 		// own. Left pinned, every target keeps needing a C toolchain — the exact
 		// defect that shipped empty GUI releases (#454). The fork's replace line
 		// goes with it.
-		goModDrops: []string{"github.com/aholstenson/loro-go", "github.com/calionauta/loro-go"},
+		//
+		// Only the fork is listed: upstream aholstenson/loro-go was the original
+		// requirement and is no longer in go.mod, so dropping it was a no-op
+		// (kept as a `replace` target the go.mod comment now explains).
+		goModDrops: []string{"github.com/calionauta/loro-go"},
 		extraStrips: []fileStrip{
 			{
 				path: modulesFile,
@@ -180,7 +189,7 @@ var featureBuiltinUnits = []builtinUnit{
 			{
 				path: "features/authviews/controls.templ",
 				rules: []stripRule{{
-					startMarker: "<!-- trim:config-view removes this entry",
+					startMarker: "<!-- trim:config-view removes these entries",
 					endMarker:   "}",
 				}},
 			},

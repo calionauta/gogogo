@@ -245,6 +245,11 @@ const (
 	// deleting: it builds one handler per feature, so trimming any of
 	// them means editing its imports and call sites.
 	chiTestFile = "internal/server/chi_test.go"
+
+	// todoRegisterFile is where the todo slice appends its panel to the
+	// shared register.Deps seam. It is a trim target for any unit whose
+	// panel type the todo slice would otherwise name.
+	todoRegisterFile = "features/todo/handlers/register.go"
 )
 
 // Import suffixes dropped from handler dispatch when their unit trims.
@@ -306,9 +311,14 @@ var baseBuiltinUnits = []builtinUnit{
 		// upgrade branch reading the default host (nil when gone).
 		extraDrops: []fileDrop{
 			{
-				path: chiTestFile,
+				path:    chiTestFile,
 				substrs: []string{
-					"\t\t\"/room\",",
+					// The room route moved out of the shared route table and
+					// into a dedicated absence test, which asserts that a
+					// disabled engine leaves /room unrouted. That test names
+					// the room package's expectations, so it leaves with the
+					// unit instead of the old table line. It is stripped as a
+					// block below, not dropped line by line.
 				},
 			},
 		},
@@ -331,6 +341,21 @@ var baseBuiltinUnits = []builtinUnit{
 		goModDrops: []string{"github.com/tochemey/goakt/v4"},
 		extraStrips: []fileStrip{
 			{
+				// The room-absence test is the room slice's own assertion: it
+				// checks the mux has no /room route when the engine is off.
+				// With the unit gone the route is gone for a better reason, so
+				// the test would assert nothing while still referencing the
+				// room package's expectations.
+				path: chiTestFile,
+				rules: []stripRule{
+					{
+						startMarker:       "// TestBuildChiMuxRoomDisabledPinsRouteAbsence is the port of the router",
+						endIsClosingBrace: true,
+						endBrace:          "}",
+					},
+				},
+			},
+			{
 				path:  modulesFile,
 				rules: []stripRule{{startMarker: `{ID: "room"`, endMarker: "},"}},
 			},
@@ -349,17 +374,12 @@ var baseBuiltinUnits = []builtinUnit{
 					},
 				},
 			},
-			{
-				// The multi-line fakeRooms fixture: line drops would orphan
-				// the method bodies.
-				path: chiTestFile,
-				rules: []stripRule{
-					{
-						startMarker: "// fakeRooms is the deterministic grain stand-in",
-						endMarker:   "func (fakeRooms) Tell(_ context.Context, _ string, _ any) error { return nil }",
-					},
-				},
-			},
+			// The fakeRooms fixture used to be stripped here, because it lived
+			// in the shared composition test and dropping the room slice would
+			// have orphaned its method bodies. It has since moved to
+			// features/room/handlers/chi_test.go, which leaves with the room
+			// slice's owned directory — so the rule matched nothing and is gone
+			// rather than stale.
 		},
 	},
 	{

@@ -159,6 +159,9 @@ var baseUnits = []Capability{
 			// which import nothing from the engine, so it needs no entry.
 			"internal/nats/single_nats_test.go",
 			"cmd/web/dagnats.go",
+			// The boot/mount helpers split out of the composition root; they
+			// import features/onboarding, which leaves with Dirs above.
+			"internal/server/onboarding.go",
 			"internal/server/mount_graph.go",
 			// The reminder worker's payload/port tests reference symbols the
 			// engine owns, so they go with it or the tree fails vet after removal.

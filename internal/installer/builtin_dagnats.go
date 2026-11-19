@@ -17,8 +17,10 @@ var dagNatsBuiltinUnit = []builtinUnit{
 				substrs: []string{
 					"mountOnboarding(mux, onboardingH)",
 					// The engine package is gone with the unit: its import
-					// goes too.
-					`"github.com/calionauta/gogogo/features/onboarding"`,
+					// goes too. The import lives in onboarding.go, not chi.go,
+					// and that file is now declared as owned by the dagnats
+					// capability — so it leaves whole and the import needs no
+					// line drop here.
 				},
 			},
 		},
@@ -45,7 +47,13 @@ var dagNatsBuiltinUnit = []builtinUnit{
 				},
 			},
 			{
-				path: chiGoFile,
+				// The helpers live in internal/server/onboarding.go, not in the
+				// composition root: they were split out of chi.go, taking their
+				// markers with them. These rules used to inherit the chiGoFile
+				// path and matched nothing, which is exactly the drift the
+				// declaration test now catches. The third rule below still targets
+				// chiGoFile: the CALL block stayed in the composition root.
+				path: "internal/server/onboarding.go",
 				rules: []stripRule{
 					{
 						startMarker:       "// mountOnboarding registers the onboarding routes",
@@ -75,6 +83,11 @@ var dagNatsBuiltinUnit = []builtinUnit{
 						// fixtures that only carry the wiring lines. The
 						// comment describing the block goes with it, or the
 						// trim leaves prose about absent code.
+						//
+						// The call stayed in the composition root when the
+						// helpers moved, so this rule names chi.go explicitly
+						// rather than inheriting the group's onboarding.go.
+						path:        chiGoFile,
 						startMarker: "onboardingH, onbShutdown := bootOnboarding(",
 						endMarker:   "shutdown = append(shutdown, onbShutdown...)",
 						// Re-inserted just below the shutdown-hook declaration, which is

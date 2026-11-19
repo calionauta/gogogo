@@ -101,7 +101,10 @@ var perfBuiltinUnit = []builtinUnit{
 			{
 				path: "internal/capabilities/capabilities_test.go",
 				rules: []stripRule{{
-					startMarker:       "// TestPerfIsOptIn pins the choice this refactor exists for",
+					// The test was renamed when the semantics inverted: it now pins
+					// that perf always ships behind its runtime switch, so trimming
+					// the unit removes the test that argues for the unit's absence.
+					startMarker:       "// TestPerfIsAlwaysShipped keeps the opt-in semantics inverted",
 					endIsClosingBrace: true,
 					endBrace:          "}",
 				}},
