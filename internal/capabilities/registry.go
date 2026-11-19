@@ -456,11 +456,17 @@ var baseUnits = []Capability{
 		Register: "features/whiteboard/handlers",
 		// The presence wiring is whiteboard+notes infrastructure: with both
 		// gone there is no seam to build, no roster to federate, and no
-		// collab import left in the server package.
-		Files: []string{"internal/server/presence.go"},
+		// collab import left in the server package. `AlsoWhenDropped` is what
+		// makes that sentence true — without it this file was removed with
+		// whiteboard alone, leaving notes (which still wires presence) failing
+		// to build against a package that had just been deleted.
+		Files:           []string{"internal/server/presence.go"},
+		AlsoWhenDropped: []string{"notes"},
 		Reason: "Delete the dir plus internal/server/presence.go and the " +
 			"Whiteboard entry in internal/ui/modules.go (notes falls " +
-			"back to the in-process PeerSet presence seam).",
+			"back to the in-process PeerSet presence seam). presence.go goes " +
+			"only when notes is also absent: it is the shared seam, so removing " +
+			"it while notes survives breaks the build.",
 		Warns: []string{
 			"The Whiteboard sidebar entry is removed by hand with the unit.",
 			"ci-local smoke: export SMOKE_FEATURES without whiteboard " +

@@ -19,6 +19,12 @@ const (
 	muxGoneStatus = "http.StatusNotFound"
 )
 
+// collabImportSuffix is the transport's import line as it appears in a source
+// file, and the substring a trim removes. Named because three declarations match
+// on the same text (the server wiring and the two tests that build the bundle),
+// and a literal repeated three times drifts the moment one is edited.
+const collabImportSuffix = `internal/collab"`
+
 var featureBuiltinUnits = []builtinUnit{
 	{
 		id: unitWhiteboard,
@@ -31,15 +37,14 @@ var featureBuiltinUnits = []builtinUnit{
 				substrs: []string{
 					// The shared collab wiring fed into Deps.
 					"persister, docs, perr := bootCollab(cfg, queries)",
-					// The error branch belongs to the line above: a whole-line
-					// drop that left `if perr != nil {` behind produced a file
-					// whose only error was "undefined: perr", blamed on the
-					// operator's first build instead of on this declaration.
-					`return bootFail(cancelConsumer, sqlDB, "collab snapshots", perr)`,
+					// The branch that handles bootCollab's error is NOT dropped
+					// here: a line-level match takes the `return` and leaves the
+					// `if perr != nil {` head, whose brace then eats a neighbour.
+					// blockStrips removes the whole branch.
 					// The transport import and the struct field that holds it.
-					`	"github.com/calionauta/gogogo/internal/collab"`,
+					collabImportSuffix,
 					"federated := bootPresence(hub)",
-					"Collab: collab.Handoff{Persister: persister, Docs: docs, Presence: federated},",
+					"Collab:  collab.Handoff{Persister: persister, Docs: docs, Presence: federated},",
 					"// Collaborator presence: ONE local seam for both features (the actor when",
 					"// GoAkt runs, the in-process PeerSet otherwise), so a deployment cannot end",
 					"// up with two rosters that disagree about the same tab. It is federated",
@@ -62,8 +67,20 @@ var featureBuiltinUnits = []builtinUnit{
 			{
 				path: bootHelpersFile,
 				substrs: []string{
-					`	"github.com/calionauta/gogogo/internal/collab"`,
+					collabImportSuffix,
 				},
+			},
+		},
+		// The `if perr != nil { ... }` branch of the collab boot leaves as a
+		// block, head and closing brace together. Dropping only its `return`
+		// left the head behind and the file failed with "undefined: perr" — the
+		// symptom blamed on the operator's first build instead of this list.
+		blockStrips: []stripRule{
+			{
+				path:              chiGoFile,
+				startMarker:       "if perr != nil {",
+				endIsClosingBrace: true,
+				endBrace:          "\t}",
 			},
 		},
 		mainStrips: []stripRule{
@@ -71,6 +88,15 @@ var featureBuiltinUnits = []builtinUnit{
 				startMarker:       "// The FRAMES crossing instances (above) are not enough for the \"X online\"",
 				endIsClosingBrace: true,
 				endBrace:          "\t}",
+			},
+			{
+				// bootCollab RETURNS collab types, so unlike a caller it cannot
+				// survive the package's removal: its signature names them. Absent
+				// from this list, the tree compiled right up to "undefined: collab"
+				// in a file nobody suspected.
+				startMarker:       "// one helper keeps the two lines that must agree in one place.",
+				endIsClosingBrace: true,
+				endBrace:          "}", // top-level func: its brace sits in column 0
 			},
 		},
 		desktopStrips: []stripRule{
@@ -85,7 +111,15 @@ var featureBuiltinUnits = []builtinUnit{
 				addBefore:         "// desktopConfig loads config and applies the shell's overrides. Split out of",
 			},
 		},
-		desktopDropLines: []string{`internal/collab"`, `"time"`},
+		desktopDropLines: []string{collabImportSuffix, `"time"`},
+		// Tests that build the collab bundle travel with it: they import the
+		// package by name, so `go mod tidy` parses them and reports "finding
+		// module for .../internal/collab" for a tree that builds fine without
+		// them — the error that made a clean scaffold look broken.
+		testDrops: []fileDrop{
+			{path: "internal/server/chi_test.go", substrs: []string{collabImportSuffix}},
+			{path: "internal/server/mux_fixture_test.go", substrs: []string{collabImportSuffix}},
+		},
 		// loro-go is the CGO binding the transport is built on: with collab gone,
 		// nothing imports it, and `go mod tidy` will not drop a requirement on its
 		// own. Left pinned, every target keeps needing a C toolchain — the exact

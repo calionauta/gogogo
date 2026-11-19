@@ -28,7 +28,7 @@ func pruneReferenceRecipes(opt options, drop []string, stdout io.Writer) error {
 		return nil
 	}
 	for _, id := range drop {
-		if err := pruneOneRecipe(opt.dir, id, stdout); err != nil {
+		if err := pruneOneRecipe(opt.dir, id, drop, stdout); err != nil {
 			return err
 		}
 	}
@@ -37,7 +37,7 @@ func pruneReferenceRecipes(opt options, drop []string, stdout io.Writer) error {
 
 // pruneOneRecipe removes one slice and every derived surface it owned (policy
 // rows, nav entry, domain card, generated registration).
-func pruneOneRecipe(root, id string, stdout io.Writer) error {
+func pruneOneRecipe(root, id string, drop []string, stdout io.Writer) error {
 	if _, err := os.Stat(filepath.Join(root, recipe.ReceiptPath(id))); os.IsNotExist(err) {
 		// No receipt means no installed slice to uninstall.
 		return nil
@@ -74,7 +74,12 @@ func pruneOneRecipe(root, id string, stdout io.Writer) error {
 		// transport it depends on — the registry's own promise ("removing the
 		// whiteboard bundle removes collab"), executed instead of described.
 		// Their shared wiring is the same server seam, edited once above.
-		if err := removeUnitCapabilities(tree, u); err != nil {
+		//
+		// A capability is only removed when NOTHING kept still imports it: a
+		// scaffold that drops `notes` and `whiteboard` (shape api does) leaves
+		// collab orphaned and it goes; one that keeps `notes` still needs the
+		// transport, and removeUnitCapabilities leaves it alone.
+		if err := removeUnitCapabilities(tree, u, drop); err != nil {
 			return fmt.Errorf("scaffold: removing capabilities of %s: %w", id, err)
 		}
 	}

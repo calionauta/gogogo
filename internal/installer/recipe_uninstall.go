@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -88,6 +89,9 @@ func runRecipeUninstall(args []string, stdout io.Writer) error {
 	// receipts that say Removed.
 	if gerr := regenerateBundledUnits(root); gerr != nil {
 		return gerr
+	}
+	if uerr := uninstallWiring(root, opt.id); uerr != nil {
+		return uerr
 	}
 	printRecipeUninstallReceipt(stdout, opt.id, res, r, derived)
 	return nil
@@ -446,4 +450,44 @@ func loadUninstallReceipt(root, id string) (recipe.Receipt, error) {
 			"recipe uninstall: %s was already removed (%s)", id, r.Removed)}
 	}
 	return r, nil
+}
+
+// uninstallWiring removes what the receipt cannot know about: the shared server
+// lines that wired the slice, and the servant packages it was the only consumer
+// of. Without it a tree keeps chi.go importing a directory the same run deleted,
+// and the operator's first build reports it as their own mistake.
+//
+// Split from runRecipeUninstall so the command's flow reads as its stages — parse,
+// guard, check drift, remove, regenerate, wire — instead of one function holding
+// all seven.
+func uninstallWiring(root, id string) error {
+	tree, terr := openTree(root)
+	if terr != nil {
+		return &ExitError{code: 1, msg: "recipe uninstall: " + terr.Error()}
+	}
+	defer func() { _ = tree.Close() }()
+	// The wiring is declared per UNIT, and a recipe may be part of one:
+	// whiteboard's extraDrops live on unitWhiteboard, so uninstalling the recipe
+	// finds that unit by the capability it carries, not only by id.
+	for _, u := range builtinUnits {
+		if u.id != id && !slices.Contains(u.caps(), id) {
+			continue
+		}
+		if aerr := applyDropEdits(tree, u); aerr != nil {
+			return &ExitError{code: 1, msg: "recipe uninstall: wiring: " + aerr.Error()}
+		}
+	}
+	// The transport goes when the recipe that owned it goes. Keyed on the receipt
+	// rather than the unit because `notes` is a recipe with no builtin unit, and it
+	// can be the last consumer of internal/collab.
+	//
+	// An importer scan of the whole tree was tried here and reverted: feature
+	// slices mount through units.gen.go, which has not been regenerated yet, so
+	// "nobody imports it" was true of the product's own features and a run deleted
+	// genui, license and room. A declared owner cannot mistake a slice for a
+	// servant.
+	if cerr := dropReceiptServants(tree, id); cerr != nil {
+		return &ExitError{code: 1, msg: "recipe uninstall: servants: " + cerr.Error()}
+	}
+	return nil
 }

@@ -460,7 +460,7 @@ collaborative canvas (Loro + Rough.js + presence)
 - **Routes:** `/api/whiteboard/{docID}/delete`, `/api/whiteboard/{docID}/presence`, `/api/whiteboard/{docID}/snapshot`, `/api/whiteboard/{docID}/stream`, `/api/whiteboard/{docID}/update`, `/api/whiteboards/fragment`, `/whiteboard`, `/whiteboard/new`, `/whiteboard/{docID}`
 - **Store calls:** `dbgen.BumpBoardVersion`, `dbgen.DeleteBoard`, `dbgen.GetBoardMeta`, `dbgen.ListBoards`, `dbgen.UpsertBoard`
 - **Depends on:** collab, sounds
-- **Why that class:** Delete the dir plus internal/server/presence.go and the Whiteboard entry in internal/ui/modules.go (notes falls back to the in-process PeerSet presence seam).
+- **Why that class:** Delete the dir plus internal/server/presence.go and the Whiteboard entry in internal/ui/modules.go (notes falls back to the in-process PeerSet presence seam). presence.go goes only when notes is also absent: it is the shared seam, so removing it while notes survives breaks the build.
 - **Warning:** The Whiteboard sidebar entry is removed by hand with the unit.
 - **Warning:** ci-local smoke: export SMOKE_FEATURES without whiteboard (e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the removed route.
 

@@ -70,6 +70,13 @@ type builtinUnit struct {
 	// desktopDropLines are substrings; any import line containing one is
 	// removed from cmd/desktop/main.go after desktopStrips run.
 	desktopDropLines []string
+	// blockStrips remove an entire brace block, head included: for a branch
+	// whose body must go with its condition, where a line match would leave a
+	// dangling brace.
+	blockStrips []stripRule
+	// testDrops remove lines from test files that construct what this unit
+	// removes: they import the package by name, so `go mod tidy` parses them.
+	testDrops []fileDrop
 	// goModDrops are module paths removed from go.mod (then `go mod tidy`).
 	goModDrops []string
 	// extraStrips apply stripRules to additional files (navbar links,
@@ -141,6 +148,12 @@ func (u builtinUnit) caps() []string {
 // addBefore/addAfter optionally pin where the port copy should
 // re-emit this span. Empty means the path default in export_wiring.go.
 type stripRule struct {
+	// path overrides the fileStrip's path for this one rule. It exists because
+	// not every line a slice wires lives in the same file: the presence
+	// federation call sits in cmd/web/main.go while the rest of the trim is in
+	// internal/server/chi.go, and a rule that could not name its file left the
+	// call behind as "undefined method" after the method was removed.
+	path               string
 	startMarker        string
 	endMarker          string
 	endIsClosingBrace  bool
@@ -218,6 +231,12 @@ const bootHelpersFile = "internal/server/boot_helpers.go"
 // desktopMainFile is the desktop target's entrypoint: a separate target in the
 // same module, so `go mod tidy` parses it even when nothing shipped uses it.
 const desktopMainFile = "cmd/desktop/main.go"
+
+// desktopWebMainFile is the web target's entrypoint: where the presence
+// federation is attached and the stack is served.
+//
+//nolint:gosec // G101: this is a repo-relative source path, not a credential.
+const desktopWebMainFile = "cmd/web/main.go"
 
 // Repeated trim targets, hoisted so a typo in a path is a compile error
 // rather than a trim that silently matches nothing.
@@ -361,4 +380,22 @@ var baseBuiltinUnits = []builtinUnit{
 			{path: "features/authviews/signup.templ", substrs: soundsDropLines},
 		},
 	},
+}
+
+// servantOwners names the servant packages a recipe is the only consumer of, so
+// uninstalling that recipe takes them with it.
+//
+// This is the recipe-level counterpart to unitCaps (which pairs a builtin UNIT
+// with its capabilities). It exists because two of the collaborative slices are
+// recipes with no builtin unit of their own, yet between them they own the whole
+// CRDT transport: leaving internal/collab behind keeps loro-go — a CGO binding —
+// pinned in go.mod, so a product with no collaborative feature still needs a C
+// toolchain to build.
+//
+// Only packages here may be removed this way. A feature slice never appears: its
+// files come from its receipt, and deleting a directory by ownership would
+// outrun the receipt's own bookkeeping.
+var servantOwners = map[string][]string{
+	recipeNotes:      {"internal/collab"},
+	recipeWhiteboard: {"internal/collab"},
 }

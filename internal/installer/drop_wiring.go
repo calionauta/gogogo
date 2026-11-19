@@ -18,10 +18,13 @@ package installer
 import (
 	"errors"
 	"fmt"
+	"go/parser"
+	"go/token"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/calionauta/gogogo/internal/capabilities"
@@ -35,32 +38,63 @@ import (
 // build fails and the operator sees it, instead of shipping a tree whose server
 // still imports a package the plan says is gone.
 func applyDropEdits(tree *treeFS, u builtinUnit) error {
-	for _, d := range u.extraDrops {
-		if err := dropLinesContaining(tree, d.path, d.substrs); err != nil {
-			return fmt.Errorf("%s: %w", u.id, err)
-		}
+	if err := applyLineDrops(tree, u); err != nil {
+		return err
 	}
-	for _, s := range u.extraStrips {
-		for _, r := range s.rules {
-			if err := stripMarkedBlock(tree, s.path, r); err != nil {
+	if err := applyBlockStrips(tree, u); err != nil {
+		return err
+	}
+	return applyDesktopDrops(tree, u)
+}
+
+// applyLineDrops removes the declared whole lines: the extra wiring, and the
+// test lines that construct what the unit removes.
+func applyLineDrops(tree *treeFS, u builtinUnit) error {
+	for _, list := range [][]fileDrop{u.extraDrops, u.testDrops} {
+		for _, d := range list {
+			if err := dropLinesContaining(tree, d.path, d.substrs); err != nil {
 				return fmt.Errorf("%s: %w", u.id, err)
 			}
 		}
 	}
-	// cmd/desktop is a SEPARATE target that still sits in the same module, so
-	// `go mod tidy` parses it: an import left behind there keeps the package (and
-	// its CGO dependency) in the module graph even though the web binary no
-	// longer names it. That is how loro-go survived a tree with no collaborative
-	// feature left.
+	return nil
+}
+
+// applyBlockStrips removes the declared brace blocks, head and body together.
+// Splitting them from the line drops is what keeps a branch from leaving its
+// condition behind.
+func applyBlockStrips(tree *treeFS, u builtinUnit) error {
+	if err := applyStrips(tree, u.id, chiGoFile, u.blockStrips); err != nil {
+		return err
+	}
+	// mainStrips target cmd/web/main.go, the program's own entrypoint. They were
+	// declared and read by nothing: the export bundle walked extraStrips only, so
+	// a trim left `stack.AttachPresenceFederation` calling a method the same run
+	// had deleted, and the operator's first build failed on the program's main.
+	if err := applyStrips(tree, u.id, desktopWebMainFile, u.mainStrips); err != nil {
+		return err
+	}
+	for _, s := range u.extraStrips {
+		if err := applyStrips(tree, u.id, s.path, s.rules); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// applyDesktopDrops handles cmd/desktop: a SEPARATE target that still sits in the
+// same module, so `go mod tidy` parses it. An import left behind there keeps the
+// package (and its CGO dependency) in the module graph even though the web binary
+// no longer names it — how loro-go survived a tree with no collaborative feature
+// left.
+func applyDesktopDrops(tree *treeFS, u builtinUnit) error {
 	if len(u.desktopDropLines) > 0 {
 		if err := dropLinesContaining(tree, desktopMainFile, u.desktopDropLines); err != nil {
 			return fmt.Errorf("%s: %w", u.id, err)
 		}
 	}
-	for _, r := range u.desktopStrips {
-		if err := stripMarkedBlock(tree, desktopMainFile, r); err != nil {
-			return fmt.Errorf("%s: %w", u.id, err)
-		}
+	if err := applyStrips(tree, u.id, desktopMainFile, u.desktopStrips); err != nil {
+		return err
 	}
 	if len(u.goModDrops) > 0 {
 		if err := dropRequirements(tree, u.goModDrops); err != nil {
@@ -214,8 +248,21 @@ func blockEndLine(lines []string, start int, r stripRule) int {
 		return -1
 	}
 	// endIsClosingBrace: walk until the block the marker opened is balanced.
-	depth := countBraceDelta(lines[start])
-	for i := start + 1; i < len(lines); i++ {
+	//
+	// A marker may be DOC immediately above the construct it describes — the
+	// bootCollab case, where the comment names the helper below it. Starting the
+	// depth count on the comment makes delta 0 and stops on the very next line,
+	// leaving the function behind. So the walk starts at the first line that
+	// actually opens a brace.
+	open := start
+	for open < len(lines) && countBraceDelta(lines[open]) <= 0 {
+		open++
+	}
+	if open >= len(lines) {
+		return -1
+	}
+	depth := countBraceDelta(lines[open])
+	for i := open + 1; i < len(lines); i++ {
 		depth += countBraceDelta(lines[i])
 		if depth <= 0 {
 			return i
@@ -248,7 +295,7 @@ func writeSourceLines(tree *treeFS, path string, lines []string) error {
 // what ships together — one list, not a second guess. A capability with no
 // directory and no files (genkit, a module dependency) is a no-op here: dropping
 // its unit plus `go mod tidy` is what removes it from the build.
-func removeUnitCapabilities(tree *treeFS, u builtinUnit) error {
+func removeUnitCapabilities(tree *treeFS, u builtinUnit, drop []string) error {
 	byID := capabilities.ByID()
 	for _, capID := range u.caps() {
 		if capID == u.id {
@@ -258,19 +305,53 @@ func removeUnitCapabilities(tree *treeFS, u builtinUnit) error {
 		if !ok {
 			continue
 		}
+		// A capability the registry marks as another unit's SLICE may be kept by
+		// the operator: shape api drops notes and whiteboard, which orphans
+		// collab, while a run that drops only whiteboard must keep the transport
+		// notes still imports. Keying on the drop list keeps one rule — a
+		// capability goes when every slice that carries it went — instead of a
+		// bundle list that has to match unitCaps by hand.
+		if keptByAnotherSlice(capID, drop) {
+			continue
+		}
 		for _, dir := range c.Dirs {
 			if err := tree.RemoveAll(filepath.Join(tree.root, filepath.FromSlash(dir))); err != nil {
 				return fmt.Errorf("removing %s: %w", dir, err)
 			}
 		}
+		// A file this capability OWNS may be shared with another one, so it only
+		// goes when the package it IMPORTS is gone. presence.go is the case: it is
+		// whiteboard's declared file, but notes is often the last consumer, so
+		// keying on the recipe that happened to run never matched. The import list
+		// is already the declaration and the filesystem is already the answer.
 		for _, f := range c.Files {
 			path := filepath.Join(tree.root, filepath.FromSlash(f))
+			orphaned, serr := fileImportsMissingPackage(tree, path)
+			if serr != nil {
+				return fmt.Errorf("inspecting %s: %w", f, serr)
+			}
+			if !orphaned {
+				continue
+			}
 			if err := tree.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
 				return fmt.Errorf("removing %s: %w", f, err)
 			}
 		}
 	}
 	return nil
+}
+
+// keptByAnotherSlice reports whether a capability is a SLICE that survives this
+// scaffold, in which case removing its package would break the tree.
+//
+// Slices are the capabilities with a recipe receipt; a servant like collab has
+// none, so it is never kept on its own behalf — only as a dependency of a slice
+// that stays.
+func keptByAnotherSlice(capID string, drop []string) bool {
+	if !slices.Contains(demoSlices, capID) {
+		return false
+	}
+	return !slices.Contains(drop, capID)
 }
 
 // builtinUnitByID looks a unit up in the canonical list.
@@ -281,4 +362,112 @@ func builtinUnitByID(id string) (builtinUnit, bool) {
 		}
 	}
 	return builtinUnit{}, false
+}
+
+// dropReceiptServants removes the servant directories that belong to a recipe,
+// when the recipe itself is what kept them.
+//
+// Ownership is declared once, in `servantOwners`, and read here rather than
+// re-derived. An importer scan of the whole tree was attempted instead and
+// reverted: feature slices mount through units.gen.go, which is regenerated only
+// after this point, so at sweep time nothing imported the product's own features
+// and a run deleted genui, license and room. Declared ownership cannot confuse a
+// slice with a servant.
+func dropReceiptServants(tree *treeFS, recipeID string) error {
+	// No early return on a missing entry: the FILE sweep below must run for every
+	// uninstall. notes has no servantOwners entry, yet it is usually the last
+	// consumer of the transport, and returning early here left presence.go
+	// importing a package the same run had deleted — a broken tree, reported as
+	// the operator's own build error.
+	for _, dir := range servantOwners[recipeID] {
+		if err := tree.RemoveAll(filepath.Join(tree.root, filepath.FromSlash(dir))); err != nil {
+			return fmt.Errorf("removing %s: %w", dir, err)
+		}
+	}
+	// A capability's owned FILES go when the package they IMPORT is gone, or the
+	// tree keeps a file importing what was just deleted. presence.go is the case
+	// that bit: it is whiteboard's declared file, yet notes is often the last
+	// consumer, so keying removal on the recipe that happened to run never
+	// matched. Its import is internal/collab, and that is what decides.
+	for _, c := range capabilities.All {
+		for _, f := range c.Files {
+			// Only Go files can be orphaned by an import. c.Files also lists
+			// non-Go assets (pele.global.js), and parsing one as Go failed the
+			// whole uninstall with a syntax error from a file nobody touched.
+			if !strings.HasSuffix(f, ".go") {
+				continue
+			}
+			path := filepath.Join(tree.root, filepath.FromSlash(f))
+			orphaned, err := fileImportsMissingPackage(tree, path)
+			if err != nil {
+				return fmt.Errorf("inspecting %s: %w", f, err)
+			}
+			if !orphaned {
+				continue
+			}
+			if rerr := tree.Remove(path); rerr != nil && !errors.Is(rerr, fs.ErrNotExist) {
+				return fmt.Errorf("removing %s: %w", f, rerr)
+			}
+		}
+	}
+	return nil
+}
+
+// fileImportsMissingPackage reports whether a file imports an intra-module
+// package whose directory no longer exists.
+//
+// It is the precise form of "did the thing this file wires just leave?" and needs
+// no pairing declaration: the import list is already the declaration, and the
+// filesystem is already the answer. A file with no intra-module import is never
+// orphaned by a removal, so it stays.
+func fileImportsMissingPackage(tree *treeFS, path string) (bool, error) {
+	raw, err := tree.ReadFile(path)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return false, nil
+		}
+		return false, err
+	}
+	f, perr := parser.ParseFile(token.NewFileSet(), path, raw, parser.ImportsOnly)
+	if perr != nil {
+		// Reported, not swallowed: a file we cannot read may be exactly the one
+		// importing a package this run deleted, and guessing "not orphaned" would
+		// keep a broken file in the tree.
+		return false, fmt.Errorf("parsing %s: %w", path, perr)
+	}
+	modPath, merr := modulePath(tree.root)
+	if merr != nil {
+		return false, fmt.Errorf("reading the module path: %w", merr)
+	}
+	if modPath == "" {
+		return false, nil // no module line: nothing can be orphaned by an import
+	}
+	for _, spec := range f.Imports {
+		p, uerr := strconv.Unquote(spec.Path.Value)
+		if uerr != nil || !strings.HasPrefix(p, modPath+"/") {
+			continue
+		}
+		dir := filepath.Join(tree.root, filepath.FromSlash(strings.TrimPrefix(p, modPath+"/")))
+		if _, statErr := os.Stat(dir); statErr == nil {
+			return false, nil
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
+// applyStrips applies each rule to path, using the rule's own path when it names
+// one. Split out so the three strip lists share one loop instead of growing a
+// fourth copy of it.
+func applyStrips(tree *treeFS, unitID, path string, rules []stripRule) error {
+	for _, r := range rules {
+		target := path
+		if r.path != "" {
+			target = r.path
+		}
+		if err := stripMarkedBlock(tree, target, r); err != nil {
+			return fmt.Errorf("%s: %w", unitID, err)
+		}
+	}
+	return nil
 }

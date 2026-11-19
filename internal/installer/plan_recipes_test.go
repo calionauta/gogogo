@@ -392,7 +392,7 @@ func boot() {
 	}
 	federated := bootPresence(hub)
 	mux := buildMux(deps{
-		Collab: collab.Handoff{Persister: persister, Docs: docs, Presence: federated},
+		Collab:  collab.Handoff{Persister: persister, Docs: docs, Presence: federated},
 	})
 }
 `)
@@ -409,7 +409,7 @@ func boot() {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, dead := range []string{"bootCollab", "bootPresence", "Collab: collab.Handoff"} {
+	for _, dead := range []string{"bootCollab", "bootPresence", "Collab:"} {
 		if strings.Contains(string(chi), dead) {
 			t.Errorf("chi.go still wires %q after whiteboard was dropped", dead)
 		}
@@ -420,5 +420,38 @@ func boot() {
 	}
 	if _, err := os.Stat(filepath.Join(root, "internal/collab")); !os.IsNotExist(err) {
 		t.Error("internal/collab survived the bundle that owns it: loro-go stays in go.mod")
+	}
+}
+
+// TestUninstallWiringToleratesNonGoOwnedFiles pins the defect that made
+// `recipe uninstall whiteboard` abort: capabilities list non-Go assets among
+// their owned Files (pele.global.js is one), and the orphan sweep parsed every
+// entry as Go. The uninstall failed with a syntax error from a JavaScript file
+// nobody had touched, which reads as a broken template rather than a bug here.
+func TestUninstallWiringToleratesNonGoOwnedFiles(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module example.test/app\n\ngo 1.27\n")
+	// A JS asset of the kind capabilities.All names, and a Go file genuinely
+	// orphaned by a package that no longer exists.
+	writeFile(t, filepath.Join(root, "web/resources/static/pele.global.js"),
+		"\"use strict\";\n// not Go, and not the sweep's business\n")
+	writeFile(t, filepath.Join(root, "internal/server/presence.go"),
+		"package server\n\nimport (\n\t\"example.test/app/internal/collab\"\n)\n")
+
+	tree, err := openTree(root)
+	if err != nil {
+		t.Fatalf("openTree: %v", err)
+	}
+	defer func() { _ = tree.Close() }()
+
+	// Must not return the JS parse error, and must still remove the orphan.
+	if err := dropReceiptServants(tree, "notes"); err != nil {
+		t.Fatalf("dropReceiptServants: %v", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(root, "internal/server/presence.go")); !os.IsNotExist(statErr) {
+		t.Error("presence.go survived: its import names a package that is gone")
+	}
+	if _, statErr := os.Stat(filepath.Join(root, "web/resources/static/pele.global.js")); statErr != nil {
+		t.Error("the JS asset was removed: only Go files are the sweep's business")
 	}
 }
