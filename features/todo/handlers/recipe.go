@@ -12,7 +12,10 @@ import (
 	"github.com/calionauta/gogogo/internal/recipe"
 )
 
-// RecipeID is the recipe id the todo unit declares itself under.
+// RecipeID is the recipe id the todo unit declares itself under. It lives
+// beside the declaration, like every other feature's — a per-feature exception
+// (this one was briefly "owned" by features/todo instead) is the drift
+// `make check-recipe-ids` now refuses.
 const RecipeID = "todo"
 
 // Route patterns, one spelling each: a rename that missed one would split the

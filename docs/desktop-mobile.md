@@ -520,7 +520,16 @@ by design** — linting wgpu/naga is minutes-cold per push and only catches styl
 Run `make lint-gui` before committing any `cmd/gui` change. Unlike the Wails
 shell below, gui is pure Go (`CGO_ENABLED=0`), so it ships in the release
 archives next to the CLI (`gogogo-gui`, all six OS×arch, installed by
-`install.sh`).
+`install.sh`). That purity is now enforced rather than asserted: `make
+release-build-guard` builds every release binary (`gogogo`, `gogogo-mcp`,
+`gogogo-gui`) with cgo off across the shipped matrix, in `ci-local` and in CI's
+cheap block. It exists because the claim above was false for nine releases —
+the shell imported `features/todo/handlers` to read one recipe id, and that
+package reaches `internal/collab` and its cgo CRDT. The shell now spells the id
+as a local literal pinned by `TestTodoRecipeIDMatchesTheUnit` (a test file is
+not compiled into the released binary), so the cgo boundary holds without a
+convention exception. See `docs/local-ci.md` → "The release binaries are built
+here too".
 
 **Realtime:** unlike `cmd/desktop` (which serves the real web UI in a webview,
 so it already uses SSE end to end), `cmd/gui` renders natively and has no HTTP

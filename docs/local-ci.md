@@ -184,6 +184,103 @@ Use it while iterating; the full `ci-local` (and `make signoff`) remain the
 authoritative pre-push gate — `ci-local-fast` does not replace CI coverage, it
 just stops a CSS tweak from paying for the todo suite.
 
+### A feature's recipe id has one spelling: `TestRecipeIDConvention`
+
+Every in-tree feature names itself once, beside the declaration that reports it:
+
+```go
+// features/<name>/handlers/
+const RecipeID = "<id>"
+```
+
+That id is three things at once — the namespace the feature's DDL is applied
+under (`dbschema.MigrationSet.ID`), the name its declaration answers to over
+MCP, and the key its `.recipes/<id>.yml` receipt is filed under — so a fourth
+spelling does not fail to compile, it silently files one feature's schema under
+another name. `TestRecipeIDConvention` (in `internal/capabilities`, so it runs
+in the ordinary `go test ./...` and in both `ci-local` targets) pins it in both
+directions and needs no new Make target:
+
+| Rule | Why |
+|---|---|
+| one `const RecipeID` per feature, in `features/<name>/handlers/` | 12 of 12 features, one spelling |
+| the value is a string **literal** | the gate reads source; it does not evaluate |
+| it matches `.recipes/<name>.yml`'s `id:` | constant, declaration and receipt cannot drift |
+| the constant lives nowhere else in the tree | the half that catches a "helpful" move |
+| a duplicate id across features fails | the ledger keys on it |
+
+It exists because that exception shipped. `RecipeID` was briefly moved out of
+`features/todo/handlers` into `features/todo` — sound about the symptom (the
+native shell must not link cgo) and wrong about the cure, because it made `todo`
+the one feature in twelve whose constant lived somewhere else. A per-feature
+exception is the class of change the boundary gates exist to refuse. The shell
+now spells the id as a local literal and pins it with
+`TestTodoRecipeIDMatchesTheUnit`; test files are not compiled into the released
+binary, so the assertion costs the cgo boundary nothing.
+
+The general shape, worth reusing: **when a non-handler caller needs one value
+from a package it must not link, do not move the value — restate it locally and
+pin it with a test.** The test carries the coupling; the binary does not.
+
+A scaffold template (`internal/installer/new_scaffold.go`) contains the same
+`const RecipeID` because it EMITS the convention; the gate recognises template
+payloads by the `"{{module}}/` placeholder and exempts them.
+
+### The release binaries are built here too: `make release-build-guard`
+
+`bin/check-release-build.sh` answers one question: does every binary the
+release SHIPS build the way the release builds it. It reads the `main:` entries
+**and each build's own `CGO_ENABLED`** out of `.goreleaser.yaml` — so a fourth
+build added there cannot be forgotten here, and a build that legitimately turns
+cgo on is not failed by a guard with a hardcoded `0` — then runs that
+combination across linux/darwin/windows × amd64/arm64. Nothing is written
+(`-o /dev/null`), and it runs after "Warm module cache" in CI, so it costs
+seconds. It is part of both `ci-local` and `ci-local-fast`.
+
+It exists because nothing did that before. `.goreleaser.yaml` cross-compiles all
+three binaries with `CGO_ENABLED=0` from one Linux runner; `cmd/gui` imported
+`features/todo/handlers` for a single constant (`RecipeID`) and thereby pulled in
+`internal/recipe/register` → `internal/collab` → `loro-go`, which needs cgo. The
+`CGO_ENABLED=0` build died on `undefined: DiffEvent`, and **every release from
+v0.63.0 to v0.71.2 failed with zero assets** — the first line of the landing
+page, `curl … | sh`, was a 404 for nine releases. A host-native `go build ./...`
+cannot see it (the host has cgo on, and `cmd/web` is built with cgo in the
+Dockerfile), and the only job that built the shipped combination was
+`release.yml`, which runs after the tag exists and which nobody read.
+
+The general rule this encodes: **a build that only works with cgo is a build
+that does not ship.** If a release binary needs a cgo dependency, either remove
+it from that binary's import graph (the `cmd/gui` fix) or move that binary to a
+per-OS runner with cgo on — which costs the one-runner matrix, so it is the
+heavier answer, not the default one.
+
+### The other half: `bin/check-release-assets.sh`
+
+Building correctly is necessary, not sufficient — the assets still have to
+reach the release. `release-please` publishes the GitHub release when the
+release PR merges, and `release.yml` attaches the binaries afterwards, so a
+release whose build fails is already public when it fails. That is the shape of
+the nine-release outage: `release.yml`'s own "Verify the release carries the
+installer assets" step exists (it was added after v0.43.0–v0.51.0 shipped
+empty), but a job that dies BEFORE that step still produces a public, empty
+release, and a red run nobody reads is indistinguishable from no check at all.
+
+`bin/check-release-assets.sh` asks the question a user asks: does the tarball
+`install.sh` builds exist in the release, and does the checksum file it verifies
+against exist. It reads the tarball pattern out of `install.sh` itself, so a
+rename in one place cannot pass the guard while breaking the other. It has two
+callers, and they are deliberately not the PR path:
+
+| Where | When | Catches |
+|---|---|---|
+| last step of `release.yml` | per release | a release whose assets landed wrong |
+| `.github/workflows/release-assets.yml` | daily, `:17` | a release goreleaser never attached to, or a job that died early |
+
+Neither belongs on a pull request: a PR cannot know what the last PUBLISHED
+release contains, and spending a network round trip on every push to learn a
+fact that only changes on a tag is the wrong trade. The offline form
+(`--offline`) exits 0 so a dev box without `gh` is never a false red.
+
 ### A recipe's tests have a name: `make test-recipe R=<id>`
 
 The changed-package scope answers "what did this diff touch". `test-recipe`

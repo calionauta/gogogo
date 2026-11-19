@@ -58,7 +58,6 @@ import (
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/todo"
-	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/desktopboot"
@@ -258,9 +257,23 @@ func persistSessionIfNeeded(st *windowState, tokPath string) {
 	}
 }
 
+// todoRecipeID is the todo unit's recipe id, spelled as a literal on purpose.
+//
+// This shell renders todos, so it names that unit's migration set. It must NOT
+// import features/todo/handlers to do it: that package registers through
+// internal/recipe/register, which references internal/collab, whose loro half
+// needs cgo — and this binary ships in the release, which cross-compiles with
+// CGO_ENABLED=0. Importing handlers for one string is what broke every release
+// from v0.63.0 to v0.71.2 (`undefined: DiffEvent`).
+//
+// A literal risks drift, so main_test.go asserts it equals handlers.RecipeID.
+// Test files are not compiled into the released binary, so the assertion costs
+// the cgo dependency nothing where it matters.
+const todoRecipeID = "todo"
+
 // todoMigrationSet is the todo unit's own DDL, named by the shell that renders
 // todos. It lives here, not in desktopboot: the shared boot must not know which
 // slices exist.
 func todoMigrationSet() dbschema.MigrationSet {
-	return dbschema.MigrationSet{ID: todohandlers.RecipeID, FS: todo.Migrations, Dir: "migrations"}
+	return dbschema.MigrationSet{ID: todoRecipeID, FS: todo.Migrations, Dir: "migrations"}
 }

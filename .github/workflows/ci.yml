@@ -337,6 +337,15 @@ jobs:
         # Cheap (grep + sh -n), so it stays at the top of the cheap fail-fast
         # block.
         run: bin/check-install-sh.sh
+      - name: Check every release binary builds with cgo off
+        # .goreleaser.yaml cross-compiles all three binaries with
+        # CGO_ENABLED=0 from one Linux runner. Nothing in CI built that
+        # combination, so cmd/gui picked up a transitive cgo dependency and
+        # nine releases (v0.63.0 .. v0.71.2) failed with zero assets while
+        # `curl … | sh` 404'd. The local `go build ./...` cannot catch it: it
+        # uses the host's cgo. Cheap here because the module cache is warm
+        # (this sits after "Warm module cache") and nothing is written.
+        run: bin/check-release-build.sh
       - name: Changeset classifier contract
         # The classifier decides whether checks/race/browser/prod-image run at
         # all. Its own test pins both directions: an inert file must not force a

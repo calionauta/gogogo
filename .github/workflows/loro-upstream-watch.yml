@@ -1,10 +1,10 @@
 name: loro-go upstream watch
 
-# go.mod pins a forked loro-go only because upstream's archives carry LTO IR
-# that Go 1.27.4 refuses to hand to the C linker. Nothing in Go warns when that
-# stops being true, so this job turns "remember to check" into an issue: once
-# aholstenson/loro-go tags something newer than the release the fork was built
-# from, the replace can go away.
+# go.mod depends on a forked loro-go (own module path) only because upstream's
+# archives carry LTO IR that Go 1.27.4 refuses to hand to the C linker. Nothing
+# in Go warns when that stops being true, so this job turns "remember to check"
+# into an issue: once aholstenson/loro-go tags something newer than the release
+# the fork was built from, the fork can go away.
 
 on:
   schedule:
@@ -28,7 +28,7 @@ jobs:
           set -euo pipefail
           baseline=$(grep -oE 'upstream v[0-9]+\.[0-9]+\.[0-9]+' go.mod | head -1 | awk '{print $2}')
           if [ -z "$baseline" ]; then
-            echo "no 'upstream vX.Y.Z' marker in go.mod: the replace is gone, nothing to watch"
+            echo "no 'upstream vX.Y.Z' marker in go.mod: the fork is gone, nothing to watch"
             exit 0
           fi
           latest=$(gh api repos/aholstenson/loro-go/tags --jq '.[].name' | sort -V | tail -1)
@@ -42,7 +42,7 @@ jobs:
             exit 0
           fi
 
-          title="loro-go $latest is out — check whether the fork replace can go"
+          title="loro-go $latest is out — check whether the fork can go"
           existing=$(gh issue list --state open --limit 100 --json number,title \
             --jq ".[] | select(.title == \"$title\") | .number")
           body=$(printf '%s\n' \
@@ -50,11 +50,12 @@ jobs:
             "" \
             "The fork exists only because Go 1.27.4 rejects LTO IR in cgo linker inputs and the $baseline archives were built with fat LTO (see the fork's \`PATCHED.md\`)." \
             "" \
-            "If the new release ships bitcode-free archives, the replace can go:" \
+            "If the new release ships bitcode-free archives, the fork can go:" \
             "" \
-            "1. \`go mod download github.com/aholstenson/loro-go@$latest\`" \
+            "1. \`go mod download github.com/aholstenson/loro-go@$latest\` and confirm no archive carries LTO IR (tools/no-lto.sh in the fork does this check)" \
             "2. check the archive: \`readelf -S libs/*/libloro.a | grep -E '\\\\.llvm(bc|cmd)'\` (Linux) or \`otool -l libs/*/libloro.a | grep __LLVM\` (macOS) — no output means it is clean" \
-            "3. delete the \`replace\` line and the \`upstream v$baseline\` comment in \`go.mod\`, then \`go get github.com/aholstenson/loro-go@$latest && go mod tidy\`" \
+            "2. replace the \`require github.com/calionauta/loro-go\` line with \`go get github.com/aholstenson/loro-go@$latest\`, and change the three imports in internal/collab" \
+            "3. delete the \`upstream v$baseline\` marker comment in \`go.mod\`, then \`go mod tidy\` and \`go build ./...\` with cgo on" \
             "4. \`make build\`, \`go tool govulncheck \$(bash scripts/web-packages.sh)\`, \`make build\` for the Docker target, and \`make check-docs\`" \
             "" \
             "If the new release still carries bitcode, rebuild the fork from it (\`tools/no-lto.sh\`, then \`patch-linux-libs\`) and update the marker to \`upstream $latest\`.")

@@ -184,12 +184,46 @@ html { scroll-padding-top: 84px; }
 .hero-fine {
   margin: 22px auto 0;
   max-width: 860px;
-  font-size: 12.5px;
-  line-height: 1.55;
-  color: var(--faint);
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--muted);
 }
 
 .hero-fine a { color: var(--accent); }
+
+/* The three facts under the hero block. Centered, one per line, 15.5px — the
+   old form was a two-sentence paragraph at 12.5px, which is the shape the
+   operator called unreadable. */
+.hero-facts {
+  max-width: 640px;
+  margin: 18px auto 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+  font-size: 15.5px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.hero-facts li {
+  position: relative;
+  padding-left: 18px;
+  margin: 0 0 6px;
+}
+
+.hero-facts li::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: .62em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.hero-facts li:last-child { margin-bottom: 0; }
+.hero-facts a { color: var(--accent); }
 
 /* ---------- install blocks + copy ---------- */
 
@@ -243,8 +277,9 @@ html { scroll-padding-top: 84px; }
   margin: 0;
   padding: 10px 16px;
   border-top: 1px solid var(--line);
-  font-size: 12px;
-  color: var(--faint);
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--muted);
 }
 
 .copy-btn {
@@ -418,7 +453,7 @@ html { scroll-padding-top: 84px; }
 .install h2 em { font-style: italic; color: var(--accent); }
 
 .install-lede {
-  max-width: 60ch;
+  max-width: 46ch;
   margin: 0;
   font-size: 17px;
   line-height: 1.6;
@@ -458,9 +493,43 @@ html { scroll-padding-top: 84px; }
   letter-spacing: -.02em;
 }
 
-.step-copy { margin: 0 0 12px; font-size: 13.5px; line-height: 1.55; color: var(--muted); }
+.step-copy { margin: 0 0 12px; font-size: 15.5px; line-height: 1.6; color: var(--muted); }
 
-.install-fine { margin: 22px 0 0; font-size: 12.5px; color: var(--faint); }
+/* A step's body is a list of one-line facts, not a paragraph: two lines of
+   prose inside a numbered step is the shape that made the install section
+   hard to read. 15.5px is the floor for body copy here — 13.5px read as
+   fine print rather than as the instructions. */
+.step-list {
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+  font-size: 15.5px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.step-list li {
+  position: relative;
+  padding-left: 16px;
+  margin: 0 0 4px;
+}
+
+.step-list li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: .62em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--line-strong, var(--faint));
+}
+
+.step-list li:last-child { margin-bottom: 0; }
+
+.step-list code { font-size: .92em; }
+
+.install-fine { margin: 22px 0 0; font-size: 13.5px; line-height: 1.6; color: var(--faint); }
 .install-fine a { color: var(--accent); }
 
 /* ---------- mcp tabs ---------- */
@@ -488,12 +557,12 @@ html { scroll-padding-top: 84px; }
 .tab-labels label {
   flex: 1 1 auto;
   margin-bottom: -1px;
-  padding: 9px 8px;
+  padding: 11px 8px;
   border-bottom: 2px solid transparent;
   text-align: center;
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 600;
-  color: var(--faint);
+  color: var(--muted);
   cursor: pointer;
 }
 
@@ -529,7 +598,7 @@ html { scroll-padding-top: 84px; }
   overflow-x: auto;
   background: var(--deep);
   color: var(--ice);
-  font: 11.5px/1.65 var(--mono);
+  font: 12.5px/1.7 var(--mono);
 }
 
 .mcp-tabs .panel pre code { display: block; padding: 0 56px 0 0; border: 0; background: none; color: inherit; }
@@ -629,7 +698,7 @@ html { scroll-padding-top: 84px; }
   .principles { grid-template-columns: 1fr; }
   .foot-cols { grid-template-columns: 1fr; }
   .install-block pre { font-size: 12px; }
-  .mcp-tabs .panel pre { font-size: 11.5px; }
+  .mcp-tabs .panel pre { font-size: 12.5px; }
   .hero-fine { font-size: 11.5px; }
 }
 

@@ -13,7 +13,7 @@ import (
 	"log/slog"
 	"sync"
 
-	loro "github.com/aholstenson/loro-go"
+	loro "github.com/calionauta/loro-go"
 )
 
 // Doc is a single collaborative document (whiteboard, shared list, etc.)

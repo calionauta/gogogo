@@ -142,20 +142,25 @@ is just `go build ./cmd/web` and includes everything.
 ## `go build` fails with "disallowed LTO section __LLVM,__bitcode"
 
 The `loro-go` archives are Rust fat-LTO objects, and Go 1.27.4 refuses to hand
-LTO IR to the C linker (the cgo hardening in that release). `go.mod` therefore
-replaces the module with a fork whose archives carry the same machine code
-without the bitcode:
+LTO IR to the C linker (the cgo hardening in that release). The requirement
+itself points at a fork whose archives carry the same machine code without the
+bitcode — the fork declares its **own** module path, so there is no `replace`
+directive (a replace is what made `go install ...@latest` refuse the module):
 
 ```
-replace github.com/aholstenson/loro-go => github.com/calionauta/loro-go v0.5.1
+require github.com/calionauta/loro-go v0.5.2
 ```
 
-Seeing this error means something bypassed that replace — a `-modfile`, a
-workspace that replaces the module itself, or a `go get` that dropped the line.
+Seeing the LTO error means something resolved `github.com/aholstenson/loro-go`
+instead — a `-modfile`, a workspace, or a `go get` that upgraded the module back
+to upstream. Pin the fork path.
+
 The `loro-go upstream watch` workflow opens an issue when upstream ships
-bitcode-free archives; that issue is the cue to delete the replace and pin
-upstream again (`go get github.com/aholstenson/loro-go@latest`). The fork's
-`PATCHED.md` records what was changed and how to reproduce it.
+bitcode-free archives; that issue is the cue to drop the fork and depend on
+upstream again (`go get github.com/aholstenson/loro-go@latest`). The watcher
+reads the `upstream vX.Y.Z` marker in `go.mod`, which must stay on one line or
+the grep goes empty and the job silently does nothing. The fork's `PATCHED.md`
+records what was changed, how to reproduce it, and how to stop using it.
 
 ## Scaffolding refuses: "this tree needs go X, but GOTOOLCHAIN pins go Y"
 
