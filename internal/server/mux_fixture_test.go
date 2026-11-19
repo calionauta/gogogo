@@ -12,7 +12,6 @@ import (
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/internal/auth"
-	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
@@ -45,11 +44,6 @@ func buildMuxFixture(t *testing.T) *muxFixture {
 	cfg := config.Load()
 	// Retained for combined trims (same rule as the bootCtx retain in chi.go).
 	_ = cfg
-	persister, perr := collab.NewTursoPersister(dbgen.New(sqlDB))
-	if perr != nil {
-		t.Fatalf("persister: %v", perr)
-	}
-	docs := collab.NewDocStore()
 	slots := recipe.NewSlotRegistry()
 	// SQLDB is what the recipe step migrates: without it a recipe that ships
 	// DDL cannot apply its schema, and the composition below would be built
@@ -58,9 +52,9 @@ func buildMuxFixture(t *testing.T) *muxFixture {
 	mux := buildChiMux(a, register.Deps{
 		Cfg: cfg, Auth: a, Queries: dbgen.New(sqlDB),
 		Hub: queue.NewSSEHub(), SQLDB: sqlDB,
-		RealLLM:   newReviewHandlerForTestLLM(),
-		Persister: persister, DocStore: docs,
-		Queue: chiQForTest(t), Slots: slots,
+		RealLLM: newReviewHandlerForTestLLM(),
+		Collab:  collabTransportFixture(t, sqlDB),
+		Queue:   chiQForTest(t), Slots: slots,
 		TodoRef: &register.TodoRef{}, InboxRef: &register.InboxRef{},
 	},
 	)

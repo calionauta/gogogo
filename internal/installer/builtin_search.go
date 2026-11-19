@@ -25,7 +25,7 @@ var searchBuiltinUnit = []builtinUnit{
 		// the Register, which would dangle after the plugin goes.
 		extraStrips: []fileStrip{
 			{
-				path: "features/todo/handlers/register.go",
+				path: todoRegisterFile,
 				rules: []stripRule{
 					{
 						startMarker:       "// Search wiring: every layer, mode from config. The heal is deferred",
@@ -37,7 +37,7 @@ var searchBuiltinUnit = []builtinUnit{
 		},
 		extraDrops: []fileDrop{
 			{
-				path: "features/todo/handlers/register.go",
+				path: todoRegisterFile,
 				substrs: []string{
 					`	"github.com/calionauta/gogogo/internal/search"`,
 					// The heal closure stays callable when search is trimmed:

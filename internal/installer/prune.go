@@ -28,7 +28,7 @@ func pruneReferenceRecipes(opt options, drop []string, stdout io.Writer) error {
 		return nil
 	}
 	for _, id := range drop {
-		if err := pruneOneRecipe(opt.dir, id, stdout); err != nil {
+		if err := pruneOneRecipe(opt.dir, id, drop, stdout); err != nil {
 			return err
 		}
 	}
@@ -37,11 +37,20 @@ func pruneReferenceRecipes(opt options, drop []string, stdout io.Writer) error {
 
 // pruneOneRecipe removes one slice and every derived surface it owned (policy
 // rows, nav entry, domain card, generated registration).
-func pruneOneRecipe(root, id string, stdout io.Writer) error {
+func pruneOneRecipe(root, id string, drop []string, stdout io.Writer) error {
 	if _, err := os.Stat(filepath.Join(root, recipe.ReceiptPath(id))); os.IsNotExist(err) {
-		// A tree that never carried the slice has nothing to remove.
+		// No receipt means no installed slice to uninstall.
 		return nil
 	}
+	// One confined handle for every write below: os.Root refuses a path that
+	// would leave the target even through a planted symlink, which a lexical
+	// join cannot see. The tree is opened per recipe so a corrupt checkout
+	// fails before any file is touched.
+	tree, treeErr := openTree(root)
+	if treeErr != nil {
+		return fmt.Errorf("scaffold: %w", treeErr)
+	}
+	defer func() { _ = tree.Close() }()
 	r, err := recipe.LoadReceipt(root, id)
 	if err != nil {
 		return fmt.Errorf("scaffold: reading receipt for %s: %w", id, err)
@@ -52,6 +61,18 @@ func pruneOneRecipe(root, id string, stdout io.Writer) error {
 	res, err := recipe.RemoveAll(root, r)
 	if err != nil {
 		return fmt.Errorf("scaffold: removing %s: %w", id, err)
+	}
+	// The receipt names the slice's OWN files; the shared lines that wire it
+	// into the server live in the unit's declaration, which no receipt records.
+	// Applying it here is what lets the package it fed actually go away.
+	if u, ok := builtinUnitByID(id); ok {
+		if err := applyDropEdits(tree, u); err != nil {
+			return fmt.Errorf("scaffold: removing wiring of %s: %w", id, err)
+		}
+		// The unit's other capabilities, and the files they leave behind.
+		if err := dropUnitCapabilities(tree, u, drop); err != nil {
+			return fmt.Errorf("scaffold: %s: %w", id, err)
+		}
 	}
 	if _, err := removeDerived(root, id, res.Removed, r); err != nil {
 		return fmt.Errorf("scaffold: removing derived surfaces of %s: %w", id, err)
@@ -97,4 +118,22 @@ func removeEmptyFeatureDirs(root, id string) {
 			_ = os.Remove(dir)
 		}
 	}
+}
+
+// dropUnitCapabilities removes the capabilities a dropped unit carries, plus the
+// owned files those capabilities leave orphaned.
+//
+// Split from pruneOneRecipe so that function stays one recipe's flow — load,
+// remove, wire, regenerate — instead of holding the capability rules inline.
+func dropUnitCapabilities(tree *treeFS, u builtinUnit, drop []string) error {
+	if err := removeUnitCapabilities(tree, u, drop); err != nil {
+		return err
+	}
+	// A file an owned capability leaves behind because it is SHARED — and so not
+	// removed with either capability alone — goes once the package it imports is
+	// gone. presence.go is the case: owned by whiteboard, last used by notes, and
+	// a scaffold dropping both left it importing the directory just deleted. The
+	// uninstall path had this sweep; the scaffold path did not, so a clean
+	// `--recipes none` still failed `go mod tidy`.
+	return removeOrphanedOwnedFiles(tree)
 }

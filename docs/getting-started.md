@@ -25,8 +25,15 @@ drive. Same engine, same plans, same proofs — and the agent will read the
 
 ```bash
 curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh | sh
-claude mcp add gogogo -- ~/.local/bin/gogogo-mcp   # Codex/OpenCode/Pi: see mcp.md
+
+# Claude Code — the other clients, and the config-file form, are in mcp.md.
+claude mcp add gogogo -- $HOME/.local/bin/gogogo-mcp
 ```
+
+Use `$HOME`, not `~`: the shell expands `$HOME` before the client stores it,
+while a config is read literally and a client spawns without a shell — a stored
+`~` fails to spawn with `ENOENT`. See [MCP](mcp.md) for Codex, OpenCode, Pi
+and the JSON/TOML forms.
 
 Then ask for what you want built. The intended order is `advise_stack` →
 `scaffold_plan` → **the agent asks you** for name, owner, directory, shape and

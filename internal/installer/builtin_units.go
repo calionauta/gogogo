@@ -70,6 +70,13 @@ type builtinUnit struct {
 	// desktopDropLines are substrings; any import line containing one is
 	// removed from cmd/desktop/main.go after desktopStrips run.
 	desktopDropLines []string
+	// blockStrips remove an entire brace block, head included: for a branch
+	// whose body must go with its condition, where a line match would leave a
+	// dangling brace.
+	blockStrips []stripRule
+	// testDrops remove lines from test files that construct what this unit
+	// removes: they import the package by name, so `go mod tidy` parses them.
+	testDrops []fileDrop
 	// goModDrops are module paths removed from go.mod (then `go mod tidy`).
 	goModDrops []string
 	// extraStrips apply stripRules to additional files (navbar links,
@@ -141,6 +148,12 @@ func (u builtinUnit) caps() []string {
 // addBefore/addAfter optionally pin where the port copy should
 // re-emit this span. Empty means the path default in export_wiring.go.
 type stripRule struct {
+	// path overrides the fileStrip's path for this one rule. It exists because
+	// not every line a slice wires lives in the same file: the presence
+	// federation call sits in cmd/web/main.go while the rest of the trim is in
+	// internal/server/chi.go, and a rule that could not name its file left the
+	// call behind as "undefined method" after the method was removed.
+	path               string
 	startMarker        string
 	endMarker          string
 	endIsClosingBrace  bool
@@ -215,6 +228,16 @@ const chiGoFile = "internal/server/chi.go"
 // .go file at 500 lines, so wiring helpers live here.
 const bootHelpersFile = "internal/server/boot_helpers.go"
 
+// desktopMainFile is the desktop target's entrypoint: a separate target in the
+// same module, so `go mod tidy` parses it even when nothing shipped uses it.
+const desktopMainFile = "cmd/desktop/main.go"
+
+// desktopWebMainFile is the web target's entrypoint: where the presence
+// federation is attached and the stack is served.
+//
+//nolint:gosec // G101: this is a repo-relative source path, not a credential.
+const desktopWebMainFile = "cmd/web/main.go"
+
 // Repeated trim targets, hoisted so a typo in a path is a compile error
 // rather than a trim that silently matches nothing.
 const (
@@ -222,6 +245,11 @@ const (
 	// deleting: it builds one handler per feature, so trimming any of
 	// them means editing its imports and call sites.
 	chiTestFile = "internal/server/chi_test.go"
+
+	// todoRegisterFile is where the todo slice appends its panel to the
+	// shared register.Deps seam. It is a trim target for any unit whose
+	// panel type the todo slice would otherwise name.
+	todoRegisterFile = "features/todo/handlers/register.go"
 )
 
 // Import suffixes dropped from handler dispatch when their unit trims.
@@ -283,9 +311,14 @@ var baseBuiltinUnits = []builtinUnit{
 		// upgrade branch reading the default host (nil when gone).
 		extraDrops: []fileDrop{
 			{
-				path: chiTestFile,
+				path:    chiTestFile,
 				substrs: []string{
-					"\t\t\"/room\",",
+					// The room route moved out of the shared route table and
+					// into a dedicated absence test, which asserts that a
+					// disabled engine leaves /room unrouted. That test names
+					// the room package's expectations, so it leaves with the
+					// unit instead of the old table line. It is stripped as a
+					// block below, not dropped line by line.
 				},
 			},
 		},
@@ -308,6 +341,21 @@ var baseBuiltinUnits = []builtinUnit{
 		goModDrops: []string{"github.com/tochemey/goakt/v4"},
 		extraStrips: []fileStrip{
 			{
+				// The room-absence test is the room slice's own assertion: it
+				// checks the mux has no /room route when the engine is off.
+				// With the unit gone the route is gone for a better reason, so
+				// the test would assert nothing while still referencing the
+				// room package's expectations.
+				path: chiTestFile,
+				rules: []stripRule{
+					{
+						startMarker:       "// TestBuildChiMuxRoomDisabledPinsRouteAbsence is the port of the router",
+						endIsClosingBrace: true,
+						endBrace:          "}",
+					},
+				},
+			},
+			{
 				path:  modulesFile,
 				rules: []stripRule{{startMarker: `{ID: "room"`, endMarker: "},"}},
 			},
@@ -326,17 +374,12 @@ var baseBuiltinUnits = []builtinUnit{
 					},
 				},
 			},
-			{
-				// The multi-line fakeRooms fixture: line drops would orphan
-				// the method bodies.
-				path: chiTestFile,
-				rules: []stripRule{
-					{
-						startMarker: "// fakeRooms is the deterministic grain stand-in",
-						endMarker:   "func (fakeRooms) Tell(_ context.Context, _ string, _ any) error { return nil }",
-					},
-				},
-			},
+			// The fakeRooms fixture used to be stripped here, because it lived
+			// in the shared composition test and dropping the room slice would
+			// have orphaned its method bodies. It has since moved to
+			// features/room/handlers/chi_test.go, which leaves with the room
+			// slice's owned directory — so the rule matched nothing and is gone
+			// rather than stale.
 		},
 	},
 	{
@@ -357,4 +400,22 @@ var baseBuiltinUnits = []builtinUnit{
 			{path: "features/authviews/signup.templ", substrs: soundsDropLines},
 		},
 	},
+}
+
+// servantOwners names the servant packages a recipe is the only consumer of, so
+// uninstalling that recipe takes them with it.
+//
+// This is the recipe-level counterpart to unitCaps (which pairs a builtin UNIT
+// with its capabilities). It exists because two of the collaborative slices are
+// recipes with no builtin unit of their own, yet between them they own the whole
+// CRDT transport: leaving internal/collab behind keeps loro-go — a CGO binding —
+// pinned in go.mod, so a product with no collaborative feature still needs a C
+// toolchain to build.
+//
+// Only packages here may be removed this way. A feature slice never appears: its
+// files come from its receipt, and deleting a directory by ownership would
+// outrun the receipt's own bookkeeping.
+var servantOwners = map[string][]string{
+	recipeNotes:      {"internal/collab"},
+	recipeWhiteboard: {"internal/collab"},
 }

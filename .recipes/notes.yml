@@ -28,7 +28,7 @@ files:
   features/notes/handlers/presence_cross_instance_test.go: e22f10b731e73a8c1fa271daa7e3565332f0326c7f7837cbe2e45c9d79751161
   features/notes/handlers/presence_test.go: 7c13f23f35f0a296157745e8af31bdb12022e093b3fbdaff07c364cd58b2dd38
   features/notes/handlers/recipe.go: 6956c0c0d3ad7ce6f922d36c00c28242af9fd1d8828b4edd28e97c96e9cb89a6
-  features/notes/handlers/register.go: d025ee294cff30a11bf0f9ad662ab0b9cc0f0192858cd352bc6fdde754b99fc4
+  features/notes/handlers/register.go: 46e264edec814429793390213b197eaae0475af5cb7197e85050764cb9b378ff
   features/notes/handlers/wire.go: a8d5e7f4a8fbfebf1ab1a841410a62fcb016370ea9d52673e7933c2fc537c007
   features/notes/static/notes.js: 34573b7ceec6ef41c59c60e302f93a5a0d2355339e2547fd448bf3a00fe31e41
   features/notes/handlers/genui_panel.go: 6651c94d7d744a0a38543af339d863f594c39fc110290144398b51ce078590cc

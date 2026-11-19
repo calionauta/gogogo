@@ -172,7 +172,7 @@ capability registry + installer engine (CLI and MCP share it)
 
 Loro CRDT transport: DocStore, sync workers, presence
 
-- **Owned:** `internal/collab`, `internal/server/presence_test.go`
+- **Owned:** `internal/collab`, `internal/server/presence_test.go`, `internal/server/collab_fixture_test.go`
 - **Store calls:** `dbgen.DeleteSnapshot`, `dbgen.GetSnapshot`, `dbgen.UpsertSnapshot`
 - **Why that class:** Bundled into the whiteboard unit: whiteboard embeds collab types (no-compile without it) and collab without whiteboard was dead until notes arrived as the second consumer (features/notes shares the transport on its own subject space). Split trigger met — see the notes entry: removing the whiteboard bundle removes collab, which notes needs.
 - **Note:** Shared by whiteboard + notes on the flat stack (their chi slices wire the transport). Snapshot durability is runtime: COLLAB_SNAPSHOTS=memory keeps snapshots process-local (draw without Turso writes; docs start empty after a restart). Files is empty on purpose: the importers outside internal/collab are EDITED (line drops), never deleted — internal/server/chi.go is core.
@@ -198,7 +198,7 @@ AI credits + BYOK ledger (ai-credits)
 
 durable workflows (DagNats over JetStream) + onboarding worker
 
-- **Owned:** `internal/dagnats`, `features/onboarding`, `internal/nats/single_nats_test.go`, `cmd/web/dagnats.go`, `internal/server/mount_graph.go`, `cmd/web/dagnats_reminder_test.go`, `cmd/web/start_nats_test.go`
+- **Owned:** `internal/dagnats`, `features/onboarding`, `internal/nats/single_nats_test.go`, `cmd/web/dagnats.go`, `internal/server/onboarding.go`, `internal/server/mount_graph.go`, `cmd/web/dagnats_reminder_test.go`, `cmd/web/start_nats_test.go`
 - **Routes:** `/api/onboarding/start`
 - **Runtime off:** `DAGNATS_ENABLED=false`
 - **UI signal:** `todo.Signals.DagNatsEnabled`
@@ -460,7 +460,7 @@ collaborative canvas (Loro + Rough.js + presence)
 - **Routes:** `/api/whiteboard/{docID}/delete`, `/api/whiteboard/{docID}/presence`, `/api/whiteboard/{docID}/snapshot`, `/api/whiteboard/{docID}/stream`, `/api/whiteboard/{docID}/update`, `/api/whiteboards/fragment`, `/whiteboard`, `/whiteboard/new`, `/whiteboard/{docID}`
 - **Store calls:** `dbgen.BumpBoardVersion`, `dbgen.DeleteBoard`, `dbgen.GetBoardMeta`, `dbgen.ListBoards`, `dbgen.UpsertBoard`
 - **Depends on:** collab, sounds
-- **Why that class:** Delete the dir plus internal/server/presence.go and the Whiteboard entry in internal/ui/modules.go (notes falls back to the in-process PeerSet presence seam).
+- **Why that class:** Delete the dir plus internal/server/presence.go and the Whiteboard entry in internal/ui/modules.go (notes falls back to the in-process PeerSet presence seam). presence.go goes only when notes is also absent: it is the shared seam, so removing it while notes survives breaks the build.
 - **Warning:** The Whiteboard sidebar entry is removed by hand with the unit.
 - **Warning:** ci-local smoke: export SMOKE_FEATURES without whiteboard (e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the removed route.
 

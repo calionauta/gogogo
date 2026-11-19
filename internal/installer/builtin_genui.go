@@ -69,7 +69,7 @@ var genuiBuiltinUnits = []builtinUnit{
 						endBrace:          "}",
 					},
 					{
-						startMarker:       "// panelInfos lists the installed native panels",
+						startMarker:       "// panelInfos lists the installed recipe panels",
 						endIsClosingBrace: true,
 						endBrace:          "}",
 					},
@@ -97,13 +97,32 @@ var genuiBuiltinUnits = []builtinUnit{
 		},
 		extraDrops: []fileDrop{
 			{
-				path: chiGoFile,
+				path:    chiGoFile,
 				substrs: []string{
-					// The todo panel the chat unit installs globally:
-					// without genui there is no catalog, so the root stops
-					// building it and stops passing Panels.
-					"panels := []any{todohandlers.NewTodoPanel(queries, slots)}",
-					"Panels: panels,",
+					// Since the panel seam moved into each feature's own
+					// handlers/register.go, the composition root no longer builds
+					// the todo panel and no longer passes `Panels: panels`.
+					// `panels` is now a shared `*[]any` in register.Deps that every
+					// feature appends to, so it must SURVIVE the trim — other
+					// features still append to it. Only the one line that fed the
+					// todo panel belongs to this unit.
+					//
+					// The two drops that used to be here matched nothing:
+					//   "panels := []any{todohandlers.NewTodoPanel(queries, slots)}"
+					//   "Panels: panels,"
+					// and are replaced by the per-feature strip in
+					// features/todo/handlers/register.go below.
+				},
+			},
+			{
+				// The todo feature's half of the panel seam: it appends a panel
+				// whose type lives in the features/genui package. Without the
+				// unit the call has no callee, so the append goes with it. The
+				// surrounding `if d.Panels != nil` guard and every other
+				// feature's append stay.
+				path: todoRegisterFile,
+				substrs: []string{
+					"*d.Panels = append(*d.Panels, NewTodoPanel(d.Queries, d.Slots))",
 				},
 			},
 			{
@@ -125,16 +144,6 @@ var genuiBuiltinUnits = []builtinUnit{
 				path: configPageTempl,
 				substrs: []string{
 					`"strings"`,
-				},
-			},
-			{
-				// The mux table's "/chat" element goes too (one element per
-				// line, so combined trims stay order-independent). Chat
-				// mounts via the seam now; there is no handler construction
-				// left in this test file.
-				path: chiTestFile,
-				substrs: []string{
-					"\t\t\"/chat\",",
 				},
 			},
 		},

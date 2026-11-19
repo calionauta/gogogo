@@ -73,12 +73,42 @@ echo "  ✓ install.sh bootstrap contract holds"
 # nobody guesses went unprinted. Text-only, like the guards above: it must be
 # PRINTED (never executed), because a script that edits a client's config file
 # on its own breaks configurations it cannot see.
-if grep -qE 'claude mcp add .*gogogo-mcp' install.sh && grep -qE 'gogogo advise --need' install.sh; then
-  note "✅ installer prints the MCP wiring and the no-agent CLI path"
+#
+# Naming all four clients is the fix for the earlier form, which printed
+# `claude ...` and deferred the rest to `docs/mcp.md`. A reader with Codex had
+# to go find the file; a reader with Claude got a path they could not run.
+for client in claude codex opencode pi; do
+  if grep -qE "$client mcp add .*gogogo-mcp" install.sh; then
+    note "✅ installer prints the $client wiring"
+  else
+    echo "  ❌ install.sh no longer prints '$client mcp add' — a $client user is"
+    echo "     told to read a doc instead of being handed the command."
+    fail=1
+  fi
+done
+
+if grep -qE 'gogogo advise --need' install.sh; then
+  note "✅ installer prints the no-agent CLI path"
 else
-  echo "  ❌ install.sh no longer prints how to wire the MCP (and the CLI"
-  echo "     fallback) — it installs gogogo-mcp and says nothing about it"
+  echo "  ❌ install.sh stopped printing the CLI fallback."
   fail=1
+fi
+
+# 4. The printed command must carry an ABSOLUTE path, never `~`.
+#
+# A client stores the command verbatim and spawns it without a shell, so `~`
+# is never expanded: measured, `pi mcp add gogogo -- '~/.local/bin/gogogo-mcp'`
+# stores the tilde and `pi mcp list` then reports
+# "spawn /Users/you/.local/bin/gogogo-mcp ENOENT". The message looks like a
+# missing binary rather than a quoting mistake, which is why the guard asserts
+# on the text here instead of trusting the line to stay correct.
+if grep -nE 'mcp add [^\n]*-- *~/' install.sh >/dev/null 2>&1; then
+  echo "  ❌ install.sh tells the reader to wire the MCP with a literal '~':"
+  grep -nE 'mcp add [^\n]*-- *~/' install.sh | sed 's/^/     /'
+  echo "     clients spawn without a shell — print \$BIN_DIR or \$HOME instead"
+  fail=1
+else
+  note "✅ MCP commands carry an absolute path, not '~'"
 fi
 
 # ... and it must not wire itself. Editing ~/.claude.json or a Codex TOML from

@@ -20,7 +20,6 @@ import (
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/internal/auth"
-	"github.com/calionauta/gogogo/internal/collab"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/events"
 	"github.com/calionauta/gogogo/internal/llm"
@@ -59,16 +58,21 @@ type Deps struct {
 	// nil in a caller that offers no slots, and Add is nil-safe on the
 	// registry, so a recipe registers unconditionally.
 	Slots *recipe.SlotRegistry
-	// Persister is the shared Loro snapshot store (whiteboard+notes).
-	// Nil in callers that offer no collab — Register must tolerate nil
-	// by building a local fallback.
-	Persister collab.Persister
-	// DocStore is the shared Loro doc cache. Nil-safe: Register builds a
-	// local store when the root offered none (tests).
-	DocStore *collab.DocStore
-	// Presence is the shared presence seam both collaborative features
-	// use. Nil keeps the handler's own PeerSet fallback.
-	Presence collab.PresenceSeam
+	// Collab is the shared CRDT transport a collaborative recipe needs, or nil
+	// when the product shipped without one. It is `any` on purpose.
+	//
+	// Why not the concrete types: this package is the seam CORE shares with
+	// recipe code, and `internal/collab` is a SERVANT. Naming it here made a core
+	// package import a servant, so a tree that dropped every collaborative
+	// feature still failed `go mod tidy` with "finding module for package
+	// .../internal/collab" — and kept loro-go, a CGO binding, pinning a C
+	// toolchain onto every target that asked for none of it.
+	//
+	// A recipe that wants the transport type-asserts (see
+	// internal/collab.Handoff): the value it receives IS the collab bundle, so
+	// nothing changes for it, while a tree without collab compiles with this nil
+	// and the recipe is not mounted at all.
+	Collab any
 	// TodoRef is the todo slice's handle holder: Register fills the
 	// funcs so the composition root can wire JetStream, onboarding and
 	// the DagNats worker without importing the handlers package (the

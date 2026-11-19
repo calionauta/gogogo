@@ -228,7 +228,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 			Cfg: cfg, Auth: a, Queries: queries, Hub: hub, Queue: chiQ,
 			RealLLM: realLLM, SimulatedLLM: simulatedLLM,
 			OnShutdown: onShutdown, Slots: slots, SQLDB: sqlDB,
-			Persister: persister, DocStore: docs, Presence: federated,
+			Collab:  collab.Handoff{Persister: persister, Docs: docs, Presence: federated},
 			TodoRef: todoRef, InboxRef: inboxRef,
 			ChatRef: chatRef, CreditsRef: creditsRef,
 			Panels:  &panels,

@@ -686,6 +686,7 @@ by hand, so when a step is added to one, add it to the other:
 | generated `_templ.go` matches sources | ✓ `check-generated` | ✓ (also pre-commit, `**/*.templ`) |
 | CSS bundle matches sources | ✓ `css-check` | ✓ (after `npm ci`) |
 | Registry coverage (every package owned by a capability) | ✓ `registry-conformance` | ✓ |
+| A trim declares markers that still exist (drop/strip declarations match the real tree) | ✓ `TestDeclaredStripMarkersExist` / `TestDeclaredDropLinesExist` | ✓ |
 | Flat-stack deps (no banned framework, no cross-feature imports, owned sql.Open) | ✓ `check-flatdeps` | ✓ |
 | Product ⟂ evolution tools (`cmd/web` must build after the tool is deleted) | ✓ `check-product-boundary` | ✓ |
 | One spelling per state (no named string type compared with a literal) | ✓ `check-typed-states` | ✓ |

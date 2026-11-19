@@ -159,6 +159,9 @@ var baseUnits = []Capability{
 			// which import nothing from the engine, so it needs no entry.
 			"internal/nats/single_nats_test.go",
 			"cmd/web/dagnats.go",
+			// The boot/mount helpers split out of the composition root; they
+			// import features/onboarding, which leaves with Dirs above.
+			"internal/server/onboarding.go",
 			"internal/server/mount_graph.go",
 			// The reminder worker's payload/port tests reference symbols the
 			// engine owns, so they go with it or the tree fails vet after removal.
@@ -205,7 +208,12 @@ var baseUnits = []Capability{
 		// so a tree without internal/collab cannot compile it. Deleted with
 		// the transport; the goakt unit deletes it too (either removal alone
 		// breaks the file, and removal deletes are idempotent).
-		Files: []string{"internal/server/presence_test.go"},
+		Files: []string{
+			"internal/server/presence_test.go",
+			// The shared test fixture builds this bundle; it goes with it, so the
+			// tests that only need a Deps value keep compiling in a trimmed tree.
+			"internal/server/collab_fixture_test.go",
+		},
 		Note: "Shared by whiteboard + notes on the flat stack (their chi " +
 			"slices wire the transport). Snapshot durability is runtime: " +
 			"COLLAB_SNAPSHOTS=memory keeps snapshots process-local (draw " +
@@ -456,11 +464,17 @@ var baseUnits = []Capability{
 		Register: "features/whiteboard/handlers",
 		// The presence wiring is whiteboard+notes infrastructure: with both
 		// gone there is no seam to build, no roster to federate, and no
-		// collab import left in the server package.
-		Files: []string{"internal/server/presence.go"},
+		// collab import left in the server package. `AlsoWhenDropped` is what
+		// makes that sentence true — without it this file was removed with
+		// whiteboard alone, leaving notes (which still wires presence) failing
+		// to build against a package that had just been deleted.
+		Files:           []string{"internal/server/presence.go"},
+		AlsoWhenDropped: []string{"notes"},
 		Reason: "Delete the dir plus internal/server/presence.go and the " +
 			"Whiteboard entry in internal/ui/modules.go (notes falls " +
-			"back to the in-process PeerSet presence seam).",
+			"back to the in-process PeerSet presence seam). presence.go goes " +
+			"only when notes is also absent: it is the shared seam, so removing " +
+			"it while notes survives breaks the build.",
 		Warns: []string{
 			"The Whiteboard sidebar entry is removed by hand with the unit.",
 			"ci-local smoke: export SMOKE_FEATURES without whiteboard " +

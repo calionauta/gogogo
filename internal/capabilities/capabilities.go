@@ -55,6 +55,13 @@ type Capability struct {
 	RuntimeOff string   `json:"runtimeOff,omitempty"`
 	Reason     string   `json:"reason,omitempty"`
 	DependsOn  []string `json:"dependsOn,omitempty"`
+	// AlsoWhenDropped names the extra capabilities whose removal this one's
+	// owned Files depend on. It exists because DependsOn runs the other way:
+	// it says what this unit needs to compile, not when its OWNED FILES stop
+	// being shared infrastructure. presence.go is the case — it is whiteboard's
+	// file, but it serves whiteboard AND notes, so removing it needs both those
+	// capabilities gone, not just its owner.
+	AlsoWhenDropped []string `json:"alsoWhenDropped,omitempty"`
 	// Actions lists the invocable verb names the unit's Provider declares
 	// (recipe.Declaration.Actions). Why it is data here: discovery is a
 	// checkout-level read (installer + MCP) that must not link feature

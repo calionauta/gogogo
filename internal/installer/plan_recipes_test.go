@@ -358,3 +358,100 @@ func TestCheckOneKeepsTheTombstoneVerdict(t *testing.T) {
 		t.Fatalf("an explicit check lost the removed verdict: %+v", report)
 	}
 }
+
+// The registry states the rule the scaffold must keep: "removing the whiteboard
+// bundle removes collab". Two things stopped it:
+//
+//  1. pruneReferenceRecipes is receipt-driven and internal/collab has no
+//     receipt — it is a capability, not an installed recipe, so nothing could
+//     reach it.
+//  2. The unit's extraDrops DO name the exact lines in internal/server/chi.go
+//     and boot_helpers.go that wire the transport, but nothing applied them:
+//     stripRule/fileDrop were read only to describe a port bundle.
+//
+// Left behind, collab keeps loro-go (a CGO binding to the Loro C library) in
+// go.mod, so a product that dropped every collaborative feature still needed a C
+// toolchain on every target — the reason the GUI lane leaked CGO into releases.
+//
+// The bundle rule is unitCaps, NOT an inference over DependsOn: unitCaps says
+// the whiteboard unit owns {whiteboard, collab, notes}, which is a statement
+// about what ships together. A reachability cascade over DependsOn was tried and
+// dropped 30 capabilities on a `--recipes none` run (measured), because that
+// field records compile-time edges, not "is this still wanted".
+func TestDroppedSliceTakesItsWiringAndBundledServant(t *testing.T) {
+	root := demoTree(t)
+	// Shape the shared wiring the way the template's server has it: chi.go
+	// carries the transport glue, boot_helpers.go the import, and
+	// internal/collab is the package both belong to.
+	writeFile(t, filepath.Join(root, "internal/server/chi.go"), `package server
+
+func boot() {
+	persister, docs, perr := bootCollab(cfg, queries)
+	if perr != nil {
+		return perr
+	}
+	federated := bootPresence(hub)
+	mux := buildMux(deps{
+		Collab:  collab.Handoff{Persister: persister, Docs: docs, Presence: federated},
+	})
+}
+`)
+	writeFile(t, filepath.Join(root, "internal/server/boot_helpers.go"),
+		"package server\n\nimport (\n\t\"github.com/calionauta/gogogo/internal/collab\"\n)\n")
+	writeFile(t, filepath.Join(root, "internal/collab/x.go"), "package collab\n")
+
+	if err := pruneReferenceRecipes(options{dir: root}, []string{unitWhiteboard}, nil); err != nil {
+		t.Fatalf("pruneReferenceRecipes: %v", err)
+	}
+
+	// The wiring the unit declares must be gone, or the cut did not happen.
+	chi, err := os.ReadFile(filepath.Join(root, "internal/server/chi.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, dead := range []string{"bootCollab", "bootPresence", "Collab:"} {
+		if strings.Contains(string(chi), dead) {
+			t.Errorf("chi.go still wires %q after whiteboard was dropped", dead)
+		}
+	}
+	// The blocked brace-balanced removal must not leave a stray close.
+	if got := strings.Count(string(chi), "{"); got != strings.Count(string(chi), "}") {
+		t.Errorf("chi.go braces unbalanced after the drop: %d { vs %d }", got, strings.Count(string(chi), "}"))
+	}
+	if _, err := os.Stat(filepath.Join(root, "internal/collab")); !os.IsNotExist(err) {
+		t.Error("internal/collab survived the bundle that owns it: loro-go stays in go.mod")
+	}
+}
+
+// TestUninstallWiringToleratesNonGoOwnedFiles pins the defect that made
+// `recipe uninstall whiteboard` abort: capabilities list non-Go assets among
+// their owned Files (pele.global.js is one), and the orphan sweep parsed every
+// entry as Go. The uninstall failed with a syntax error from a JavaScript file
+// nobody had touched, which reads as a broken template rather than a bug here.
+func TestUninstallWiringToleratesNonGoOwnedFiles(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module example.test/app\n\ngo 1.27\n")
+	// A JS asset of the kind capabilities.All names, and a Go file genuinely
+	// orphaned by a package that no longer exists.
+	writeFile(t, filepath.Join(root, "web/resources/static/pele.global.js"),
+		"\"use strict\";\n// not Go, and not the sweep's business\n")
+	writeFile(t, filepath.Join(root, "internal/server/presence.go"),
+		"package server\n\nimport (\n\t\"example.test/app/internal/collab\"\n)\n")
+
+	tree, err := openTree(root)
+	if err != nil {
+		t.Fatalf("openTree: %v", err)
+	}
+	defer func() { _ = tree.Close() }()
+
+	// Must not return the JS parse error, and must still remove the orphan.
+	if err := dropReceiptServants(tree, "notes"); err != nil {
+		t.Fatalf("dropReceiptServants: %v", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(root, "internal/server/presence.go")); !os.IsNotExist(statErr) {
+		t.Error("presence.go survived: its import names a package that is gone")
+	}
+	if _, statErr := os.Stat(filepath.Join(root, "web/resources/static/pele.global.js")); statErr != nil {
+		t.Error("the JS asset was removed: only Go files are the sweep's business")
+	}
+}
