@@ -15,6 +15,14 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.72.1 (2026-11-20)
+
+## What's Changed
+* chore(deps): ai-credits v0.7.0 pins the BackendURL the credits slice uses by @calionauta in https://github.com/calionauta/gogogo/pull/463
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.72.0...v0.72.1
+
 ## 0.72.0 (2026-11-20)
 
 ## What's Changed
