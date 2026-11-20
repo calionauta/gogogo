@@ -112,6 +112,7 @@ func NewOnDB(db *sql.DB, cfg *config.Config) (*Service, error) {
 		stripeSvc, err = stripecredits.New(paymentSvc, stripecredits.Config{
 			SecretKey: cfg.Credits.StripeSecretKey, WebhookSecret: cfg.Credits.StripeWebhookSecret,
 			SuccessURL: cfg.Credits.StripeSuccessURL, CancelURL: cfg.Credits.StripeCancelURL,
+			BackendURL: cfg.Credits.StripeAPIBase,
 		})
 		if err != nil {
 			_ = db.Close()

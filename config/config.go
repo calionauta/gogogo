@@ -192,20 +192,7 @@ func Load() *Config {
 	cfg.loadChatRouterEnv()
 	cfg.loadKioskClassifierEnv()
 	cfg.loadGenUIEnv()
-
-	cfg.Credits.Enabled = envBool("CREDITS_ENABLED", false)
-	cfg.Credits.DefaultMode = getEnv("CREDITS_DEFAULT_MODE", "explicit")
-	cfg.Credits.MonthlyCredits = int64(envInt("CREDITS_MONTHLY_CREDITS", 0))
-	cfg.Credits.PricingFile = getEnv("CREDITS_PRICING_FILE", "")
-	cfg.Credits.Model = getEnv("CREDITS_MODEL", getEnv("GOAI_MODEL", "gpt-4o-mini"))
-	cfg.Credits.ByokProviders = parseProviders(getEnv("BYOK_PROVIDERS", ""))
-	if k := os.Getenv("CREDITS_ENC_KEY"); k != "" {
-		cfg.Credits.EncKey = parseCreditsEncKey(k)
-	}
-	cfg.Credits.StripeSecretKey = os.Getenv("STRIPE_SECRET_KEY")
-	cfg.Credits.StripeWebhookSecret = os.Getenv("STRIPE_WEBHOOK_SECRET")
-	cfg.Credits.StripeSuccessURL = getEnv("STRIPE_SUCCESS_URL", "http://localhost:3000/credits?status=success")
-	cfg.Credits.StripeCancelURL = getEnv("STRIPE_CANCEL_URL", "http://localhost:3000/credits?status=cancelled")
+	cfg.loadCreditsEnv()
 
 	return cfg
 }

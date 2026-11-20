@@ -101,6 +101,16 @@ env_args=(
 if [ -z "${GOAI_API_KEY:-}" ]; then
 	env_args+=("SIMULATE_LLM=true")
 fi
+# CREDITS_ENABLED turns the credits servant on so `/credits` renders. STRIPE_API_BASE
+# is inherited from the caller's environment when set, which is the point: point it
+# at a local Stripe emulator and the top-up button produces a real checkout
+# redirect instead of a "stripe not enabled" 503, with no live key anywhere.
+if [ -n "${CREDITS_ENABLED:-}" ]; then
+	env_args+=("CREDITS_ENABLED=$CREDITS_ENABLED")
+fi
+if [ -n "${STRIPE_API_BASE:-}" ]; then
+	env_args+=("STRIPE_API_BASE=$STRIPE_API_BASE")
+fi
 
 echo "→ booting on 127.0.0.1:$port with a fresh data dir…"
 ( env "${env_args[@]}" "$bin" >"$work/server.log" 2>&1 ) &
