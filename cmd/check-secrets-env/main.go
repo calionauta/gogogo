@@ -57,6 +57,10 @@ var ownerFiles = []string{
 	"config/config.go",
 	"config/auth_env.go",
 	"config/review.go",
+	// The credits plugin's knobs live in their own split file for the
+	// file-size gate; CREDITS_ENC_KEY and the two STRIPE_* secrets land on
+	// config.Config like every other entry here.
+	"config/credits.go",
 	// Delivery holds NOTIFY_API_KEY: an external transport's key, read once
 	// at load and never written back (the same rule as the entries above).
 	"config/delivery_env.go",

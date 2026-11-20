@@ -137,6 +137,7 @@ All dormant unless `CREDITS_ENABLED=true`.
 | `STRIPE_SECRET_KEY` | unset | Stripe top-ups |
 | `STRIPE_WEBHOOK_SECRET` | unset | Stripe webhook signature verification |
 | `STRIPE_SUCCESS_URL` / `STRIPE_CANCEL_URL` | unset | Redirect targets after top-up |
+| `STRIPE_API_BASE` | unset (live Stripe) | Overrides the Stripe API base URL: a local emulator or tunnel, so a checkout is clickable with no key |
 
 With `CREDITS_ENABLED=true`, authenticated users get `GET /api/credits`, the
 real Todo **Suggest** path is metered in managed mode, and the app exposes

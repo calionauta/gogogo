@@ -16,7 +16,7 @@ require (
 	github.com/a-h/templ v0.3.1070
 	github.com/arl/statsviz v0.8.2
 	github.com/avast/retry-go/v4 v4.7.0
-	github.com/calionauta/ai-credits v0.6.0
+	github.com/calionauta/ai-credits v0.6.2-0.20261120115158-fe0648fa4ec6
 	github.com/calionauta/daisyui-lint v0.2.1
 	// loro-go: a forked module path, not upstream, because upstream ships
 	// fat-LTO archives that Go 1.27.4 refuses to hand the C linker
@@ -49,12 +49,12 @@ require (
 	github.com/wailsapp/wails/v3 v3.0.0-beta.24
 	github.com/zendev-sh/goai v0.10.8
 	go.uber.org/goleak v1.3.0
-	golang.org/x/crypto v0.58.0
-	golang.org/x/net v0.62.0
+	golang.org/x/crypto v0.59.0
+	golang.org/x/net v0.63.0
 	golang.org/x/oauth2 v0.37.0
-	golang.org/x/sys v0.49.0
-	golang.org/x/text v0.43.0
-	golang.org/x/tools v0.52.0
+	golang.org/x/sys v0.50.0
+	golang.org/x/text v0.44.0
+	golang.org/x/tools v0.53.0
 	gopkg.in/yaml.v3 v3.0.1
 	maragu.dev/goqite v0.4.0
 	turso.tech/database/tursogo v0.8.3
@@ -190,11 +190,11 @@ require (
 	go.yaml.in/yaml/v4 v4.0.0-rc.4 // indirect
 	golang.org/x/arch v0.32.0 // indirect
 	golang.org/x/image v0.46.0 // indirect
-	golang.org/x/mod v0.42.0 // indirect
-	golang.org/x/sync v0.24.0 // indirect
-	golang.org/x/telemetry v0.0.0-20261010193011-f71dc92da45e // indirect
+	golang.org/x/mod v0.43.0 // indirect
+	golang.org/x/sync v0.25.0 // indirect
+	golang.org/x/telemetry v0.0.0-20261116191925-e77a43154acb // indirect
 	golang.org/x/time v0.16.0 // indirect
-	golang.org/x/vuln v1.9.0 // indirect
+	golang.org/x/vuln v1.10.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20261012220534-4341edf3f941 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20261012220534-4341edf3f941 // indirect
 	google.golang.org/grpc v1.84.0 // indirect

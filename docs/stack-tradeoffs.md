@@ -461,6 +461,33 @@ Cost: no persistence and no function tracing ("what is the process doing now",
 not "what did this call cost last hour"). Revisit with Pyroscope or
 Prometheus/OTLP when per-function profiles over time become the question.
 
+## Stripe checkout tested against an injected backend (and not an emulator)
+
+`STRIPE_API_BASE` → `config.CreditsConfig.StripeAPIBase` →
+`stripe.Config.BackendURL` (ai-credits ≥ v0.7.0) is one field that replaces the
+stripe-go base URL. Two uses, one seam: the lib's `stripe/stripe_checkout_test.go`
+points it at an `httptest` server (the outbound half of the adapter had no
+offline test because it could only talk to a live test-mode account), and
+`make verify-local` can point it at a local Stripe emulator to click a real
+checkout with no key.
+
+Rejected: **`npx emulate`** ([vercel-labs/emulate](https://github.com/vercel-labs/emulate)),
+which would have been the obvious answer. It is stateful, production-fidelity,
+and it does carve out the exact gap — but for this repo it is the wrong shape
+three ways. It is a Node toolchain inside a Go gate (`ci.yml` does not install
+Node for the Go jobs, and `go test` must not learn to boot a process and wait
+for `/health`). It covers fifteen services where this tree has one paid
+integration, so the dependency's surface is mostly dead weight. And it reverses
+a decision already written down: `docs/dependency-principles.md` plus
+`internal/llm/fakeserver` exist precisely because "one SDK per vendor" was
+rejected as *untestable without network*; adopting a vendor-shaped emulator
+would put back the dependency the fake server was written to avoid.
+
+Cost: checkout coverage assumes Stripe's wire format as the lib builds it — a
+breaking change in the Checkout Session API has to be caught by reading, not by
+the emulator's opinion. Revisit if a second and third paid integration arrive
+(Stripe + X + Y), where one harness beats three bespoke fakes.
+
 ## Related
 
 - [Stack in layers](stack-layers.md) — what is in the box and what it buys.
