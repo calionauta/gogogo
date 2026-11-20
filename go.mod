@@ -16,7 +16,7 @@ require (
 	github.com/a-h/templ v0.3.1070
 	github.com/arl/statsviz v0.8.2
 	github.com/avast/retry-go/v4 v4.7.0
-	github.com/calionauta/ai-credits v0.6.2-0.20261120115158-fe0648fa4ec6
+	github.com/calionauta/ai-credits v0.7.0
 	github.com/calionauta/daisyui-lint v0.2.1
 	// loro-go: a forked module path, not upstream, because upstream ships
 	// fat-LTO archives that Go 1.27.4 refuses to hand the C linker
