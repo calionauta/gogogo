@@ -262,6 +262,7 @@
         <li>Copied with a receipt: pages, handlers, tables, jobs, policy rows.</li>
         <li>Your edits survive: pristine hashes + <code>git merge</code>, never overwrite.</li>
         <li>Receipt keeps it honest: <code>recipe status</code>, <code>update</code>, <code>uninstall</code>.</li>
+        <li><strong>Every mutating route is callable headless</strong> — an action with typed params, or a declared omission with a reason. <code>recipe check --strict-headless</code> blocks the rest, so no capability reaches your product as UI-only.</li>
       </ul>
 
       <div class="viz tiles">

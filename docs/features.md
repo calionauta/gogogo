@@ -77,6 +77,28 @@ being one.
    the registry's coverage test.
 5. Add a `Routes()` method on your handler (absolute `chi` patterns) and pass it
    to that `MountFeature` call — never re-declare the URLs at the root.
+6. **Give every mutating route a headless verb**, or declare why it cannot have
+   one. A feature that answers `POST /<thing>` in the UI is a capability an
+   agent should be able to call; if it cannot, the omission is a written
+   decision, not an absence. `gogogo recipe check --strict-headless` blocks a
+   mutating route with neither, so this is a gate and not a convention:
+
+   ```yaml
+   actions:
+     - verb: create
+       route: {method: POST, pattern: /<thing>}
+       description: what an agent should say it does
+       params: [title]          # form body
+       query: [filter]          # URL query
+   ```
+
+   A route that genuinely has no headless form — an auth endpoint, an SSE
+   stream (it never completes), a `GET /<thing>/new` create-page redirect (the
+   id it needs does not exist yet) — goes under `omitted:` with the route and a
+   **non-empty reason**. `recipe check` reports the rest. The contract, the
+   verb/param rules and the two-audience split are in
+   [the recipe authoring skill](../skills/gogogo-recipe-authoring/SKILL.md) and
+   [MCP](mcp.md#evolution-surface-vs-consumer-surface).
 
 A feature never imports another feature. Three shared UI leaves are the only
 exception (`features/authviews`, `features/sounds`, `features/genui/components`);
