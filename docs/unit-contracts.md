@@ -12,7 +12,7 @@ row of the unit you are about to touch.
 
 ## Registry at a glance
 
-- **Units:** 52 — 17 core · 24 servant · 11 feature
+- **Units:** 53 — 18 core · 24 servant · 11 feature
 - **Manual removal:** 35 (core units are never removed)
 - **Source of truth:** `internal/capabilities/registry.go`; this doc is
   regenerated from it, so the counts above cannot drift.
@@ -89,6 +89,13 @@ core observability (slog + tracing)
 
 - **Owned:** `internal/observability`
 - **Note:** core infra, removal=core
+
+## `productapi` — core
+
+the product's consumer client: call a running product headless
+
+- **Owned:** `internal/productapi`, `cmd/product-mcp`
+- **Note:** Core, not servant: this is the half a generated product SHIPS. It talks HTTP to a running product and knows nothing about a checkout — no receipts, no capability registry — which is what lets a product offer its users an MCP without the evolution toolchain installed. cmd/check-product-boundary enforces both directions: the product owes nothing to internal/installer, and this client cannot import internal/server or internal/installer.
 
 ## `prompts` — core
 

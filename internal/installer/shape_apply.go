@@ -15,7 +15,7 @@ import (
 
 // shapeEntrypoints are the dirs a shape may keep. They are the only targets the
 // clone carries, so "remove what the shape does not ship" is a closed walk.
-var shapeEntrypoints = []string{"cmd/web", "cmd/desktop", "cmd/gui", "cmd/mobile"}
+var shapeEntrypoints = []string{"cmd/web", "cmd/desktop", "cmd/gui", "cmd/mobile", "cmd/product-mcp"}
 
 // applyShapeIfNeeded prunes entrypoints the chosen shape does not ship and
 // records it. `full` (the default) is a no-op: a template clone already ships

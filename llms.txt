@@ -17,7 +17,7 @@
 - skills/gogogo-ui/SKILL.md — template UI rules over the vendored DaisyUI vocabulary (read before any .templ/CSS edit, with docs/ui-themes.md)
 - skills/gogogo-recipe-authoring/SKILL.md — extension authoring contract (read before creating a feature, installing/editing a recipe, filling a slot, or declaring routes/tables/jobs/metrics)
 - Measuring a recipe (an outcome is the job as a success/total pair of counts, no event stream, propose-then-confirm): skills/gogogo-recipe-authoring/references/metrics.md. Find what a recipe already counts with `recipe describe <id>` (or MCP `recipe_describe`) — metrics (activity and outcome kinds) are in its JSON — and validate a declaration with `recipe check <id>` (CLI) or MCP `recipe_check`. Rationale, not procedure: docs/research/recipe-outcomes-2026-11.md
-- Two surfaces, never conflated: `cmd/gogogo` + `cmd/gogogo-mcp` are the **evolution** tools (developer only, may rewrite a checkout); a product's users/agents use `cmd/web` routes + `POST /api/ext/invoke` under session/RBAC. `recipe invoke` / `recipe_invoke` are developer clients of that route, not a product MCP. Details: docs/mcp.md#installer-surface-vs-product-surface.
+- Two surfaces, never conflated, and each SHIPS WHERE ITS ROLE LIVES. **Evolution** = `cmd/gogogo` + `cmd/gogogo-mcp` (developer only, may rewrite a checkout). **Consumer** = `cmd/web` routes + `POST /api/ext/invoke` + `GET /api/ext/descriptors`, plus `cmd/product-mcp` (stdio), which a generated product ships so its own users/agents drive it without the evolution toolchain installed. Both clients share `internal/productapi`; `cmd/check-product-boundary` fails if `cmd/product-mcp` is missing or if either half imports the other. Details: docs/mcp.md#evolution-surface-vs-consumer-surface.
 - Scope rails are the operator's, set by env before the client spawns the server: `GOGOGO_READONLY=1` (mutations refuse; advise/plan/check keep working) and `GOGOGO_ALLOWED_ROOTS` (confine `--dir`). Details: docs/mcp.md#safeties-what-the-operator-sets-not-the-model.
 
 ## By task
@@ -77,7 +77,7 @@ without the whole site.
 
 **Agents**
 - [cli](https://calionauta.github.io/gogogo/docs/cli/) — The evolution CLI: scaffold, doctor/generate, recipe, export, new feature, migrate. Developer surface; product clients use the server API. (`docs/cli.md`)
-- [mcp](https://calionauta.github.io/gogogo/docs/mcp/) — The evolution MCP over stdio, its tools, and the split from the product surface (POST /api/ext/invoke). Installer only; never ship it to end users. (`docs/mcp.md`)
+- [mcp](https://calionauta.github.io/gogogo/docs/mcp/) — The evolution MCP over stdio, its tools, and the split from the consumer surface (POST /api/ext/invoke, GET /api/ext/descriptors, `cmd/product-mcp`). The evolution MCP is installer-only; never ship it to end users. (`docs/mcp.md`)
 - [prompts](https://calionauta.github.io/gogogo/docs/prompts/) — Model-facing text lives in .prompt files (Dotprompt shape): layout, the check-prompts gate, instrumentation by id/version, and the GEPA workflow. (`docs/prompts.md`)
 
 

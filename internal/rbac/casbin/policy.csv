@@ -105,6 +105,10 @@ p, user, /api/review, .*
 p, user, /api/review/*, .*
 p, user, /api/credits/*, .*
 p, user, /api/ext/invoke, POST
+# Discovery is the read half of the same contract: a caller asks what it may
+# invoke before invoking it. Same audience as invoke — a user's session, never
+# an anonymous request.
+p, user, /api/ext/descriptors, GET
 # UI analytics beacon (mounted only when ANALYTICS_PROVIDER is configured).
 p, user, /api/analytics, POST
 p, user, /api/ai/*, .*

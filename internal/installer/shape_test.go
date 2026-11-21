@@ -10,15 +10,25 @@ import (
 
 // TestShapeCheckReportsAConsistentTree pins the subcommand's happy path: the
 // same rules as cmd/check-shape, printed on stdout.
-func TestShapeCheckReportsAConsistentTree(t *testing.T) {
-	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, "cmd", "web"), 0o755); err != nil {
+// seedMain writes a minimal main package at rel, creating its directory.
+func seedMain(t *testing.T, root, rel string) {
+	t.Helper()
+	dir := filepath.Join(root, filepath.FromSlash(rel))
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "cmd", "web", "main.go"),
+	if err := os.WriteFile(filepath.Join(dir, "main.go"),
 		[]byte("package main\n\nfunc main() {}\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestShapeCheckReportsAConsistentTree(t *testing.T) {
+	root := t.TempDir()
+	// Every shape ships the consumer surface, so a consistent `web` tree has
+	// both cmd/web and cmd/product-mcp.
+	seedMain(t, root, "cmd/web")
+	seedMain(t, root, "cmd/product-mcp")
 	if err := os.MkdirAll(filepath.Join(root, ".gogogo"), 0o755); err != nil {
 		t.Fatal(err)
 	}

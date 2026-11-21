@@ -118,6 +118,19 @@ var baseUnits = []Capability{
 			"No framework middleware remains; the owned stack is the whole story.",
 	},
 	{
+		ID:      "productapi",
+		Kind:    KindCore,
+		Summary: "the product's consumer client: call a running product headless",
+		Dirs:    []string{"internal/productapi", "cmd/product-mcp"},
+		Note: "Core, not servant: this is the half a generated product SHIPS. " +
+			"It talks HTTP to a running product and knows nothing about a " +
+			"checkout — no receipts, no capability registry — which is what lets " +
+			"a product offer its users an MCP without the evolution toolchain " +
+			"installed. cmd/check-product-boundary enforces both directions: the " +
+			"product owes nothing to internal/installer, and this client cannot " +
+			"import internal/server or internal/installer.",
+	},
+	{
 		ID:      "crudwire",
 		Kind:    KindCore,
 		Summary: "todo CRUD wire protocol (subjects + payloads + publisher)",

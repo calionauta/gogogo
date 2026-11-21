@@ -7,10 +7,18 @@ import (
 	"testing"
 )
 
+// productMCP is the consumer surface every fixture tree needs, or check()
+// reports its absence instead of the thing the test is about.
+const productMCP = "cmd/product-mcp/main.go"
+
 // writeTree lays down a minimal checkout: four Go files whose imports the gate
 // reads. Only the import lines matter — the gate parses, it does not build.
 func writeTree(t *testing.T, root string, files map[string]string) {
 	t.Helper()
+	if _, ok := files[productMCP]; !ok {
+		files[productMCP] = "package main\n\nimport _ \"github.com/calionauta/gogogo/" +
+			"internal/productapi\"\n\nfunc main() {}\n"
+	}
 	for rel, body := range files {
 		path := filepath.Join(root, filepath.FromSlash(rel))
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -155,5 +163,86 @@ func TestCoreClassifiedDirectoryIsNotARemovableSlice(t *testing.T) {
 	}
 	if len(problems) != 0 {
 		t.Fatalf("a core-classified directory was refused: %v", problems)
+	}
+}
+
+// The invariant the original gate never asked: the product must HAVE a consumer
+// surface. A tree with no cmd/product-mcp satisfies "builds without the
+// evolution tools" by having no call surface at all — which is exactly the
+// state `recipe invoke` living inside internal/installer produced.
+func TestProductMustShipAConsumerSurface(t *testing.T) {
+	root := t.TempDir()
+	writeTree(t, root, map[string]string{
+		"cmd/web/main.go":                 "package main\n\nfunc main() {}\n",
+		"internal/server/server.go":       "package server\n",
+		"internal/installer/installer.go": "package installer\n",
+	})
+	// writeTree seeds the surface; remove it to model the regression.
+	if err := os.Remove(filepath.Join(root, productMCP)); err != nil {
+		t.Fatal(err)
+	}
+
+	problems, err := check(root)
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	if len(problems) != 1 || !strings.Contains(problems[0], "cmd/product-mcp is missing") {
+		t.Fatalf("problems = %v, want the missing consumer surface", problems)
+	}
+}
+
+// And it must not link the toolchain, or shipping it puts the installer back in
+// the product.
+func TestConsumerSurfaceMustNotLinkTheEvolutionTools(t *testing.T) {
+	root := t.TempDir()
+	writeTree(t, root, map[string]string{
+		"cmd/web/main.go": "package main\n\nfunc main() {}\n",
+		productMCP: "package main\n\nimport (\n\t_ \"github.com/calionauta/gogogo/internal/" +
+			"installer\"\n)\n\nfunc main() {}\n",
+		"internal/server/server.go":       "package server\n",
+		"internal/installer/installer.go": "package installer\n",
+	})
+
+	problems, err := check(root)
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	if len(problems) != 1 || !strings.Contains(problems[0], "cmd/product-mcp imports") {
+		t.Fatalf("problems = %v, want the product-mcp import", problems)
+	}
+}
+
+// The client is shared code: it talks HTTP to a running product, so it must not
+// link the server, and it must not read the checkout.
+func TestConsumerClientStaysInnocuous(t *testing.T) {
+	for _, tc := range []struct {
+		name, imp, want string
+	}{
+		{"server", "github.com/calionauta/gogogo/internal/server", "does not link the server"},
+		{"installer", "github.com/calionauta/gogogo/internal/installer", "must not read a checkout"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeTree(t, root, map[string]string{
+				"cmd/web/main.go":           "package main\n\nfunc main() {}\n",
+				"internal/server/server.go": "package server\n",
+				"internal/productapi/client.go": "package productapi\n\nimport (\n\t_ \"" +
+					tc.imp + "\"\n)\n",
+			})
+
+			problems, err := check(root)
+			if err != nil {
+				t.Fatalf("check: %v", err)
+			}
+			found := false
+			for _, p := range problems {
+				if strings.Contains(p, "internal/productapi imports") && strings.Contains(p, tc.want) {
+					found = true
+				}
+			}
+			if !found {
+				t.Fatalf("problems = %v, want one naming %q", problems, tc.want)
+			}
+		})
 	}
 }
