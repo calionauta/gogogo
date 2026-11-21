@@ -388,7 +388,7 @@ signed-in summary page; the dashboard.card slot host
 - **Owned:** `features/dashboard`
 - **Routes:** `/admin/dashboard`, `/dashboard`
 - **Depends on:** sounds
-- **Why that class:** Host page for dashboard.card: one unit mounts itself through the recipe seam. Remove manually (delete the unit, its two policy rows, its Modules entry).
+- **Why that class:** Host page for dashboard.card: one unit mounts itself through the recipe seam. Remove manually (delete the unit, its policy rows, its Modules entry).
 
 ## `kiosk` — feature
 

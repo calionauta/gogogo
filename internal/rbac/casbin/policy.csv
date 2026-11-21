@@ -204,6 +204,11 @@ p, user, /api/credits/stripe-webhook, .*
 # written by `gogogo recipe install`; `gogogo recipe uninstall` removes this block
 p, user, /dashboard, .*
 p, admin, /admin/dashboard, .*
+# /api/dashboard is the headless read of the same summary. Both roles reach it;
+# the instance-wide view is fenced in the handler (scope=all), not in the row —
+# a policy row cannot tell the two scopes apart.
+p, user, /api/dashboard, .*
+p, admin, /api/dashboard, .*
 # end recipe:dashboard
 # recipe:notes
 # written by `gogogo recipe install`; `gogogo recipe uninstall` removes this block

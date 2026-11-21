@@ -28,4 +28,5 @@ const (
 	paramTab      = "tab"
 	paramContent  = "content"
 	paramText     = "text"
+	paramScope    = "scope"
 )
