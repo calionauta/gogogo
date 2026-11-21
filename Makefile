@@ -947,6 +947,8 @@ site:
 site-check:
 	@echo "→ Checking docs links and heading anchors..."
 	@node site/build.mjs --check
+	@echo "→ Checking the per-page markdown copies against their pages..."
+	@node scripts/markdown-mirror.test.mjs
 	@echo "→ Checking the landing catalog against the unit contracts..."
 	@node site/build-landing.mjs --check
 

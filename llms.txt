@@ -58,6 +58,120 @@
 - Deploy: docs/deploy.md
 - Troubleshooting: docs/troubleshooting.md
 
+<!-- page-index:begin -->
+## Every published page
+
+Generated from site/docsite.config.mjs by `make docs-index`; the guard fails on drift.
+`docs/<file>` is the source, the URL is where it renders, and `docs/<file>.md`-style
+markdown copies are published beside each page for an agent that wants one page
+without the whole site.
+
+**Get started**
+- [overview](https://calionauta.github.io/gogogo/docs/overview/) — What gogogo is, who it is for, why its gates exist, and the seven async layers it ships. (`docs/overview.md`)
+- [motivation](https://calionauta.github.io/gogogo/docs/motivation/) — The thesis behind the stack: Go for almost everything, Zig as the named exception, and how to choose without hype. (`docs/motivation.md`)
+- [architecture-decision](https://calionauta.github.io/gogogo/docs/architecture-decision/) — The flat-stack decision record: what it serves, what it replaced, and the migration it completed. (`docs/architecture-decision.md`)
+- [inspirations](https://calionauta.github.io/gogogo/docs/inspirations/) — What gogogo learned from other projects, credited rather than vendored. (`docs/inspirations.md`)
+- [getting-started](https://calionauta.github.io/gogogo/docs/getting-started/) — Clone, run, first five minutes, and the commands you need. (`docs/getting-started.md`)
+- [glossary](https://calionauta.github.io/gogogo/docs/glossary/) — The ubiquitous language: one meaning per term (recipe, receipt, declaration, capability, kind, slot, metric, outcome, panel, drift) and the words that were retired. (`docs/glossary.md`)
+
+
+**Agents**
+- [cli](https://calionauta.github.io/gogogo/docs/cli/) — The evolution CLI: scaffold, doctor/generate, recipe, export, new feature, migrate. Developer surface; product clients use the server API. (`docs/cli.md`)
+- [mcp](https://calionauta.github.io/gogogo/docs/mcp/) — The evolution MCP over stdio, its tools, and the split from the product surface (POST /api/ext/invoke). Installer only; never ship it to end users. (`docs/mcp.md`)
+- [prompts](https://calionauta.github.io/gogogo/docs/prompts/) — Model-facing text lives in .prompt files (Dotprompt shape): layout, the check-prompts gate, instrumentation by id/version, and the GEPA workflow. (`docs/prompts.md`)
+
+
+**Core**
+- [service-layer](https://calionauta.github.io/gogogo/docs/service-layer/) — Transport-free domain service: one rule per frontend fact, the recipe contract for features with writes, and the check-flatdeps gate. (`docs/service-layer.md`)
+- [architecture](https://calionauta.github.io/gogogo/docs/architecture/) — Directory layout, dependency direction, entry points, and route wiring gotchas. (`docs/architecture.md`)
+- [stack-layers](https://calionauta.github.io/gogogo/docs/stack-layers/) — Every dependency and what it buys, layer by layer. (`docs/stack-layers.md`)
+- [stack-tradeoffs](https://calionauta.github.io/gogogo/docs/stack-tradeoffs/) — What each choice rejected, what it costs to keep, and when to revisit: Turso vs SQLite vs Postgres, Datastar vs React, and the rest. (`docs/stack-tradeoffs.md`)
+- [features](https://calionauta.github.io/gogogo/docs/features/) — Every capability and its runtime opt-out. (`docs/features.md`)
+- [search](https://calionauta.github.io/gogogo/docs/search/) — The search plugin: one seam, three layers (substring, fuzzy, BM25), the runtime picker, and what trimming it leaves behind. (`docs/search.md`)
+- [api-routes](https://calionauta.github.io/gogogo/docs/api-routes/) — Generated inventory of every API route, pinned by tests — the trim and hook gate that proves no route is lost. (`docs/api-routes.md`)
+- [unit-contracts](https://calionauta.github.io/gogogo/docs/unit-contracts/) — Generated card per capability: routes it registers, generated queries it calls, runtime switch, and what removing it takes. (`docs/unit-contracts.md`)
+- [no-auth-no-db-recipe](https://calionauta.github.io/gogogo/docs/no-auth-no-db-recipe/) — Recipe for stripping auth and the database out of a clone that needs neither. (`docs/no-auth-no-db-recipe.md`)
+- [use-cases](https://calionauta.github.io/gogogo/docs/use-cases/) — What each core, servant, and recipe is for, in business language. (`docs/use-cases.md`)
+- [scope-taxonomy](https://calionauta.github.io/gogogo/docs/scope-taxonomy/) — Core / Servant / Recipe: the rule for deciding what is safe to delete — the removal taxonomy, not the distribution model. (`docs/scope-taxonomy.md`)
+- [shape](https://calionauta.github.io/gogogo/docs/shape/) — The app-shape enum (full, web, api, desktop, gui, mobile), the .gogogo/shape.yml record, and the check-shape gate. (`docs/shape.md`)
+- [domain-cards](https://calionauta.github.io/gogogo/docs/domain-cards/) — One card per feature slice: owns, does-not-own, the language table and the invariants, gated by check-domains. (`docs/domain-cards.md`)
+- [porting-into-an-existing-app](https://calionauta.github.io/gogogo/docs/porting-into-an-existing-app/) — Taking one unit into an app that already exists: export, copy, rewire, prove — and the four things no recipe can know. (`docs/porting-into-an-existing-app.md`)
+- [db-concurrency](https://calionauta.github.io/gogogo/docs/db-concurrency/) — Turso single-writer stance, the probed MVCC path, and revisit triggers. (`docs/db-concurrency.md`)
+- [configuration](https://calionauta.github.io/gogogo/docs/configuration/) — Every environment variable and runtime constant. (`docs/configuration.md`)
+- [hooks-analytics](https://calionauta.github.io/gogogo/docs/hooks-analytics/) — One event bus for hooks and analytics: the closed event set, the HMAC webhook, the provider seam, the declarative UI beacon, and the durable outbox that is not built yet. (`docs/hooks-analytics.md`)
+- [rbac](https://calionauta.github.io/gogogo/docs/rbac/) — Casbin RBAC: role vocabulary, the feature checklist, hint-vs-enforcement, and the two invariants that bite (authentication is not authorization; policy objects are paths, not regex). (`docs/rbac.md`)
+- [security](https://calionauta.github.io/gogogo/docs/security/) — The security map: sessions, RBAC, edge headers, step-up, secrets, audit retention, CSP reporting, supply chain, production defaults and residual risks. (`docs/security.md`)
+- [dependency-principles](https://calionauta.github.io/gogogo/docs/dependency-principles/) — Write it or take the library: six principles, the ordered decision procedure, the closed human gate, and the trade-off line a reviewer reads. (`docs/dependency-principles.md`)
+- [exception-to-go](https://calionauta.github.io/gogogo/docs/exception-to-go/) — Go-first policy: why Zig is an exceptional native boundary, the agent decision procedure, and the isolation, testing, and removal rules. (`docs/exception-to-go.md`)
+- [native-language-tradeoffs](https://calionauta.github.io/gogogo/docs/native-language-tradeoffs/) — Evidence-backed tradeoffs of Zig, Rust, Nim, Odin, and Mojo as native exception languages, and what a non-Zig proposal must rebut. (`docs/native-language-tradeoffs.md`)
+
+
+**Async**
+- [async-layers](https://calionauta.github.io/gogogo/docs/async-layers/) — The seven async layers, SSE Hub record-sync vs ephemeral signals, cross-instance and offline sync. (`docs/async-layers.md`)
+- [realtime-recipe](https://calionauta.github.io/gogogo/docs/realtime-recipe/) — How to add live UI: client/server patterns, checklist, no invented transports. (`docs/realtime-recipe.md`)
+- [notifications](https://calionauta.github.io/gogogo/docs/notifications/) — The inbox slice: a DagNats sleep for the delay, one owner-scoped delivery row, and the dedupe that makes a retry safe. (`docs/notifications.md`)
+- [dagnats](https://calionauta.github.io/gogogo/docs/dagnats/) — DagNats capability table, version bounds, learned gotchas, and the add-a-workflow path for LLM agents. (`docs/dagnats.md`)
+
+
+**AI**
+- [llm-and-credits](https://calionauta.github.io/gogogo/docs/llm-and-credits/) — GoAI configuration and the optional ai-credits / BYOK plugin. (`docs/llm-and-credits.md`)
+- [review](https://calionauta.github.io/gogogo/docs/review/) — The review loop: Genkit flows, goai generation, and a Jev-compatible classifier judge. (`docs/review.md`)
+- [native-panels](https://calionauta.github.io/gogogo/docs/native-panels/) — Adding a native Chat panel: the provider contract, hydration, in-place actions, and the reuse rule — render the feature's own components, never a chat copy. (`docs/native-panels.md`)
+
+
+**Frontend**
+- [todo-example](https://calionauta.github.io/gogogo/docs/todo-example/) — The Todo reference implementation and the contract to imitate. (`docs/todo-example.md`)
+- [ui-shell](https://calionauta.github.io/gogogo/docs/ui-shell/) — The shell anatomy, the page kit, and what a page owns. (`docs/ui-shell.md`)
+- [ui-compositions](https://calionauta.github.io/gogogo/docs/ui-compositions/) — The approved compositions — account row, preference row, join, empty state, stack key — the markup to copy instead of inventing. (`docs/ui-compositions.md`)
+- [ui-themes](https://calionauta.github.io/gogogo/docs/ui-themes/) — The one shell, DaisyUI, and the theme catalog. (`docs/ui-themes.md`)
+- [ui-sounds](https://calionauta.github.io/gogogo/docs/ui-sounds/) — Vendored cuelume sound feedback and its accessibility contract. (`docs/ui-sounds.md`)
+
+
+**Research**
+- [research](https://calionauta.github.io/gogogo/docs/research/) — One place for every research note, comparison and tradeoff decision in this repo: what was evaluated, when, and what was chosen. (`docs/research/index.md`)
+- [skill-reading-policy](https://calionauta.github.io/gogogo/docs/skill-reading-policy/) — Whole vendored skill or component sections? A two-arm measurement: the full read cost +36% tokens and +74% wall clock with identical markup and gates. (`docs/research/skill-reading-policy.md`)
+- [daisyui-vocabulary-source](https://calionauta.github.io/gogogo/docs/daisyui-vocabulary-source/) — Where a linter's vocabulary lives: authored map versus derived snapshot, the 2026 drift-check evidence, and why daisyui-lint embeds one. (`docs/research/daisyui-vocabulary-source.md`)
+- [auth-libraries](https://calionauta.github.io/gogogo/docs/auth-libraries/) — The 2026-10-21 evaluation of limen against owning argon2id and sessions: schema ownership, version skew, and what flips the decision. (`docs/research/auth-libraries-2026-10.md`)
+- [desktop-auth-sync](https://calionauta.github.io/gogogo/docs/desktop-auth-sync/) — License gate, account pairing or cloud-only? The 2026 desktop distribution options, the offline-first matrix, and why gogogo keeps one identity per profile. (`docs/research/desktop-auth-sync-2026-10.md`)
+- [ui-engine-research](https://calionauta.github.io/gogogo/docs/ui-engine-research/) — The 2026-10-21 engine and component-library evaluation behind the UI stack, with local benchmarks and the Rocket assessment. (`docs/research/ui-engine-research.md`)
+- [genui-schema-patterns](https://calionauta.github.io/gogogo/docs/genui-schema-patterns/) — OpenUI Lang vs A2UI catalogs measured against this catalog: what is worth copying (per-component fixtures, prompt/validator parity) and why neither format is adopted. (`docs/research/genui-schema-patterns-2026-11.md`)
+- [ui-components](https://calionauta.github.io/gogogo/docs/ui-components/) — The 2026-10-21 comparison of DaisyUI, Starbase, datastar-ui and dsx on Datastar, SSE, lightness, performance, functionality and forkability. (`docs/research/ui-components-2026-10-21.md`)
+- [supply-chain-scanning](https://calionauta.github.io/gogogo/docs/supply-chain-scanning/) — The 2026-10-24 SBOM/image-scanning comparison: Syft+Grype against Trivy, Docker Scout and OSV-Scanner, with the pinned-action and fixable-high gate. (`docs/research/supply-chain-scanning-2026.md`)
+- [native-kernels](https://calionauta.github.io/gogogo/docs/native-kernels/) — The 2026-10-25 native-kernel PoCs: FNV-1a tie vs grayscale survivor, SIMD verbs audit, loader prices, Rust/Odin probes. (`docs/research/native-kernels-2026-10.md`)
+- [browser-automation](https://calionauta.github.io/gogogo/docs/browser-automation/) — chrome-headless-shell vs Lightpanda vs happy-dom vs remote CDP on a shared 8 GB box, and why a Playwright suite's lifecycle, not its engine, is what took the host down. (`docs/research/browser-automation-2026-10.md`)
+- [notify](https://calionauta.github.io/gogogo/docs/notify/) — The 2026-10-27 notify evaluation: what to copy from a delivery engine, why the inbox stays local, and where an external provider fits. (`docs/research/notify-2026-10.md`)
+- [ci-wall-clock](https://calionauta.github.io/gogogo/docs/ci-wall-clock/) — Where CI's minutes go, measured per job and per package: sharding by cost, PR-only test selection, narrow caches, and the options that were rejected with evidence. (`docs/research/ci-wall-clock-2026-10.md`)
+- [ci-playbook-boardy](https://calionauta.github.io/gogogo/docs/ci-playbook-boardy/) — Owen Gretzinger's nine CI levers cross-checked against this repo: eight already shipped, the paid runner rejected, and the live gap — an untested docs-only skip classifier that can report green while skipping every heavy gate. (`docs/research/ci-playbook-boardy-2026-10.md`)
+- [ci-provider-move](https://calionauta.github.io/gogogo/docs/ci-provider-move/) — CircleCI, Dagger, Woodpecker and self-hosted evaluated against measured numbers: minutes are free on a public repo, the runner queue is 12s, and more cores cannot beat a 42s package tail — a provider move is cost without wall-clock. (`docs/research/ci-provider-move-2026-10.md`)
+- [mobile-android](https://calionauta.github.io/gogogo/docs/mobile-android/) — The 2026-10-30 Android spike: tursogo has no Android library, ncruces keeps SQL and migrations shared, cmd/gui chose ncruces explicitly, and cmd/mobile is the separate entrypoint. (`docs/research/mobile-android-2026-10.md`)
+- [android-spike](https://calionauta.github.io/gogogo/docs/android-spike/) — The Android spike build log: commands, driver matrix, libc shims, system-bar insets, screenshots, disk usage and cleanup. (`docs/research/android-spike-2026-10.md`)
+- [app-shapes](https://calionauta.github.io/gogogo/docs/app-shapes/) — One template, six products: a closed shape enum (web/api/desktop/gui/mobile/full) applied through the existing removal mechanics, recorded in .gogogo/shape.yml and proved by shape check. (`docs/research/app-shapes-2026-11.md`)
+- [domain-first](https://calionauta.github.io/gogogo/docs/domain-first/) — What DDD buys an AI contributor: one domain card per bounded context (language, boundary, invariants), generated by the scaffolder and gated by check-domains, instead of aggregates and repository ceremony. (`docs/research/domain-first-2026-11.md`)
+- [scaffold-choice](https://calionauta.github.io/gogogo/docs/scaffold-choice/) — Why the scaffold prompt offers only the installer units, the three lists that disagree, and the Scaffold class that makes every capability an explicit keep-or-drop. (`docs/research/scaffold-choice-2026-10.md`)
+- [extensibility](https://calionauta.github.io/gogogo/docs/extensibility/) — Core plus installable extensions evaluated for 2026: why buildmode=plugin is out, why anchor-patching cannot carry N authors, what compile-time registration costs, and the ordered spikes that can kill the idea. (`docs/research/extensibility-2026-11.md`)
+- [recipe-metrics-panel](https://calionauta.github.io/gogogo/docs/recipe-metrics-panel/) — Declarative dashboard metrics (one COUNT per entry) and chat panel spec: what was adopted vs. rejected, the SlicePanel base, the recipe-check evaluator, and the in-repo catalog decision. (`docs/research/recipe-metrics-panel-2026-11.md`)
+- [recipe-outcomes](https://calionauta.github.io/gogogo/docs/recipe-outcomes/) — An outcome as two declared counts (success over eligible) instead of an event stream: the validation rules, the runtime warning, the dashboard ratio, why not a Taguchi S/N, and the propose/confirm authorship rule. (`docs/research/recipe-outcomes-2026-11.md`)
+- [mygo](https://calionauta.github.io/gogogo/docs/mygo/) — MyGo peer shell over the flat stack: webview cookie + SSE proof, loopback vs native view, driver matrix, and the cmd/mygo build recipe. (`docs/research/mygo-2026-11.md`)
+- [headless-cms-go](https://calionauta.github.io/gogogo/docs/headless-cms-go/) — The Go headless CMS ecosystem probed against the two-month window: why ocms-go and ridu are not adopted, the four GitHub-as-CMS models and what 'issues as pages' actually means, and why the content surface belongs in a recipe. (`docs/research/headless-cms-go-2026-11.md`)
+- [i18n](https://calionauta.github.io/gogogo/docs/i18n/) — UI internationalization: own the seam on the text package, rent CLDR depth only on a trigger. The libraries evaluated, mitigations for their gaps, and the phased, deletable plan. (`docs/research/i18n-2026-11.md`)
+
+
+**Ship**
+- [deploy](https://calionauta.github.io/gogogo/docs/deploy/) — Server layout, first-time setup, deploy workflow, build pipeline and version badge. (`docs/deploy.md`)
+- [desktop-mobile](https://calionauta.github.io/gogogo/docs/desktop-mobile/) — Wails v3 desktop/mobile, edge sync, and the native window. (`docs/desktop-mobile.md`)
+- [admin-dashboard](https://calionauta.github.io/gogogo/docs/admin-dashboard/) — Admin surfaces, the single-cookie session, and the DagNats console. (`docs/admin-dashboard.md`)
+
+
+**Operate**
+- [upgrading](https://calionauta.github.io/gogogo/docs/upgrading/) — Keeping a scaffolded project current: the recorded base revision, --check-update's two halves, and migrate as a list plus gates — never a merge. (`docs/upgrading.md`)
+- [local-ci](https://calionauta.github.io/gogogo/docs/local-ci/) — The five-tier feedback loop and make signoff. (`docs/local-ci.md`)
+- [ci-triage](https://calionauta.github.io/gogogo/docs/ci-triage/) — When CI fails on something variable: the 60-second triage, flake diagnosis, quarantine with an expiry, and why 100% is not the target. (`docs/ci-triage.md`)
+- [code-quality](https://calionauta.github.io/gogogo/docs/code-quality/) — The linter set, how to scope it, the Datastar-specific rules, and the ruleguard rules that encode project footguns as CI failures. (`docs/code-quality.md`)
+- [troubleshooting](https://calionauta.github.io/gogogo/docs/troubleshooting/) — Symptoms and where they actually come from. (`docs/troubleshooting.md`)
+- [duckdb](https://calionauta.github.io/gogogo/docs/duckdb/) — Query JSONL logs and the Turso file with DuckDB: local operator recipe. (`docs/duckdb.md`)
+- [doctor-generate](https://calionauta.github.io/gogogo/docs/doctor-generate/) — Doctor (read-only preflight, JSON for agents) and deterministic generate (templ+sqlc+css+docs) — the LLM-era determinism layer. (`docs/doctor-generate.md`)
+<!-- page-index:end -->
+
 ## Invariants (do not relearn these)
 
 - Concurrency: `-race` proves no unsafe memory access, NOT that an interleaving

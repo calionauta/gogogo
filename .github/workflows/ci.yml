@@ -1199,6 +1199,16 @@ jobs:
         run: bash bin/install-browser.sh
       - name: Check landing catalog
         run: node site/build-landing.mjs --check
+      - name: Build docs site
+        # The copy contract reads the BUILD OUTPUT (the .md files, llms-full.txt,
+        # sitemap.xml), so the build has to happen first. Cheap and browserless,
+        # which is the point: a broken copy fails in seconds, before Chromium.
+        run: node site/build.mjs
+      - name: Per-page markdown copies
+        # Each published page must also have a copy an agent can fetch without
+        # scraping HTML: one title, live links, the page URL, an llms.txt entry
+        # and a sitemap entry.
+        run: node scripts/markdown-mirror.test.mjs
       - name: Docs site layout
         # Builds the same site pages.yml publishes, then loads every page at
         # 7 widths. Fails on page-level scroll, a table that cannot fit at

@@ -165,7 +165,20 @@ func main() {
 // index (from the site MANIFEST), the measured numbers (from the files) and
 // the MCP tool tables (from the catalog the server serves).
 var writeIndex = flag.Bool("write", false,
-	"regenerate the README page index, the measured Client weight numbers and the MCP tool tables")
+	"regenerate the README + llms.txt page indexes, the Client weight numbers and the MCP tool tables")
+
+// writeGenerated runs every writer the guard mirrors. Adding a generated
+// artifact means adding one line here, not another if-block in run().
+func writeGenerated(root string) error {
+	for _, w := range []func(string) error{
+		writeReadmeIndex, writeClientWeight, writeMCPTools, writePageIndex,
+	} {
+		if err := w(root); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 func run() error {
 	root, err := moduleRoot()
@@ -173,16 +186,13 @@ func run() error {
 		return err
 	}
 	if *writeIndex {
-		if werr := writeReadmeIndex(root); werr != nil {
+		// One call instead of a nesting level per artifact: the flag has one
+		// meaning ("regenerate everything generated"), so the writers are a
+		// list, not a growing if-block.
+		if werr := writeGenerated(root); werr != nil {
 			return werr
 		}
-		if werr := writeClientWeight(root); werr != nil {
-			return werr
-		}
-		if werr := writeMCPTools(root); werr != nil {
-			return werr
-		}
-		fmt.Fprintln(os.Stdout, "check-docs: README page index, measured numbers and the MCP tool tables regenerated")
+		fmt.Fprintln(os.Stdout, "check-docs: page indexes, measured numbers and the MCP tool tables regenerated")
 	}
 	files, err := docFiles(root)
 	if err != nil {
