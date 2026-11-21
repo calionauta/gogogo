@@ -614,9 +614,14 @@ sqlc:
 
 # check-recipes validates installed recipes' declarations, wiring, tests,
 # documentation, panels, metrics, and complexity without running recipe code.
+# --strict-headless is the enforcement half of the headless promise: a mutating
+# route with no action and no declared omission is a capability no agent can
+# call, and a GET create page no action binds has no headless twin. Without the
+# flag both stay warnings and the gate reports success over a real gap.
 check-recipes:
 	@go run ./cmd/gogogo recipe check --dir . --format json >/dev/null
 	@go run ./cmd/gogogo recipe receipts --dir .
+	@go run ./cmd/gogogo recipe check --dir . --strict-headless >/dev/null
 	@echo "  ✓ recipes pass gogogo recipe check"
 
 ci-local: check-host-capacity reap-stale check-browser-cleanup check-generated check-shape check-recipes check-sizes datastar-lint css-check check-no-jsx check-ci-scripts check-classes daisyui-lint check-flatdeps check-product-boundary check-typed-states check-domains check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard release-build-guard check-prompts

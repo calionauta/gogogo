@@ -386,7 +386,12 @@ route is not declared is uncallable, and a receipt whose verbs drift from
 the code is a failure. Coverage is enforced, not suggested: the catalog
 review **refuses** an entry whose mutating route is neither an action nor an
 omission, and `make check-recipes` runs `recipe check --strict-headless`, so
-a bundled slice cannot ship a mutation no agent can call. A verb with no
+a bundled slice cannot ship a mutation no agent can call. That run reads
+`.recipes/<id>.yml`; `assertDeclarationsMatchMounts` in `internal/server` runs
+the same rule over the compiled `Declaration()` as well, which is what covers
+a slice with no receipt at all (`config-view` is one — its three admin
+mutations are declared omissions because letting an agent change a role or
+toggle a capability is an agent authoring its own permissions). A verb with no
 description, and an installed recipe with no `summary`, are graded by the same
 strict run. `recipe describe` shows the omissions and their reasons, which is
 how a reviewer tells a decision from a forgotten route.
