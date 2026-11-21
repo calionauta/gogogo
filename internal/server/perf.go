@@ -27,11 +27,13 @@ func bootPerf(mux *Router, a *auth.Auth, cfg *config.Config, shutdown *[]func())
 		slog.Warn("server: perf dashboard disabled", "error", err)
 		return nil
 	}
-	mux.MountFeature("perf", h.Routes(
-		a.RequireSession,
-		operatorGate(cfg.AdminEmails),
-		rbac.RequireAdmin(a),
-	))
+	mux.MountInfra("perf",
+		"pprof/statsviz: opt-in developer tooling, not a product surface",
+		h.Routes(
+			a.RequireSession,
+			operatorGate(cfg.AdminEmails),
+			rbac.RequireAdmin(a),
+		))
 	*shutdown = append(*shutdown, func() { _ = h.Close() })
 	return h
 }

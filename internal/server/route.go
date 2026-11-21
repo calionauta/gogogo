@@ -29,6 +29,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"runtime/debug"
 
@@ -141,12 +142,41 @@ func (r *Router) serves(method, pattern string) bool {
 	return ok
 }
 
-// MountFeature registers every route h declares on the tree, keeping the
-// method, the pattern and the feature router's own middleware chain. owner
-// names the capability in a duplicate-registration panic. A nil router is a
-// no-op, so a capability whose engine is disabled (and whose Routes() answers
-// nil) mounts nothing instead of panicking at boot.
-func (r *Router) MountFeature(owner string, h chi.Router) {
+// MountFeature registers every route a Provider declares on the tree, keeping
+// the method, the pattern and the feature router's own middleware chain.
+//
+// It takes the Provider rather than (owner, router) so a unit cannot mount
+// itself with nothing to grade: the declaration arrives with the routes, and
+// the caller has no way to hand over one without the other.
+//
+// A disabled unit returns a nil Provider (see recipe.Provider) and mounts
+// nothing instead of panicking at boot.
+func (r *Router) MountFeature(p recipe.Provider) {
+	if p == nil {
+		return
+	}
+	r.mountFeatureRoutes(p.ID(), p.Routes())
+}
+
+// MountInfra registers routes for a unit that has no Provider, and names why.
+//
+// It exists for the mounts that serve files or tooling rather than claim a
+// product surface (the sign-in forms, pprof). Every call site must name a
+// reason: the reason is logged at boot, so an operator reading the mount log
+// sees which units are outside the declaration contract and why, and a test
+// pins the set — so "we could not be bothered to declare" reads as the smell it
+// is, next to the two that are not.
+func (r *Router) MountInfra(owner, reason string, h chi.Router) {
+	if h == nil {
+		return
+	}
+	slog.Warn("server: mounting infrastructure (no declaration)",
+		"unit", owner, "reason", reason)
+	r.mountFeatureRoutes(owner, h)
+}
+
+// mountFeatureRoutes is the one place a route list is flattened onto the tree.
+func (r *Router) mountFeatureRoutes(owner string, h chi.Router) {
 	if h == nil {
 		return
 	}

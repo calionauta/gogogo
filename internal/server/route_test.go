@@ -28,7 +28,7 @@ func TestMountFeatureFlattensRoutes(t *testing.T) {
 	})
 
 	root := NewRouter()
-	root.MountFeature("things", feat)
+	mountRoutes(root, "things", feat)
 
 	rec := httptest.NewRecorder()
 	root.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/things/42", nil))
@@ -53,7 +53,7 @@ func TestMountFeatureDuplicatePanics(t *testing.T) {
 		return r
 	}
 	root := NewRouter()
-	root.MountFeature("first", route())
+	mountRoutes(root, "first", route())
 
 	defer func() {
 		rec := recover()
@@ -70,7 +70,7 @@ func TestMountFeatureDuplicatePanics(t *testing.T) {
 			}
 		}
 	}()
-	root.MountFeature("second", route())
+	mountRoutes(root, "second", route())
 }
 
 // TestUnknownMethodAnswers405 pins the router-level method decision: a path
@@ -81,7 +81,7 @@ func TestUnknownMethodAnswers405(t *testing.T) {
 	feat.Get("/only-get", func(http.ResponseWriter, *http.Request) {})
 
 	root := NewRouter()
-	root.MountFeature("only", feat)
+	mountRoutes(root, "only", feat)
 	root.NotFound(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusTeapot)
 	})
@@ -135,7 +135,7 @@ func TestUnknownPathReachesNotFound(t *testing.T) {
 // answers nil from Routes() mounts no route and boots without a panic.
 func TestMountFeatureNilIsNoop(t *testing.T) {
 	root := NewRouter()
-	root.MountFeature("disabled", nil)
+	mountRoutes(root, "disabled", nil)
 
 	rec := httptest.NewRecorder()
 	root.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/anything", nil))
@@ -155,7 +155,7 @@ func TestRecoveryMiddlewareAnswers500(t *testing.T) {
 
 	root := NewRouter()
 	root.Use(recoveryMiddleware)
-	root.MountFeature("boom", feat)
+	mountRoutes(root, "boom", feat)
 
 	rec := httptest.NewRecorder()
 	root.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/boom", nil))

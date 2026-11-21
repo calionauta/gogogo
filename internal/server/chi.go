@@ -434,16 +434,18 @@ func buildChiMux(
 	// taking an SSE stream down with it.
 	r.Use(recoveryMiddleware)
 	applyShapeGate(r, deps.Cfg != nil && deps.Cfg.IsAPIShape())
-	// Auth is a flat feature like every other surface: its router owns the
-	// absolute paths, the methods (405 at the router) and the OAuth provider
-	// parameter, so the route table claims each endpoint.
-	r.MountFeature("auth", a.Routes())
-	// The sign-in PAGES are core too. They used to be mounted by the todo
-	// slice, which made a demo the owner of /login: drop the slice and nobody
-	// could sign in. `features/authviews` renders them; this is the glue.
+	// Auth is the Authorization Server: it declares a role, not a route list,
+	// because it issues the credential every other surface is reached with.
+	r.MountFeature(a.Recipe())
+	// The sign-in PAGES are the browser face of that same server, so they mount
+	// as infrastructure with auth: they render the grant forms, and an agent
+	// never reaches them (it arrives already holding a bearer).
 	demoAccounts := deps.Cfg != nil && deps.Cfg.DemoAccounts
 	signupEnabled := deps.Cfg != nil && deps.Cfg.SignupEnabled
-	r.MountFeature("auth-pages", authpages.New(a, deps.Queries, demoAccounts, signupEnabled).Routes())
+	r.MountInfra("auth-pages",
+		"the HTML face of the authorization server: grant forms a browser renders, "+
+			"not a product surface an agent invokes",
+		authpages.New(a, deps.Queries, demoAccounts, signupEnabled).Routes())
 	// The session stream is its own path, not a child of /api/auth: it is a
 	// long-lived SSE the banner holds open and it only hears about changes.
 	MountPath(r, "/api/session/stream", a.SessionStreamHandler())

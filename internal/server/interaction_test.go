@@ -113,7 +113,7 @@ func TestAPIShapeMountSkipsPageRoutes(t *testing.T) {
 		feature := chi.NewRouter()
 		feature.Get("/todo", ok)
 		feature.Post("/api/todos", ok)
-		r.MountFeature("todo", feature)
+		mountRoutes(r, "todo", feature)
 	}
 
 	api := NewRouter()
