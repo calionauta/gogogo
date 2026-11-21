@@ -8,7 +8,7 @@ checkout, so it belongs to the developer's machine. A product's own users and
 agents do not run it; they call the running server's routes (including
 `POST /api/ext/invoke`) under the product's session and policy. `recipe
 invoke` is a *client* of that server, not a second product surface. See
-[MCP: installer vs product](mcp.md#installer-surface-vs-product-surface).
+[MCP: installer vs product](mcp.md#evolution-surface-vs-consumer-surface).
 
 Install once (binaries + Go toolchain when missing, curl + git only):
 

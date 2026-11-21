@@ -178,7 +178,7 @@ Taxonomy: [docs/scope-taxonomy](docs/scope-taxonomy.md).
 - Those tools build and evolve a checkout. A product's users and their agents
   call the running server (`POST /api/ext/invoke`) under session and RBAC, never
   the installer MCP. See
-  [docs/mcp.md](docs/mcp.md#installer-surface-vs-product-surface).
+  [docs/mcp.md](docs/mcp.md#evolution-surface-vs-consumer-surface).
 
 ## Commands
 

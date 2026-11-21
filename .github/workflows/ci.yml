@@ -497,6 +497,14 @@ jobs:
         # routes requires the evolution toolchain, which is the inversion the
         # first half alone never caught.
         run: go run ./cmd/check-product-boundary -dir .
+      - name: Check-recipes (declarations + strict headless)
+        # The half of the headless promise that reads the RECEIPT. The compiled
+        # half runs in the race job (a mutating route with no action fails the
+        # router test); this one fails when the declaration and the receipt
+        # disagree, when a receipt hash is stale, or when a mutating route has
+        # neither an action nor a declared omission. Running only in pre-commit
+        # meant a PR could merge with it red.
+        run: make check-recipes
       - name: Check-typed-states (one spelling per state)
         # A named string type compared with a literal compiles and silently
         # falls through to the default. Type-aware, so it sees what the

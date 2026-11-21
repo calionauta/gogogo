@@ -292,11 +292,20 @@ you submit:
 ## Actions: which routes need a headless verb
 
 A user who builds on gogogo does not open your UI to work — an agent does,
-headless, through `gogogo recipe invoke` / MCP `recipe_invoke`.
-Those are **developer clients of the running product**, not a product
-surface: the product's own users and agents call its routes (including
-`POST /api/ext/invoke`) under its session and RBAC. Never ship the installer
-MCP to them.
+headless. Two different agents, two different binaries:
+
+- **The builder's agent** runs `gogogo recipe invoke` / MCP `recipe_invoke`,
+  from a checkout. Developer client: it validates your verb against your
+  receipt, so it can only call what you declared.
+- **The product's user's agent** runs the product's own `cmd/product-mcp`,
+  which ships with the product and asks the server
+  (`GET /api/ext/descriptors`) what exists. It has no checkout and cannot
+  install or rewrite anything. Never ship the installer MCP to them — it
+  rewrites source trees.
+
+Both are thin callers of `internal/productapi`, so both see the same
+session, the same loopback rule and the same status codes. A verb you
+declare is reachable from either; a verb you omit is reachable from neither.
 
 Every mutating route (POST/PUT/PATCH/DELETE) your recipe declares — and every
 GET create page, bound through `browserPath` as described below — must either:

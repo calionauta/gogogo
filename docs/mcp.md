@@ -62,6 +62,103 @@ expands it before the client ever sees it, or write the absolute path
 (`echo $HOME`) into a config file. Cursor, VS Code, BB and other
 JSON-config clients take the Claude Code block verbatim.
 
+## Evolution surface vs consumer surface
+
+Two roles, two pairs of surfaces, and each pair lives in the tree that serves
+it. This is not "the product should have an MCP some day" — it is which binary
+carries which half:
+
+| Surface | Binary / route | Who runs it | May mutate |
+|---|---|---|---|
+| Evolution CLI | `cmd/gogogo` | the developer | yes — the checkout |
+| Evolution MCP | `cmd/gogogo-mcp` (stdio) | the developer's agent | yes — the checkout, via `scaffold_apply`, `new_feature`, `recipe_install`, `recipe_update`, `recipe_uninstall` |
+| Product HTTP API | `cmd/web` routes + `POST /api/ext/invoke` + `GET /api/ext/descriptors` | the product's users and their agents | yes — the product's own data, under its session/RBAC |
+| Product CLI transport | `gogogo recipe invoke` | the developer, from a checkout | no local tree writes; it calls the running server |
+| **Consumer MCP** | **`cmd/product-mcp` (stdio), shipped with the product** | **the product's users and their agents** | no local tree writes; it calls the running server |
+
+Rules that follow:
+
+- **Never ship the evolution MCP to end users.** It reads and rewrites a
+  checkout; it is not a product feature. The product ships `cmd/product-mcp`,
+  which links `internal/productapi` and nothing else.
+- **The consumer half exists, and it is what a product ships.** The gap this
+  closed was real: `recipe invoke` lived in `internal/installer` and read the
+  checkout to validate a verb, so an agent driving a product had to install the
+  **evolution** toolchain to call the product's own routes. `cmd/product-mcp`
+  asks the server instead — `GET /api/ext/descriptors` — which is what any
+  third-party agent would do. `cmd/check-product-boundary` now fails if
+  `cmd/product-mcp` is missing, or if either half imports the other's packages.
+- **Two clients, one wire.** `internal/productapi` owns the conversation with a
+  running product: the loopback rule, the session cookie's attributes, the
+  status handling. The evolution CLI's `recipe invoke` and the consumer MCP are
+  both thin callers of it, so a 401 means the same thing in both. The evolution
+  caller uses `Call` (it already validated the verb against the receipt, so a
+  discovery round trip would be a second read of the same truth); the consumer
+  uses `Invoke` (it has no checkout, so the server is authoritative).
+- **Discovery is the contract for an agent that has no checkout.**
+  `GET /api/ext/descriptors` returns every unit and verb with its method, which
+  params travel in the body and which in the URL query, and the page a human
+  uses for the same action. An unknown verb fails with the list of what exists.
+  This is why the consumer client can refuse a query param sent as a body field
+  before it reaches the wire.
+- **The product surface is fenced by the server itself.** `/api/ext/invoke`
+  and `/api/ext/descriptors` check the session cookie, the `user` policy row,
+  and the wrapped route's own RBAC, exactly like a browser call. A recipe adds
+  no installer tool and no per-recipe CLI verb: it declares actions, and the
+  one dispatcher serves them.
+- **Discovery is dynamic.** `recipe list` / `recipe describe` read the
+  registry plus `.recipes/*.yml` at call time, so an install appears without a
+  help edit. `{id}` is the one supported path param (a UUID); a route with
+  another placeholder is refused until a typed format exists.
+
+### Which one do I install?
+
+Both are `go install`-able, and the answer depends on what you are doing — not
+on which is newer.
+
+**Driving a product that already exists** — its users, or their agents. Install
+the binary the product ships; it knows nothing about a checkout:
+
+```sh
+go install example.com/yourproduct/cmd/product-mcp@latest
+```
+
+Then point your client at it. Two env vars carry the connection, and neither is
+a password:
+
+```json
+{
+  "mcpServers": {
+    "yourproduct": {
+      "command": "product-mcp",
+      "env": {
+        "GOGOGO_SERVER": "http://127.0.0.1:8080",
+        "GOGOGO_SESSION": "<the session cookie value the product issued>"
+      }
+    }
+  }
+}
+```
+
+`GOGOGO_SESSION` is the session cookie value the product issued to a real user
+you signed in as — the same credential a browser holds. `product-mcp` refuses to
+start without it, and refuses a non-loopback `GOGOGO_SERVER` in v1: reach a
+remote product through SSH or Tailscale, never by publishing it.
+
+**Evolving a checkout** — you are building the product, adding or editing a
+recipe, or scaffolding a new one. Install the evolution pair:
+
+```sh
+curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh | sh -s -- --run
+# or, with Go and no clone:
+go install github.com/calionauta/gogogo/cmd/gogogo@latest
+go install github.com/calionauta/gogogo/cmd/gogogo-mcp@latest
+```
+
+The two are not interchangeable, and neither replaces the other. Installing the
+evolution MCP to drive a deployed product hands an agent that rewrites source
+trees the session of a user who only wanted to call a route.
+
 ## Tools
 
 <!-- MCP:TOOLS:START -->
@@ -114,55 +211,6 @@ apply. Three tools mutate only under a flag, and their effect column says so:
 tracked file in the checkout; `export_unit` never touches the checkout it
 reads, only the scratch directory you name. Formats default to `json` on this
 transport.
-
-### Evolution surface vs consumer surface
-
-Two roles, two pairs of surfaces, and each pair lives in the tree that serves
-it. This is not "the product should have an MCP some day" — it is which binary
-carries which half:
-
-| Surface | Binary / route | Who runs it | May mutate |
-|---|---|---|---|
-| Evolution CLI | `cmd/gogogo` | the developer | yes — the checkout |
-| Evolution MCP | `cmd/gogogo-mcp` (stdio) | the developer's agent | yes — the checkout, via `scaffold_apply`, `new_feature`, `recipe_install`, `recipe_update`, `recipe_uninstall` |
-| Product HTTP API | `cmd/web` routes + `POST /api/ext/invoke` + `GET /api/ext/descriptors` | the product's users and their agents | yes — the product's own data, under its session/RBAC |
-| Product CLI transport | `gogogo recipe invoke` | the developer, from a checkout | no local tree writes; it calls the running server |
-| **Consumer MCP** | **`cmd/product-mcp` (stdio), shipped with the product** | **the product's users and their agents** | no local tree writes; it calls the running server |
-
-Rules that follow:
-
-- **Never ship the evolution MCP to end users.** It reads and rewrites a
-  checkout; it is not a product feature. The product ships `cmd/product-mcp`,
-  which links `internal/productapi` and nothing else.
-- **The consumer half exists, and it is what a product ships.** The gap this
-  closed was real: `recipe invoke` lived in `internal/installer` and read the
-  checkout to validate a verb, so an agent driving a product had to install the
-  **evolution** toolchain to call the product's own routes. `cmd/product-mcp`
-  asks the server instead — `GET /api/ext/descriptors` — which is what any
-  third-party agent would do. `cmd/check-product-boundary` now fails if
-  `cmd/product-mcp` is missing, or if either half imports the other's packages.
-- **Two clients, one wire.** `internal/productapi` owns the conversation with a
-  running product: the loopback rule, the session cookie's attributes, the
-  status handling. The evolution CLI's `recipe invoke` and the consumer MCP are
-  both thin callers of it, so a 401 means the same thing in both. The evolution
-  caller uses `Call` (it already validated the verb against the receipt, so a
-  discovery round trip would be a second read of the same truth); the consumer
-  uses `Invoke` (it has no checkout, so the server is authoritative).
-- **Discovery is the contract for an agent that has no checkout.**
-  `GET /api/ext/descriptors` returns every unit and verb with its method, which
-  params travel in the body and which in the URL query, and the page a human
-  uses for the same action. An unknown verb fails with the list of what exists.
-  This is why the consumer client can refuse a query param sent as a body field
-  before it reaches the wire.
-- **The product surface is fenced by the server itself.** `/api/ext/invoke`
-  and `/api/ext/descriptors` check the session cookie, the `user` policy row,
-  and the wrapped route's own RBAC, exactly like a browser call. A recipe adds
-  no installer tool and no per-recipe CLI verb: it declares actions, and the
-  one dispatcher serves them.
-- **Discovery is dynamic.** `recipe list` / `recipe describe` read the
-  registry plus `.recipes/*.yml` at call time, so an install appears without a
-  help edit. `{id}` is the one supported path param (a UUID); a route with
-  another placeholder is refused until a typed format exists.
 
 ### Machine identity: design gate, not implemented
 
