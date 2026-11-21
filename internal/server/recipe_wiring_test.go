@@ -67,6 +67,15 @@ func assertDeclarationsMatchMounts(t *testing.T, mux *Router, reg *recipe.Regist
 		for _, problem := range capabilityMirrorProblems(owner, p.Declaration()) {
 			t.Errorf("recipe %q: %s", owner, problem)
 		}
+		// Coverage, on the compiled declaration rather than the receipt: a
+		// mutating route with no action and no declared omission ships a
+		// capability no agent can reach. `recipe check --strict-headless`
+		// reads .recipes/<id>.yml, which an author can leave stale or never
+		// write at all; this reads the Declaration the binary actually
+		// mounted. It is the half that covers a feature written by hand.
+		for _, problem := range recipe.HeadlessCoverageProblems(p.Declaration()) {
+			t.Errorf("recipe %q: %s", owner, problem)
+		}
 	}
 }
 

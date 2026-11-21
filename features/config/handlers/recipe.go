@@ -36,6 +36,29 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 			{Method: post, Pattern: "/config/recipes/toggle"},
 			{Method: get, Pattern: "/config/audit.csv"},
 		},
+		// The operator surface is deliberately not an agent's: each route below
+		// changes who may act on this box. An agent that could grant itself a
+		// role, or switch a capability on, would be authoring its own
+		// permissions — the one write the recipe model must not expose. They
+		// are declared, not merely absent, so a reviewer can tell a decision
+		// from a forgotten route.
+		Omitted: []recipe.OmittedRoute{
+			{
+				Route:  recipe.Route{Method: post, Pattern: "/config/users/role"},
+				Reason: "privilege: changing a user's role is how an actor gains authority; an agent must not grant its own",
+			},
+			{
+				Route: recipe.Route{Method: post, Pattern: "/config/users/revoke"},
+				Reason: "privilege: revoking another account's sessions is an " +
+					"operator containment action, not a task a caller performs on itself",
+			},
+			{
+				Route: recipe.Route{Method: post, Pattern: "/config/recipes/toggle"},
+				Reason: "privilege: switching a capability on or off changes what " +
+					"the whole product mounts; it belongs to the operator, through " +
+					"`gogogo recipe enable|disable`",
+			},
+		},
 	}
 }
 
