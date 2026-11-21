@@ -396,6 +396,25 @@ description, and an installed recipe with no `summary`, are graded by the same
 strict run. `recipe describe` shows the omissions and their reasons, which is
 how a reviewer tells a decision from a forgotten route.
 
+The mount is where this starts: `MountFeature` takes a `recipe.Provider`, so a
+unit cannot put routes on the tree without a declaration to grade. Three shapes
+are legitimate, and picking the wrong one is the mistake to avoid:
+
+| shape | when | example |
+|---|---|---|
+| `Declaration` with actions/omits | a product surface | notes, todo, config-view |
+| `Roles() == [RoleAuthServer]` | the unit ISSUES the credential | `auth` — see below |
+| `MountInfra(owner, reason, router)` | serves files or tooling, claims no surface | sign-in forms, pprof |
+
+`auth` is the one that reads as an exception and is not. Its 22 routes are the
+grant machinery, not forgotten product actions: per draft-klrc-aiagent-auth-02,
+"OAuth negates the need for the Agent to have access to a User's credentials",
+and MCP 2026-07-28 gives user interaction to the authorization server. An agent
+never signs in — it arrives holding a bearer this unit minted. What it MAY do
+with its own session (read it, sign it out) is declared as real verbs;
+sign-out-everywhere is an omission because it is step-up. Declaring those two as
+omissions instead would forbid what the standard model allows.
+
 ### When the deferred pieces become necessary
 
 | Piece | Trigger to build it | Signal that does **not** trigger it |
