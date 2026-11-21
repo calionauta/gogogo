@@ -2,6 +2,7 @@ package recipe
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -303,5 +304,71 @@ func TestInvokeRefusesParameterizedRouteWithoutDeclaration(t *testing.T) {
 	}
 	if called {
 		t.Fatal("parameterized invoke reached the handler")
+	}
+}
+
+// TestInvokeServesNamedPathQueryAndRawBody is the wire proof for the three
+// extensions the collab slices need: a handler-named placeholder, a param the
+// handler reads from the query, and a raw JSON body it decodes itself.
+func TestInvokeServesNamedPathQueryAndRawBody(t *testing.T) {
+	docID := uuid.NewString()
+	route := Route{Method: "POST", Pattern: "/api/probe/{docID}/update"}
+	action := InvokeAction{
+		Verb:       "update",
+		Route:      route,
+		Params:     []string{"body"},
+		PathParams: []string{"docID"},
+		Query:      []string{"clientID"},
+		RawBody:    "body",
+	}
+	const op = `{"op":"add","shape":{"id":"s1"}}`
+	var gotPath, gotQuery, gotCT, gotBody string
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotQuery = r.URL.Query().Get("clientID")
+		gotCT = r.Header.Get("Content-Type")
+		raw, _ := io.ReadAll(r.Body)
+		gotBody = string(raw)
+		w.WriteHeader(http.StatusOK)
+	})
+	code, _, err := Invoke(context.Background(), handler, "gogogo_auth", "tok",
+		action, route, url.Values{"docID": {docID}, "clientID": {"tab-1"}, "body": {op}})
+	if err != nil {
+		t.Fatalf("invoke: %v", err)
+	}
+	if code != http.StatusOK {
+		t.Fatalf("status %d, want 200", code)
+	}
+	if gotPath != "/api/probe/"+docID+"/update" {
+		t.Fatalf("path = %q, want the docID substituted", gotPath)
+	}
+	if gotQuery != "tab-1" {
+		t.Fatalf("query clientID = %q, want the declared query param", gotQuery)
+	}
+	if gotCT != "application/json" {
+		t.Fatalf("content type = %q, want application/json", gotCT)
+	}
+	if gotBody != op {
+		t.Fatalf("body = %q, want the raw document verbatim", gotBody)
+	}
+}
+
+// TestInvokeRawBodyRefusesExtraFormParams keeps the raw body unambiguous: the
+// body slot holds one document, so a leftover body param is a declaration
+// bug, not something to append somewhere.
+func TestInvokeRawBodyRefusesExtraFormParams(t *testing.T) {
+	route := Route{Method: "POST", Pattern: "/api/probe/update"}
+	action := InvokeAction{Verb: "update", Route: route, Params: []string{"body", "note"}, RawBody: "body"}
+	called := false
+	handler := http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		called = true
+	})
+	_, _, err := Invoke(context.Background(), handler, "gogogo_auth", "tok",
+		action, route, url.Values{"body": {"{}"}, "note": {"x"}})
+	if err == nil {
+		t.Fatal("a leftover body param must be refused with a raw body")
+	}
+	if called {
+		t.Fatal("refused invoke reached the handler")
 	}
 }

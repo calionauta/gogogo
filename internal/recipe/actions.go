@@ -32,12 +32,32 @@ type InvokeAction struct {
 	Description string   `yaml:"description,omitempty"`
 	Route       Route    `yaml:"route"`
 	Params      []string `yaml:"params,omitempty"`
-	// PathParams names the route placeholders the caller must supply. v1 is
-	// deliberately narrow: the repository's ids are UUIDs, so the only
-	// accepted placeholder is `{id}`. A slug or a second placeholder is a
-	// future format decision, not something the dispatcher should guess.
-	PathParams []string          `yaml:"pathParams,omitempty"`
-	ParamHelp  map[string]string `yaml:"paramHelp,omitempty"`
+	// PathParams names the route placeholders the caller must supply. The
+	// names are the handler's own (`id`, `docID`, …) and must match the
+	// pattern's placeholders exactly; the dispatcher still refuses a value
+	// that is not a UUID, so a typo fails as a bad request instead of
+	// addressing a different record.
+	PathParams []string `yaml:"pathParams,omitempty"`
+	// Query names params the handler reads from the URL query string rather
+	// than the body (`?clientID=`). Without it a route whose handler reads
+	// the query would be invocable only as a half-call, so the declaration
+	// says where each param travels instead of the bridge guessing.
+	Query []string `yaml:"query,omitempty"`
+	// RawBody names the one param whose value is sent verbatim as the
+	// request body with Content-Type application/json. Handlers that decode
+	// a nested JSON document cannot be reached with flat form fields; a raw
+	// body keeps the closed param set while letting the caller supply the
+	// document the handler already documents. With RawBody set, every other
+	// param must travel in the path or the query.
+	RawBody string `yaml:"rawBody,omitempty"`
+	// BrowserPath is the page a human clicks to do the same thing (`/notes/new`
+	// for the `create` action). It exists because a create page is a GET that
+	// mints a record and answers with a redirect — a shape the coverage rule
+	// cannot see and a headless caller cannot use. Naming it here binds the two
+	// faces of one capability: the GET must be declared, and every GET create
+	// page must be bound to an action (see browserAliasProblems).
+	BrowserPath string            `yaml:"browserPath,omitempty"`
+	ParamHelp   map[string]string `yaml:"paramHelp,omitempty"`
 }
 
 // actionProblems validates the action table against the routes half of the
@@ -56,6 +76,7 @@ func ActionProblems(d Declaration) []string {
 	}
 	var problems []string
 	seen := map[string]bool{}
+	aliased := map[Route]bool{}
 	for _, a := range d.Actions {
 		if a.Verb == "" {
 			problems = append(problems, "action with empty verb")
@@ -66,6 +87,14 @@ func ActionProblems(d Declaration) []string {
 		}
 		seen[a.Verb] = true
 		problems = append(problems, actionProblemsFor(a, declared)...)
+		if a.BrowserPath != "" {
+			alias := Route{Method: "GET", Pattern: a.BrowserPath}
+			if aliased[alias] {
+				problems = append(problems, fmt.Sprintf(
+					"action %q shares browser page %s with another action", a.Verb, a.BrowserPath))
+			}
+			aliased[alias] = true
+		}
 	}
 	return problems
 }
@@ -82,6 +111,8 @@ func actionProblemsFor(a InvokeAction, declared map[Route]bool) []string {
 	}
 	params, paramProblems := actionParamProblems(a)
 	problems = append(problems, paramProblems...)
+	problems = append(problems, actionLocationProblems(a, params)...)
+	problems = append(problems, browserPathProblems(a, declared)...)
 	if !invocableMethod(a.Route.Method) {
 		problems = append(problems,
 			fmt.Sprintf("action %q uses method %q, which cannot be invoked headless", a.Verb, a.Route.Method))
@@ -106,9 +137,30 @@ func actionProblemsFor(a InvokeAction, declared map[Route]bool) []string {
 	return problems
 }
 
+// browserPathProblems keeps the human page and the headless verb pointed at
+// the same capability: the page must be a declared GET route (so a typo cannot
+// invent one) and must not be the action's own route (a GET cannot be both the
+// headless target and the browser alias).
+func browserPathProblems(a InvokeAction, declared map[Route]bool) []string {
+	if a.BrowserPath == "" {
+		return nil
+	}
+	page := Route{Method: "GET", Pattern: a.BrowserPath}
+	var out []string
+	if !declared[page] {
+		out = append(out, fmt.Sprintf(
+			"action %q browserPath %s is not a declared GET route", a.Verb, a.BrowserPath))
+	}
+	if a.BrowserPath == a.Route.Pattern {
+		out = append(out, fmt.Sprintf(
+			"action %q browserPath is its own route %s", a.Verb, a.BrowserPath))
+	}
+	return out
+}
+
 // actionParamProblems validates the closed body/path param sets and returns
-// the union for the help check. `{id}` lives in PathParams but is still a
-// param a caller supplies, so both lists share one duplicate detector.
+// the union for the help check. Path and query params are still params a
+// caller supplies, so every list shares one duplicate detector.
 func actionParamProblems(a InvokeAction) (map[string]bool, []string) {
 	params := map[string]bool{}
 	var problems []string
@@ -130,7 +182,46 @@ func actionParamProblems(a InvokeAction) (map[string]bool, []string) {
 		}
 		params[p] = true
 	}
+	for _, p := range a.Query {
+		switch {
+		case p == "":
+			problems = append(problems, fmt.Sprintf("action %q has an empty query param name", a.Verb))
+		case params[p]:
+			problems = append(problems, fmt.Sprintf(
+				"action %q declares %q in more than one place", a.Verb, p))
+		}
+		params[p] = true
+	}
 	return params, problems
+}
+
+// actionLocationProblems keeps the raw body honest: the body slot holds one
+// document, so every other declared param must travel in the path or the query
+// (otherwise the bridge would have nowhere to put it), and the raw-body param
+// must be a declared param so the closed set still bounds what is forwarded.
+func actionLocationProblems(a InvokeAction, _ map[string]bool) []string {
+	if a.RawBody == "" {
+		return nil
+	}
+	var out []string
+	if !slices.Contains(a.Params, a.RawBody) {
+		out = append(out, fmt.Sprintf(
+			"action %q rawBody %q is not one of its params", a.Verb, a.RawBody))
+	}
+	moved := map[string]bool{}
+	for _, p := range a.PathParams {
+		moved[p] = true
+	}
+	for _, p := range a.Query {
+		moved[p] = true
+	}
+	for _, p := range a.Params {
+		if p != a.RawBody && !moved[p] {
+			out = append(out, fmt.Sprintf(
+				"action %q sends a raw body, so param %q must be a path or query param", a.Verb, p))
+		}
+	}
+	return out
 }
 
 // ActionDocProblems is the review half of the action table: a verb with
@@ -200,123 +291,4 @@ func OmissionProblems(d Declaration) []string {
 		}
 	}
 	return out
-}
-
-func mutatingRouteMethod(method string) bool {
-	switch method {
-	case "POST", "PUT", "PATCH", "DELETE":
-		return true
-	}
-	return false
-}
-
-// invocableMethod is the dispatcher's method rule, shared by the
-// declaration gate and the invoke bridge: GET (reads) plus the mutating
-// methods, never HEAD.
-func invocableMethod(method string) bool {
-	switch method {
-	case "GET", "POST", "PUT", "PATCH", "DELETE":
-		return true
-	}
-	return false
-}
-
-// streamSuffix is the length of the shortest streaming suffix ("/stream").
-const streamSuffix = len("/stream")
-
-// streamPath names the routes that never complete on a recorder:
-// Server-Sent Events would hang an invoke forever.
-func streamPath(pattern string) bool {
-	if len(pattern) < streamSuffix {
-		return false
-	}
-	return pattern[len(pattern)-streamSuffix:] == "/stream" || pattern[len(pattern)-streamSuffix:] == "/events"
-}
-
-// pathParamProblems keeps the route placeholders and the declared path
-// params in lockstep. The rule is closed on purpose: v1 supports exactly
-// one `{id}` (the repository's UUID), so an action cannot advertise a
-// placeholder the dispatcher will not fill, nor a body param that is really
-// part of the path.
-func pathParamProblems(a InvokeAction) []string {
-	placeholders, ok := routePlaceholders(a.Route.Pattern)
-	if !ok {
-		return []string{fmt.Sprintf(
-			"action %q route %s has a malformed path parameter", a.Verb, a.Route.Pattern)}
-	}
-	var out []string
-	if len(placeholders) == 0 {
-		if len(a.PathParams) > 0 {
-			out = append(out, fmt.Sprintf(
-				"action %q declares path params %v, but route %s has no placeholder",
-				a.Verb, a.PathParams, a.Route.Pattern))
-		}
-		return out
-	}
-	if len(placeholders) != 1 || placeholders[0] != "id" {
-		out = append(out, fmt.Sprintf(
-			"action %q route %s: only one {id} placeholder is invocable headless",
-			a.Verb, a.Route.Pattern))
-	}
-	seen := map[string]bool{}
-	for _, p := range a.PathParams {
-		if p != "id" {
-			out = append(out, fmt.Sprintf(
-				"action %q declares path param %q; v1 accepts only %q (a UUID)", a.Verb, p, "id"))
-		}
-		if p == "" {
-			out = append(out, fmt.Sprintf("action %q has an empty path param name", a.Verb))
-		}
-		if seen[p] {
-			out = append(out, fmt.Sprintf("action %q duplicates path param %q", a.Verb, p))
-		}
-		seen[p] = true
-	}
-	if len(a.PathParams) != 1 || a.PathParams[0] != "id" {
-		out = append(out, fmt.Sprintf(
-			"action %q route %s must declare pathParams: [id]", a.Verb, a.Route.Pattern))
-	}
-	return out
-}
-
-// routePlaceholders extracts the `{name}` names from a route pattern. ok is
-// false when the pattern has a stray brace or an empty/malformed name, which
-// is a declaration defect rather than an invocable route.
-func routePlaceholders(pattern string) ([]string, bool) {
-	var names []string
-	for i := 0; i < len(pattern); i++ {
-		switch pattern[i] {
-		case '{':
-			end := strings.IndexByte(pattern[i+1:], '}')
-			if end < 0 {
-				return nil, false
-			}
-			name := pattern[i+1 : i+1+end]
-			if !validPathParamName(name) {
-				return nil, false
-			}
-			names = append(names, name)
-			i += end + 1
-		case '}':
-			return nil, false
-		}
-	}
-	return names, true
-}
-
-func validPathParamName(name string) bool {
-	if name == "" {
-		return false
-	}
-	for i, r := range name {
-		letter := (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || r == '_'
-		digit := r >= '0' && r <= '9'
-		if i == 0 && !letter {
-			return false
-		}
-		if !letter && !digit {
-			return false
-		}
-	}
-	return true
 }

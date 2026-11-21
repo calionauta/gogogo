@@ -118,6 +118,19 @@ var baseUnits = []Capability{
 			"No framework middleware remains; the owned stack is the whole story.",
 	},
 	{
+		ID:      "productapi",
+		Kind:    KindCore,
+		Summary: "the product's consumer client: call a running product headless",
+		Dirs:    []string{"internal/productapi", "cmd/product-mcp"},
+		Note: "Core, not servant: this is the half a generated product SHIPS. " +
+			"It talks HTTP to a running product and knows nothing about a " +
+			"checkout — no receipts, no capability registry — which is what lets " +
+			"a product offer its users an MCP without the evolution toolchain " +
+			"installed. cmd/check-product-boundary enforces both directions: the " +
+			"product owes nothing to internal/installer, and this client cannot " +
+			"import internal/server or internal/installer.",
+	},
+	{
 		ID:      "crudwire",
 		Kind:    KindCore,
 		Summary: "todo CRUD wire protocol (subjects + payloads + publisher)",
@@ -299,6 +312,15 @@ var baseUnits = []Capability{
 		RuntimeOff: "CREDITS_ENABLED=false (already the default)",
 		Dirs:       []string{"features/credits"},
 		Register:   "features/credits/handlers",
+		Actions:    []string{verbAIReq, verbCheck},
+		ActionParams: map[string][]string{
+			verbAIReq: {paramBody},
+			verbCheck: {paramBody},
+		},
+		ActionRawBody: map[string]string{
+			verbAIReq: paramBody,
+			verbCheck: paramBody,
+		},
 		Warns: []string{
 			"Todo AI Suggest becomes unmetered (still works with " +
 				"GOAI_API_KEY, no ledger).",
@@ -360,141 +382,5 @@ var baseUnits = []Capability{
 		// unit too.
 		Files:  []string{"web/resources/static/offline-outbox.js", "web/resources/static/sw.js"},
 		Reason: "Spans a config struct field, the outbox, the worker, and templ registration; deletion is manual.",
-	},
-	{
-		ID:       "todo",
-		Kind:     KindFeature,
-		Summary:  "Todo MVC demo (reference implementation)",
-		Dirs:     []string{"features/todo"},
-		Register: "features/todo/handlers",
-		Actions:  []string{"create", "toggle", "delete", "clear_completed"},
-		ActionParams: map[string][]string{
-			"create": {"title", "idem_key", "visibility"},
-		},
-		ActionPathParams: map[string][]string{
-			"toggle": {"id"},
-			"delete": {"id"},
-		},
-		Reason: "Reference implementation — remove manually later per docs/scope-taxonomy.md.",
-	},
-	{
-		ID:        "chat",
-		Kind:      KindFeature,
-		Summary:   "conversation demo (persisted history + catalog answers on genui)",
-		DependsOn: []string{idGenui},
-		Dirs:      []string{"features/chat"},
-		Register:  "features/chat/handlers",
-		Reason: "Bundled into the genui unit: chat imports genui components " +
-			"(no-compile without it) — one unit is the honest shape, same as " +
-			"whiteboard+collab+notes.",
-	},
-	{
-		ID:        "review",
-		Kind:      KindFeature,
-		Summary:   "review loop demo (writer → critic → classifier judge, streamed verdict)",
-		DependsOn: []string{"genkit"},
-		Dirs:      []string{"features/review"},
-		Register:  "features/review/handlers",
-		Warns: []string{
-			"The Review sidebar entry is stripped automatically.",
-			"ci-local smoke: export SMOKE_FEATURES without review " +
-				"(e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the removed route.",
-		},
-		Note: "No UISignal claim by design: the run UI gates on the " +
-			"todo.Signals ReviewEnabled field at runtime (keyless hides " +
-			"it), but the only .templ reader ships inside features/review " +
-			"— claiming it would fail the removed-tree conformance, the " +
-			"same reason SimulatedLLM is unclaimed. Removal drops the " +
-			"sidebar entry, so no dead UI either way. " +
-			"DependsOn lists genkit only: llm is never removed " +
-			"(runtime-off is blessed), so declaring it would break " +
-			"a bundle restore (no unit provides the dep) " +
-			"for zero mechanical gain — the LLM requirement rides the " +
-			"Summary and docs instead.",
-	},
-	{
-		ID:         "goakt",
-		Kind:       KindServant,
-		Summary:    "entity actors (GoAkt: room lease + collaborative presence)",
-		RuntimeOff: "GOAKT_ENABLED=false",
-		Dirs:       []string{"internal/goakt", "features/room"},
-		Files: []string{
-			// Owned by no dir: the engine boot in the web entry point.
-			// internal/server/chi.go is EDITED (line drops), not deleted.
-			"cmd/web/goakt.go",
-			"cmd/web/goakt_test.go",
-			// The presence wiring's own test: it imports internal/goakt to boot
-			// a real actor host and assert the seam routes to it, so a tree
-			// with the engine deleted cannot compile it. Deleted with the
-			// unit, which is honest — the claim it guards stops existing.
-			"internal/server/presence_test.go",
-		},
-		Warns: []string{
-			"Runtime alternative (no deletion): GOAKT_ENABLED=false.",
-		},
-		Note: "Deletion removes the engine + room demo; collaborative presence " +
-			"(whiteboard AND notes) falls back to the in-process PeerSet behind the " +
-			"same seam, so the cross-instance roster still works. The Room sidebar " +
-			"entry is stripped automatically; main.go boot lines go with the unit's " +
-			"mainStrips.",
-	},
-	{
-		ID:      "room",
-		Kind:    KindFeature,
-		Summary: "room presence demo (one grain per room, crash hook included)",
-		DependsOn: []string{
-			depSounds,
-		},
-		Dirs:     []string{"features/room"},
-		Register: "features/room/handlers",
-		Reason:   "Delete the dir, the routes it mounts through the seam, and the Room entry in internal/ui/modules.go.",
-		Warns: []string{
-			"The Room sidebar entry is removed by hand with the unit.",
-		},
-	},
-	{
-		ID:      "whiteboard",
-		Kind:    KindFeature,
-		Summary: "collaborative canvas (Loro + Rough.js + presence)",
-		DependsOn: []string{
-			depCollab,
-			depSounds,
-		},
-		Dirs:     []string{"features/whiteboard"},
-		Register: "features/whiteboard/handlers",
-		// The presence wiring is whiteboard+notes infrastructure: with both
-		// gone there is no seam to build, no roster to federate, and no
-		// collab import left in the server package. `AlsoWhenDropped` is what
-		// makes that sentence true — without it this file was removed with
-		// whiteboard alone, leaving notes (which still wires presence) failing
-		// to build against a package that had just been deleted.
-		Files:           []string{"internal/server/presence.go"},
-		AlsoWhenDropped: []string{"notes"},
-		Reason: "Delete the dir plus internal/server/presence.go and the " +
-			"Whiteboard entry in internal/ui/modules.go (notes falls " +
-			"back to the in-process PeerSet presence seam). presence.go goes " +
-			"only when notes is also absent: it is the shared seam, so removing " +
-			"it while notes survives breaks the build.",
-		Warns: []string{
-			"The Whiteboard sidebar entry is removed by hand with the unit.",
-			"ci-local smoke: export SMOKE_FEATURES without whiteboard " +
-				"(e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the removed route.",
-		},
-	},
-	{
-		ID:      "notes",
-		Kind:    KindFeature,
-		Summary: "shared plain-text notes (server-owned Loro Text + SSE)",
-		DependsOn: []string{
-			depCollab,
-			depSounds,
-		},
-		Dirs:     []string{"features/notes"},
-		Register: "features/notes/handlers",
-		Reason: "Delete the dir, the routes it mounts through the seam, and the " +
-			"Notes entry in internal/ui/modules.go.",
-		Warns: []string{
-			"The Notes sidebar entry is removed by hand with the unit.",
-		},
 	},
 }

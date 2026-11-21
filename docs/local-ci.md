@@ -377,11 +377,17 @@ can skip the ask and nothing notices:
   and records the answer as `.gogogo/verify-local.json` (gitignored).
 - `make operator-look-pass` / `make operator-look-fail` record the verdict when
   the operator answered in chat instead (the agent runs them **only** after the
-  human replied).
+  human replied). Both require `NOTE="…"`: a verdict with no note is the reflex
+  click the gate exists to stop, and `scripts/operator-look.sh` refuses a note
+  shorter than a few characters (`pass`, `ok`, `lgtm`). The note is printed back
+  on success and on a FAIL refusal — it is the only part of a stamp a later
+  reader can learn from.
 - `bin/check-operator-look.sh` runs in `make signoff` and the **pre-push hook**.
   It refuses when the diff touches a `.templ` page, `src/css/`, or
   `web/resources/static/chrome.css` and no PASS stamp exists — a Go-only,
   test-only or docs-only diff passes with no stamp, because a test decides it.
+  It also refuses a stamp whose note is empty, so a PASS recorded before notes
+  were required stops opening the gate instead of doing so forever.
 - The stamp names the commit **and** a fingerprint of the worktree (diff +
   untracked files, `.gogogo/` excluded). An edit after the look invalidates it,
   committed or not, so the operator's PASS can never bless different code.
@@ -727,10 +733,33 @@ by hand, so when a step is added to one, add it to the other:
 | whiteboard client (Playwright, canvas pixels) | ✓ | ✓ |
 | SSE verified-open (slow-init opener proof) | ✓ | ✓ |
 
-CI runs the rows above as `checks` | `race` (three shards) | `browser` (two
-groups) | `prod-image`, plus `site` — wall-clock is the slowest job, not the
-sum. A `ci` aggregator job (green only when all are) preserves the single status
-context branch protection requires.
+CI runs the rows above as `checks` | `heavy` | `race` (three shards) | `browser`
+(two groups) | `prod-image`, plus `site` — wall-clock is the slowest job, not
+the sum. A `ci` aggregator job (green only when all are) preserves the single
+status context branch protection requires.
+
+`checks` and `heavy` are one job split in two, and the split is by measured
+cost, not by subject. `checks` ran 48 steps on one runner and took 304s; four of
+those steps were 190s of it (the cgo-off release binaries 66s, lint 46s,
+`check-typed-states` 45s, scaffold-of-a-scaffold 33s) and share nothing but a
+warm module cache, so running them in series made each one add to every other.
+They live in `heavy` on a second runner. The cheap fail-fast block — 0–1s steps
+that turn a broken PR red in seconds — deliberately stays in `checks`: moving it
+would trade that away for nothing. The parallelism being bought is across
+runners, not inside one.
+
+`heavy` pins its Go build cache key to `checks` rather than `${{ github.job }}`:
+it compiles the same module graph, and a new key shape would add ~1.5 GB to a
+budget that is already over its cap (`bin/cache-budget.sh`). `heavy` only
+**restores** that key — `checks` is its single writer. Both resolve the identical
+key (neither is a matrix job, so `strategy.job-index` is empty in both), and two
+concurrent saves of one key is a 409 that `continue-on-error` swallows,
+silently discarding one job's cache. The restore is still warm because both jobs
+run in the same workflow on every default-branch push.
+
+The two jobs cannot be deduplicated by the aggregator: `checks` is listed in
+`ci.needs` by name, and a gate missing from `needs` is a gate whose failure
+never reaches the required status.
 
 The `race` shards are not a count-based split: `scripts/ci-shard-packages.sh`
 carries the measured per-package cost and gives an outlier its own shard before
@@ -852,9 +881,20 @@ Prints the total against the cap, the split by ref, the largest key shapes, and
 **two figures that need different fixes**: what pull-request refs still hold
 (ages out on its own now that only the default branch writes) and what duplicate
 generations hold (the expected price of a prefix `restore-key` surviving a
-dependency bump). It exits non-zero when over the cap, and prints nothing that
-looks like an instruction to delete: entries are immutable and eviction is
-GitHub's.
+dependency bump). It exits non-zero when over the cap.
+
+When it IS over the cap it now names what to delete: the oldest generation of
+each shape, by cache id, with a running `reclaimable total` and the resulting
+total. The newest generation of a shape is never listed — that is the one the
+next run restores, so deleting it would buy a cold cache. Deleting is still a
+human's call (`gh api -X DELETE repos/<owner>/<repo>/actions/caches/<id>`):
+entries are immutable and eviction is GitHub's, so the script prints the ids and
+stops. Naming them is what turned the report from a chore into one command.
+
+It runs in CI too (`checks`, master only, advisory with `continue-on-error`) so
+the number is re-taken on every default-branch push instead of when someone
+remembers. It cannot gate: a red run cannot shrink a cache, and a gate nobody
+can satisfy is a gate everybody learns to ignore.
 
 It exists because the cache was measured three times by hand in one session and
 the numbers were different every time — first blaming eviction, then finding
@@ -932,19 +972,27 @@ moves the five non-Go gates from `+32s` to `+6s` and takes ~15s off every PR
 **Re-measure the cost table before trusting the shard split.**
 `scripts/ci-shard-packages.sh` carries measured per-package wall-times, and a
 stale entry is an efficiency bug, not a correctness one: the union of shards is
-always exactly `web-packages.sh`, but `internal/installer` kept its 2026-10-29
-cost of 360s long after the fixture was narrowed, so the packer reserved a whole
-runner for a package that now measures 6s — a 60x error that survived eight
-consecutive runs. The cost table below is refreshed from
-`gh run view <id> --log | grep -E '^race.*ok'`; `OUTLIER` is the threshold at
-which a package is worth a runner of its own, and it is only correct relative to
-the current maximum (64s today, so 60, not the 300 that matched a 360s outlier).
+always exactly `web-packages.sh`. It has bitten twice. `internal/installer` kept
+its 2026-10-29 cost of 360s long after the fixture was narrowed, so the packer
+reserved a whole runner for a package that measured 6s — a 60x error that
+survived eight consecutive runs. Then, with the true maximum at 68s against a
+~630s tail, the threshold was still 60: `OUTLIER` is only correct *relative* to
+the rest of the table, and 60 isolated a 41s package while the other 113 packed
+into one shard, splitting the suite 62s | 172s | 169s.
+
+Use `bin/shard-costs.sh` instead of reading the table by eye — it re-measures
+from an existing run's log (no CI dispatched) and `--refresh` rewrites the table
+in place. `bin/shard-costs.sh --refresh <run-id>`, then set `OUTLIER` above the
+heaviest surviving package (68s today, so 100). `--log <file>` parses a saved log
+without calling `gh` at all, which is what `bin/shard-costs_test.sh` uses to pin
+the parsing offline: it also must not truncate the table when the log contains
+nothing recognizable, so a wrong path costs a no-op, not an empty table.
 
 `make ci-local` runs the same set locally, cheap steps first, then the
 race+browser fan-out (`scripts/ci-fanout.sh`).
 
 One gate in `ci-local` is slower than the rest and still earns its place:
-`make test-scaffold-chain` (also a step in the `checks` job) scaffolds twice —
+`make test-scaffold-chain` (also a step in the `heavy` job) scaffolds twice —
 the template's binary produces a product, the product's OWN binary produces the
 next one — and proves the second hop keeps the product's identity. That hop is
 the one no other test reaches, and it is where a fork silently renamed nothing,

@@ -35,7 +35,7 @@ func bootModes(cfg *config.Config, a *auth.Auth, queries *dbgen.Queries, mux *Ro
 	if err != nil || st == nil {
 		return st, err
 	}
-	mux.MountFeature("license", licensehandlers.NewHandler(cfg, st, a, queries).Routes())
+	mux.MountFeature(licensehandlers.NewHandler(cfg, st, a, queries).Recipe())
 	return st, nil
 }
 

@@ -11,8 +11,13 @@
 # after the look invalidates the stamp instead of silently blessing new code.
 #
 # Usage:
-#   scripts/operator-look.sh pass ["what you saw"]
-#   scripts/operator-look.sh fail ["what is wrong"]
+#   scripts/operator-look.sh pass "what you saw"
+#   scripts/operator-look.sh fail "what is wrong"
+#
+# The note is REQUIRED and must say something. A bare PASS is the click this
+# gate exists to stop: an approval nobody can distinguish from a reflex. The
+# note is what survives — it is read by whoever opens the next release, and it
+# is the only part of the stamp a human can learn from.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -21,10 +26,24 @@ note="${2:-}"
 case "$verdict" in
 pass | fail) ;;
 *)
-	echo "usage: scripts/operator-look.sh pass|fail [\"note\"]" >&2
+	echo "usage: scripts/operator-look.sh pass|fail \"note\"" >&2
 	exit 2
 	;;
 esac
+
+# A verdict with no note is a reflex, not a look. Requiring the note is the
+# whole point: `pass` alone records that a button was pressed, and every
+# incident this gate exists for had a green button pressed at the end.
+# The floor is deliberately low: it rejects "pass", "ok" and "lgtm", which is
+# what a reflex click looks like, and accepts anything that names a thing.
+# A higher floor turns an honest operator toward `--no-verify`.
+note_trimmed=$(printf '%s' "$note" | tr -d '[:space:]')
+if [ "${#note_trimmed}" -lt 8 ]; then
+	echo "❌ operator-look: the note is required and must say what you actually saw." >&2
+	echo "   record it as: scripts/operator-look.sh $verdict \"<what you saw>\"" >&2
+	echo "   a bare '$verdict' is the reflex click this gate exists to stop." >&2
+	exit 2
+fi
 
 commit=$(git rev-parse HEAD)
 # The stamp names the WORKTREE, not just the commit: the operator looked at the

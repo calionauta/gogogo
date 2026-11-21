@@ -10,13 +10,13 @@ files:
   features/whiteboard/components/board_templ.go: e6d448cf59e181692447f6f12a0ba4e4b3a1fee02f1f0bbcef2ad90bdd4b3f25
   features/whiteboard/components/board_test.go: 88776e96d64f93e313f3331e0eba30ba657abfebfd27f46e9d1fafb3b92c9780
   features/whiteboard/embed.go: 211f94c30a286c4e7307af6344c77abf76f224a1ae949b8463ab44d86d7870d0
-  features/whiteboard/handlers/chi.go: e1265b3ad6f246fc25a0fc61f334b0782e25185ff0b8516fe0ccc4d374d67b6e
-  features/whiteboard/handlers/chi_test.go: 8c22cb5fcdbbc52bfd8f6353c3ad82c45cc47f2c6d653926bdfa8f27c400b9ab
+  features/whiteboard/handlers/chi.go: 0cb5f32b8083d9056d4996de82300bfb1a6be5ed3d112f89fd60817e96bd0248
+  features/whiteboard/handlers/chi_test.go: 0411be22d9585b30556583a654e8cf8248578981bebab9083f29af482ed730ad
   features/whiteboard/handlers/page_seed_test.go: 00cf78a734a9489371c5c1cde209ec77b66e8a2596c8184cfde03253e138c0a6
   features/whiteboard/handlers/peers.go: e80224a4fa388b997e292d650a6d493fe6f948aac42dc744fbc89c831c84f67a
   features/whiteboard/handlers/permissions.go: 5031d113160f5b8bc1c9d1cf576212258523b76b8f3a56c0d510d30d6915589d
   features/whiteboard/handlers/permissions_anon_test.go: 85728423951da61095bd43b8d65ec56d0b62b5b8b2d46dedb9283efffc5f72eb
-  features/whiteboard/handlers/permissions_claim_test.go: 616ddd8767d422479e81889ed3276cf68593b8e0f25702f4ae92b764f973d8ea
+  features/whiteboard/handlers/permissions_claim_test.go: 07ef4c35b8055dccdbf2ffe9ee4238436a04a31e26c0692619ffffd5f227f332
   features/whiteboard/handlers/permissions_registry_test.go: 0f0583a283a3c2c52516fa12166ffc93b9fe91adeb5db76a84a5bec964e92f30
   features/whiteboard/handlers/permissions_test.go: 3f3f0a55c947f8d3a150b2a9463211a1f51a668560dfd63acb6c0d59ea80b795
   features/whiteboard/handlers/port_contracts_test.go: 52da67ecb6353349d8111219bd41db83271261234565409c0b61ddd47bff08f6
@@ -24,7 +24,7 @@ files:
   features/whiteboard/handlers/port_test.go: e6af49f5bcdb099857d61adf094e1184209dfa13a7cf93f283931d7d43c4c5e2
   features/whiteboard/handlers/presence_cross_instance_test.go: 5f537ae45422afdf605cd45003f9bd9efbba5880a7620affd47ac70f46c4ac96
   features/whiteboard/handlers/presence_test.go: 31461c438b7be7eb5da5f0b95425c1821d2e3d643ac09291d5188b63af0155ad
-  features/whiteboard/handlers/recipe.go: e02968f0fb8a5d72c43474eec12517ae230531f027501f0484371d7f97644fe1
+  features/whiteboard/handlers/recipe.go: dc83cb9a170c19d11950e242217d647e47c9159e0f3731724eeb2278e448788f
   features/whiteboard/handlers/register.go: df926d89613b0c22c17aecbaa9933eb0bbdd7520081cea855a57976c6f8c1cc6
   features/whiteboard/static/rough.min.js: d5d561189ea0ad7a2818d586dc964d84fa4751124a5270c6b267a41e53796e45
   features/whiteboard/static/whiteboard.js: 576891f40cf7070b95bbcd61e7e4bc2be899f92d5dd632bbc5c57d30892aada3
@@ -46,6 +46,8 @@ declaration:
     pattern: /whiteboard/{docID}
   - method: GET
     pattern: /api/whiteboards/fragment
+  - method: POST
+    pattern: /api/whiteboards
   - method: GET
     pattern: /api/whiteboard/{docID}/stream
   - method: GET
@@ -56,4 +58,51 @@ declaration:
     pattern: /api/whiteboard/{docID}/presence
   - method: POST
     pattern: /api/whiteboard/{docID}/delete
+  actions:
+  - verb: snapshot
+    description: Read the board's current shape list as JSON.
+    route:
+      method: GET
+      pattern: /api/whiteboard/{docID}/snapshot
+    pathParams:
+    - docID
+    paramHelp:
+      docID: The board's UUID.
+  - verb: create
+    description: Create an empty board owned by the caller and return its id and page path.
+    route:
+      method: POST
+      pattern: /api/whiteboards
+    browserPath: /whiteboard/new
+  - verb: update
+    description: Apply one canvas op (add, move, clear, …) to a board the caller may edit; the reply is
+      the new shape list or a 409 with the current one.
+    route:
+      method: POST
+      pattern: /api/whiteboard/{docID}/update
+    params:
+    - body
+    pathParams:
+    - docID
+    query:
+    - clientID
+    rawBody: body
+    paramHelp:
+      docID: The board's UUID.
+      clientID: The acting tab id, so the op is attributed and other tabs see who drew.
+      body: 'The ShapeOp JSON document: op, baseVersion and shape, exactly as the browser sends it.'
+  - verb: delete
+    description: Delete a board; the caller must own it or be an admin. Irreversible.
+    route:
+      method: POST
+      pattern: /api/whiteboard/{docID}/delete
+    pathParams:
+    - docID
+    paramHelp:
+      docID: The board's UUID.
+  omitted:
+  - route:
+      method: POST
+      pattern: /api/whiteboard/{docID}/presence
+    reason: ephemeral cursor/peer broadcast; it persists nothing and answers a UI patch
 register: features/whiteboard/handlers

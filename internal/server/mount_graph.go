@@ -21,7 +21,7 @@ func mountGraph(m *Router, a *auth.Auth, cfg *config.Config, roomHost *appgoakt.
 	if roomHost != nil {
 		h.SetPresenceReader(presenceReader{host: roomHost})
 	}
-	m.MountFeature("graph", h.Routes())
+	m.MountFeature(h.Recipe())
 	MountSubtree(m, graphfeat.AssetPath, graphfeat.StaticHandler())
 }
 

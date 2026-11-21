@@ -29,8 +29,8 @@ Read the SKILL.md by name before the first matching edit (symlinks in `.agents/s
 
 ## Surfaces
 
-- **Evolution** = `cmd/gogogo` + `cmd/gogogo-mcp` (stdio). Developer only; may rewrite the checkout. Never ship the MCP to a product's users.
-- **Product** = `cmd/web` routes + `POST /api/ext/invoke`, fenced by session/RBAC. `recipe invoke` / `recipe_invoke` are developer clients of that route, not a second product surface. Loopback v1; remote via SSH/Tailscale, never public. No API-token system until a concrete consumer + threat model (`docs/mcp.md`).
+- **Evolution** = `cmd/gogogo` + `cmd/gogogo-mcp` (stdio). Developer only; may rewrite the checkout. Never ship this MCP to a product's users.
+- **Consumer** = `cmd/product-mcp` (stdio) + `cmd/web` routes + `POST /api/ext/invoke` + `GET /api/ext/descriptors`, fenced by session/RBAC. Every shape ships `cmd/product-mcp`, so a product's users and their agents drive it without the evolution toolchain installed. Both clients share `internal/productapi`; `cmd/check-product-boundary` fails if `cmd/product-mcp` is missing or if either half imports the other. Loopback v1; remote via SSH/Tailscale, never public. No API-token system until a concrete consumer + threat model (`docs/mcp.md`).
 
 ## Commands
 

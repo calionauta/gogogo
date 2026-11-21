@@ -73,9 +73,20 @@ type Capability struct {
 	// Gated against the Declaration the same way Actions is.
 	ActionParams map[string][]string `json:"actionParams,omitempty"`
 	// ActionPathParams mirrors the declared route placeholders per verb
-	// (v1: only `id`, a UUID). Separate from ActionParams because the
-	// dispatcher moves it into the URL instead of the form body.
+	// (`id`, `docID`, … — always a UUID). Separate from ActionParams because
+	// the dispatcher moves it into the URL instead of the form body.
 	ActionPathParams map[string][]string `json:"actionPathParams,omitempty"`
+	// ActionQuery mirrors params the handler reads from the URL query string
+	// instead of the body. Discovery has to say WHERE a param travels, or an
+	// agent sends it in the wrong place and the handler ignores it.
+	ActionQuery map[string][]string `json:"actionQuery,omitempty"`
+	// ActionRawBody names, per verb, the one param sent verbatim as the JSON
+	// body (a handler that decodes a nested document).
+	ActionRawBody map[string]string `json:"actionRawBody,omitempty"`
+	// ActionBrowserPath names, per verb, the page a human clicks for the same
+	// capability (`create` → `/notes/new`). It documents that a GET create
+	// page is the browser face of a declared action, not a forgotten route.
+	ActionBrowserPath map[string]string `json:"actionBrowserPath,omitempty"`
 	// UISignal names the todo.Signals bool field that hides this
 	// capability's UI ("" when the capability has no gated UI). The
 	// conformance test asserts the field exists and at least one .templ

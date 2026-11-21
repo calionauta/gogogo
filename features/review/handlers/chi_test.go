@@ -3,6 +3,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -168,6 +169,44 @@ func TestReviewRunApproves(t *testing.T) {
 	body := rec.Body.String()
 	if !strings.Contains(body, DecisionApprove) {
 		t.Fatalf("run body lacks approve verdict:\n%s", body)
+	}
+}
+
+// TestReviewVerdictIsJSON pins the machine representation: the same run answers
+// the typed Verdict as one JSON document, so an agent gets data instead of
+// parsing SSE patch frames. It is a separate route, not a content-negotiated
+// /run, because the URL is the contract.
+func TestReviewVerdictIsJSON(t *testing.T) {
+	mux := reviewFixture(t, "APPROVE", &stubJudge{verdict: DecisionApprove, confidence: 0.9})
+	cookie := reviewSignup(t, mux, "verdict@example.com")
+
+	anonRec := httptest.NewRecorder()
+	anonReq := httptest.NewRequestWithContext(context.Background(), http.MethodPost,
+		"/api/review/verdict", strings.NewReader("tab=text&content=hi"))
+	anonReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	mux.ServeHTTP(anonRec, anonReq)
+	if anonRec.Code != http.StatusUnauthorized {
+		t.Fatalf("anon verdict status = %d, want 401", anonRec.Code)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost,
+		"/api/review/verdict", strings.NewReader("tab=text&content=Some+draft"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(cookie)
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("verdict status = %d (%s)", rec.Code, rec.Body.String())
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
+		t.Fatalf("verdict content-type = %q, want JSON", ct)
+	}
+	var got Verdict
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("verdict body is not the typed Verdict: %v (%s)", err, rec.Body.String())
+	}
+	if got.Decision != DecisionApprove || got.Proposal != "canned proposal" || got.Confidence != 0.9 {
+		t.Fatalf("verdict = %+v, want the judged decision and proposal", got)
 	}
 }
 

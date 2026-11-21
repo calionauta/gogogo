@@ -15,7 +15,7 @@ files:
   features/credits/handlers/chi_test.go: ff694c632ef43dfd45477ca54e35027b73d601703815b727cb107b4062f57236
   features/credits/handlers/driver_android.go: 0456c4150c6674aecad5b2cad51eddb04c4d4691cf2629b85b8afded40814cf7
   features/credits/handlers/driver_other.go: f18d89b85028097ab367d5da41094e58b364eedcd76ac455ee3ac9d6902504d3
-  features/credits/handlers/recipe.go: 9429aa7fd67867fb8850b75fc3d4e4c1cc0cd7271d581a2f310b7d2b77db571e
+  features/credits/handlers/recipe.go: 35738de71819ee5694b2f747b1e3cbefbf67fc60b3b607e27191d40c00581765
   features/credits/handlers/register.go: 5c921f4418e06393e34cad281206f6c6d744900640b3f60bc7211d667f845961
   features/credits/lifecycle_test.go: 0a389e5131628dc2b47faaacd0614818aad6b7dae72be238bb59e1f7eab7dde4
   features/credits/reconcile_driver_test.go: 0e9c97b01af94a7997a7d1bda74bcda578305c597ca7fca39e0cc7988823870a
@@ -42,4 +42,46 @@ declaration:
     pattern: /api/byok
   - method: DELETE
     pattern: /api/byok
+  actions:
+  - verb: ai_request
+    description: Run one managed model request billed to the calling account.
+    route:
+      method: POST
+      pattern: /api/ai/request
+    params:
+    - body
+    rawBody: body
+    paramHelp:
+      body: 'The ManagedRequest JSON: model, prompt, maxOutputTokens.'
+  - verb: checkout
+    description: Open a credit purchase checkout for one SKU and return its URL.
+    route:
+      method: POST
+      pattern: /api/credits/checkout
+    params:
+    - body
+    rawBody: body
+    paramHelp:
+      body: 'The CheckoutRequest JSON: sku.'
+  omitted:
+  - route:
+      method: POST
+      pattern: /api/credits/stripe-webhook
+    reason: 'external webhook: the caller is Stripe''s signature, not an operator session'
+  - route:
+      method: POST
+      pattern: /api/byok
+    reason: 'wildcard secret write: a provider key must come from the operator, never from a model'
+  - route:
+      method: PUT
+      pattern: /api/byok
+    reason: 'wildcard secret write: a provider key must come from the operator, never from a model'
+  - route:
+      method: PATCH
+      pattern: /api/byok
+    reason: 'wildcard secret write: a provider key must come from the operator, never from a model'
+  - route:
+      method: DELETE
+      pattern: /api/byok
+    reason: 'wildcard secret delete: revoking a provider key is an operator decision, not an agent task'
 register: features/credits/handlers

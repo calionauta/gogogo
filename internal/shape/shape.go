@@ -64,12 +64,12 @@ const (
 // legalEntrypoints is the closed set a shape may declare. A shape never
 // invents a boot path: `api` is `cmd/web`, not `cmd/api`.
 var legalEntrypoints = map[Shape][]string{
-	Full:    {cmdDesktop, cmdGUI, cmdMobile, cmdWeb},
-	Web:     {cmdWeb},
-	API:     {cmdWeb},
-	Desktop: {cmdDesktop, cmdWeb},
-	GUI:     {cmdGUI},
-	Mobile:  {cmdMobile, cmdWeb},
+	Full:    {cmdDesktop, cmdGUI, cmdMobile, cmdWeb, cmdProductMCP},
+	Web:     {cmdWeb, cmdProductMCP},
+	API:     {cmdWeb, cmdProductMCP},
+	Desktop: {cmdDesktop, cmdWeb, cmdProductMCP},
+	GUI:     {cmdGUI, cmdProductMCP},
+	Mobile:  {cmdMobile, cmdWeb, cmdProductMCP},
 }
 
 // The entrypoint paths, spelled once: the enum's table, the primary map and the
@@ -79,6 +79,11 @@ const (
 	cmdDesktop = "cmd/desktop"
 	cmdGUI     = "cmd/gui"
 	cmdMobile  = "cmd/mobile"
+	// cmdProductMCP is the CONSUMER surface every shape ships: the MCP server a
+	// user of the product runs, as opposed to cmd/gogogo-mcp which evolves the
+	// checkout. A shape that dropped it would ship a product an agent can only
+	// drive by installing the evolution toolchain.
+	cmdProductMCP = "cmd/product-mcp"
 )
 
 // primaryEntrypoint is the one binary a shape exists for. A declared

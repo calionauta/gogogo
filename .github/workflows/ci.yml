@@ -489,10 +489,22 @@ jobs:
         # cross-feature domain imports, sql.Open only in owner packages.
         run: go run ./cmd/check-flatdeps
       - name: Check-product-boundary (product ⟂ evolution tools)
-        # The executable form of "not a framework": cmd/web must build after
-        # cmd/gogogo and internal/installer are deleted, so it may not import
-        # them; the installer reads the tree instead of linking the server.
+        # The executable form of "not a framework", in both directions:
+        # cmd/web must build after cmd/gogogo and internal/installer are
+        # deleted (so the product owes nothing to the evolution tools), and
+        # the product must SHIP a consumer surface (cmd/product-mcp) that
+        # links only internal/productapi — otherwise calling the product's own
+        # routes requires the evolution toolchain, which is the inversion the
+        # first half alone never caught.
         run: go run ./cmd/check-product-boundary -dir .
+      - name: Check-recipes (declarations + strict headless)
+        # The half of the headless promise that reads the RECEIPT. The compiled
+        # half runs in the race job (a mutating route with no action fails the
+        # router test); this one fails when the declaration and the receipt
+        # disagree, when a receipt hash is stale, or when a mutating route has
+        # neither an action nor a declared omission. Running only in pre-commit
+        # meant a PR could merge with it red.
+        run: make check-recipes
       - name: Check-typed-states (one spelling per state)
         # A named string type compared with a literal compiles and silently
         # falls through to the default. Type-aware, so it sees what the

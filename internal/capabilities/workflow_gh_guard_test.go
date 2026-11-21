@@ -269,10 +269,14 @@ func ghCommands(script string) []ghCmd {
 		if strings.HasPrefix(sub, "-") {
 			continue
 		}
-		// Scan from this match to the end of its LOGICAL LINE, so a `-R` later in
-		// the same command counts while one in an unrelated later command does
-		// not. A line continuation (trailing `\`) keeps the scan going.
-		rest := logicalLine(script[idx[0]:])
+		// Scan from the `gh` itself (the end of the matched prefix) to the end
+		// of its LOGICAL LINE, so a `-R` later in the same command counts while
+		// one in an unrelated later command does not. Starting at idx[3], not
+		// idx[0], matters: the prefix alternatives include a newline, and
+		// logicalLine would then stop at that newline and return an empty
+		// command — every line-leading `gh … -R …` was judged as having no -R.
+		// A line continuation (trailing `\`) keeps the scan going.
+		rest := logicalLine(script[idx[3]:])
 		out = append(out, ghCmd{sub: sub, text: rest})
 	}
 	return out

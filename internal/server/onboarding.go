@@ -37,6 +37,6 @@ func bootOnboarding(
 // never registers the route.
 func mountOnboarding(r *Router, onboardingH *onboarding.Handler) {
 	if onboardingH != nil {
-		r.MountFeature("onboarding", onboardingH.Routes())
+		r.MountFeature(onboardingH.Recipe())
 	}
 }

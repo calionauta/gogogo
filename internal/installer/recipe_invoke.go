@@ -2,19 +2,16 @@
 package installer
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
-	"net"
-	"net/http"
-	"net/url"
 	"os"
 	"slices"
 	"strings"
-	"time"
+
+	"github.com/calionauta/gogogo/internal/productapi"
 )
 
 type invokeParams []string
@@ -66,19 +63,10 @@ func runRecipeInvoke(ctx context.Context, args []string, stdout io.Writer) error
 	if _, err := invokeTarget(*dir, ids[0], ids[1]); err != nil {
 		return err
 	}
-	endpoint, err := invokeURL(*server)
-	if err != nil {
-		return err
+	if *server == "" {
+		return &ExitError{code: 1, msg: "recipe invoke needs --server (or GOGOGO_SERVER)"}
 	}
-	payload, err := json.Marshal(map[string]any{
-		"id":     ids[0],
-		"verb":   ids[1],
-		"params": stringMap(params),
-	})
-	if err != nil {
-		return &ExitError{code: 1, msg: "recipe invoke: " + err.Error()}
-	}
-	return invokeCall(ctx, endpoint, *session, payload, *format, stdout)
+	return invokeCall(ctx, *server, *session, ids[0], ids[1], stringMap(params), *format, stdout)
 }
 
 // invokeTarget resolves the checkout-side descriptor and validates the
@@ -103,68 +91,31 @@ func invokeTarget(dir, id, verb string) (*recipeDescriptor, error) {
 	return nil, &ExitError{code: 1, msg: "recipe " + id + " not found"}
 }
 
-// invokeCall sends the payload to the validated loopback endpoint and
-// renders the answer. Extracted from runRecipeInvoke for the
-// complexity gate.
+// invokeCall sends the payload through the shared consumer client.
+//
+// This used to be its own dial: its own loopback parse, its own cookie, its own
+// status handling. Two copies of the same conversation is how the evolution
+// client and the product client start disagreeing about what a 401 means. The
+// shared client owns the wire; this function owns the CLI's rendering.
 func invokeCall(
-	ctx context.Context, endpoint, session string, payload []byte, format string, stdout io.Writer,
+	ctx context.Context, baseURL, session, id, verb string,
+	params map[string]string, format string, stdout io.Writer,
 ) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
-	if err != nil {
+	if _, err := productapi.ValidateBaseURL(baseURL); err != nil {
 		return &ExitError{code: 1, msg: "recipe invoke: " + err.Error()}
 	}
-	req.Header.Set("Content-Type", "application/json")
-	req.AddCookie(&http.Cookie{
-		Name:     "gogogo_auth",
-		Value:    session,
-		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteLaxMode,
-	})
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
+	body, err := productapi.New(baseURL, session).Call(ctx, id, verb, params)
 	if err != nil {
 		return &ExitError{code: 1, msg: "recipe invoke: " + err.Error()}
-	}
-	defer func() { _ = resp.Body.Close() }()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return &ExitError{code: 1, msg: "recipe invoke: " + err.Error()}
-	}
-	if resp.StatusCode >= http.StatusMultipleChoices {
-		return &ExitError{code: 1, msg: "recipe invoke: server answered " +
-			resp.Status + ": " + strings.TrimSpace(string(body))}
 	}
 	if format == planFormatJSON {
-		return json.NewEncoder(stdout).Encode(map[string]any{"status": resp.StatusCode, "body": string(body)})
+		return json.NewEncoder(stdout).Encode(map[string]any{"body": body})
 	}
-	_, err = fmt.Fprintln(stdout, string(body))
+	_, err = fmt.Fprintln(stdout, body)
 	return err
 }
 
 func strEnv(key string) string { return os.Getenv(key) }
-
-// invokeURL validates the operator's server URL for the headless client:
-// http/https only, loopback host only. Anything else is refused before
-// any dial — the SSRF guard for v1.
-func invokeURL(raw string) (string, error) {
-	if raw == "" {
-		return "", &ExitError{code: 1, msg: "recipe invoke needs --server (or GOGOGO_SERVER)"}
-	}
-	u, err := url.Parse(raw)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
-		return "", &ExitError{code: 1, msg: "recipe invoke: --server must be http/https"}
-	}
-	host := u.Hostname()
-	if host != "localhost" && net.ParseIP(host) == nil {
-		return "", &ExitError{code: 1, msg: "recipe invoke: --server must be loopback (v1)"}
-	}
-	if ip := net.ParseIP(host); ip != nil && !ip.IsLoopback() {
-		return "", &ExitError{code: 1, msg: "recipe invoke: --server must be loopback (v1)"}
-	}
-	u.Path = strings.TrimSuffix(u.Path, "/") + "/api/ext/invoke"
-	return u.String(), nil
-}
 
 func stringMap(p invokeParams) map[string]string {
 	out := map[string]string{}

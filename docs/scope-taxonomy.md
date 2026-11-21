@@ -176,9 +176,19 @@ rename fails CI instead of shipping quietly.
 
 The flat stack composes every capability in two places, both inside
 `internal/server/chi.go`: `BootChi` builds each handler, `buildChiMux` flattens
-its routes onto the root with one `MountFeature` call. A Feature is removed by
-`recipe uninstall <id>` (pristine files only); a servant or core unit is a hand
-edit, because its consumers name it:
+its routes onto the root with one `MountFeature` call.
+
+`MountFeature` takes a `recipe.Provider`, not `(owner, router)`. A unit cannot
+put routes on the tree without handing over the `Declaration` that says what
+they are, so a mounted surface is always a graded one — the compiler enforces it.
+The one escape hatch is `MountInfra(owner, reason, router)`, for a mount that
+serves files or tooling rather than claiming a product surface (the sign-in
+forms, pprof); it logs its reason at boot and a test pins the exact set of
+callers. `auth` is neither: it declares `RoleAuthServer` because it issues the
+credential every other surface is reached with.
+
+A Feature is removed by `recipe uninstall <id>` (pristine files only); a servant
+or core unit is a hand edit, because its consumers name it:
 
 1. Delete the package directory (e.g. `features/todo/`).
 2. Delete dependent packages listed in the `Depends on:` comment.

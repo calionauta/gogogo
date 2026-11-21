@@ -91,6 +91,22 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 		Routes: []recipe.Route{
 			{Method: "GET", Pattern: "/dashboard"},
 			{Method: "GET", Pattern: "/admin/dashboard", Role: "admin"},
+			{Method: "GET", Pattern: dashboardAPIPath},
+		},
+		// The summary is the one thing the dashboard is FOR: a page an agent
+		// cannot read leaves the instance's own numbers out of reach. `read`
+		// answers the same loadCounts the page renders, so the two cannot
+		// disagree — and `scope=all` carries adminIndex's fence.
+		Actions: []recipe.InvokeAction{
+			{
+				Verb: "read",
+				Description: "Read the dashboard summary (cards and metrics) as JSON, " +
+					"in the caller's own scope unless scope=all is asked for by an admin.",
+				Route:       recipe.Route{Method: "GET", Pattern: dashboardAPIPath},
+				Query:       []string{"scope"},
+				ParamHelp:   map[string]string{"scope": `"mine" (default) or "all" — the instance-wide view, admin only.`},
+				BrowserPath: "/dashboard",
+			},
 		},
 		Slots: []string{string(recipe.SlotDashboardCard)},
 	}
@@ -103,7 +119,19 @@ func (h *Handler) Routes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/dashboard", h.index)
 	r.Get("/admin/dashboard", h.adminIndex)
+	r.Get(dashboardAPIPath, h.readRoute)
 	return r
+}
+
+// readRoute adapts the headless read to chi: the session is resolved here so
+// the read body takes it as a value, which is what keeps the admin fence
+// testable without a live auth stack.
+func (h *Handler) readRoute(w http.ResponseWriter, r *http.Request) {
+	sess, ok := h.session(w, r)
+	if !ok {
+		return
+	}
+	h.read(w, r, sess)
 }
 
 func (h *Handler) index(w http.ResponseWriter, r *http.Request) {

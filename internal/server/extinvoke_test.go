@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -57,6 +58,15 @@ func probeRegistry() *recipe.Registry {
 	return reg
 }
 
+// registryWith is probeRegistry with a caller-supplied declaration, for a verb
+// whose shape the fixture above does not already cover (a GET read that carries
+// its parameters in the query string, for one).
+func registryWith(decl recipe.Declaration) *recipe.Registry {
+	reg := &recipe.Registry{}
+	reg.Add(probeProvider{decl: decl})
+	return reg
+}
+
 // spyHandler records the request the action reached and answers with a body the
 // test can recognise. It is the only handler in the chain, so "the spy saw it"
 // is exactly "the declared action reached a handler".
@@ -65,6 +75,7 @@ type spyHandler struct {
 	method string
 	path   string
 	form   map[string][]string
+	query  url.Values
 	cookie string
 	status int
 	body   string
@@ -77,6 +88,7 @@ func (s *spyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err == nil {
 		s.form = r.PostForm
 	}
+	s.query = r.URL.Query()
 	if c, err := r.Cookie(auth.CookieName); err == nil {
 		s.cookie = c.Value
 	}

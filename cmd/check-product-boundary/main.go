@@ -98,6 +98,15 @@ func check(root string) ([]string, error) {
 
 	problems = append(problems, featureImportsFromInfrastructure(root)...)
 
+	// The other direction: the CONSUMER client must not drag the evolution
+	// toolchain, or a product that ships product-mcp still needs the installer
+	// to be installed. This is the half the guarantee was missing.
+	consumerProblems, err := consumerSurfaceProblems(root)
+	if err != nil {
+		return nil, err
+	}
+	problems = append(problems, consumerProblems...)
+
 	installerImports, err := importsUnder(root, "internal/installer")
 	if err != nil {
 		return nil, err
@@ -110,6 +119,58 @@ func check(root string) ([]string, error) {
 		}
 	}
 
+	return problems, nil
+}
+
+// consumerSurfaceProblems enforces the direction the first invariant missed.
+//
+// checkProductBoundary answers "can the product build after the evolution tools
+// are deleted". It never asked "does the product's own call surface exist, and
+// is it free of the toolchain". Both are needed: a tree could satisfy the first
+// by having no consumer surface at all, which is the state this rule was born
+// from — `recipe invoke` lived inside internal/installer, so a product had to
+// run the EVOLUTION binary to call its own routes.
+func consumerSurfaceProblems(root string) ([]string, error) {
+	var problems []string
+	// cmd/product-mcp is the half a generated product ships. It must exist and
+	// must be free of the evolution packages.
+	imports, err := importsUnder(root, "cmd/product-mcp")
+	if err != nil {
+		return nil, err
+	}
+	if len(imports) == 0 {
+		problems = append(problems, "cmd/product-mcp is missing: a product must ship a "+
+			"consumer MCP surface, or an agent driving it needs the evolution toolchain")
+		return problems, nil
+	}
+	for pkg, files := range imports {
+		for _, prefix := range evolutionPrefixes {
+			if pkg == prefix || strings.HasPrefix(pkg, prefix+"/") {
+				problems = append(problems, fmt.Sprintf(
+					"cmd/product-mcp imports %s (%s): the consumer surface must not link the evolution tool",
+					pkg, files[0]))
+			}
+		}
+	}
+	// And the client itself must be innocuous: shared code, no installer.
+	clientImports, err := importsUnder(root, "internal/productapi")
+	if err != nil {
+		return nil, err
+	}
+	for pkg, files := range clientImports {
+		if pkg == serverPrefix || strings.HasPrefix(pkg, serverPrefix+"/") {
+			problems = append(problems, fmt.Sprintf(
+				"internal/productapi imports %s (%s): the consumer client talks to a "+
+					"running product over HTTP, it does not link the server", pkg, files[0]))
+		}
+		for _, prefix := range evolutionPrefixes {
+			if pkg == prefix || strings.HasPrefix(pkg, prefix+"/") {
+				problems = append(problems, fmt.Sprintf(
+					"internal/productapi imports %s (%s): the consumer client must not read a checkout",
+					pkg, files[0]))
+			}
+		}
+	}
 	return problems, nil
 }
 

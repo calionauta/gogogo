@@ -38,7 +38,7 @@ func TestRuntimeMountedRouteNeedsAPolicyRow(t *testing.T) {
 	root := NewRouter()
 	probe := chi.NewRouter()
 	probe.Get("/recipe-probe", func(http.ResponseWriter, *http.Request) {})
-	root.MountFeature("recipe-probe", probe)
+	mountRoutes(root, "recipe-probe", probe)
 
 	problems, err := rbac.RoutePolicyProblems(root)
 	if err != nil {

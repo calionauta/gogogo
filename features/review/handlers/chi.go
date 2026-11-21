@@ -3,6 +3,8 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"net/http"
 	"sync"
 	"time"
@@ -59,6 +61,7 @@ func (h *Handler) Routes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/review", h.handleIndex)
 	r.Post("/api/review/run", h.handleRun)
+	r.Post("/api/review/verdict", h.handleVerdict)
 	return r
 }
 
@@ -123,14 +126,8 @@ func (h *Handler) handleRun(w http.ResponseWriter, r *http.Request) {
 		writeText(w, http.StatusServiceUnavailable, "LLM not configured: set GOAI_API_KEY")
 		return
 	}
-	if err := r.ParseForm(); err != nil {
-		writeText(w, http.StatusBadRequest, "invalid form")
-		return
-	}
-	tab := r.FormValue("tab")
-	content := r.FormValue("content")
-	if content == "" {
-		writeText(w, http.StatusBadRequest, "empty content")
+	in, ok := parseReviewInput(w, r)
+	if !ok {
 		return
 	}
 
@@ -173,7 +170,7 @@ func (h *Handler) handleRun(w http.ResponseWriter, r *http.Request) {
 	// leak). The registered Genkit flow (same Runner.run) serves the Dev
 	// UI and evals; the per-Generate model spans trace either path.
 	spanCtx, endSpan := observability.StartSpan(ctx, "review.run")
-	verdict, runErr := runner.run(spanCtx, ReviewInput{Tab: tab, Content: content},
+	verdict, runErr := runner.run(spanCtx, in,
 		func(_ context.Context, phase string) error {
 			return dshelpers.MergeSignals(sse, map[string]any{phaseSignal: phase})
 		})
@@ -206,6 +203,66 @@ func (h *Handler) handleRun(w http.ResponseWriter, r *http.Request) {
 		verdict.CriticVerdict, verdict.Confidence, verdict.Rounds,
 		verdict.Decision == DecisionNeedsHuman),
 		sdk.WithSelector("#review-result"))
+}
+
+// parseReviewInput reads the two fields both representations need. It writes
+// the refusal itself so the browser (redirect/SSE) and the JSON route cannot
+// disagree about what a valid request is.
+func parseReviewInput(w http.ResponseWriter, r *http.Request) (ReviewInput, bool) {
+	if err := r.ParseForm(); err != nil {
+		writeText(w, http.StatusBadRequest, "invalid form")
+		return ReviewInput{}, false
+	}
+	in := ReviewInput{Tab: r.FormValue("tab"), Content: r.FormValue("content")}
+	if in.Content == "" {
+		writeText(w, http.StatusBadRequest, "empty content")
+		return ReviewInput{}, false
+	}
+	return in, true
+}
+
+// handleVerdict is the machine representation of the same run: it executes the
+// loop synchronously and answers the final Verdict as JSON, so an agent gets the
+// decision as data instead of parsing SSE patch frames. The browser keeps
+// /api/review/run (progress while the loop works); neither path persists
+// anything, which is the slice's invariant.
+func (h *Handler) handleVerdict(w http.ResponseWriter, r *http.Request) {
+	sess := h.session(r)
+	if sess == nil {
+		writeText(w, http.StatusUnauthorized, "sign in to run a review")
+		return
+	}
+	if !h.reviewEnabled() {
+		writeText(w, http.StatusServiceUnavailable, "LLM not configured: set GOAI_API_KEY")
+		return
+	}
+	in, ok := parseReviewInput(w, r)
+	if !ok {
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), MaxRunDuration)
+	defer cancel()
+	ctx = llm.WithUserID(ctx, sess.User.ID)
+
+	runner := *h.runner
+	spanCtx, endSpan := observability.StartSpan(ctx, "review.verdict")
+	verdict, runErr := runner.run(spanCtx, in, nil)
+	endSpan()
+	if runErr != nil {
+		obsArgs := append(observability.WithComponent("review", "feature"), "error", runErr)
+		observability.Error(ctx, "review: verdict run failed", obsArgs...)
+		code := http.StatusBadGateway
+		if errors.Is(runErr, context.DeadlineExceeded) {
+			code = http.StatusGatewayTimeout
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(code)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "review failed: " + runErr.Error()})
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(verdict)
 }
 
 // phaseSignal is the transient progress signal (writer/reviewer/judge).

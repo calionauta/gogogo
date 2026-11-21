@@ -4,7 +4,7 @@
 //
 //   node site/build-landing.mjs           # write
 //   node site/build-landing.mjs --check   # verify the committed page
-import { readFileSync, writeFileSync } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 
 const here = new URL("./", import.meta.url);
 const root = new URL("../", here);
@@ -469,6 +469,41 @@ const check = process.argv.includes("--check");
 if (check) {
   if (out !== page) {
     console.error("site/index.html is stale: run `node site/build-landing.mjs` and commit the page.");
+    process.exit(1);
+  }
+  // The landing page links INTO the docs by heading fragment, and no other
+  // gate reads those links: site/build.mjs --check walks MANIFEST, which is
+  // docs/*.md only. Renaming a heading therefore left this page pointing at a
+  // dead anchor with every check green — it happened when the surface section
+  // was renamed. Resolve every ./docs/<slug>/#<frag> against the real headings.
+  const docHeadings = new Map();
+  for (const entry of readdirSync(new URL("docs/", root), { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith(".md")) continue;
+    const body = readFileSync(new URL(`docs/${entry.name}`, root), "utf8");
+    const ids = new Set();
+    for (const m of body.matchAll(/^#{1,4}\s+(.*)$/gm)) {
+      ids.add(
+        m[1]
+          .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+          .toLowerCase()
+          .replace(/[^\w\s-]/g, "")
+          .replace(/\s+/g, "-"),
+      );
+    }
+    docHeadings.set(entry.name.replace(/\.md$/, ""), ids);
+  }
+  const dead = [];
+  for (const m of page.matchAll(/href="\.\/docs\/([^\/#"]+)\/?#([^"]+)"/g)) {
+    const ids = docHeadings.get(m[1]);
+    if (!ids) {
+      dead.push(`./docs/${m[1]}/ — no such page`);
+      continue;
+    }
+    if (!ids.has(m[2])) dead.push(`./docs/${m[1]}/#${m[2]}`);
+  }
+  if (dead.length) {
+    console.error("site/index.html links to a heading that does not exist:");
+    for (const d of dead) console.error(`  ${d}`);
     process.exit(1);
   }
   console.log("landing ok: generated blocks match the unit contracts and .lefthook.yml");

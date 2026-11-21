@@ -163,7 +163,7 @@ func TestCapabilityInteractionLogsWithoutTheAccessFlag(t *testing.T) {
 	child.Get("/timer", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	root.MountFeature("timer", child)
+	mountRoutes(root, "timer", child)
 	h := accessLog(newTestLogger(&buf), false, root)
 	h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequestWithContext(
 		context.Background(), http.MethodGet, "/timer", nil))

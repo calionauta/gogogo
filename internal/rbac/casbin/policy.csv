@@ -105,6 +105,10 @@ p, user, /api/review, .*
 p, user, /api/review/*, .*
 p, user, /api/credits/*, .*
 p, user, /api/ext/invoke, POST
+# Discovery is the read half of the same contract: a caller asks what it may
+# invoke before invoking it. Same audience as invoke — a user's session, never
+# an anonymous request.
+p, user, /api/ext/descriptors, GET
 # UI analytics beacon (mounted only when ANALYTICS_PROVIDER is configured).
 p, user, /api/analytics, POST
 p, user, /api/ai/*, .*
@@ -150,6 +154,10 @@ p, viewer, /api/auth/*, .*
 p, admin, /config, .*
 p, admin, /config/, .*
 p, admin, /config/*, .*
+# The headless read of the same admin-only view. It is under /api/, so the
+# /config/* row does not reach it — and it must stay admin-only: the payload
+# names every configured field, masked or not.
+p, admin, /api/config, .*
 p, admin, /console, .*
 p, admin, /console/, .*
 p, admin, /console/*, .*
@@ -204,6 +212,11 @@ p, user, /api/credits/stripe-webhook, .*
 # written by `gogogo recipe install`; `gogogo recipe uninstall` removes this block
 p, user, /dashboard, .*
 p, admin, /admin/dashboard, .*
+# /api/dashboard is the headless read of the same summary. Both roles reach it;
+# the instance-wide view is fenced in the handler (scope=all), not in the row —
+# a policy row cannot tell the two scopes apart.
+p, user, /api/dashboard, .*
+p, admin, /api/dashboard, .*
 # end recipe:dashboard
 # recipe:notes
 # written by `gogogo recipe install`; `gogogo recipe uninstall` removes this block
@@ -231,6 +244,7 @@ p, user, /notifications, .*
 # recipe:review
 # written by `gogogo recipe install`; `gogogo recipe uninstall` removes this block
 p, user, /api/review/run, .*
+p, user, /api/review/verdict, .*
 p, user, /review, .*
 # end recipe:review
 # recipe:room
@@ -266,6 +280,7 @@ p, user, /todo, .*
 # end recipe:todo
 # recipe:whiteboard
 # written by `gogogo recipe install`; `gogogo recipe uninstall` removes this block
+p, user, /api/whiteboards, .*
 p, user, /api/whiteboard/*/delete, .*
 p, user, /api/whiteboard/*/presence, .*
 p, user, /api/whiteboard/*/snapshot, .*

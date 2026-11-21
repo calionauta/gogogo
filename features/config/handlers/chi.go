@@ -84,6 +84,7 @@ func (h *Handler) Routes() chi.Router {
 	// template's default posture.
 	gate := rbac.RequireAdmin(h.auth)
 	r.With(gate).Get("/config", h.handleIndex)
+	r.With(gate).Get(configAPIPath, h.readRoute)
 	r.With(gate).Post("/config/users/role", h.handleRole)
 	r.With(gate).Post("/config/users/revoke", h.handleRevokeSessions)
 	r.With(gate).Post("/config/recipes/toggle", h.handleRecipeToggle)

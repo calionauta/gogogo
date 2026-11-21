@@ -34,6 +34,7 @@ type extInvokeRequest struct {
 // paths so the RBAC coverage scan sees the route and demands its row.
 func mountExtInvoke(r *Router) {
 	r.Claim("core", "POST", "/api/ext/invoke")
+	mountExtDescriptors(r)
 	r.Post("/api/ext/invoke", extInvokeHandler(r.recipes, func() http.Handler { return r.invokeOut }))
 }
 

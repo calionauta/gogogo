@@ -3,6 +3,7 @@ package recipe
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -136,7 +137,7 @@ func TestActionPathParamsMustMatchTheRoute(t *testing.T) {
 				Verb:  "toggle",
 				Route: Route{Method: "POST", Pattern: "/api/probe/{id}/toggle"},
 			},
-			want: "must declare pathParams: [id]",
+			want: "placeholders must all be declared in pathParams (missing \"id\")",
 		},
 		{
 			name: "declaration without placeholder",
@@ -144,15 +145,15 @@ func TestActionPathParamsMustMatchTheRoute(t *testing.T) {
 				Verb:  "toggle",
 				Route: Route{Method: "POST", Pattern: "/api/probe/toggle"}, PathParams: []string{"id"},
 			},
-			want: "has no placeholder",
+			want: "has no such placeholder",
 		},
 		{
-			name: "second placeholder is not v1",
+			name: "placeholder name must match the handler's",
 			action: InvokeAction{
 				Verb:  "move",
-				Route: Route{Method: "POST", Pattern: "/api/probe/{id}/move/{target}"}, PathParams: []string{"id"},
+				Route: Route{Method: "POST", Pattern: "/api/probe/{docID}/move"}, PathParams: []string{"id"},
 			},
-			want: "only one {id} placeholder",
+			want: "has no such placeholder",
 		},
 		{
 			name: "id in body and path",
@@ -301,5 +302,139 @@ func TestMetricAndPanelProblemsPinTheFailFastShapes(t *testing.T) {
 	}}
 	if problems := PanelProblems(goodPanel); len(problems) != 0 {
 		t.Fatalf("good panel must pass, got %v", problems)
+	}
+}
+
+// TestActionLocationsAreExplicit pins the two extensions the bundled slices
+// need: a placeholder named by the handler ({docID}) and params that travel in
+// the query or as a raw JSON body. The rules stay closed — nothing is guessed
+// about where a value goes.
+func TestActionLocationsAreExplicit(t *testing.T) {
+	routes := []Route{
+		{Method: "POST", Pattern: "/api/probe/{docID}/update"},
+		{Method: "POST", Pattern: "/api/probe/ask"},
+	}
+	good := Declaration{
+		Routes: routes,
+		Actions: []InvokeAction{
+			{
+				Verb:        "update",
+				Description: "Apply one op to a probe document.",
+				Route:       routes[0],
+				Params:      []string{"body"},
+				PathParams:  []string{"docID"},
+				Query:       []string{"clientID"},
+				RawBody:     "body",
+			},
+			{
+				Verb:        "ask",
+				Description: "Send one prompt.",
+				Route:       routes[1],
+				Params:      []string{"prompt", "surfaces"},
+			},
+		},
+	}
+	if problems := ActionProblems(good); len(problems) != 0 {
+		t.Fatalf("named placeholder + query + raw body must pass, got %v", problems)
+	}
+
+	bad := map[string]InvokeAction{
+		"query name collides with a body param": {
+			Verb: "create", Route: routes[1], Params: []string{"text"}, Query: []string{"text"},
+		},
+		"raw body param is not declared": {
+			Verb: "update", Route: routes[0], PathParams: []string{"docID"}, RawBody: "body",
+		},
+		"body param cannot ride a raw body": {
+			Verb: "update", Route: routes[0], PathParams: []string{"docID"},
+			Params: []string{"body", "note"}, RawBody: "body",
+		},
+	}
+	for name, action := range bad {
+		t.Run(name, func(t *testing.T) {
+			d := Declaration{Routes: routes, Actions: []InvokeAction{action}}
+			if problems := ActionProblems(d); len(problems) == 0 {
+				t.Fatal("invalid action location must be refused")
+			}
+		})
+	}
+}
+
+// TestHeadlessCoverageRequiresAnActionOrAReason is the gate's core: a
+// mutating declared route is either callable or explained, and the exemptions
+// are structural (streams, wildcards, auth bootstrap), never silent.
+// TestBrowserCreatePagesNeedAHeadlessTwin covers the shape the method rule
+// cannot see: a GET create page mints a record and answers a redirect, so an
+// agent can neither receive the id nor learn the capability exists. Binding the
+// page to the action's browserPath is the only way to satisfy coverage.
+func TestBrowserCreatePagesNeedAHeadlessTwin(t *testing.T) {
+	routes := []Route{
+		{Method: "GET", Pattern: "/probe/new"},
+		{Method: "POST", Pattern: "/api/probe"},
+	}
+	bare := Declaration{Routes: routes}
+	problems := HeadlessCoverageProblems(bare)
+	// The POST is reported too, so the create page is asserted by name rather
+	// than by count.
+	if !slices.ContainsFunc(problems, func(p string) bool {
+		return strings.Contains(p, "GET /probe/new")
+	}) {
+		t.Fatalf("unbound create page must be reported, got %v", problems)
+	}
+	acted := Declaration{
+		Routes: routes,
+		Actions: []InvokeAction{{
+			Verb: "create", Description: "Create a probe.",
+			Route: routes[1], BrowserPath: routes[0].Pattern,
+		}},
+	}
+	if problems := HeadlessCoverageProblems(acted); len(problems) != 0 {
+		t.Fatalf("a create action aliasing the page must satisfy coverage, got %v", problems)
+	}
+}
+
+// TestBrowserPathMustBeADeclaredGetRoute is the typo half: a browserPath that
+// names no declared page would document a create path that does not exist.
+func TestBrowserPathMustBeADeclaredGetRoute(t *testing.T) {
+	d := Declaration{
+		Routes: []Route{{Method: "POST", Pattern: "/api/probe"}},
+		Actions: []InvokeAction{{
+			Verb: "create", Description: "Create a probe.",
+			Route:       Route{Method: "POST", Pattern: "/api/probe"},
+			BrowserPath: "/probe/ghost",
+		}},
+	}
+	problems := actionProblems(d)
+	if len(problems) != 1 || !strings.Contains(problems[0], "/probe/ghost") {
+		t.Fatalf("undeclared browserPath must be refused, got %v", problems)
+	}
+}
+
+func TestHeadlessCoverageRequiresAnActionOrAReason(t *testing.T) {
+	routes := []Route{
+		{Method: "POST", Pattern: "/api/probe/delete"},
+		{Method: "POST", Pattern: "/api/probe/stream"},
+		{Method: "POST", Pattern: "/api/byok/*"},
+		{Method: "POST", Pattern: "/logout"},
+		{Method: "GET", Pattern: "/probe"},
+	}
+	bare := Declaration{Routes: routes}
+	d := HeadlessCoverageProblems(bare)
+	if len(d) != 1 || !strings.Contains(d[0], "POST /api/probe/delete") {
+		t.Fatalf("only the plain mutation must be reported, got %v", d)
+	}
+	covered := Declaration{
+		Routes:  routes,
+		Omitted: []OmittedRoute{{Route: routes[0], Reason: "destructive-only demo route"}},
+	}
+	if d := HeadlessCoverageProblems(covered); len(d) != 0 {
+		t.Fatalf("a declared omission must satisfy coverage, got %v", d)
+	}
+	acted := Declaration{
+		Routes:  routes,
+		Actions: []InvokeAction{{Verb: "delete", Description: "Delete it.", Route: routes[0]}},
+	}
+	if d := HeadlessCoverageProblems(acted); len(d) != 0 {
+		t.Fatalf("an action must satisfy coverage, got %v", d)
 	}
 }

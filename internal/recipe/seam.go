@@ -49,8 +49,36 @@ type Provider interface {
 // Mounter is the composition root's seam, narrowed to one method so this package
 // does not import internal/server (which would be an import cycle for anything
 // that ever moves to a public tree).
+//
+// MountFeature takes the Provider, not an owner string and a router. That
+// signature is the enforcement: a unit cannot put routes on the composed tree
+// without also handing over the Declaration that says what they are. The old
+// (owner, router) shape let a unit mount itself with nothing to grade, which is
+// how `license` and `onboarding` stayed invisible to the headless rule.
 type Mounter interface {
-	MountFeature(owner string, h chi.Router)
+	MountFeature(p Provider)
+}
+
+// RoleAuthServer marks the unit that issues the credential a caller arrives
+// with, rather than a surface the caller acts on. It is the one role that makes
+// "declares no product routes" honest instead of a gap, and it exists as data
+// so the rule is a lookup and not a name check on the id.
+const RoleAuthServer = "authorization-server"
+
+// RoleProvider is the optional half of the contract: a Provider that declares a
+// role says something about what it IS, not only what it offers. Splitting it
+// keeps every existing Provider valid — the seam asks, and a unit with nothing
+// to say answers by not implementing it.
+type RoleProvider interface {
+	Roles() []string
+}
+
+// Roles returns the roles a provider declares, empty when it declares none.
+func Roles(p Provider) []string {
+	if rp, ok := p.(RoleProvider); ok {
+		return rp.Roles()
+	}
+	return nil
 }
 
 // Registry holds the declared providers. Registration happens from a generated
@@ -192,7 +220,7 @@ func (r *Registry) Mount(m Mounter) error {
 		return fmt.Errorf("recipe set is invalid: %s", strings.Join(msgs, "; "))
 	}
 	for _, p := range r.Providers() {
-		m.MountFeature(p.ID(), p.Routes())
+		m.MountFeature(p)
 	}
 	return nil
 }
@@ -205,7 +233,8 @@ func MountWith(reg *Registry, root chi.Router) error {
 
 type chiMounter struct{ root chi.Router }
 
-func (c chiMounter) MountFeature(_ string, h chi.Router) {
+func (c chiMounter) MountFeature(p Provider) {
+	h := p.Routes()
 	if h == nil {
 		return
 	}

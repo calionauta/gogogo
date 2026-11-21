@@ -365,15 +365,17 @@ func checkRecipeHeadless(receipt recipe.Receipt, report RecipeCheckReport, stric
 		report.Suggestions = appendUnique(report.Suggestions,
 			"add `summary: <what the recipe does>` to .recipe.yml and reinstall")
 	}
-	invisible := headlessInvisibleRoutes(decl)
+	invisible := recipe.HeadlessInvisibleRoutes(decl)
 	if len(invisible) == 0 {
 		return report
 	}
 	const maxInvisibleShown = 4
-	shown := invisible
-	if len(shown) > maxInvisibleShown {
-		shown = append(slices.Clone(shown[:maxInvisibleShown]),
-			fmt.Sprintf("+%d more", len(invisible)-maxInvisibleShown))
+	shown := make([]string, 0, min(len(invisible), maxInvisibleShown)+1)
+	for _, rt := range invisible[:min(len(invisible), maxInvisibleShown)] {
+		shown = append(shown, rt.Method+" "+rt.Pattern)
+	}
+	if len(invisible) > maxInvisibleShown {
+		shown = append(shown, fmt.Sprintf("+%d more", len(invisible)-maxInvisibleShown))
 	}
 	report = grade(report,
 		"mutating routes with no headless action: "+strings.Join(shown, ", "))
@@ -381,52 +383,6 @@ func checkRecipeHeadless(receipt recipe.Receipt, report RecipeCheckReport, stric
 		"declare an InvokeAction (verb, description, params) for each mutating route, "+
 			"or omit it deliberately (auth, stream, async/demo, destructive-only)")
 	return report
-}
-
-// headlessInvisibleRoutes names the mutating routes an agent cannot call.
-// Reads are excluded: a page GET is not an affordance. Streaming routes and
-// auth endpoints stay exempt because they cannot be invoked headless at all;
-// `{id}` no longer is — it is callable now, so a `{id}` route must be either
-// an action or a declared omission like any other mutation.
-func headlessInvisibleRoutes(d recipe.Declaration) []string {
-	acted := map[recipe.Route]bool{}
-	for _, a := range d.Actions {
-		acted[a.Route] = true
-	}
-	omitted := map[recipe.Route]bool{}
-	for _, o := range d.Omitted {
-		omitted[o.Route] = true
-	}
-	var out []string
-	for _, rt := range d.Routes {
-		if acted[rt] || omitted[rt] || !mutatingMethod(rt.Method) {
-			continue
-		}
-		if strings.HasSuffix(rt.Pattern, "/stream") ||
-			strings.HasSuffix(rt.Pattern, "/events") ||
-			isAuthRoute(rt.Pattern) {
-			continue
-		}
-		out = append(out, rt.Method+" "+rt.Pattern)
-	}
-	slices.Sort(out)
-	return slices.Compact(out)
-}
-
-func mutatingMethod(method string) bool {
-	switch method {
-	case "POST", "PUT", "PATCH", "DELETE":
-		return true
-	}
-	return false
-}
-
-func isAuthRoute(pattern string) bool {
-	switch pattern {
-	case "/login", "/signup", "/logout":
-		return true
-	}
-	return strings.HasPrefix(pattern, "/api/auth/")
 }
 
 func dirExists(dir string) bool {

@@ -105,6 +105,12 @@ func TestCatalogEntryRules(t *testing.T) {
 			e.Metrics = []Metric{{Label: "Sessions", Query: "SELECT id FROM ext_timer_session"}}
 		}, "must select count"},
 		{"bad panel name", func(e *CatalogEntry) { e.Panel.Component = "TimerList" }, "must be snake_case"},
+		// Coverage is the review's promise to the headless surface: a mutating
+		// route with no verb and no reason installs a capability no agent can
+		// call, which is exactly what the catalog exists to refuse.
+		{"mutation with no action or omission", func(e *CatalogEntry) {
+			e.Routes = append(e.Routes, Route{Method: "POST", Pattern: "/api/timer/stop"})
+		}, "neither an action nor a declared omission"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

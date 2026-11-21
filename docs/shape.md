@@ -11,12 +11,12 @@ entrypoints per value.
 
 | Shape | Entrypoints it may declare | What it means |
 |---|---|---|
-| `full` | `cmd/web`, `cmd/desktop`, `cmd/gui`, `cmd/mobile` | every target — the default, and today's behaviour |
-| `web` | `cmd/web` | the browser app |
-| `api` | `cmd/web` | `/api/*`, health, auth API and assets only — page paths answer 404 in the same binary. `APP_SHAPE=api` (or the record) skips the page mounts (the backstop gate catches direct mounts) |
-| `desktop` | `cmd/desktop`, `cmd/web` | the Wails shell and the server it embeds |
-| `gui` | `cmd/gui` | the gogpu/ui native shell |
-| `mobile` | `cmd/mobile`, `cmd/web` | the Wails Android shell and the server it embeds |
+| `full` | `cmd/web`, `cmd/desktop`, `cmd/gui`, `cmd/mobile`, `cmd/product-mcp` | every target — the default, and today's behaviour |
+| `web` | `cmd/web`, `cmd/product-mcp` | the browser app |
+| `api` | `cmd/web`, `cmd/product-mcp` | `/api/*`, health, auth API and assets only — page paths answer 404 in the same binary. `APP_SHAPE=api` (or the record) skips the page mounts (the backstop gate catches direct mounts) |
+| `desktop` | `cmd/desktop`, `cmd/web`, `cmd/product-mcp` | the Wails shell and the server it embeds |
+| `gui` | `cmd/gui`, `cmd/product-mcp` | the gogpu/ui native shell |
+| `mobile` | `cmd/mobile`, `cmd/web`, `cmd/product-mcp` | the Wails Android shell and the server it embeds |
 
 Two rules keep the table honest. **A shape never invents a boot path** — `api`
 is `cmd/web` with its page routes removed, not a second binary. And **a shape is a prefix
@@ -50,8 +50,12 @@ go run github.com/calionauta/gogogo/cmd/gogogo@latest \
 ```
 
 `--shape` prunes the entrypoint dirs the shape does not ship (`cmd/desktop`,
-`cmd/gui`, `cmd/mobile`) and writes `.gogogo/shape.yml` in the same step. It
-never deletes `features/`, `internal/` or a page: a slice is dropped by
+`cmd/gui`, `cmd/mobile`) and writes `.gogogo/shape.yml` in the same step.
+`cmd/product-mcp` is never pruned: it is the consumer surface every shape
+ships, so a product that dropped it could only be driven by installing the
+evolution toolchain (`docs/mcp.md#evolution-surface-vs-consumer-surface`).
+
+It never deletes `features/`, `internal/` or a page: a slice is dropped by
 `--recipes` (the demo set) or by `recipe uninstall` (an installed one), and
 `api` is the one shape whose page removal needs the `server.PageRoutes` seam
 below. `--shape full` (the default) applies nothing — a template clone already

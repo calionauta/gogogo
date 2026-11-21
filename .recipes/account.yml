@@ -11,7 +11,7 @@ files:
   features/account/handlers/chi.go: 20a08f4b41da7cf913dd48c70f60ae06e4f2957ded8d5822784dfab4e7396496
   features/account/handlers/chi_test.go: 228a527b8310f51e3e8b3e981a289721f4122536b81def7494df329690794c13
   features/account/handlers/cloud.go: 20747005bda44ef2516b8365a2cacc60bf4283e783e946d101e51eea83609603
-  features/account/handlers/recipe.go: ab96553aef07a6f997b4891189c12cf2713e451299bc6f2a96ce64c85134bf06
+  features/account/handlers/recipe.go: fa6eb5c032083c3ddd2efb6267878d746f5b293820ec11ee5ab3897a857f86dd
   features/account/handlers/register.go: f3af8dea1a469a103cdcae2d68c0651cd50de812879852b0196fb7789038fa1d
 declaration:
   routes:
@@ -39,4 +39,59 @@ declaration:
     pattern: /account/cloud/disconnect
   - method: POST
     pattern: /account/device-token
+  actions:
+  - verb: resend_verification
+    description: Send the caller another email-verification link.
+    route:
+      method: POST
+      pattern: /account/verify
+  - verb: revoke_session
+    description: Revoke one of the caller's own sessions by id.
+    route:
+      method: POST
+      pattern: /account/sessions/revoke
+    params:
+    - session_id
+    paramHelp:
+      session_id: The session id shown on the account page.
+  - verb: disconnect_cloud
+    description: Forget the saved cloud sync URL and token; takes effect on the next boot.
+    route:
+      method: POST
+      pattern: /account/cloud/disconnect
+  omitted:
+  - route:
+      method: POST
+      pattern: /account/password
+    reason: 'step-up: requires the current password, a credential a headless caller must not hold'
+  - route:
+      method: POST
+      pattern: /account/totp/begin
+    reason: answers with the enrollment page and a fresh shared secret; reading it back headless leaks the
+      second factor
+  - route:
+      method: POST
+      pattern: /account/totp/verify
+    reason: needs the authenticator's one-time code, a second factor the caller must not hold
+  - route:
+      method: POST
+      pattern: /account/totp/disable
+    reason: 'step-up: disabling the second factor requires a fresh code or password'
+  - route:
+      method: POST
+      pattern: /account/totp/recovery
+    reason: mints one-time recovery codes and shows them once; a headless caller must not receive them
+  - route:
+      method: POST
+      pattern: /account/sessions/revoke-all
+    reason: 'step-up: sign-out-everywhere requires the password or a recovery code'
+  - route:
+      method: POST
+      pattern: /account/cloud
+    reason: requires the operator's cloud sync token, a secret that must come from the operator
+  - route:
+      method: POST
+      pattern: /account/device-token
+    reason: mints a one-time bearer device token and renders it; a headless caller must not receive a bearer
+      credential
 register: features/account/handlers
