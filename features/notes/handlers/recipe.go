@@ -32,6 +32,10 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 		get  = "GET"
 		post = "POST"
 		doc  = "/api/notes/{docID}"
+
+		paramDocID = "docID"
+		paramBody  = "body"
+		helpDocID  = "The note's UUID."
 	)
 	return recipe.Declaration{
 		// Notes are SHARED (see internal/db/queries/collab.sql): the list
@@ -53,12 +57,72 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 			{Method: get, Pattern: "/notes/new"},
 			{Method: get, Pattern: "/notes/{docID}"},
 			{Method: get, Pattern: "/api/notes/fragment"},
+			{Method: get, Pattern: "/api/notes/{docID}"},
+			{Method: post, Pattern: "/api/notes"},
 			{Method: post, Pattern: doc + "/delete"},
 			{Method: get, Pattern: doc + "/stream"},
 			{Method: post, Pattern: doc + "/op"},
 			{Method: post, Pattern: doc + "/typing"},
 			{Method: post, Pattern: doc + "/caret"},
 			{Method: post, Pattern: doc + "/leave"},
+		},
+		// Editing is the product: `op` carries the same ordered text batch the
+		// browser sends (base revision + ops + optional caret), so an agent
+		// writes text through the one path that already resolves conflicts.
+		Actions: []recipe.InvokeAction{
+			{
+				Verb:        "create",
+				Description: "Create an empty note owned by the caller and return its id and page path.",
+				Route:       recipe.Route{Method: post, Pattern: "/api/notes"},
+				// The page link is the same capability for a human; without it the
+				// GET would be a create path no agent can reach.
+				BrowserPath: "/notes/new",
+			},
+			{
+				Verb:        "read",
+				Description: "Read one note's merged text and current revision as JSON.",
+				Route:       recipe.Route{Method: get, Pattern: "/api/notes/{docID}"},
+				PathParams:  []string{paramDocID},
+				ParamHelp:   map[string]string{"docID": "The note's UUID."},
+			},
+			{
+				Verb: "edit",
+				Description: "Apply one batch of text ops to a note the caller may edit; " +
+					"a stale base returns 409 with the authoritative revision.",
+				Route:      recipe.Route{Method: post, Pattern: doc + "/op"},
+				Params:     []string{paramBody},
+				PathParams: []string{paramDocID},
+				Query:      []string{"clientID"},
+				RawBody:    "body",
+				ParamHelp: map[string]string{
+					paramDocID: helpDocID,
+					"clientID": "The acting tab id, so peers see who is editing and the caret is attributed.",
+					paramBody:  "The op batch JSON: base (server revision), ops (ordered TextOp list) and an optional caret.",
+				},
+			},
+			{
+				Verb:        "delete",
+				Description: "Delete a note; the caller must own it or be an admin. Irreversible.",
+				Route:       recipe.Route{Method: post, Pattern: doc + "/delete"},
+				PathParams:  []string{paramDocID},
+				ParamHelp:   map[string]string{"docID": "The note's UUID."},
+			},
+		},
+		// The presence three are ephemeral broadcasts: no snapshot, no history,
+		// nothing a later reader can observe. Declared, not dressed up as verbs.
+		Omitted: []recipe.OmittedRoute{
+			{
+				Route:  recipe.Route{Method: post, Pattern: doc + "/typing"},
+				Reason: "ephemeral typing indicator; it persists nothing and only peers see it",
+			},
+			{
+				Route:  recipe.Route{Method: post, Pattern: doc + "/caret"},
+				Reason: "ephemeral caret position; a later reader cannot observe it",
+			},
+			{
+				Route:  recipe.Route{Method: post, Pattern: doc + "/leave"},
+				Reason: "presence teardown for a tab that is going away; there is no product outcome to invoke",
+			},
 		},
 	}
 }

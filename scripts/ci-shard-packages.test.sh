@@ -143,4 +143,46 @@ for args in "2 2" "0 0" "-1 2" "0 x"; do
 	fi
 done
 
-echo "✓ ci-shard-packages: exact partition, outlier isolated, unknown packages kept, empty scope silent, bad args rejected"
+# ── 6. isolation may not cost more than it saves ──
+# WHY: case 2 proves an outlier CAN get a shard to itself; it says nothing about
+# whether it SHOULD. The reservation rule gives at most `total - 1` shards to
+# outliers, so everything else packs into the LAST one — and when the isolated
+# package is cheaper than that packed shard, isolation is a straight loss.
+# Measured 2026-11-20 with OUTLIER=60: the real table isolated a 41s package
+# while the other 113 summed to ~630s, giving 62s | 172s | 169s. Case 2 was
+# blind to it because it only asserts the mechanism, against an injected table.
+#
+# The property: no shard may carry more than 2x the cheapest shard's load.
+# That is what balancing is for, and it needs no real measurement.
+#
+# The fixture is the shape of today's data: the heaviest package (70s) is NOT
+# dominant against a 15s tail — exactly the shape OUTLIER=60 was wrong about.
+wide="${TMP}/wide.txt"
+for i in $(seq 1 40); do echo "/repo/pkg-${i}"; done >"$wide"
+wide_costs="${TMP}/wide-costs.txt"
+{
+	echo "pkg-1 70"
+	echo "pkg-2 65"
+	for i in $(seq 3 40); do echo "pkg-${i} 15"; done
+} >"$wide_costs"
+
+for total in 2 3; do
+	loads=""
+	for ((i = 0; i < total; i++)); do
+		pkgs=$(SHARD_COSTS_FILE="$wide_costs" SHARD_UNIVERSE_FILE="$wide" \
+			bash "$SCRIPT" "$i" "$total" | sed 's|.*/||')
+		sum=0
+		for p in $pkgs; do
+			c=$(awk -v k="$p" '$1 == k { print $2 }' "$wide_costs")
+			sum=$((sum + ${c:-1}))
+		done
+		loads="${loads}${sum} "
+	done
+	min=$(printf '%s\n' $loads | sort -n | head -1)
+	max=$(printf '%s\n' $loads | sort -n | tail -1)
+	[ "$min" -gt 0 ] || fail "total=$total: computed an empty shard (loads: $loads)"
+	[ "$max" -le $((min * 2)) ] ||
+		fail "total=$total: split is lopsided (loads: $loads) — an isolated package is starving the tail"
+done
+
+echo "✓ ci-shard-packages: exact partition, outlier isolated, unknown packages kept, empty scope silent, bad args rejected, split balanced"

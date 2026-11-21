@@ -51,6 +51,40 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 			{Method: post, Pattern: "/room/leave"},
 			{Method: post, Pattern: "/room/crash"},
 		},
+		// The room's whole vocabulary is a click: join, leave, take the pen,
+		// give it back. Every one of them reads the tab's clientID from the
+		// query (never the form) and answers the roster as JSON unless the
+		// caller asked for a Datastar patch — so the same endpoints serve an
+		// agent and the browser without a second surface.
+		Actions: []recipe.InvokeAction{
+			roomAction("join", "Put this client back in the room roster after a leave.", "/room/join"),
+			roomAction("leave", "Take this client out of the room roster.", "/room/leave"),
+			roomAction("acquire", "Take the pen for this client.", "/room/acquire"),
+			roomAction("release", "Give the pen back for this client.", "/room/release"),
+		},
+		Omitted: []recipe.OmittedRoute{
+			{
+				Route:  recipe.Route{Method: post, Pattern: "/room/heartbeat"},
+				Reason: "ambient liveness ping the live stream already replaces; it changes no product state",
+			},
+			{
+				Route:  recipe.Route{Method: post, Pattern: "/room/crash"},
+				Reason: "demo failure injection: it restarts the room actor to watch recovery, not a task a caller performs",
+			},
+		},
+	}
+}
+
+// roomAction is the one shape all four roster verbs share: a POST that reads
+// the tab id from the query and answers the roster. Declaring them through one
+// helper keeps the query name from drifting per route.
+func roomAction(verb, description, pattern string) recipe.InvokeAction {
+	return recipe.InvokeAction{
+		Verb:        verb,
+		Description: description,
+		Route:       recipe.Route{Method: "POST", Pattern: pattern},
+		Query:       []string{"clientID"},
+		ParamHelp:   map[string]string{"clientID": "The tab id whose roster entry to move."},
 	}
 }
 

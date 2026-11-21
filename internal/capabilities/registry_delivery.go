@@ -14,6 +14,14 @@ var deliveryUnits = []Capability{
 		Summary:  "inbox + durable reminders (DagNats sleep → delivery row)",
 		Dirs:     []string{"features/notifications"},
 		Register: "features/notifications/handlers",
+		Actions:  []string{verbRead, verbReadAll, verbRemind, verbUnread},
+		ActionParams: map[string][]string{
+			verbRemind: {paramText, "delay", "channels"},
+		},
+		ActionPathParams: map[string][]string{
+			verbRead:   {"id"},
+			verbUnread: {"id"},
+		},
 		DependsOn: []string{
 			depSounds,
 		},

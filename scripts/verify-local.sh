@@ -195,10 +195,22 @@ if [ -t 0 ]; then
 	read -r verdict || true
 	case "${verdict:-}" in
 	[Pp]ass | [Pp])
-		bash scripts/operator-look.sh pass "operator PASS via verify-local"
+		# Ask for the sentence HERE. A canned note ("operator PASS via
+		# verify-local") records that Enter was pressed, which is the same
+		# reflex click as a bare `make operator-look-pass` — and it is what
+		# this prompt already claimed to want: "one sentence of what you saw".
+		printf 'What did you see? (one sentence, required): '
+		read -r seen || true
+		if ! bash scripts/operator-look.sh pass "${seen:-}"; then
+			echo "  no PASS recorded — the note is required; re-run verify-local when the operator answers"
+		fi
 		;;
 	[Ff]ail | [Ff])
-		bash scripts/operator-look.sh fail "operator FAIL via verify-local"
+		printf 'What is wrong? (one sentence, required): '
+		read -r wrong || true
+		if ! bash scripts/operator-look.sh fail "${wrong:-}"; then
+			echo "  no FAIL recorded — the note is required; re-run verify-local when the operator answers"
+		fi
 		;;
 	*)
 		echo "  no verdict recorded — run make operator-look-pass when the operator answers"

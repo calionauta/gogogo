@@ -366,7 +366,7 @@ authenticated /account security page
 conversation demo (persisted history + catalog answers on genui)
 
 - **Owned:** `features/chat`
-- **Routes:** `/api/chat/ask`, `/api/chat/clear`, `/api/chat/stream`, `/chat`
+- **Routes:** `/api/chat/ask`, `/api/chat/clear`, `/api/chat/messages`, `/api/chat/stream`, `/chat`
 - **Depends on:** genui
 - **Why that class:** Bundled into the genui unit: chat imports genui components (no-compile without it) — one unit is the honest shape, same as whiteboard+collab+notes.
 
@@ -406,7 +406,7 @@ voice-first kiosk order demo (closed menu, on-device voice, one declared outcome
 shared plain-text notes (server-owned Loro Text + SSE)
 
 - **Owned:** `features/notes`
-- **Routes:** `/api/notes/fragment`, `/api/notes/{docID}/caret`, `/api/notes/{docID}/delete`, `/api/notes/{docID}/leave`, `/api/notes/{docID}/op`, `/api/notes/{docID}/stream`, `/api/notes/{docID}/typing`, `/notes`, `/notes/new`, `/notes/{docID}`
+- **Routes:** `/api/notes`, `/api/notes/fragment`, `/api/notes/{docID}`, `/api/notes/{docID}/caret`, `/api/notes/{docID}/delete`, `/api/notes/{docID}/leave`, `/api/notes/{docID}/op`, `/api/notes/{docID}/stream`, `/api/notes/{docID}/typing`, `/notes`, `/notes/new`, `/notes/{docID}`
 - **Store calls:** `dbgen.DeleteNote`, `dbgen.GetNoteMeta`, `dbgen.ListNotes`, `dbgen.UpsertNote`
 - **Depends on:** collab, sounds
 - **Why that class:** Delete the dir, the routes it mounts through the seam, and the Notes entry in internal/ui/modules.go.
@@ -427,7 +427,7 @@ inbox + durable reminders (DagNats sleep → delivery row)
 review loop demo (writer → critic → classifier judge, streamed verdict)
 
 - **Owned:** `features/review`
-- **Routes:** `/api/review/run`, `/review`
+- **Routes:** `/api/review/run`, `/api/review/verdict`, `/review`
 - **Depends on:** genkit
 - **Note:** No UISignal claim by design: the run UI gates on the todo.Signals ReviewEnabled field at runtime (keyless hides it), but the only .templ reader ships inside features/review — claiming it would fail the removed-tree conformance, the same reason SimulatedLLM is unclaimed. Removal drops the sidebar entry, so no dead UI either way. DependsOn lists genkit only: llm is never removed (runtime-off is blessed), so declaring it would break a bundle restore (no unit provides the dep) for zero mechanical gain — the LLM requirement rides the Summary and docs instead.
 - **Warning:** The Review sidebar entry is stripped automatically.
@@ -457,7 +457,7 @@ Todo MVC demo (reference implementation)
 collaborative canvas (Loro + Rough.js + presence)
 
 - **Owned:** `features/whiteboard`, `internal/server/presence.go`
-- **Routes:** `/api/whiteboard/{docID}/delete`, `/api/whiteboard/{docID}/presence`, `/api/whiteboard/{docID}/snapshot`, `/api/whiteboard/{docID}/stream`, `/api/whiteboard/{docID}/update`, `/api/whiteboards/fragment`, `/whiteboard`, `/whiteboard/new`, `/whiteboard/{docID}`
+- **Routes:** `/api/whiteboard/{docID}/delete`, `/api/whiteboard/{docID}/presence`, `/api/whiteboard/{docID}/snapshot`, `/api/whiteboard/{docID}/stream`, `/api/whiteboard/{docID}/update`, `/api/whiteboards`, `/api/whiteboards/fragment`, `/whiteboard`, `/whiteboard/new`, `/whiteboard/{docID}`
 - **Store calls:** `dbgen.BumpBoardVersion`, `dbgen.DeleteBoard`, `dbgen.GetBoardMeta`, `dbgen.ListBoards`, `dbgen.UpsertBoard`
 - **Depends on:** collab, sounds
 - **Why that class:** Delete the dir plus internal/server/presence.go and the Whiteboard entry in internal/ui/modules.go (notes falls back to the in-process PeerSet presence seam). presence.go goes only when notes is also absent: it is the shared seam, so removing it while notes survives breaks the build.

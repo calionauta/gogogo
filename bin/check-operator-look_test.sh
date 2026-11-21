@@ -86,6 +86,37 @@ if run_gate "$dir"; then bad "an edit after the look re-closes it" "gate passed 
 printf 'package components\n// uncommitted tweak\n' >"$dir/features/x/components/page.templ"
 if run_gate "$dir"; then bad "an uncommitted edit after the look re-closes it" "gate passed a stale worktree"; else ok "an uncommitted edit after the look re-closes it"; fi
 
+# 7. A verdict with NO note is refused at record time. This is the reflex click
+# the gate exists to stop: `pass` with nothing said is indistinguishable from a
+# button pressed without looking, and it is what the operator reported doing.
+if (cd "$dir" && bash scripts/operator-look.sh pass "" >/dev/null 2>&1); then
+	bad "a note-less PASS is refused at record time" "operator-look recorded an empty note"
+else
+	ok "a note-less PASS is refused at record time"
+fi
+if (cd "$dir" && bash scripts/operator-look.sh pass "lgtm" >/dev/null 2>&1); then
+	bad "a placeholder note is refused" "operator-look accepted 'lgtm'"
+else
+	ok "a placeholder note is refused"
+fi
+
+# 8. A stamp that predates the note requirement (empty note, otherwise fresh)
+# is refused by the READER too. Otherwise every existing stamp would keep
+# opening the gate forever and the requirement would only apply to new ones.
+(cd "$dir" && bash scripts/operator-look.sh pass "looks right" >/dev/null)
+python3 - "$dir/.gogogo/verify-local.json" <<'PY'
+import json, sys
+p = sys.argv[1]
+d = json.load(open(p))
+d["note"] = ""
+json.dump(d, open(p, "w"))
+PY
+if run_gate "$dir"; then
+	bad "an old stamp with no note is refused" "gate passed a stamp carrying no note"
+else
+	ok "an old stamp with no note is refused"
+fi
+
 if [ "$fails" -ne 0 ]; then
 	printf '\n%d failure(s)\n' "$fails"
 	exit 1

@@ -5,13 +5,14 @@
 > Coverage is enforced by TestTemplAPIURLsHaveRoutes (every ref below
 > must match a registered route); this file is the inventory it proves.
 
-## Registered routes (78)
+## Registered routes (83)
 
 Every `/api/*` literal in non-test, non-generated Go sources.
 
 - `/api/`
 - `/api/ai/request`
 - `/api/analytics`
+- `/api/auth/`
 - `/api/auth/magic`
 - `/api/auth/magic/request`
 - `/api/auth/magic?`
@@ -39,6 +40,7 @@ Every `/api/*` literal in non-test, non-generated Go sources.
 - `/api/byok/*`
 - `/api/chat/ask`
 - `/api/chat/clear`
+- `/api/chat/messages`
 - `/api/chat/stream`
 - `/api/credits`
 - `/api/credits/checkout`
@@ -50,6 +52,7 @@ Every `/api/*` literal in non-test, non-generated Go sources.
 - `/api/graph/presence`
 - `/api/kiosk/confirm`
 - `/api/kiosk/preview`
+- `/api/notes`
 - `/api/notes/fragment`
 - `/api/notes/{docID}`
 - `/api/notes/{docID}/caret`
@@ -66,6 +69,7 @@ Every `/api/*` literal in non-test, non-generated Go sources.
 - `/api/notifications/{id}/unread`
 - `/api/onboarding/start`
 - `/api/review/run`
+- `/api/review/verdict`
 - `/api/security/csp-report`
 - `/api/session/stream`
 - `/api/todos`
@@ -86,6 +90,7 @@ Every `/api/*` literal in non-test, non-generated Go sources.
 - `/api/whiteboard/{docID}/snapshot`
 - `/api/whiteboard/{docID}/stream`
 - `/api/whiteboard/{docID}/update`
+- `/api/whiteboards`
 - `/api/whiteboards/fragment`
 
 ## Template and script refs (27)

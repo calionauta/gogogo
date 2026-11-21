@@ -37,54 +37,139 @@
 # 14s of each other. Re-measure before editing this table.
 #
 # REFRESHING THE TABLE (do this when the race job's shape changes):
-#   gh run view <run-id> --log | grep -E '^race.*(ok|FAIL)\s+[^ ]+\s+[0-9.]+s'
+#   bin/shard-costs.sh --refresh      # re-measure, rewrite the table below
+#   bin/shard-costs.sh --estimate     # simulate the split without running CI
+# Both are free (they read old run logs). The manual recipe is:
+#   gh run view <run-id> --log | grep -E 'ok\s+github\.com/calionauta/gogogo/\S+\s+[0-9.]+s'
 # then update the table below. A stale table degrades to a worse split, never
 # to a wrong one: unknown packages cost 1s and land in a shared shard, and the
 # union of all shards is always exactly web-packages.sh.
+#
+# MEASURED 2026-11-20 (run 44735623082): the 2026-11-17 table below was stale
+# in a direction that did not show up as imbalance — shard 0 ran 62s against
+# 172s and 169s for the others. See the STALE TABLE note under OUTLIER.
 set -euo pipefail
 
 # OUTLIER: a package at or above this measured cost gets a shard of its own
 # (while shards remain), instead of being balanced against the others.
-# 60, not 300: the heaviest package now measures 64s, so "a shard to itself"
-# costs a runner and saves nothing unless the package is genuinely dominant.
-# Isolating a 64s package from a 50s one buys 14s; isolating it from 6s packages
-# buys nothing and starves the tail. Keep this at the point where a package is
-# worth more than the packing it distorts.
-OUTLIER=60
+#
+# WHY THIS IS BIGGER THAN THE HEAVIEST PACKAGE (and why that is deliberate).
+# The reservation rule above stops at `total - 1`, so with 3 shards at most TWO
+# packages get a shard each; everything else is greedy-packed into the last one.
+# When the isolated package costs LESS than the packed shard it was isolated
+# from, isolation is a straight loss: measured 2026-11-20, the one package above
+# a 60s threshold (features/todo/handlers, 41s here) got a whole runner while the
+# other 114 packages summed to ~630s in a single shard — 62s | 172s | 169s, a
+# 110s spread that a balanced split turns into 68s | 68s | 56s. The mechanism is
+# for genuine DOMINANCE, so the threshold sits above the heaviest measured
+# package: with today's numbers nothing is reserved and the greedy packer wins.
+# Lower it only when one package dwarfs the sum of the rest (as internal/installer
+# did at 360s of a 620s suite) — then isolating it is worth a runner.
+OUTLIER=100
 
 # cost <package-dir-suffix> <seconds> — suffix match, so a moved parent
 # directory does not silently drop the entry.
 costs() {
 	cat <<'EOF'
-features/todo/handlers 64
-bin 53
-features/whiteboard/handlers 50
-features/notes/handlers 49
-internal/server 36
-internal/demo 17
-features/config/handlers 17
-features/room/handlers 16
-features/account/handlers 16
-features/chat/handlers 15
-features/review/handlers 13
-internal/queue 12
-internal/auth 10
-internal/authpages 10
-internal/dagnats 9
-internal/rbac 9
-cmd/check-docs 9
-features/graph/handlers 8
-internal/capabilities 8
-features/todo/service 8
+features/notes/handlers 68
+bin 68
+features/whiteboard/handlers 53
+features/todo/handlers 41
+internal/server 40
+internal/installer 32
+internal/demo 24
+features/config/handlers 21
+features/account/handlers 19
+features/room/handlers 18
+features/chat/handlers 18
+internal/auth 17
+features/review/handlers 17
+internal/queue 15
+internal/rbac 13
+cmd/gogogo-mcp 13
+internal/authpages 9
+features/todo/service 9
+features/notifications/handlers 8
 features/dashboard/handlers 8
-features/notifications/handlers 7
+cmd/web 8
+cmd/check-docs 8
+internal/capabilities 7
+features/graph/handlers 7
 internal/llm/fakeserver 6
-internal/installer 6
-internal/nats 5
+internal/components 5
+features/credits/handlers 5
+internal/nats 4
+internal/dagnats 4
+internal 4
+features/license/handlers 4
 internal/goakt 3
-features/credits/handlers 3
-cmd/web 3
-features/landing/handlers 3
+internal/dbschema 3
+internal/dbload 3
+internal/collab 3
+features/onboarding 3
+cmd/check-flatdeps 3
+rules 2
+internal/natswire 2
+features/genui/components 2
+features/credits 2
+web/resources 1
+internal/uiregistry 1
+internal/ui 1
+internal/themes 1
+internal/shape 1
+internal/secrets 1
+internal/search 1
+internal/recipestate 1
+internal/recipe/register 1
+internal/recipe 1
+internal/prompts 1
+internal/projectlocales 1
+internal/perf 1
+internal/observability 1
+internal/llm 1
+internal/license 1
+internal/instance 1
+internal/icon 1
+internal/i18n 1
+internal/hostgate 1
+internal/graph 1
+internal/events 1
+internal/delivery/notify 1
+internal/delivery 1
+internal/db 1
+internal/datastar 1
+internal/cloudcfg 1
+internal/analytics 1
+features/whiteboard/components 1
+features/todo/components 1
+features/todo 1
+features/review/components 1
+features/notifications/components 1
+features/notes/components 1
+features/kiosk/service 1
+features/kiosk/handlers 1
+features/kiosk/components 1
+features/kiosk 1
+features/graph/native 1
+features/dashboard/components 1
+features/config/components 1
+features/chat/store 1
+features/chat 1
+features/authviews 1
+features/app 1
+config 1
+cmd/ui-registry 1
+cmd/prompt-eval 1
+cmd/check-typed-states 1
+cmd/check-test-value 1
+cmd/check-skill-frontmatter 1
+cmd/check-secrets-env 1
+cmd/check-prompts 1
+cmd/check-product-boundary 1
+cmd/check-domains 1
+cmd/check-classes 1
+cmd/bump-go-toolchain 1
+catalog 1
 EOF
 }
 

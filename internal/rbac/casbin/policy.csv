@@ -231,6 +231,7 @@ p, user, /notifications, .*
 # recipe:review
 # written by `gogogo recipe install`; `gogogo recipe uninstall` removes this block
 p, user, /api/review/run, .*
+p, user, /api/review/verdict, .*
 p, user, /review, .*
 # end recipe:review
 # recipe:room
@@ -266,6 +267,7 @@ p, user, /todo, .*
 # end recipe:todo
 # recipe:whiteboard
 # written by `gogogo recipe install`; `gogogo recipe uninstall` removes this block
+p, user, /api/whiteboards, .*
 p, user, /api/whiteboard/*/delete, .*
 p, user, /api/whiteboard/*/presence, .*
 p, user, /api/whiteboard/*/snapshot, .*

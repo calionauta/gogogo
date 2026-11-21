@@ -51,6 +51,41 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 			{Method: post, Pattern: "/api/notifications/{id}/unread"},
 			{Method: get, Pattern: "/api/notifications/badge"},
 		},
+		// The inbox is fully scriptable: scheduling a reminder and moving a row
+		// between read and unread are the same owner-scoped writes the page
+		// performs, so an agent never needs the browser for them.
+		Actions: []recipe.InvokeAction{
+			{
+				Verb:        "remind",
+				Description: "Schedule one reminder for the calling session and return the refreshed inbox patch.",
+				Route:       recipe.Route{Method: post, Pattern: "/api/notifications/remind"},
+				Params:      []string{"text", "delay", "channels"},
+				ParamHelp: map[string]string{
+					"text":     "The reminder body.",
+					"delay":    "When it fires: 1m, 1h or 24h.",
+					"channels": "One offered channel name; omit for in-app only.",
+				},
+			},
+			{
+				Verb:        "read_all",
+				Description: "Mark every in-app notification of the calling owner as read.",
+				Route:       recipe.Route{Method: post, Pattern: "/api/notifications/read-all"},
+			},
+			{
+				Verb:        "read",
+				Description: "Mark one of the caller's notifications as read.",
+				Route:       recipe.Route{Method: post, Pattern: "/api/notifications/{id}/read"},
+				PathParams:  []string{"id"},
+				ParamHelp:   map[string]string{"id": "The notification's UUID."},
+			},
+			{
+				Verb:        "unread",
+				Description: "Return one of the caller's notifications to the unread pile.",
+				Route:       recipe.Route{Method: post, Pattern: "/api/notifications/{id}/unread"},
+				PathParams:  []string{"id"},
+				ParamHelp:   map[string]string{"id": "The notification's UUID."},
+			},
+		},
 	}
 }
 

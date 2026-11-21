@@ -24,10 +24,42 @@ func (p recipeProvider) ID() string { return RecipeID }
 // page reads genkit and holds no rows of its own, and claiming one it does not
 // own would make Validate refuse it — which is the point of declaring.
 func (p recipeProvider) Declaration() recipe.Declaration {
+	const (
+		get  = "GET"
+		post = "POST"
+
+		paramTab     = "tab"
+		paramContent = "content"
+	)
 	return recipe.Declaration{
 		Routes: []recipe.Route{
-			{Method: "GET", Pattern: "/review"},
-			{Method: "POST", Pattern: "/api/review/run"},
+			{Method: get, Pattern: "/review"},
+			{Method: post, Pattern: "/api/review/run"},
+			{Method: post, Pattern: "/api/review/verdict"},
+		},
+		Actions: []recipe.InvokeAction{
+			{
+				Verb: "verdict",
+				Description: "Run the review loop on one document and return the final " +
+					"decision as JSON (decision, rationale, confidence, rounds, proposal).",
+				Route:  recipe.Route{Method: "POST", Pattern: "/api/review/verdict"},
+				Params: []string{paramTab, paramContent},
+				ParamHelp: map[string]string{
+					paramTab:     "Which review lens to run.",
+					paramContent: "The document to review.",
+				},
+			},
+			{
+				Verb: "run",
+				Description: "Run the review loop on one document with live progress; the " +
+					"verdict arrives as streamed patch frames when it completes.",
+				Route:  recipe.Route{Method: "POST", Pattern: "/api/review/run"},
+				Params: []string{paramTab, paramContent},
+				ParamHelp: map[string]string{
+					paramTab:     "Which review lens to run.",
+					paramContent: "The document to review.",
+				},
+			},
 		},
 	}
 }

@@ -101,6 +101,9 @@ func capabilityMirrorProblems(owner string, decl recipe.Declaration) []string {
 	// the allowed fields without opening the handler.
 	wantParams := map[string][]string{}
 	wantPathParams := map[string][]string{}
+	wantQuery := map[string][]string{}
+	wantRaw := map[string]string{}
+	wantBrowser := map[string]string{}
 	for _, a := range decl.Actions {
 		if len(a.Params) > 0 {
 			wantParams[a.Verb] = slices.Clone(a.Params)
@@ -108,9 +111,60 @@ func capabilityMirrorProblems(owner string, decl recipe.Declaration) []string {
 		if len(a.PathParams) > 0 {
 			wantPathParams[a.Verb] = slices.Clone(a.PathParams)
 		}
+		if len(a.Query) > 0 {
+			wantQuery[a.Verb] = slices.Clone(a.Query)
+		}
+		if a.RawBody != "" {
+			wantRaw[a.Verb] = a.RawBody
+		}
+		if a.BrowserPath != "" {
+			wantBrowser[a.Verb] = a.BrowserPath
+		}
 	}
 	out = append(out, mirrorParamProblems("param", row.ActionParams, wantParams)...)
 	out = append(out, mirrorParamProblems("path param", row.ActionPathParams, wantPathParams)...)
+	out = append(out, mirrorParamProblems("query param", row.ActionQuery, wantQuery)...)
+	out = append(out, mirrorRawBodyProblems(row.ActionRawBody, wantRaw)...)
+	out = append(out, mirrorBrowserPathProblems(row.ActionBrowserPath, wantBrowser)...)
+	return out
+}
+
+// mirrorBrowserPathProblems compares the per-verb browser page map, so
+// discovery cannot claim a human page the declaration does not name (or hide
+// one it does).
+func mirrorBrowserPathProblems(got, want map[string]string) []string {
+	var out []string
+	for verb, w := range want {
+		if got[verb] != w {
+			out = append(out, fmt.Sprintf(
+				"registry browser page for %q = %q, want %q (mirror the Declaration)", verb, got[verb], w))
+		}
+	}
+	for verb := range got {
+		if _, ok := want[verb]; !ok {
+			out = append(out, fmt.Sprintf(
+				"registry advertises a browser page for %q the Declaration does not declare", verb))
+		}
+	}
+	return out
+}
+
+// mirrorRawBodyProblems compares the per-verb raw-body map. Separate from
+// mirrorParamProblems because a raw body is one param name, not a set.
+func mirrorRawBodyProblems(got, want map[string]string) []string {
+	var out []string
+	for verb, w := range want {
+		if got[verb] != w {
+			out = append(out, fmt.Sprintf(
+				"registry raw body for %q = %q, want %q (mirror the Declaration)", verb, got[verb], w))
+		}
+	}
+	for verb := range got {
+		if _, ok := want[verb]; !ok {
+			out = append(out, fmt.Sprintf(
+				"registry advertises a raw body for %q the Declaration does not declare", verb))
+		}
+	}
 	return out
 }
 

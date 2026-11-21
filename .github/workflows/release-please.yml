@@ -48,6 +48,79 @@ jobs:
           config-file: .github/release-please-config.json
           manifest-file: .github/.release-please-manifest.json
 
+      # Tell the maintainer WHY the release PR's CI sits in `action_required`,
+      # instead of leaving them to approve it blind.
+      #
+      # The approval itself is correct and must stay: this branch is pushed by a
+      # token, so GitHub holds the runs it triggers, and that hold is the only
+      # reason `TestParseChangelogReadsTheRealFile` was ever caught — it read the
+      # live CHANGELOG, hardcoded whichever version happened to be newest, and
+      # stayed green for months because CI never ran on this branch. The first
+      # release PR whose CI actually executed came back red.
+      #
+      # The cost was never the click; it was that the click carried no
+      # information. Six of sixty observed runs sat for up to twelve hours with
+      # nothing saying what they protected, which reads as "CI is slow" and
+      # trains everyone to click through. This comment fixes that by naming the
+      # gate and the commit it guards. It is idempotent (one comment, updated in
+      # place) so a PR touched on every master push does not become a wall.
+      - name: Explain the approval this PR needs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Only release-please owns a branch with this name, and most master
+          # pushes just refresh the open PR rather than opening one — so an
+          # absent PR is the normal case, not an error.
+          head="release-please--branches--master"
+          num=$(gh pr list -R "$GITHUB_REPOSITORY" --head "$head" \
+            --state open --json number --jq '.[0].number // empty' || true)
+          if [ -z "$num" ]; then
+            echo "no open release PR; nothing to explain"
+            exit 0
+          fi
+
+          # One comment, updated in place. The body carries this marker so the
+          # next run finds it instead of stacking a second copy: a release PR
+          # is touched on every master push.
+          marker="<!-- release-please-ci-approval -->"
+
+          # Quoted heredoc: nothing inside is expanded. An unquoted one turned
+          # every `backtick` into a command substitution and silently stripped
+          # it from the body, and `` `GITHUB_TOKEN` `` rendered as an empty
+          # string — the note read "runs that a  triggers".
+          body=$(cat <<'EOF'
+          <!-- release-please-ci-approval -->
+          **CI on this PR needs one approval, and it is worth the click.**
+
+          The checks here sit in `action_required` because this branch is
+          pushed by a token: GitHub holds runs that a `GITHUB_TOKEN` triggers,
+          as an anti-recursion measure. Nothing is failing and nothing is slow.
+
+          That hold is load-bearing. It is the only reason a real bug was ever
+          caught in this repo: `TestParseChangelogReadsTheRealFile` read the live
+          `CHANGELOG.md`, hardcoded whichever version happened to be newest, and
+          stayed green for months because CI never ran on this branch. The first
+          release PR whose CI actually executed came back red.
+
+          So: open **Actions**, approve the run on this branch, then read it. If
+          it is red, the release is wrong — do not merge past it.
+          EOF
+          )
+
+          # --edit-last edits the authenticated user's last comment, and the bot
+          # is the only commenter on this PR, so it is the marker comment. The
+          # existence test uses a plain literal match rather than jq --arg:
+          # `gh --jq` does not accept --arg, and passing it fails the step with
+          # a usage error that reads like a permissions problem.
+          if gh pr view "$num" -R "$GITHUB_REPOSITORY" --json comments \
+            --jq '.comments[].body' | grep -qF "$marker"; then
+            gh pr comment "$num" -R "$GITHUB_REPOSITORY" --body "$body" --edit-last >/dev/null
+            echo "updated the approval note on PR #$num"
+          else
+            gh pr comment "$num" -R "$GITHUB_REPOSITORY" --body "$body" >/dev/null
+            echo "added the approval note to PR #$num"
+          fi
+
       # release-please creates the tag with GITHUB_TOKEN, and GitHub starts no
       # workflow run from an event that token produced (anti-recursion) — so
       # release.yml's `on: push: tags` never fires for it. workflow_dispatch is

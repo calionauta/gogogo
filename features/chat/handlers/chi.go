@@ -113,6 +113,7 @@ func (h *Handler) SetModelLeg(real *llm.Client, router comp.Router, surfaces []c
 func (h *Handler) Routes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/chat", h.handleIndex)
+	r.Get("/api/chat/messages", h.handleMessages)
 	r.Post("/api/chat/ask", h.handleAsk)
 	r.Post("/api/chat/clear", h.handleClear)
 	r.Get("/api/chat/stream", h.handleStream)

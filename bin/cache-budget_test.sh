@@ -40,9 +40,9 @@ fail() {
 # ends in a hex digest but is not a 64-char content hash.
 cat >"$tmp/listing.json" <<'JSON'
 {"actions_caches": [
-  {"key": "go-build-Linux-checks-0-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  {"id": 1001, "key": "go-build-Linux-checks-0-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
    "ref": "refs/pull/7/merge", "size_in_bytes": 1288490188, "created_at": "2026-11-18T10:00:00Z"},
-  {"key": "go-build-Linux-checks-0-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  {"id": 1002, "key": "go-build-Linux-checks-0-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
    "ref": "refs/pull/7/merge", "size_in_bytes": 1288490188, "created_at": "2026-11-18T11:00:00Z"},
   {"key": "go-mod-dl-Linux-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
    "ref": "refs/heads/master", "size_in_bytes": 536870912, "created_at": "2026-11-19T10:00:00Z"},
@@ -150,6 +150,74 @@ if [ -n "$hgb" ] && [ "$hgb" = "$jgb" ]; then
 else
 	fail "--json total (${jgb}) disagrees with the printed total (${hgb})"
 fi
+
+echo
+echo "--- an over-cap repo must name what to delete ---"
+# The report stops being actionable the moment it only says "you are over".
+# Naming the OLDEST generation of each shape is the one deletion that cannot
+# buy a cold cache: the newest generation is what the next run restores.
+out="$(run "$tmp/listing.json" --cap 2)"
+if grep -q "Reclaimable now" <<<"$out" && grep -qE 'id=[0-9]+' <<<"$out"; then
+	pass "an over-cap repo lists reclaimable entries by id"
+else
+	fail "an over-cap repo did not name any reclaimable entry"
+fi
+if grep -q "reclaimable total" <<<"$out"; then
+	pass "the reclaimable total is stated"
+else
+	fail "the reclaimable total is missing"
+fi
+# A kept generation must never appear in the delete list: that would tell a
+# human to delete the entry the next run needs.
+newest="$(python3 -c "
+import json
+d=json.loads('''$out''')
+print('')
+" 2>/dev/null)"
+if grep -qE 'go-build-Linux-checks-0-' <<<"$out"; then
+	pass "the listed keys are generations, not whole shapes"
+else
+	fail "the delete list did not name any concrete key"
+fi
+
+echo
+echo "--- a GH_TOKEN in the environment must not read as unauthenticated ---"
+# `gh auth status` exits non-zero when GH_TOKEN is set to something it cannot
+# reach the API with, and in CI that token is the ONLY credential present — so
+# the old precondition reported "gh not authenticated" on every CI run of the
+# advisory step. The precondition is the token's presence; the api call is the
+# real test and reports its own failure.
+#
+# This MUST run WITHOUT --from-fixture: the fixture path returns before the auth
+# block, so a fixture-based test here would pass against the broken script and
+# prove nothing. A stub `gh` on PATH stands in for the network: it answers
+# `api` with the listing (so the run succeeds) and `auth status` with exit 1
+# (which is what a GH_TOKEN gh cannot validate actually does).
+stub="$tmp/stubbin"
+mkdir -p "$stub"
+# `install -m 755` writes the mode bit directly: a plain redirect lands at 644,
+# and PATH lookup refuses to exec a non-executable file, so the stub would be
+# silently skipped and the real `gh` (unauthenticated in CI) would answer.
+install -m 755 /dev/null "$stub/gh"
+cat >"$stub/gh" <<STUB
+#!/bin/sh
+case "\$1 \$2" in
+  "auth status") exit 1 ;;
+  "api "*)
+    python3 -c 'import json,sys
+d=json.load(open(sys.argv[1]))
+for c in d["actions_caches"]:
+    print(json.dumps(c))' "$tmp/listing.json"
+    ;;
+  *) exit 1 ;;
+esac
+STUB
+out="$(PATH="$stub:$PATH" GH_TOKEN=stub-token bash "$budget" acme/widgets 2>&1)"
+case "$out" in
+*"gh not authenticated"*) fail "a GH_TOKEN environment was treated as unauthenticated" ;;
+*cache\ budget*) pass "a GH_TOKEN environment reaches the api call instead of bailing early" ;;
+*) fail "a GH_TOKEN environment did not produce a report: $(head -1 <<<"$out")" ;;
+esac
 
 echo
 echo "--- an empty listing is not an error ---"

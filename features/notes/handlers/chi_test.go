@@ -157,6 +157,70 @@ func TestHandlersNotesCreateOpAndRev(t *testing.T) {
 	}
 }
 
+// TestHandlersNotesHeadlessCreate pins the create path an agent uses: POST
+// /api/notes answers the new id (the browser's GET redirects instead), and the
+// id is immediately writable, which only holds when the row was persisted.
+func TestHandlersNotesHeadlessCreate(t *testing.T) {
+	mux := notesFixture(t)
+	cookie := notesSignup(t, mux, "create@example.com")
+
+	anon := httptest.NewRecorder()
+	mux.ServeHTTP(anon, httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/notes", nil))
+	if anon.Code != http.StatusUnauthorized {
+		t.Fatalf("anon create status = %d, want 401", anon.Code)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/notes", nil)
+	req.AddCookie(cookie)
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create status = %d (%s), want 201", rec.Code, rec.Body.String())
+	}
+	var created struct {
+		DocID string `json:"docID"` //nolint:tagliatelle // the handler's public JSON key
+		Path  string `json:"path"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+		t.Fatalf("create body: %v", err)
+	}
+	if created.DocID == "" || created.Path != "/notes/"+created.DocID {
+		t.Fatalf("create answer = %+v, want a docID and its page path", created)
+	}
+
+	opRec := httptest.NewRecorder()
+	opReq := httptest.NewRequestWithContext(context.Background(),
+		http.MethodPost, "/api/notes/"+created.DocID+"/op?clientID=c1",
+		strings.NewReader(`{"base":0,"ops":[{"t":"ins","i":0,"s":"hi"}]}`))
+	opReq.Header.Set("Content-Type", "application/json")
+	opReq.AddCookie(cookie)
+	mux.ServeHTTP(opRec, opReq)
+	if opRec.Code != http.StatusOK {
+		t.Fatalf("op on created note = %d (%s), want 200", opRec.Code, opRec.Body.String())
+	}
+
+	// The read path closes the loop: an agent that wrote must be able to read the
+	// merged text and the revision the next edit bases itself on.
+	readRec := httptest.NewRecorder()
+	readReq := httptest.NewRequestWithContext(context.Background(),
+		http.MethodGet, "/api/notes/"+created.DocID, nil)
+	readReq.AddCookie(cookie)
+	mux.ServeHTTP(readRec, readReq)
+	if readRec.Code != http.StatusOK {
+		t.Fatalf("read status = %d (%s), want 200", readRec.Code, readRec.Body.String())
+	}
+	var readBody struct {
+		Text string `json:"text"`
+		Rev  uint64 `json:"rev"`
+	}
+	if err := json.Unmarshal(readRec.Body.Bytes(), &readBody); err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+	if readBody.Text != "hi" || readBody.Rev != 1 {
+		t.Fatalf("read = %+v, want text=hi rev=1", readBody)
+	}
+}
+
 func TestHandlersNotesTypingCaret(t *testing.T) {
 	mux := notesFixture(t)
 	cookie := notesSignup(t, mux, "presence@example.com")

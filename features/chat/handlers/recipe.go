@@ -36,13 +36,45 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 		Panel: &recipe.PanelSpec{
 			Component: "chat_history",
 			Prompt:    prompts.Text("panels/chat-history"),
-			Writable:  []string{"limit"},
+			Writable:  []string{propLimit},
 		},
 		Routes: []recipe.Route{
 			{Method: get, Pattern: "/chat"},
+			{Method: get, Pattern: "/api/chat/messages"},
 			{Method: post, Pattern: "/api/chat/ask"},
 			{Method: post, Pattern: "/api/chat/clear"},
 			{Method: get, Pattern: "/api/chat/stream"},
+		},
+		// The demo has no privileged write: asking is enqueuing a job and
+		// clearing is deleting the caller's own history. `ask` describes the
+		// async contract honestly — the answer arrives on the chat stream, not
+		// in the invoke reply — so an agent is not surprised by the ack.
+		Actions: []recipe.InvokeAction{
+			{
+				Verb:        "history",
+				Description: "Read the calling session's chat history as JSON, oldest first; limit keeps the newest N.",
+				Route:       recipe.Route{Method: get, Pattern: "/api/chat/messages"},
+				Query:       []string{"limit"},
+				ParamHelp: map[string]string{
+					"limit": "Optional positive count of newest messages to return; omit for the whole thread.",
+				},
+			},
+			{
+				Verb: "ask",
+				Description: "Ask the assistant one question; the job is queued and the " +
+					"answer arrives on the chat stream, not in this reply.",
+				Route:  recipe.Route{Method: post, Pattern: "/api/chat/ask"},
+				Params: []string{"prompt", "surfaces"},
+				ParamHelp: map[string]string{
+					"prompt":   "The question to ask.",
+					"surfaces": "Optional comma-separated genui surfaces (catalog, custom, native).",
+				},
+			},
+			{
+				Verb:        "clear",
+				Description: "Delete the calling session's whole chat history.",
+				Route:       recipe.Route{Method: post, Pattern: "/api/chat/clear"},
+			},
 		},
 	}
 }

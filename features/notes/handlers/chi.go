@@ -18,14 +18,12 @@ import (
 	"sync"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
 
 	"github.com/calionauta/gogogo/config"
 	notescomponents "github.com/calionauta/gogogo/features/notes/components"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/collab"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
-	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/demo"
 	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
@@ -99,6 +97,7 @@ func (h *Handler) Routes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/notes", h.handleIndex)
 	r.Get("/notes/new", h.handleNew)
+	r.Post("/api/notes", h.handleCreate)
 	r.Get("/notes/{docID}", h.handleNote)
 	r.Post("/api/notes/{docID}/delete", h.handleDelete)
 	r.Get("/api/notes/{docID}/stream", h.handleStream)
@@ -107,6 +106,7 @@ func (h *Handler) Routes() chi.Router {
 	r.Post("/api/notes/{docID}/caret", h.handleCaret)
 	r.Post("/api/notes/{docID}/leave", h.handleLeavePresence)
 	r.Get("/api/notes/fragment", h.handleFragment)
+	r.Get("/api/notes/{docID}", h.handleRead)
 	return r
 }
 
@@ -199,23 +199,6 @@ func (h *Handler) handleFragment(w http.ResponseWriter, r *http.Request) {
 	_ = notescomponents.NotesListFragment(notes).Render(r.Context(), w)
 }
 
-func (h *Handler) handleNew(w http.ResponseWriter, r *http.Request) {
-	sess := h.session(r)
-	if sess == nil {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
-		return
-	}
-	docID := uuid.NewString()
-	now := dbschema.Now()
-	if err := h.q.UpsertNote(r.Context(), dbgen.UpsertNoteParams{
-		DocID: docID, Owner: sess.User.ID, Updated: now, Created: now,
-	}); err != nil {
-		obsArgs := append(observability.WithComponent("notes", "feature"), "doc", docID, "error", err)
-		observability.Warn(r.Context(), "notes: save new note", obsArgs...)
-	}
-	http.Redirect(w, r, "/notes/"+docID, http.StatusFound)
-}
-
 func (h *Handler) handleNote(w http.ResponseWriter, r *http.Request) {
 	sess := h.session(r)
 	if sess == nil {
@@ -243,9 +226,7 @@ func (h *Handler) handleNote(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	text := h.docs.GetOrCreate(docID).Text()
-	h.revsMu.Lock()
-	rev := h.revs[docID]
-	h.revsMu.Unlock()
+	rev := h.revision(docID)
 	meta := h.docMeta(r.Context(), docID, sess.User.ID)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
@@ -385,7 +366,7 @@ func (h *Handler) handleOp(w http.ResponseWriter, r *http.Request) {
 		text := h.docs.GetOrCreate(docID).Text()
 		authed := sess != nil
 		writeJSON(w, http.StatusConflict, map[string]any{
-			"ok": false, "error": "stale", "text": text, "rev": current, authedKey: authed,
+			"ok": false, "error": "stale", jsonKeyText: text, "rev": current, authedKey: authed,
 		})
 		return
 	}
