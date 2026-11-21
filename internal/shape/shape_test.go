@@ -7,11 +7,10 @@ import (
 	"testing"
 )
 
-// writeTree lays down the files a case needs. A path ending in "/" is a
-// directory; anything else gets body, or `package main` when body is empty.
-// writeTree lays down a fixture tree. Every shape ships cmd/product-mcp (the
-// consumer surface), so the seed carries it unless the test is specifically
-// about its absence.
+// writeTree lays down a fixture tree. A path ending in "/" is a directory;
+// anything else gets body, or `package main` when body is empty. Every shape
+// ships cmd/product-mcp (the consumer surface), so the seed carries it unless
+// the case is specifically about its absence.
 func writeTree(t *testing.T, root string, files map[string]string) {
 	t.Helper()
 	if _, ok := files["cmd/product-mcp/main.go"]; !ok {

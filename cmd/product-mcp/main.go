@@ -48,8 +48,11 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
-// newServer wires the three tools that make a product self-describing and
-// callable. Extraction exists so a test drives the same wiring main does.
+// newServer wires the two tools that make a product self-describing and
+// callable. Extraction exists so the tests drive the same wiring main does:
+// main_test.go connects a real client to this server over an in-memory
+// transport, so a tool registered here but undispatchable fails in CI rather
+// than in an agent's first call.
 func newServer(client productapi.Client) *mcp.Server {
 	srv := mcp.NewServer(&mcp.Implementation{
 		Name:    "product",

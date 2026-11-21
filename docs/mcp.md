@@ -9,7 +9,12 @@ users and their agents call the running server's routes (including
 `POST /api/ext/invoke`) under its session and policy; never ship this server
 to them.
 
-## Install
+## Install the evolution pair
+
+This installs `gogogo` **and** `gogogo-mcp` — the pair that reads and rewrites a
+checkout. If you are *driving* an existing product rather than evolving it, this
+is the wrong pair: skip to `### Which one do I install?` below, which names the
+binary the product itself ships.
 
 `install.sh` already puts `gogogo-mcp` next to `gogogo`:
 
@@ -158,6 +163,13 @@ go install github.com/calionauta/gogogo/cmd/gogogo-mcp@latest
 The two are not interchangeable, and neither replaces the other. Installing the
 evolution MCP to drive a deployed product hands an agent that rewrites source
 trees the session of a user who only wanted to call a route.
+
+`cmd/product-mcp` is deliberately in no release target of this repo: `make
+build`, `install.sh` and `.goreleaser.yaml` ship `gogogo`, `gogogo-mcp` and the
+native shells, never this one. Each product compiles its own, because the binary
+name, the version it reports and the routes it reaches belong to that product,
+not to the template. In a template checkout it builds with
+`go build ./cmd/product-mcp`; after a scaffold it is already part of the tree.
 
 ## Tools
 

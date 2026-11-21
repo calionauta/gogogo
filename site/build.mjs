@@ -756,6 +756,27 @@ function check() {
     }
   }
   if (failed) { console.error(`${failed} check failure(s)`); process.exit(1); }
+
+  // The landing page links into the docs by fragment too, and it is the page
+  // no gate was reading: renaming a heading left `site/index.html` pointing at
+  // a dead anchor while every check stayed green, because the loops above walk
+  // MANIFEST only. A heading can be renamed without touching a single .md link.
+  const landing = readFileSync(join(ROOT, "site", "index.html"), "utf8");
+  for (const m of landing.matchAll(/href="\.\/docs\/([^\/#]+)\/?#([^"]+)"/g)) {
+    const slug = m[1];
+    const frag = m[2];
+    const hit = MANIFEST.find((x) => x.slug === slug);
+    if (!hit) {
+      console.error(`missing page in index.html: ./docs/${slug}/`);
+      failed++;
+      continue;
+    }
+    if (!anchorsOf.get(hit.file).has(frag)) {
+      console.error(`missing anchor in index.html: ./docs/${slug}/#${frag}`);
+      failed++;
+    }
+  }
+  if (failed) { console.error(`${failed} check failure(s)`); process.exit(1); }
   console.log(`check ok: ${MANIFEST.length} pages, all links and anchors resolve`);
 }
 

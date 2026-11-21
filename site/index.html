@@ -250,7 +250,7 @@
         <p class="foot-line"><span class="label">Product</span> Users and their agents call the running server (<code>POST /api/ext/invoke</code>) under session + RBAC. The installer MCP never ships there.</p>
         <p class="foot-line"><span class="label">Proof</span> <code>gogogo doctor --json</code> · <code>gogogo generate --check</code></p>
         <p class="foot-line remove"><span class="label">Remove it</span> The binary keeps running; the agent loses its map.</p>
-        <p class="foot-line doc"><a href="./docs/cli/">CLI reference</a> · <a href="./docs/mcp/">MCP setup</a> · <a href="./docs/mcp/#installer-surface-vs-product-surface">Installer vs product</a> · <a href="./docs/getting-started/">Getting started</a></p>
+        <p class="foot-line doc"><a href="./docs/cli/">CLI reference</a> · <a href="./docs/mcp/">MCP setup</a> · <a href="./docs/mcp/#evolution-surface-vs-consumer-surface">Evolution vs consumer</a> · <a href="./docs/getting-started/">Getting started</a></p>
       </div>
     </article>
 
@@ -738,7 +738,7 @@
               <code class="shape-id">full</code>
               <span class="shape-badge">default</span>
             </header>
-            <p class="shape-keeps"><span>web</span><span>desktop</span><span>gui</span><span>mobile</span></p>
+            <p class="shape-keeps"><span>web</span><span>desktop</span><span>gui</span><span>mobile</span><span>product-mcp</span></p>
             <p class="shape-drops shape-none">nothing dropped</p>
             <p class="shape-note">every target — the default</p>
           </article>
@@ -748,7 +748,7 @@
               <code class="shape-id">web</code>
               
             </header>
-            <p class="shape-keeps"><span>web</span></p>
+            <p class="shape-keeps"><span>web</span><span>product-mcp</span></p>
             <p class="shape-drops"><span>desktop</span><span>gui</span><span>mobile</span></p>
             <p class="shape-note">the browser app</p>
           </article>
@@ -758,7 +758,7 @@
               <code class="shape-id">api</code>
               
             </header>
-            <p class="shape-keeps"><span>web</span></p>
+            <p class="shape-keeps"><span>web</span><span>product-mcp</span></p>
             <p class="shape-drops"><span>desktop</span><span>gui</span><span>mobile</span></p>
             <p class="shape-note">API, health and assets only; pages answer 404</p>
           </article>
@@ -768,7 +768,7 @@
               <code class="shape-id">desktop</code>
               
             </header>
-            <p class="shape-keeps"><span>desktop</span><span>web</span></p>
+            <p class="shape-keeps"><span>desktop</span><span>web</span><span>product-mcp</span></p>
             <p class="shape-drops"><span>gui</span><span>mobile</span></p>
             <p class="shape-note">the Wails shell and the server it embeds</p>
           </article>
@@ -778,7 +778,7 @@
               <code class="shape-id">gui</code>
               
             </header>
-            <p class="shape-keeps"><span>gui</span></p>
+            <p class="shape-keeps"><span>gui</span><span>product-mcp</span></p>
             <p class="shape-drops"><span>web</span><span>desktop</span><span>mobile</span></p>
             <p class="shape-note">the gogpu/ui native shell</p>
           </article>
@@ -788,7 +788,7 @@
               <code class="shape-id">mobile</code>
               
             </header>
-            <p class="shape-keeps"><span>mobile</span><span>web</span></p>
+            <p class="shape-keeps"><span>mobile</span><span>web</span><span>product-mcp</span></p>
             <p class="shape-drops"><span>desktop</span><span>gui</span></p>
             <p class="shape-note">the Wails Android shell and the server it embeds</p>
           </article>
@@ -950,7 +950,7 @@
     <p class="kicker">Start here</p>
     <h2>Run. Ship. <em>Summon.</em></h2>
     <p class="install-lede">One install puts the binary and the MCP on your PATH. Then you talk to your agent.</p>
-    <p class="install-note install-which">This installs the <strong>evolution</strong> pair — <code>gogogo</code> and <code>gogogo-mcp</code>, which build the product. If you are <em>using</em> a product someone already built, you want the binary it ships instead: <code>go install yourproduct/cmd/product-mcp@latest</code>. Different role, different binary. <a href="./docs/mcp/#which-one-do-i-install">Which one do I install?</a></p>
+    <p class="install-note">This installs the <strong>evolution</strong> pair — <code>gogogo</code> and <code>gogogo-mcp</code>, which build the product. If you are <em>using</em> a product someone already built, you want the binary it ships instead: <code>go install yourproduct/cmd/product-mcp@latest</code>. Different role, different binary. <a href="./docs/mcp/#which-one-do-i-install">Which one do I install?</a></p>
   </div>
 
   <ol class="steps">
