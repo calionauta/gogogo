@@ -1199,6 +1199,12 @@ jobs:
         run: bash bin/install-browser.sh
       - name: Check landing catalog
         run: node site/build-landing.mjs --check
+      - name: Per-page markdown copies
+        # Each published page must also have a copy an agent can fetch without
+        # scraping HTML: one title, live links, the page URL, an llms.txt entry
+        # and a sitemap entry. Runs before the browser pass so a broken copy
+        # fails in seconds instead of after Chromium starts.
+        run: node scripts/markdown-mirror.test.mjs
       - name: Docs site layout
         # Builds the same site pages.yml publishes, then loads every page at
         # 7 widths. Fails on page-level scroll, a table that cannot fit at

@@ -8,6 +8,14 @@ export default {
   branch: "master",
   docsDir: "docs",
   outDir: "site",
+  description: "Agent-native product foundation in Go that ships as one binary: Turso/SQLite + Templ + Datastar + Tailwind, plus seven complementary async layers (goqite, DagNats, Loro CRDT, SSE Hub record-sync, SSE Hub ephemeral signals, JetStream, GoAkt grains).",
+  // Repo-facing on purpose: a domain card is the slice's written boundary, read
+  // while editing, and a migration note names paths that no longer exist. Both
+  // are exempt from the publication rule (and from the dead-path rule in
+  // cmd/check-docs for the same reason) but they are NOT site pages. Listing
+  // them here is what makes "published or declared" checkable instead of a
+  // convention someone has to remember.
+  unpublishedDirs: ["domain/", "migrations/"],
   // The landing header keeps its links until 900px, then shows the menu.
   landingMenuBelow: 900,
   releases: [

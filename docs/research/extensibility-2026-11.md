@@ -935,6 +935,8 @@ notes: |
   every adopter (the page header and the interval default) — the review says
   which, so the drift report is not noisy.
 
+```
+
 **Status, 2026-11-03: the format is published, validated, and consumed.**
 `internal/recipe/catalog.go` implements the entry above, and `Validate` enforces the review
 rules the evidence supports: id and v-semver, source repo+ref, one sha256 per file, license,
