@@ -150,6 +150,10 @@ p, viewer, /api/auth/*, .*
 p, admin, /config, .*
 p, admin, /config/, .*
 p, admin, /config/*, .*
+# The headless read of the same admin-only view. It is under /api/, so the
+# /config/* row does not reach it — and it must stay admin-only: the payload
+# names every configured field, masked or not.
+p, admin, /api/config, .*
 p, admin, /console, .*
 p, admin, /console/, .*
 p, admin, /console/*, .*

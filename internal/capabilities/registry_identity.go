@@ -34,7 +34,12 @@ var identityUnits = []Capability{
 		},
 		Dirs:     []string{"features/config"},
 		Register: "features/config/handlers",
-		Reason:   "Delete the dir and its routes with the account-menu Config entry.",
+		// The view is readable headless (masked, same BuildPageData the page
+		// renders); the three mutations stay omits — an agent must not author
+		// its own permissions.
+		Actions:           []string{verbRead},
+		ActionBrowserPath: map[string]string{verbRead: "/config"},
+		Reason:            "Delete the dir and its routes with the account-menu Config entry.",
 		Warns: []string{
 			"The Config rail and account-menu entries are removed by hand with the unit.",
 		},

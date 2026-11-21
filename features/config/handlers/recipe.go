@@ -31,10 +31,25 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 	return recipe.Declaration{
 		Routes: []recipe.Route{
 			{Method: get, Pattern: "/config"},
+			{Method: get, Pattern: configAPIPath},
 			{Method: post, Pattern: "/config/users/role"},
 			{Method: post, Pattern: "/config/users/revoke"},
 			{Method: post, Pattern: "/config/recipes/toggle"},
 			{Method: get, Pattern: "/config/audit.csv"},
+		},
+		// Reading is the operator's window into the box, and an agent may look
+		// through it: the answer is the same BuildPageData the page renders,
+		// so it is masked by the policy that already governs each field. What
+		// an agent may NOT do is change any of it, below.
+		Actions: []recipe.InvokeAction{
+			{
+				Verb: "read",
+				Description: "Read the running configuration as JSON: every field " +
+					"with its env name, whether it is set, and the display value " +
+					"with secrets masked.",
+				Route:       recipe.Route{Method: get, Pattern: configAPIPath},
+				BrowserPath: "/config",
+			},
 		},
 		// The operator surface is deliberately not an agent's: each route below
 		// changes who may act on this box. An agent that could grant itself a

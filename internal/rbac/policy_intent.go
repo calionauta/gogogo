@@ -15,6 +15,7 @@ var adminOnlyRoutes = map[string]bool{
 	"/config/users/revoke":   true,
 	"/config/recipes/toggle": true,
 	"/config/audit.csv":      true,
+	"/api/config":            true,
 	"/admin/dashboard":       true,
 	"/debug/statsviz":        true,
 	"/debug/statsviz/*":      true,
