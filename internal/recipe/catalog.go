@@ -223,6 +223,11 @@ func (e CatalogEntry) surfaceProblems() []string {
 	out = append(out, ActionProblems(decl)...)
 	out = append(out, OmissionProblems(decl)...)
 	out = append(out, ActionDocProblems(decl)...)
+	// Coverage is a review rule, not a suggestion: a reviewed recipe whose
+	// mutation no agent can call is the exact surface the catalog claims to
+	// guarantee. The advisory check in `recipe check` reports it too, but the
+	// review refuses it.
+	out = append(out, HeadlessCoverageProblems(decl)...)
 	out = append(out, routeRoleProblems(e.Routes)...)
 	out = append(out, MetricProblems(decl)...)
 	out = append(out, MetricTableProblems(decl)...)

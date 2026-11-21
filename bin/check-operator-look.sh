@@ -85,13 +85,14 @@ const fs = require("fs");
 const p = process.argv[1];
 let s;
 try { s = JSON.parse(fs.readFileSync(p, "utf8")); } catch { console.error("bad stamp: " + p); process.exit(2); }
-process.stdout.write([s.commit || "", s.tree || "", s.verdict || "", s.at || ""].join("\t"));
+process.stdout.write([s.commit || "", s.tree || "", s.verdict || "", s.at || "", (s.note || "").replace(/\s+/g, " ").slice(0, 500)].join("\t"));
 ' "$stamp" >/tmp/operator-look.$$ 2>/dev/null
-IFS=$'\t' read -r commit stampedTree verdict at < /tmp/operator-look.$$ || true
+IFS=$'\t' read -r commit stampedTree verdict at note < /tmp/operator-look.$$ || true
 rm -f /tmp/operator-look.$$
 
 if [ "$verdict" = "fail" ]; then
 	echo "❌ operator look: FAIL recorded at ${at:-?} — fix, then look again"
+	[ -n "${note:-}" ] && echo "   what was wrong: ${note}"
 	exit 1
 fi
 if [ "$commit" != "$head" ] || [ "$stampedTree" != "$tree" ]; then
@@ -101,4 +102,15 @@ if [ "$commit" != "$head" ] || [ "$stampedTree" != "$tree" ]; then
 	exit 1
 fi
 
+# A stamp recorded before the note was required carries an empty one. Treat it
+# as absent: it records that a button was pressed, which is exactly the state
+# this gate was widened to reject.
+if [ -z "$(printf '%s' "${note:-}" | tr -d '[:space:]')" ]; then
+	echo "❌ operator look: the recorded PASS has no note — that is a click, not a look"
+	echo "   Re-record it with what you actually saw:"
+	echo "     make operator-look-pass   (or scripts/operator-look.sh pass \"<what you saw>\")"
+	exit 1
+fi
+
 echo "✅ operator look: PASS recorded for $head at ${at:-?}"
+echo "   what was seen: ${note}"

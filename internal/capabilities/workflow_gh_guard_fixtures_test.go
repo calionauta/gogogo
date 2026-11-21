@@ -114,6 +114,22 @@ func TestGhGuardAcceptsResolvableRepository(t *testing.T) {
 			body: "  rel:\n    steps:\n      - run: gh api \"repos/${{ github.repository }}/releases\"\n",
 		},
 		{
+			// Regression: the call starts a line inside a block scalar, so the
+			// matcher's prefix is a newline. The -R is on that same line and
+			// must count; a scan that began at the prefix stopped at it.
+			name: "line-leading call with -R on the same line",
+			body: "  rel:\n    steps:\n      - run: |\n" +
+				"          set -euo pipefail\n" +
+				"          gh pr comment 1 -R \"$GITHUB_REPOSITORY\" --body hi\n",
+		},
+		{
+			// The same shape, with -R past a line continuation.
+			name: "line-leading call with -R after a continuation",
+			body: "  rel:\n    steps:\n      - run: |\n" +
+				"          gh pr view 1 \\\n" +
+				"            -R \"$GITHUB_REPOSITORY\" --json number\n",
+		},
+		{
 			// A checkout BEFORE the call is sufficient on its own.
 			name: "checkout before the call",
 			body: "  rel:\n    steps:\n      - uses: actions/checkout@v5\n      - run: gh pr comment 1 --body hi\n",

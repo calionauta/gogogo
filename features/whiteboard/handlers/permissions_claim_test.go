@@ -3,8 +3,10 @@
 package handlers
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/calionauta/gogogo/config"
@@ -29,7 +31,7 @@ import (
 // Uses the PRODUCTION registry on purpose (no fixture opt-out), so a
 // regression in claimDoc fails here instead of in a browser run.
 func TestWhiteboardOpenRegistersFreshId(t *testing.T) {
-	server, mem, cookie := wbProductionFixture(t)
+	server, mem, cookie, _ := wbProductionFixture(t)
 	client := wbClient(t, server, cookie)
 	fresh := "wb-order-75843" // shaped like the browser suite's id
 
@@ -65,7 +67,7 @@ func TestWhiteboardOpenRegistersFreshId(t *testing.T) {
 // still holds for an id that was never opened. Without this, claimDoc could be
 // widened into "upsert on write" and re-open the orphan.
 func TestWhiteboardWriteToNeverOpenedIdStillRefused(t *testing.T) {
-	server, mem, cookie := wbProductionFixture(t)
+	server, mem, cookie, _ := wbProductionFixture(t)
 	client := wbClient(t, server, cookie)
 	ghost := "wb-never-opened"
 
@@ -83,7 +85,48 @@ func TestWhiteboardWriteToNeverOpenedIdStillRefused(t *testing.T) {
 
 // wbProductionFixture builds the handler WITHOUT the transport opt-out, so the
 // real registry (the boards table) decides.
-func wbProductionFixture(t *testing.T) (*httptest.Server, *collab.MemoryPersister, *http.Cookie) {
+// TestWhiteboardClaimNeverRewritesAnExistingAuthor pins the bound that makes a
+// writing GET acceptable: claim-on-open is INSERT … ON CONFLICT DO NOTHING, so a
+// second visitor opening someone's board cannot take authorship of it.
+func TestWhiteboardClaimNeverRewritesAnExistingAuthor(t *testing.T) {
+	server, _, cookie, mux := wbProductionFixture(t)
+	first := wbClient(t, server, cookie)
+	fresh := "wb-claimed-once"
+
+	resp, err := first.Do(mustGet(t, server.URL+"/whiteboard/"+fresh))
+	if err != nil {
+		t.Fatalf("first open: %v", err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("first open = %d, want 200", resp.StatusCode)
+	}
+
+	second := wbClient(t, server, wbSignup(t, mux, "claim-second@example.com"))
+	resp, err = second.Do(mustGet(t, server.URL+"/whiteboard/"+fresh))
+	if err != nil {
+		t.Fatalf("second open: %v", err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("second open = %d, want 200 (shared boards are open)", resp.StatusCode)
+	}
+
+	frag, err := second.Do(mustGet(t, server.URL+"/api/whiteboards/fragment"))
+	if err != nil {
+		t.Fatalf("fragment: %v", err)
+	}
+	body, rerr := io.ReadAll(frag.Body)
+	_ = frag.Body.Close()
+	if rerr != nil {
+		t.Fatalf("fragment body: %v", rerr)
+	}
+	if !strings.Contains(string(body), "by claim@example.com") {
+		t.Fatalf("opening an existing board rewrote its author; list = %s", body)
+	}
+}
+
+func wbProductionFixture(t *testing.T) (*httptest.Server, *collab.MemoryPersister, *http.Cookie, *http.ServeMux) {
 	t.Helper()
 	sqlDB, err := db.OpenAt(t.TempDir() + "/claim.db")
 	if err != nil {
@@ -107,5 +150,5 @@ func wbProductionFixture(t *testing.T) (*httptest.Server, *collab.MemoryPersiste
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 	cookie := wbSignup(t, mux, "claim@example.com")
-	return server, mem, cookie
+	return server, mem, cookie, mux
 }

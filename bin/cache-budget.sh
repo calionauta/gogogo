@@ -79,8 +79,14 @@ def fetch_lines():
 
     if subprocess.run(["sh", "-c", "command -v gh"], capture_output=True).returncode != 0:
         unavailable("gh not installed")
-    if subprocess.run(["gh", "auth", "status"], capture_output=True).returncode != 0:
-        unavailable("gh not authenticated")
+    # `gh auth status` exits non-zero when GH_TOKEN is set to a token it cannot
+    # reach the API with — and in CI that is the ONLY credential there is, so
+    # this check reported "not authenticated" on the one environment it runs in.
+    # Presence of a token is the precondition; the api call below is the real
+    # test, and it reports its own failure.
+    if not os.environ.get("GH_TOKEN") and not os.environ.get("GITHUB_TOKEN"):
+        if subprocess.run(["gh", "auth", "status"], capture_output=True).returncode != 0:
+            unavailable("gh not authenticated")
 
     target = repo
     if not target:
@@ -105,10 +111,12 @@ def fetch_lines():
 entries = []
 for e in fetch_lines():
     entries.append({
+        "id": e.get("id"),
         "key": e.get("key", ""),
         "ref": e.get("ref", ""),
         "mb": (e.get("size_in_bytes") or 0) / 1048576.0,
         "created": e.get("created_at") or e.get("createdAt") or "",
+        "created_at": e.get("created_at") or e.get("createdAt") or "",
     })
 
 if not entries:
@@ -136,10 +144,29 @@ for e in entries:
 # the cost of a prefix restore-key across a dependency bump, not a bug, but it
 # is the first thing to look at when the total climbs.
 gens = collections.defaultdict(list)
+entries_by_shape = collections.defaultdict(list)
 for e in entries:
-    gens[(e["ref"], shape(e["key"]))].append(e["mb"])
+    k = (e["ref"], shape(e["key"]))
+    gens[k].append(e["mb"])
+    entries_by_shape[k].append(e)
 dupes = {k: v for k, v in gens.items() if len(v) > 1}
 waste_mb = sum(sum(v) - max(v) for v in dupes.values())
+
+
+def _newest_key(ref, s):
+    """The key a save would have written last — the one worth keeping.
+
+    Ordered by creation, not access: a CI cache is written once and read many
+    times, so the newest CREATED entry is the newest code. Falls back to the
+    largest when timestamps are missing (the fixture shape).
+    """
+    group = entries_by_shape.get((ref, s), [])
+    if not group:
+        return None
+    stamped = [e for e in group if e.get("created_at")]
+    if stamped:
+        return max(stamped, key=lambda e: (e["created_at"], e["mb"]))["key"]
+    return max(group, key=lambda e: e["mb"])["key"]
 
 # Entries on a pull-request merge ref. Before the restore/save split these were
 # the dominant cost: a PR kept its own complete copy of every key shape.
@@ -192,5 +219,31 @@ if headroom < 0:
     print("the cap is reached, which is what silently discarded master's cache")
     print("before the restore/save split. Read docs/local-ci.md before changing a")
     print("key shape, and prefer removing a contributor over shrinking a hit rate.")
+    print()
+    # Naming WHICH entries to delete is the difference between a report and a
+    # chore. Only the OLDEST generation of each shape is a candidate: the newest
+    # one is what the next run restores, and deleting it buys a cold cache. Ids
+    # are printed shallowest-use-first so a human can copy one into
+    # `gh api -X DELETE repos/{owner}/{repo}/actions/caches/<id>` and see the
+    # total drop.
+    print("Reclaimable now — the oldest generation of each shape, newest kept:")
+    reclaim_total = 0
+    for (ref, s), sizes in sorted(gens.items(), key=lambda kv: -max(kv[1])):
+        if len(sizes) < 2:
+            continue
+        stale = [e for e in entries_by_shape.get((ref, s), []) if e["key"] != _newest_key(ref, s)]
+        stale = stale[: len(sizes) - 1]
+        if not stale:
+            continue
+        freed = sum(e["mb"] for e in stale)
+        reclaim_total += freed
+        print(f"  {freed / 1024:5.2f} GB  {s}")
+        for e in stale:
+            print(f"             id={e['id']}  {e['key'][:64]}")
+    print()
+    print(f"  reclaimable total: {reclaim_total / 1024:.2f} GB  "
+          f"(would bring the repo to {(total_mb - reclaim_total) / 1024:.2f} GB)")
+    print("  delete one with:")
+    print("    gh api -X DELETE repos/<owner>/<repo>/actions/caches/<id>")
     raise SystemExit(1)
 PY

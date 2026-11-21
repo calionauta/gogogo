@@ -19,7 +19,11 @@ var identityUnits = []Capability{
 		},
 		Dirs:     []string{"features/account"},
 		Register: "features/account/handlers",
-		Note:     "Core identity UX; remove manually with the menu link in features/authviews/controls.templ.",
+		Actions:  []string{"disconnect_cloud", "resend_verification", "revoke_session"},
+		ActionParams: map[string][]string{
+			"revoke_session": {"session_id"},
+		},
+		Note: "Core identity UX; remove manually with the menu link in features/authviews/controls.templ.",
 	},
 	{
 		ID:      "config-view",

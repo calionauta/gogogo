@@ -35,6 +35,9 @@ import (
 // bytes, never megabytes; without a cap a huge body is a memory sink.
 const maxBodyBytes = 1 << 20
 
+// jsonKeyDocID is the create reply key: the page path is built from it.
+const jsonKeyDocID = "docID"
+
 // wireShapes is BOTH the SSE event type and the JSON field name for a shape
 // list. The browser switches on `msg.type === "shapes"` and then reads
 // `msg.shapes`, so the two are one contract — naming it once keeps them
@@ -79,6 +82,7 @@ func (h *Handler) Routes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/whiteboard", h.handleIndex)
 	r.Get("/whiteboard/new", h.handleNew)
+	r.Post("/api/whiteboards", h.handleCreate)
 	r.Get("/whiteboard/{docID}", h.handleBoard)
 	r.Get("/api/whiteboards/fragment", h.handleListFragment)
 	r.Get("/api/whiteboard/{docID}/stream", h.handleStream)
@@ -165,21 +169,57 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 		h.cfg.BuildLabel, h.cfg.BuildCommit, h.cfg.OfflineSync.Enabled, demo.On(r)).Render(r.Context(), w)
 }
 
+// handleNew is the browser's create shortcut: it mints the board and redirects
+// into the page. It shares createBoard with the headless POST below, so the two
+// cannot mint a board differently.
 func (h *Handler) handleNew(w http.ResponseWriter, r *http.Request) {
 	sess := h.session(r)
 	if sess == nil {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
-	docID := uuid.NewString()
-	now := dbschema.Now()
-	if err := h.q.UpsertBoard(r.Context(), dbgen.UpsertBoardParams{
-		DocID: docID, Owner: sess.User.ID, Title: "", Updated: now, Created: now,
-	}); err != nil {
-		obsArgs := append(observability.WithComponent("whiteboard", "feature"), "doc", docID, "error", err)
-		observability.Warn(r.Context(), "whiteboard: save new board", obsArgs...)
+	docID, err := h.createBoard(r.Context(), sess.User.ID)
+	if err != nil {
+		writeText(w, http.StatusInternalServerError, "create board failed")
+		return
 	}
 	http.Redirect(w, r, "/whiteboard/"+docID, http.StatusFound)
+}
+
+// handleCreate is the headless create: the caller gets the new id in the reply
+// instead of a redirect it would have to parse. The row must exist before the
+// id is returned, because the update path requires a registered doc.
+func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
+	sess := h.session(r)
+	if sess == nil {
+		writeText(w, http.StatusUnauthorized, "sign in to create a board")
+		return
+	}
+	docID, err := h.createBoard(r.Context(), sess.User.ID)
+	if err != nil {
+		writeText(w, http.StatusInternalServerError, "create board failed")
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]string{
+		jsonKeyDocID: docID,
+		"path":       "/whiteboard/" + docID,
+	})
+}
+
+// createBoard is the one place a board is minted: the id is generated, the row
+// written, and a failure returned (not swallowed) so no caller hands out an id
+// whose row does not exist.
+func (h *Handler) createBoard(ctx context.Context, owner string) (string, error) {
+	docID := uuid.NewString()
+	now := dbschema.Now()
+	if err := h.q.UpsertBoard(ctx, dbgen.UpsertBoardParams{
+		DocID: docID, Owner: owner, Title: "", Updated: now, Created: now,
+	}); err != nil {
+		obsArgs := append(observability.WithComponent("whiteboard", "feature"), "doc", docID, "error", err)
+		observability.Warn(ctx, "whiteboard: save new board", obsArgs...)
+		return "", err
+	}
+	return docID, nil
 }
 
 func (h *Handler) handleListFragment(w http.ResponseWriter, r *http.Request) {

@@ -7,6 +7,15 @@ import (
 	"github.com/calionauta/gogogo/internal/recipe"
 )
 
+const (
+	paramBody = "body"
+
+	// reasonWildcardSecretWrite explains the one wildcard secret write the
+	// recipe refuses to expose headless: a provider key is an operator's.
+	reasonWildcardSecretWrite = "wildcard secret write: a provider key must " +
+		"come from the operator, never from a model"
+)
+
 // RecipeID is the recipe id the credits unit declares itself under.
 const RecipeID = "credits"
 
@@ -40,6 +49,49 @@ func (p recipeProvider) Declaration() recipe.Declaration {
 			{Method: "PUT", Pattern: byok},
 			{Method: "PATCH", Pattern: byok},
 			{Method: "DELETE", Pattern: byok},
+		},
+		// Spending the caller's own balance and opening a checkout are both
+		// JSON documents the handler already documents, so they travel as a
+		// raw body rather than a flattened form.
+		Actions: []recipe.InvokeAction{
+			{
+				Verb:        "ai_request",
+				Description: "Run one managed model request billed to the calling account.",
+				Route:       recipe.Route{Method: post, Pattern: "/api/ai/request"},
+				Params:      []string{paramBody},
+				RawBody:     paramBody,
+				ParamHelp:   map[string]string{"body": "The ManagedRequest JSON: model, prompt, maxOutputTokens."},
+			},
+			{
+				Verb:        "checkout",
+				Description: "Open a credit purchase checkout for one SKU and return its URL.",
+				Route:       recipe.Route{Method: post, Pattern: "/api/credits/checkout"},
+				Params:      []string{paramBody},
+				RawBody:     paramBody,
+				ParamHelp:   map[string]string{"body": "The CheckoutRequest JSON: sku."},
+			},
+		},
+		Omitted: []recipe.OmittedRoute{
+			{
+				Route:  recipe.Route{Method: post, Pattern: "/api/credits/stripe-webhook"},
+				Reason: "external webhook: the caller is Stripe's signature, not an operator session",
+			},
+			{
+				Route:  recipe.Route{Method: post, Pattern: byok},
+				Reason: reasonWildcardSecretWrite,
+			},
+			{
+				Route:  recipe.Route{Method: "PUT", Pattern: byok},
+				Reason: reasonWildcardSecretWrite,
+			},
+			{
+				Route:  recipe.Route{Method: "PATCH", Pattern: byok},
+				Reason: reasonWildcardSecretWrite,
+			},
+			{
+				Route:  recipe.Route{Method: "DELETE", Pattern: byok},
+				Reason: "wildcard secret delete: revoking a provider key is an operator decision, not an agent task",
+			},
 		},
 	}
 }

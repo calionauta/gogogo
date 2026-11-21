@@ -10,12 +10,13 @@ files:
   features/notes/components/notes_templ.go: d24cacbe9315c2008360bf5065acbc797a123994f40ea073dd571fcc6ff87bf8
   features/notes/components/notes_test.go: b1b2a898ed8ca8076020610451a86b21bcc7f7e4c84fdf3be92d8cbc40e7ec66
   features/notes/embed.go: b68a3f0837950860aef549e55bbc16e4a07bc1c9fd58b58a010a35fb987c928f
-  features/notes/handlers/chi.go: a0f9e9ab9d690962de6577734eae641bfa947acd1c15c5748f57198f878575ae
-  features/notes/handlers/chi_test.go: 3c3a33ebed8cb293dd2444c2d0c86b5da73f5b0f85ad4bf04bfcf47bac71d940
+  features/notes/handlers/chi.go: 58454ad5ef1b26f766e1e61b94179a77ec2e34914e90efc8c7ad9ad97c4dcdcb
+  features/notes/handlers/chi_test.go: ccc692f039c63e2b08350da9baad016099132df55f846f267d11dd3c12cc4b9c
+  features/notes/handlers/headless.go: 5b400ed0519aa7966ecbfd85c3e31958c3a12ee76943e0864edc26c700453d4c
   features/notes/handlers/peers.go: 45c506bed84320f55dfb8b5156041894a596876cf1e6f90ae99d1d817db6ac86
   features/notes/handlers/permissions.go: b01bfd06e6f55cad7d9da1f0e521fbdf203857ab0bd0be375d709755a2e2c586
   features/notes/handlers/permissions_anon_test.go: 02bf3696ae9f0ecebb13343cdaae76e25c76df623e106529d164dea6df16166b
-  features/notes/handlers/permissions_claim_test.go: 62b85cd48c794abe7b4fc0cf0d655c864b44aa7ab8bf3e9e3a277dfb1c8cfe0d
+  features/notes/handlers/permissions_claim_test.go: ef07d3895ec32fa4434e766dbe2463b8b34f15ace7e66f1aa6d65d2046ff106a
   features/notes/handlers/permissions_registry_test.go: eb3fec73047fb245e433b29cfad616c73e03dbc02b9c272df29a9911852a2361
   features/notes/handlers/permissions_test.go: 1ac00c19175a22956e6381f48a0838d55f32b79aec2be8dd7443e5989b535e98
   features/notes/handlers/port_doc_isolation_test.go: aba5ac6cd72b8bc3d7fa4a4778ff54466e059d43851947198cc73932f1ed70ef
@@ -27,7 +28,7 @@ files:
   features/notes/handlers/port_test.go: 0ef62a1fdf56d1580bf54826e75052764a921cad048cdd51b4d79e69c92fd0bf
   features/notes/handlers/presence_cross_instance_test.go: e22f10b731e73a8c1fa271daa7e3565332f0326c7f7837cbe2e45c9d79751161
   features/notes/handlers/presence_test.go: 7c13f23f35f0a296157745e8af31bdb12022e093b3fbdaff07c364cd58b2dd38
-  features/notes/handlers/recipe.go: 6956c0c0d3ad7ce6f922d36c00c28242af9fd1d8828b4edd28e97c96e9cb89a6
+  features/notes/handlers/recipe.go: 8fe1b30bb568a3a5bc96e67f4b66b189a60230d142c6603f32a4c48dbe87b293
   features/notes/handlers/register.go: 46e264edec814429793390213b197eaae0475af5cb7197e85050764cb9b378ff
   features/notes/handlers/wire.go: a8d5e7f4a8fbfebf1ab1a841410a62fcb016370ea9d52673e7933c2fc537c007
   features/notes/static/notes.js: 34573b7ceec6ef41c59c60e302f93a5a0d2355339e2547fd448bf3a00fe31e41
@@ -49,6 +50,10 @@ declaration:
     pattern: /notes/{docID}
   - method: GET
     pattern: /api/notes/fragment
+  - method: GET
+    pattern: /api/notes/{docID}
+  - method: POST
+    pattern: /api/notes
   - method: POST
     pattern: /api/notes/{docID}/delete
   - method: GET
@@ -61,4 +66,59 @@ declaration:
     pattern: /api/notes/{docID}/caret
   - method: POST
     pattern: /api/notes/{docID}/leave
+  actions:
+  - verb: create
+    description: Create an empty note owned by the caller and return its id and page path.
+    route:
+      method: POST
+      pattern: /api/notes
+    browserPath: /notes/new
+  - verb: read
+    description: Read one note's merged text and current revision as JSON.
+    route:
+      method: GET
+      pattern: /api/notes/{docID}
+    pathParams:
+    - docID
+    paramHelp:
+      docID: The note's UUID.
+  - verb: edit
+    description: Apply one batch of text ops to a note the caller may edit; a stale base returns 409 with
+      the authoritative revision.
+    route:
+      method: POST
+      pattern: /api/notes/{docID}/op
+    params:
+    - body
+    pathParams:
+    - docID
+    query:
+    - clientID
+    rawBody: body
+    paramHelp:
+      docID: The note's UUID.
+      clientID: The acting tab id, so peers see who is editing and the caret is attributed.
+      body: 'The op batch JSON: base (server revision), ops (ordered TextOp list) and an optional caret.'
+  - verb: delete
+    description: Delete a note; the caller must own it or be an admin. Irreversible.
+    route:
+      method: POST
+      pattern: /api/notes/{docID}/delete
+    pathParams:
+    - docID
+    paramHelp:
+      docID: The note's UUID.
+  omitted:
+  - route:
+      method: POST
+      pattern: /api/notes/{docID}/typing
+    reason: ephemeral typing indicator; it persists nothing and only peers see it
+  - route:
+      method: POST
+      pattern: /api/notes/{docID}/caret
+    reason: ephemeral caret position; a later reader cannot observe it
+  - route:
+      method: POST
+      pattern: /api/notes/{docID}/leave
+    reason: presence teardown for a tab that is going away; there is no product outcome to invoke
 register: features/notes/handlers

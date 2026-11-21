@@ -12,15 +12,15 @@ files:
   features/review/components/signals.go: 7af3e9010b2a03e4975f447dd36d9057b377f227282a46593190b66e9a24eadd
   features/review/components/state_panel.templ: 2a17db0c322c37c4e0b60dc778d78f894c789e17c8a7b8291a830fe183e32a52
   features/review/components/state_panel_templ.go: ce9c9205ab9e2ae491190050559cf166666b260aedf1886d7e980513eeebea1a
-  features/review/handlers/chi.go: 01da390937d15df810b8d39ab55882b2f7c47182ea5bcfc803f562fe94ef9262
-  features/review/handlers/chi_test.go: b54754d26130c7473d05f819d1a78b01e71d0cace0926fce839d1b9345a3457a
+  features/review/handlers/chi.go: 5201adaac3a267bf5d21aa4f1be9bb6530bf39fed7e71e3463e6cc7e2a8401e0
+  features/review/handlers/chi_test.go: 72a918c25e4fb2d26489c63ca0160a4436277f5d8cddf8a4449f0c44af6dade3
   features/review/handlers/flow.go: 8c70f5426ae95a7cb73a9993e3e1993696f20e2813ba58dbbb558baa006e3433
   features/review/handlers/flow_test.go: 00071154226f0f909546b8c9a85a71feb20881384d6461411a6539040489a215
   features/review/handlers/heartbeat_test.go: 8d950caf6c0e8e706a9f92161d761055e19c2c2d9240d5874d302741067d3d37
   features/review/handlers/jev.go: d6196e8ee91b822191bee8cd1c269c2337621771a82764f9b165ef28b6e73226
   features/review/handlers/jev_fallback_test.go: 3eeb3c5535e0c40a4290928de8ab1f08931c02de255306eda565fa28dcdb4cff
   features/review/handlers/model.go: 150f2fe393511c3895c5a74ebcbcd20be82be94ee06c15ee31e5957efe61bfc3
-  features/review/handlers/recipe.go: 0efe520b3e1f6ca9b80a1022d865a117c21d6bf93e651f44e1990035eb1e20ef
+  features/review/handlers/recipe.go: 36e7184daed777d26a3eac8fca5a4a8e553d4c1260515e311292f883151cb064
   features/review/handlers/register.go: 29449b99495909dd209d390c9de2b49e8b1e39f79617314fbb3f622263d8ef9e
   features/review/handlers/verdict_test.go: d9a50431f85a1c6f1b7866443fd0c674aa6fa99df89b7c5bb1fc2d569573a92e
 declaration:
@@ -29,4 +29,31 @@ declaration:
     pattern: /review
   - method: POST
     pattern: /api/review/run
+  - method: POST
+    pattern: /api/review/verdict
+  actions:
+  - verb: verdict
+    description: Run the review loop on one document and return the final decision as JSON (decision, rationale,
+      confidence, rounds, proposal).
+    route:
+      method: POST
+      pattern: /api/review/verdict
+    params:
+    - tab
+    - content
+    paramHelp:
+      tab: Which review lens to run.
+      content: The document to review.
+  - verb: run
+    description: Run the review loop on one document; the verdict arrives as the run's streamed patch frames
+      when it completes.
+    route:
+      method: POST
+      pattern: /api/review/run
+    params:
+    - tab
+    - content
+    paramHelp:
+      tab: Which review lens to run.
+      content: The document to review.
 register: features/review/handlers

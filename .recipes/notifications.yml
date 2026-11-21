@@ -18,7 +18,7 @@ files:
   features/notifications/handlers/badge_test.go: c15b0c23b179edec540b36b2d22a9e14899d5eaea51fadd13b412dd3d5340071
   features/notifications/handlers/chi.go: 6b9772da2e0a2d0d63f4f58210e7a3eeb57d19a4fc0b963d55c026a714fa726d
   features/notifications/handlers/chi_test.go: edc3d29a742c8947281d860a79acd1d1198801e3849c50deb57c61f84deb6ed5
-  features/notifications/handlers/recipe.go: cc0b814c5bc798029478ed40ac92af9149784be55151e542e4a54939dfde3d0e
+  features/notifications/handlers/recipe.go: 235330a098928526c96b0335f4d0a846923c24fb5d03c898aa874af4c0853f96
   features/notifications/handlers/register.go: f612ccdeef5a3ca06395d7b3083bd996395486f9f0b97735adaee2d46624d092
   features/notifications/handlers/remind.go: 281456eeca1e0411ea2d46a6bd7aad2bb8e0c17262fac5cce0e0e732e6a76384
   features/notifications/handlers/stream.go: 36e4f4eb48bc126f6d3505d428ee79db99f8d0f30c7051a5f74b71e71ee0ebe1
@@ -49,4 +49,41 @@ declaration:
     pattern: /api/notifications/{id}/unread
   - method: GET
     pattern: /api/notifications/badge
+  actions:
+  - verb: remind
+    description: Schedule one reminder for the calling session and return the refreshed inbox patch.
+    route:
+      method: POST
+      pattern: /api/notifications/remind
+    params:
+    - text
+    - delay
+    - channels
+    paramHelp:
+      text: The reminder body.
+      delay: 'When it fires: 1m, 1h or 24h.'
+      channels: One offered channel name; omit for in-app only.
+  - verb: read_all
+    description: Mark every in-app notification of the calling owner as read.
+    route:
+      method: POST
+      pattern: /api/notifications/read-all
+  - verb: read
+    description: Mark one of the caller's notifications as read.
+    route:
+      method: POST
+      pattern: /api/notifications/{id}/read
+    pathParams:
+    - id
+    paramHelp:
+      id: The notification's UUID.
+  - verb: unread
+    description: Return one of the caller's notifications to the unread pile.
+    route:
+      method: POST
+      pattern: /api/notifications/{id}/unread
+    pathParams:
+    - id
+    paramHelp:
+      id: The notification's UUID.
 register: features/notifications/handlers

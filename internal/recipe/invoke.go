@@ -17,6 +17,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -98,12 +99,26 @@ func Invoke(
 	if terr != nil {
 		return http.StatusBadRequest, nil, terr
 	}
+	target, query := splitQuery(action, target, form)
+	body, contentType, terr := invokeBody(action, form)
+	if terr != nil {
+		return http.StatusBadRequest, nil, terr
+	}
 	if err := checkInvokeParams(action, form); err != nil {
 		return http.StatusBadRequest, nil, err
 	}
 	req := httptest.NewRequestWithContext(
-		ctx, route.Method, target, strings.NewReader(form.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		ctx, route.Method, target, strings.NewReader(body))
+	req.Header.Set("Content-Type", contentType)
+	if len(query) > 0 {
+		q := req.URL.Query()
+		for k, vs := range query {
+			for _, v := range vs {
+				q.Add(k, v)
+			}
+		}
+		req.URL.RawQuery = q.Encode()
+	}
 	req.AddCookie(&http.Cookie{
 		Name:     cookieName,
 		Value:    token,
@@ -117,15 +132,13 @@ func Invoke(
 }
 
 // invokeTarget fills the declared path placeholders and returns the URL the
-// handler sees plus the form without those keys. v1 accepts only `{id}`, and
-// only as a UUID: the repository generates UUIDv7 ids, and a free-form
-// segment would make a typo look like a different record instead of a bad
-// request. The id is canonicalized by uuid.Parse before it reaches chi.
+// handler sees plus the form without those keys. Placeholder names are the
+// handler's own, but every value must be a UUID: the repository generates
+// UUID ids, and a free-form segment would make a typo look like a different
+// record instead of a bad request. Each value is canonicalized by uuid.Parse
+// before it reaches chi.
 func invokeTarget(action InvokeAction, route Route, form url.Values) (string, url.Values, error) {
-	clean := url.Values{}
-	for k, values := range form {
-		clean[k] = append([]string(nil), values...)
-	}
+	clean := cloneValues(form)
 	placeholders, ok := routePlaceholders(route.Pattern)
 	if !ok {
 		return "", nil, fmt.Errorf(
@@ -139,32 +152,101 @@ func invokeTarget(action InvokeAction, route Route, form url.Values) (string, ur
 		}
 		return route.Pattern, clean, nil
 	}
-	if len(placeholders) != 1 || placeholders[0] != "id" {
+	if !samePlaceholders(placeholders, action.PathParams) {
 		return "", nil, fmt.Errorf(
-			"recipe: %s %s is parameterized beyond the supported {id}",
-			route.Method, route.Pattern)
+			"recipe: action %q pathParams %v do not match %s placeholders %v",
+			action.Verb, action.PathParams, route.Pattern, placeholders)
 	}
-	if len(action.PathParams) != 1 || action.PathParams[0] != "id" {
-		return "", nil, fmt.Errorf(
-			"recipe: action %q does not declare pathParams: [id] for %s",
-			action.Verb, route.Pattern)
+	target := route.Pattern
+	for _, name := range placeholders {
+		raw := clean.Get(name)
+		if raw == "" {
+			return "", nil, fmt.Errorf("recipe: action %q needs path param %q", action.Verb, name)
+		}
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			return "", nil, fmt.Errorf(
+				"recipe: action %q path param %q must be a UUID: %w", action.Verb, name, err)
+		}
+		clean.Del(name)
+		target = strings.ReplaceAll(target, "{"+name+"}", id.String())
 	}
-	raw := clean.Get("id")
-	if raw == "" {
-		return "", nil, fmt.Errorf("recipe: action %q needs path param %q", action.Verb, "id")
-	}
-	id, err := uuid.Parse(raw)
-	if err != nil {
-		return "", nil, fmt.Errorf(
-			"recipe: action %q path param %q must be a UUID: %w", action.Verb, "id", err)
-	}
-	clean.Del("id")
-	target := strings.ReplaceAll(route.Pattern, "{id}", id.String())
 	if strings.ContainsAny(target, "{}") {
 		return "", nil, fmt.Errorf(
 			"recipe: action %q left an unresolved path parameter in %s", action.Verb, target)
 	}
 	return target, clean, nil
+}
+
+// samePlaceholders compares the pattern's placeholders with the declared set.
+func samePlaceholders(pattern, declared []string) bool {
+	if len(pattern) != len(declared) {
+		return false
+	}
+	set := map[string]bool{}
+	for _, p := range pattern {
+		set[p] = true
+	}
+	for _, p := range declared {
+		if !set[p] {
+			return false
+		}
+	}
+	return true
+}
+
+// cloneValues copies the form so the caller's map is never mutated.
+func cloneValues(form url.Values) url.Values {
+	clean := make(url.Values, len(form))
+	for k, values := range form {
+		clean[k] = append([]string(nil), values...)
+	}
+	return clean
+}
+
+// splitQuery moves the declared query params out of the form and onto the
+// target URL. Those names are part of the action's closed set, so nothing is
+// inferred: a param travels where the declaration says it travels.
+func splitQuery(action InvokeAction, target string, form url.Values) (string, url.Values) {
+	if len(action.Query) == 0 {
+		return target, nil
+	}
+	query := url.Values{}
+	for _, name := range action.Query {
+		values, ok := form[name]
+		if !ok {
+			continue
+		}
+		query[name] = append([]string(nil), values...)
+		delete(form, name)
+	}
+	if len(query) == 0 {
+		return target, nil
+	}
+	return target, query
+}
+
+// invokeBody decides how the remaining params travel. Without a raw body the
+// bridge keeps the form encoding every handler already parses; with one, the
+// named param is the body verbatim and the declaration has already refused
+// any other body param.
+func invokeBody(action InvokeAction, form url.Values) (string, string, error) {
+	const formContentType = "application/x-www-form-urlencoded"
+	if action.RawBody == "" {
+		return form.Encode(), formContentType, nil
+	}
+	values, ok := form[action.RawBody]
+	if !ok || len(values) == 0 || strings.TrimSpace(values[0]) == "" {
+		return "", "", fmt.Errorf(
+			"recipe: action %q needs raw body param %q", action.Verb, action.RawBody)
+	}
+	delete(form, action.RawBody)
+	if len(form) > 0 {
+		return "", "", fmt.Errorf(
+			"recipe: action %q sends a raw body, so params %v must be path or query params",
+			action.Verb, slices.Sorted(maps.Keys(form)))
+	}
+	return values[0], "application/json", nil
 }
 
 // checkInvokeParams refuses any key the action does not declare.

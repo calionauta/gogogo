@@ -12,7 +12,7 @@ files:
   features/room/handlers/chi_test.go: fc56b4e31e87370820ec2eff6a61ab4df04c1d878d34b1ade1e921b700f6477a
   features/room/handlers/integration_test.go: 4ba22af3eea5d74e98663478d359baf5bf2c1227c124fd474edcf11145a93867
   features/room/handlers/patch_test.go: cce186622597ded83d2bb10466780d988a4f93e97f059247868d1a44032be583
-  features/room/handlers/recipe.go: cfbeca025151035bd1fbff6e0414dd4eadb8978223239a8996308306096494f2
+  features/room/handlers/recipe.go: 2f82e4e3eb3eadee032a87f4939492956c4b310945991610ad4ffea5828d1e3a
   features/room/handlers/register.go: 705e696de3c30650ba864d45890c86b14efd0e75fd041f3419f06e716bff7414
   features/room/handlers/stream.go: a74ba2bcf140de542f105f57e15274894fa245aa0fc49f5f566d64a64613004a
   features/room/handlers/stream_test.go: 377987ea0dddf5f0d65a910a5f62ed67f3437f1f7284335cc1dbf0a3d0258471
@@ -36,4 +36,50 @@ declaration:
     pattern: /room/leave
   - method: POST
     pattern: /room/crash
+  actions:
+  - verb: join
+    description: Put this client back in the room roster after a leave.
+    route:
+      method: POST
+      pattern: /room/join
+    query:
+    - clientID
+    paramHelp:
+      clientID: The tab id whose roster entry to move.
+  - verb: leave
+    description: Take this client out of the room roster.
+    route:
+      method: POST
+      pattern: /room/leave
+    query:
+    - clientID
+    paramHelp:
+      clientID: The tab id whose roster entry to move.
+  - verb: acquire
+    description: Take the pen for this client.
+    route:
+      method: POST
+      pattern: /room/acquire
+    query:
+    - clientID
+    paramHelp:
+      clientID: The tab id whose roster entry to move.
+  - verb: release
+    description: Give the pen back for this client.
+    route:
+      method: POST
+      pattern: /room/release
+    query:
+    - clientID
+    paramHelp:
+      clientID: The tab id whose roster entry to move.
+  omitted:
+  - route:
+      method: POST
+      pattern: /room/heartbeat
+    reason: ambient liveness ping the live stream already replaces; it changes no product state
+  - route:
+      method: POST
+      pattern: /room/crash
+    reason: 'demo failure injection: it restarts the room actor to watch recovery, not a task a caller performs'
 register: features/room/handlers

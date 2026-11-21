@@ -3,8 +3,11 @@
 package handlers
 
 import (
+	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/calionauta/gogogo/config"
@@ -23,7 +26,7 @@ import (
 // scripts/notes-caret.test.mjs drives exactly this shape (invented ids
 // "notes-caret-<pid>", "notes-sameuser-<pid>", opened by two tabs).
 func TestNotesOpenRegistersFreshId(t *testing.T) {
-	server, mem, cookie := notesProductionFixture(t)
+	server, mem, cookie, _ := notesProductionFixture(t)
 	client := notesAuthedClient(t, server, cookie)
 	fresh := "notes-caret-75843"
 
@@ -57,7 +60,7 @@ func TestNotesOpenRegistersFreshId(t *testing.T) {
 // TestNotesWriteToNeverOpenedIdStillRefused keeps the gate honest: claimDoc
 // registers on OPEN, never on write, so the orphan cannot come back.
 func TestNotesWriteToNeverOpenedIdStillRefused(t *testing.T) {
-	server, mem, cookie := notesProductionFixture(t)
+	server, mem, cookie, _ := notesProductionFixture(t)
 	client := notesAuthedClient(t, server, cookie)
 	ghost := "notes-never-opened"
 
@@ -75,7 +78,50 @@ func TestNotesWriteToNeverOpenedIdStillRefused(t *testing.T) {
 }
 
 // notesProductionFixture builds the handler WITHOUT the transport opt-out.
-func notesProductionFixture(t *testing.T) (*httptest.Server, *collab.MemoryPersister, *http.Cookie) {
+// TestNotesClaimNeverRewritesAnExistingAuthor pins the bound that makes a
+// writing GET acceptable: claim-on-open is INSERT … ON CONFLICT DO NOTHING, so a
+// second visitor opening someone's note cannot take authorship of it. Without
+// this the GET would be an arbitrary owner rewrite — the reason a page-level
+// write is normally refused.
+func TestNotesClaimNeverRewritesAnExistingAuthor(t *testing.T) {
+	server, _, cookie, mux := notesProductionFixture(t)
+	first := notesAuthedClient(t, server, cookie)
+	fresh := "notes-claimed-once"
+
+	resp, err := first.Do(mustGet(t, server.URL+"/notes/"+fresh))
+	if err != nil {
+		t.Fatalf("first open: %v", err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("first open = %d, want 200", resp.StatusCode)
+	}
+
+	second := notesAuthedClient(t, server, notesSignup(t, mux, "nclaim-second@example.com"))
+	resp, err = second.Do(mustGet(t, server.URL+"/notes/"+fresh))
+	if err != nil {
+		t.Fatalf("second open: %v", err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("second open = %d, want 200 (shared docs are open)", resp.StatusCode)
+	}
+
+	frag, err := second.Do(mustGet(t, server.URL+"/api/notes/fragment"))
+	if err != nil {
+		t.Fatalf("fragment: %v", err)
+	}
+	body, rerr := io.ReadAll(frag.Body)
+	_ = frag.Body.Close()
+	if rerr != nil {
+		t.Fatalf("fragment body: %v", rerr)
+	}
+	if !strings.Contains(string(body), "by nclaim@example.com") {
+		t.Fatalf("opening an existing note rewrote its author; list = %s", body)
+	}
+}
+
+func notesProductionFixture(t *testing.T) (*httptest.Server, *collab.MemoryPersister, *http.Cookie, *http.ServeMux) {
 	t.Helper()
 	sqlDB, err := db.OpenAt(t.TempDir() + "/claim.db")
 	if err != nil {
@@ -99,5 +145,16 @@ func notesProductionFixture(t *testing.T) (*httptest.Server, *collab.MemoryPersi
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 	cookie := notesSignup(t, mux, "nclaim@example.com")
-	return server, mem, cookie
+	return server, mem, cookie, mux
+}
+
+// mustGet builds the request a bare .Get would have built: noctx wants the
+// request (and its context) explicit, not the convenience method.
+func mustGet(t *testing.T, url string) *http.Request {
+	t.Helper()
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+	if err != nil {
+		t.Fatalf("build request %s: %v", url, err)
+	}
+	return req
 }

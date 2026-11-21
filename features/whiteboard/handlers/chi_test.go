@@ -139,6 +139,49 @@ func TestHandlersWhiteboardCreateAndList(t *testing.T) {
 	}
 }
 
+// TestHandlersWhiteboardHeadlessCreate pins the create path an agent uses: POST
+// /api/whiteboards answers the new id (the browser's GET redirects instead), and
+// the id is immediately drawable, which only holds when the row was persisted.
+func TestHandlersWhiteboardHeadlessCreate(t *testing.T) {
+	mux := wbFixture(t)
+	cookie := wbSignup(t, mux, "create@example.com")
+
+	anon := httptest.NewRecorder()
+	mux.ServeHTTP(anon, httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/whiteboards", nil))
+	if anon.Code != http.StatusUnauthorized {
+		t.Fatalf("anon create status = %d, want 401", anon.Code)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/whiteboards", nil)
+	req.AddCookie(cookie)
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create status = %d (%s), want 201", rec.Code, rec.Body.String())
+	}
+	var created struct {
+		DocID string `json:"docID"` //nolint:tagliatelle // the handler's public JSON key
+		Path  string `json:"path"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+		t.Fatalf("create body: %v", err)
+	}
+	if created.DocID == "" || created.Path != "/whiteboard/"+created.DocID {
+		t.Fatalf("create answer = %+v, want a docID and its page path", created)
+	}
+
+	updRec := httptest.NewRecorder()
+	updReq := httptest.NewRequestWithContext(context.Background(),
+		http.MethodPost, "/api/whiteboard/"+created.DocID+"/update?clientID=c1",
+		strings.NewReader(`{"op":"clear"}`))
+	updReq.Header.Set("Content-Type", "application/json")
+	updReq.AddCookie(cookie)
+	mux.ServeHTTP(updRec, updReq)
+	if updRec.Code != http.StatusOK {
+		t.Fatalf("update on created board = %d (%s), want 200", updRec.Code, updRec.Body.String())
+	}
+}
+
 func TestHandlersWhiteboardSnapshotRoundTrip(t *testing.T) {
 	mux := wbFixture(t)
 	cookie := wbSignup(t, mux, "snap@example.com")

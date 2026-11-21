@@ -298,8 +298,8 @@ surface: the product's own users and agents call its routes (including
 `POST /api/ext/invoke`) under its session and RBAC. Never ship the installer
 MCP to them.
 
-Every mutating route (POST/PUT/PATCH/DELETE) your recipe declares must
-either:
+Every mutating route (POST/PUT/PATCH/DELETE) your recipe declares — and every
+GET create page, bound through `browserPath` as described below — must either:
 
 - appear as an `InvokeAction` (closed verb, declared route, closed `Params`
   set, a one-sentence `description`, and `paramHelp` for the params) so the
@@ -309,8 +309,9 @@ either:
   complete headless), async/demo-only routes, and destructive-only endpoints
   are the normal cases. An unexplained omission is the gap the check reports.
 
-A `{id}` route is invocable now, but v1 accepts exactly one placeholder and
-it must be a UUID (the repository's id shape). Declare it explicitly:
+Placeholders are the handler's own names (`{id}`, `{docID}`, …), declared in
+`pathParams`, and every value must be a UUID (the repository's id shape).
+Declare them explicitly:
 
 ```yaml
 actions:
@@ -321,19 +322,74 @@ actions:
     paramHelp: {id: The item's UUID.}
 ```
 
-The dispatcher removes `id` from the body, validates it, and substitutes it
-into the URL before the handler runs. A second placeholder or a slug is a
-future typed-format decision, not something to guess.
+The dispatcher removes each declared path param from the body, validates it as
+a UUID, and substitutes it into the URL before the handler runs. The declared
+set must match the pattern exactly; a slug is still a future typed-format
+decision, not something to guess.
+
+Two more locations exist because real handlers read more than a form body, and
+the bridge never guesses which:
+
+```yaml
+  - verb: edit
+    description: Apply one batch of text ops to a note.
+    route: {method: POST, pattern: "/api/notes/{docID}/op"}
+    params: [body]
+    pathParams: [docID]
+    query: [clientID]          # handler reads r.URL.Query(), not the form
+    rawBody: body              # param sent verbatim as application/json
+```
+
+`query` names params forwarded on the URL instead of the body. `rawBody` names
+the one param whose value is the raw request document — the escape hatch for a
+handler that decodes nested JSON; with it set, every other param must travel in
+the path or the query, because the body slot holds one document. Both stay
+inside the closed param set, so an undeclared key is still refused.
 
 Read routes (GET `/api/...`) may be declared when an agent needs structured
-read access; a UI page GET is not an affordance and is never required.
+read access; a UI page GET is not an affordance and is never required. A read
+that an agent needs after an async write is required, not optional: chat's
+answer arrives on the stream, so the recipe also declares a JSON history route
+rather than leaving the result readable only by a browser.
+
+### Create pages: a GET that mints a record
+
+A `/new` page (the template's create-page convention: `GET /notes/new`,
+`GET /whiteboard/new`) writes a row and answers a redirect. It is a mutation the
+method rule cannot see, and a headless caller cannot use it — the id it needs is
+in a `Location` header, not in a reply body. Such a page must be bound to the
+action that creates the same record:
+
+```yaml
+actions:
+  - verb: create
+    description: Create an empty note and return its id and page path.
+    route: {method: POST, pattern: "/api/notes"}
+    browserPath: /notes/new      # the human face of the same capability
+```
+
+`browserPath` must name a declared GET route, and every declared GET route
+whose last segment is `new` must be named by one action: an unbound create page
+is refused by `recipe check --strict-headless` and by the catalog review. The
+POST route answers the new id as JSON (`{"docID": "…", "path": "…"}`) so the
+agent can chain the write; a redirect is not a headless contract.
+
+A second GET-write shape is allowed and is **not** coverage-visible: claim-on-open,
+where opening a doc id with no row registers it to the first signed-in visitor
+so a shared link works. Two bounds keep it honest, and both need a test: it is
+insert-only (`ON CONFLICT DO NOTHING`, never an author rewrite), and it only
+creates the caller's own authorship of a row that did not exist — it never
+changes an existing record. Anything else that writes behind a GET is a create
+page (bind it) or a defect.
 The gate enforces the structural half in both directions: an action whose
 route is not declared is uncallable, and a receipt whose verbs drift from
-the code is a failure. `recipe check` reports the discovery half as
-warnings — a mutating route with no action and no declared omission is
-*invisible* to headless users, a verb with no description is a name an agent
-cannot choose between, and an installed recipe with no `summary` shows only
-its repo path. The catalog review turns the description into a requirement.
+the code is a failure. Coverage is enforced, not suggested: the catalog
+review **refuses** an entry whose mutating route is neither an action nor an
+omission, and `make check-recipes` runs `recipe check --strict-headless`, so
+a bundled slice cannot ship a mutation no agent can call. A verb with no
+description, and an installed recipe with no `summary`, are graded by the same
+strict run. `recipe describe` shows the omissions and their reasons, which is
+how a reviewer tells a decision from a forgotten route.
 
 ### When the deferred pieces become necessary
 
