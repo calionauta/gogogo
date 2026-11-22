@@ -172,3 +172,41 @@ func assertRenameIdentity(t *testing.T, root, module, ownerConst, repoConst stri
 		}
 	}
 }
+
+// TestRenameNamesTheConsumerMCPAfterTheProduct pins the naming contract:
+//
+//	template:  cmd/product-mcp   (a PLACEHOLDER — the template is not a product)
+//	product:   cmd/<product>-mcp (that product's own name)
+//
+// without the second, every generated product would install a binary called
+// `product-mcp`, and two of them on one PATH would collide. And the identity
+// the server reports must follow, or two products announce themselves to an
+// agent under the same name.
+func TestRenameNamesTheConsumerMCPAfterTheProduct(t *testing.T) {
+	requireTemplateIdentity(t)
+	root := t.TempDir()
+
+	files := map[string]string{
+		"go.mod":                  "module github.com/calionauta/gogogo\n\ngo 1.27\n",
+		"cmd/product-mcp/main.go": "package main\n\nfunc main() {}\n",
+		"cmd/product-mcp/doc.go":  "// doc\n",
+		"cmd/web/main.go":         "package main\n",
+	}
+	for rel, body := range files {
+		writeFile(t, filepath.Join(root, filepath.FromSlash(rel)), body)
+	}
+	if err := renameTree(root, "xpto", "acme"); err != nil {
+		t.Fatalf("renameTree: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(root, "cmd", "xpto-mcp", "main.go")); err != nil {
+		t.Fatalf("cmd/xpto-mcp/main.go missing after rename: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "cmd", "product-mcp")); !os.IsNotExist(err) {
+		t.Errorf("cmd/product-mcp survived the rename — the placeholder must become the product's name")
+	}
+	// cmd/web carries no project name and must not move.
+	if _, err := os.Stat(filepath.Join(root, "cmd", "web", "main.go")); err != nil {
+		t.Errorf("cmd/web moved during rename: %v", err)
+	}
+}

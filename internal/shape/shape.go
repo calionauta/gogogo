@@ -83,7 +83,17 @@ const (
 	// user of the product runs, as opposed to cmd/gogogo-mcp which evolves the
 	// checkout. A shape that dropped it would ship a product an agent can only
 	// drive by installing the evolution toolchain.
-	cmdProductMCP = "cmd/product-mcp"
+	//
+	// "product" is a PLACEHOLDER, not a name. A generated product carries its
+	// own name, so the scaffold renames this to cmd/<product>-mcp: two products
+	// on one PATH must not both install a binary called `product-mcp`. The
+	// template's own tree keeps the generic name because the template is not a
+	// product.
+	CmdProductMCP = "cmd/product-mcp"
+	cmdProductMCP = CmdProductMCP
+	// CmdProductMCPBase is the placeholder directory segment a scaffold must
+	// replace with the product name.
+	CmdProductMCPBase = "product-mcp"
 )
 
 // primaryEntrypoint is the one binary a shape exists for. A declared

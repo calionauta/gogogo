@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/calionauta/gogogo/internal/recipe"
+	shapekit "github.com/calionauta/gogogo/internal/shape"
 )
 
 // binarySniffLen bounds the binary sniff: NUL bytes past this window do not
@@ -161,6 +162,14 @@ func renamePathMoves(root, oldName, newName string) ([][2]string, error) {
 	if err := walkRenameTree(root, func(rel string, _ os.FileInfo) error {
 		parts := strings.Split(rel, "/")
 		for i, part := range parts {
+			// A name-bearing path moves with the project. The consumer MCP is
+			// the exception: its directory is a PLACEHOLDER (`product-mcp`), and
+			// it must become the product's own name — two products on one PATH
+			// cannot both install `product-mcp`.
+			if part == shapekit.CmdProductMCPBase {
+				prefixes[strings.Join(parts[:i+1], "/")] = struct{}{}
+				break
+			}
 			if strings.Contains(part, oldName) {
 				prefixes[strings.Join(parts[:i+1], "/")] = struct{}{}
 				break
@@ -189,9 +198,20 @@ func renamePathMoves(root, oldName, newName string) ([][2]string, error) {
 		if nested {
 			continue
 		}
-		moves = append(moves, [2]string{old, strings.ReplaceAll(old, oldName, newName)})
+		moves = append(moves, [2]string{old, renameTargetPath(old, oldName, newName)})
 	}
 	return moves, nil
+}
+
+// renameTargetPath is the new path for one move. A name-bearing path swaps the
+// project name; the consumer MCP's placeholder segment becomes the product's
+// name instead, because `product-mcp` contains nothing to substitute.
+func renameTargetPath(old, oldName, newName string) string {
+	if strings.HasSuffix(old, "/"+shapekit.CmdProductMCPBase) ||
+		old == shapekit.CmdProductMCPBase {
+		return strings.TrimSuffix(old, shapekit.CmdProductMCPBase) + newName + "-mcp"
+	}
+	return strings.ReplaceAll(old, oldName, newName)
 }
 
 // repointRenameSymlinks rewrites a symlink's TARGET, which no content pass can
@@ -353,6 +373,11 @@ func rewriteRenameFile(
 		text = ownerConstantRE(oldOwner).ReplaceAllString(text, "${1}"+newOwner+"${2}")
 	}
 	text = strings.ReplaceAll(text, oldName, newName)
+	// The consumer MCP reports its own name to an MCP client, and it is a
+	// PLACEHOLDER in this template (`Name: "product"`). Left alone, every
+	// generated product would announce itself as "product" and an agent
+	// connecting to two of them could not tell which is which.
+	text = strings.ReplaceAll(text, `Name:    "product"`, `Name:    "`+newName+`"`)
 	for token, repo := range placeholders {
 		text = strings.ReplaceAll(text, token, repo)
 	}

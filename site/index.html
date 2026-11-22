@@ -186,7 +186,7 @@
     <article class="chapter" id="layer-contact" data-layer="contact" data-name="Agent interface" data-scope="agent" data-line="The three ways an agent meets the system.">
       <div class="chapter-head"><span class="chapter-num">01</span><span class="chapter-meta">agent</span></div>
       <h2>Agent interface</h2>
-      <p class="chapter-lede">Two surfaces, two owners. The <strong>evolution</strong> pair — <code>gogogo</code> (CLI) and <code>gogogo-mcp</code> (MCP), one engine, two transports — reads and rewrites your checkout; building the product is what it is for. The <strong>consumer</strong> pair ships <em>with</em> the product: <code>product-mcp</code> (MCP) over the server's own routes, so its users and their agents drive it without ever installing the builder. Install the one that matches your role; the full verb and tool lists live in the docs.</p>
+      <p class="chapter-lede">Two surfaces, two names. The <strong>evolution</strong> pair keeps the fixed name — <code>gogogo</code> (CLI) and <code>gogogo-mcp</code> (MCP), one engine, two transports — and reads and rewrites your checkout; it never ships inside a product. The <strong>consumer</strong> pair takes your product's name — <code>xpto-mcp</code> over the server's own routes — so its users and their agents drive it without installing the builder.</p>
 
       <div class="viz agent-desk">
         <div class="agent-bar">
@@ -263,6 +263,7 @@
         <li>Your edits survive: pristine hashes + <code>git merge</code>, never overwrite.</li>
         <li>Receipt keeps it honest: <code>recipe status</code>, <code>update</code>, <code>uninstall</code>.</li>
         <li><strong>Every mutating route is callable headless</strong> — an action with typed params, or a declared omission with a reason. <code>recipe check --strict-headless</code> blocks the rest, so no capability reaches your product as UI-only.</li>
+        <li><strong>The product takes your name.</strong> <code>--name xpto</code> turns <code>cmd/product-mcp</code> into <code>cmd/xpto-mcp</code> and removes the evolution pair from the tree — two products on one <code>PATH</code> must not both install <code>product-mcp</code>.</li>
       </ul>
 
       <div class="viz tiles">
