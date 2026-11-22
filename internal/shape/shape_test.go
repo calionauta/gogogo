@@ -9,12 +9,15 @@ import (
 
 // writeTree lays down a fixture tree. A path ending in "/" is a directory;
 // anything else gets body, or `package main` when body is empty. Every shape
-// ships cmd/product-mcp (the consumer surface), so the seed carries it unless
-// the case is specifically about its absence.
+// ships the consumer PAIR (cmd/product-mcp and cmd/product-cli), so the seed
+// carries both unless the case is specifically about an absence.
 func writeTree(t *testing.T, root string, files map[string]string) {
 	t.Helper()
-	if _, ok := files["cmd/product-mcp/main.go"]; !ok {
-		files["cmd/product-mcp/main.go"] = ""
+	for _, ep := range []string{"cmd/product-mcp", "cmd/product-cli"} {
+		key := ep + "/main.go"
+		if _, ok := files[key]; !ok {
+			files[key] = ""
+		}
 	}
 	for rel, body := range files {
 		full := filepath.Join(root, filepath.FromSlash(rel))

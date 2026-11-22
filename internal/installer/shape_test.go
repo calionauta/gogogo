@@ -25,10 +25,11 @@ func seedMain(t *testing.T, root, rel string) {
 
 func TestShapeCheckReportsAConsistentTree(t *testing.T) {
 	root := t.TempDir()
-	// Every shape ships the consumer surface, so a consistent `web` tree has
-	// both cmd/web and cmd/product-mcp.
+	// Every shape ships the consumer PAIR, so a consistent `web` tree has
+	// cmd/web, cmd/product-mcp and cmd/product-cli.
 	seedMain(t, root, "cmd/web")
 	seedMain(t, root, "cmd/product-mcp")
+	seedMain(t, root, "cmd/product-cli")
 	if err := os.MkdirAll(filepath.Join(root, ".gogogo"), 0o755); err != nil {
 		t.Fatal(err)
 	}

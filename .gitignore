@@ -160,3 +160,7 @@ site/sitemap.xml
 # cmd/check-flatdeps/ and silently refuse `git add` of the tool's own
 # sources (measured: explicit add failed with "paths are ignored").
 /check-flatdeps
+
+# Built binaries at the repo root (make build writes APP_NAME here).
+/product-cli
+/check-product-boundary

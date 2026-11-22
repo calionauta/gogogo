@@ -263,7 +263,7 @@
         <li>Your edits survive: pristine hashes + <code>git merge</code>, never overwrite.</li>
         <li>Receipt keeps it honest: <code>recipe status</code>, <code>update</code>, <code>uninstall</code>.</li>
         <li><strong>Every mutating route is callable headless</strong> — an action with typed params, or a declared omission with a reason. <code>recipe check --strict-headless</code> blocks the rest, so no capability reaches your product as UI-only.</li>
-        <li><strong>The product takes your name.</strong> <code>--name xpto</code> turns <code>cmd/product-mcp</code> into <code>cmd/xpto-mcp</code> and removes the evolution pair from the tree — two products on one <code>PATH</code> must not both install <code>product-mcp</code>.</li>
+        <li><strong>The product takes your name.</strong> <code>--name xpto</code> turns the consumer pair into <code>cmd/xpto</code> (the CLI) and <code>cmd/xpto-mcp</code> (the MCP), and removes the evolution pair from the tree — two products on one <code>PATH</code> must not both install <code>product-mcp</code>. The CLI takes the bare name because it is the one a user types; the MCP keeps the suffix so the two are distinguishable.</li>
       </ul>
 
       <div class="viz tiles">

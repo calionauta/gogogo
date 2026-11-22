@@ -86,17 +86,30 @@ client* of a running server's `/api/ext/invoke`: it lives on the evolution side
 because it validates against a checkout's receipt, and it is not a product
 surface.
 
-**There is no consumer CLI, and that is deliberate.** A product ships `cmd/web`
-(the server, with `health` as its only subcommand) and `cmd/<product>-mcp` (the
-agent surface). An HTTP API plus an MCP covers the two callers a product
-actually has — an agent and a browser.
+**A product ships a consumer PAIR and its server.** Three binaries, two halves:
 
-`cmd/product-mcp` in THIS template is a placeholder: the template is not a
-product, so it has no name to carry. `--name <product>` makes it `cmd/<product>-mcp` —
-directory, module path and the identity the server reports to an MCP client.
+| Binary | Surface | Caller |
+|---|---|---|
+| `cmd/web` | the server (`health` is its only subcommand) | a browser |
+| `cmd/<product>` | consumer CLI | a shell script, a cron job, an agent without MCP |
+| `cmd/<product>-mcp` | consumer MCP | an agent that speaks MCP |
+
+The CLI is not a third contract. Both consumer binaries link `internal/productapi`
+and differ only in how they present it — one prints and parses argv, the other
+speaks JSON-RPC. A verb that exists in one and not the other is a bug in the
+surface, not a scoping decision.
+
+`cmd/product-mcp` and `cmd/product-cli` in THIS template are placeholders: the
+template is not a product, so it has no name to carry. `--name <product>` makes
+them `cmd/<product>-mcp` and `cmd/<product>` — directory, module path, the
+identity the server reports to an MCP client, and the tool names it exposes.
 Two generated products on one `PATH` must not both install `product-mcp`.
 
-A third surface would mean a third contract to keep in sync with the routes
+The bare name is the CLI's. `cmd/<product>` is the slot the removed builder
+leaves, and it is what a user types; the MCP keeps the suffix so the two are
+distinguishable on a `PATH`.
+
+A fourth surface would mean another contract to keep in sync with the routes
 for no caller that needs it; add one only when a concrete user is blocked
 without it.
 
@@ -114,11 +127,13 @@ Rules that follow:
   **evolution** toolchain to call the product's own routes. `<product>-mcp`
   asks the server instead — `GET /api/ext/descriptors` — which is what any
   third-party agent would do. `cmd/check-product-boundary` now fails if
-  `cmd/product-mcp` is missing, or if either half imports the other's packages.
+  `cmd/product-mcp` or `cmd/product-cli` is missing, or if either half imports
+  the other's packages.
 - **Two clients, one wire.** `internal/productapi` owns the conversation with a
   running product: the loopback rule, the session cookie's attributes, the
-  status handling. The evolution CLI's `recipe invoke` and the consumer MCP are
-  both thin callers of it, so a 401 means the same thing in both. The evolution
+  status handling. The evolution CLI's `recipe invoke` and BOTH consumer
+  surfaces (`cmd/<product>` and `cmd/<product>-mcp`) are thin callers of it, so
+  a 401 means the same thing in all three. The evolution
   caller uses `Call` (it already validated the verb against the receipt, so a
   discovery round trip would be a second read of the same truth); the consumer
   uses `Invoke` (it has no checkout, so the server is authoritative).

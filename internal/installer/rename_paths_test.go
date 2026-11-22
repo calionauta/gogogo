@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	shapekit "github.com/calionauta/gogogo/internal/shape"
 )
 
 // TestRenameTreeMovesNameBearingPaths is the guard for the half-renamed tree.
@@ -208,5 +210,47 @@ func TestRenameNamesTheConsumerMCPAfterTheProduct(t *testing.T) {
 	// cmd/web carries no project name and must not move.
 	if _, err := os.Stat(filepath.Join(root, "cmd", "web", "main.go")); err != nil {
 		t.Errorf("cmd/web moved during rename: %v", err)
+	}
+}
+
+// TestRenameConsumerMCPToolNames pins the tool-list identity. An agent
+// connecting to two products must be able to tell their tools apart, so the
+// placeholder `product_describe` cannot survive a scaffold.
+func TestRenameConsumerMCPToolNames(t *testing.T) {
+	dir := t.TempDir()
+	// renameIdentity reads the module path from go.mod, so the tree must look
+	// like a checkout for the rename to have a name to substitute.
+	gomod := "module github.com/calionauta/gogogo\n\ngo 1.27.4\n"
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(gomod), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	src := filepath.Join(dir, filepath.FromSlash(shapekit.CmdProductMCP))
+	if err := os.MkdirAll(src, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// Spacing matters: the identity rewrite matches the literal
+	// `Name:    "product"` as gofmt renders it in the real file.
+	body := "srv := mcp.NewServer(&mcp.Implementation{\n\t\tName:    \"product\",\n\t})\n" +
+		"mcp.AddTool(srv, &mcp.Tool{Name: \"product_describe\"})\n" +
+		"mcp.AddTool(srv, &mcp.Tool{Name: \"product_invoke\"})\n"
+	path := filepath.Join(src, "main.go")
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := renameTree(dir, "acme-portal", "acme"); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "cmd", "acme-portal-mcp", "main.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(raw)
+	for _, want := range []string{`"acme-portal",`, `"acme-portal_describe"`, `"acme-portal_invoke"`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %s in renamed consumer MCP:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, `"product`) {
+		t.Errorf("placeholder survived:\n%s", got)
 	}
 }
