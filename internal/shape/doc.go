@@ -29,6 +29,10 @@ func DocProblems(root string) ([]string, error) {
 		return nil, err
 	}
 	var problems []string
+	// Both sides are hand-written, so agreement between them is not proof that
+	// the entrypoint EXISTS. `Check` only stats the paths the record declares,
+	// which never covers the enum's own table.
+	problems = append(problems, entrypointsOnDisk(root)...)
 	for _, s := range All {
 		row, ok := rows[string(s)]
 		if !ok {
@@ -98,6 +102,11 @@ func docEntrypoints(root string) (map[string][]string, error) {
 	defer func() { _ = f.Close() }()
 
 	out := map[string][]string{}
+	// A shape named twice is a real editing accident — append the corrected row,
+	// forget to delete the old — and last-write-wins would make the gate's verdict
+	// depend on which row came second. The page renders EVERY row, so a duplicate
+	// is drift whatever its order.
+	var dupes []string
 	sc := bufio.NewScanner(f)
 	for sc.Scan() {
 		cells := tableCells(sc.Text())
@@ -108,10 +117,18 @@ func docEntrypoints(root string) (map[string][]string, error) {
 		if !ok {
 			continue
 		}
-		out[strings.Trim(cells[0], "`")] = eps
+		id := strings.Trim(cells[0], "`")
+		if _, seen := out[id]; seen {
+			dupes = append(dupes, id)
+		}
+		out[id] = eps
 	}
 	if err := sc.Err(); err != nil {
 		return nil, fmt.Errorf("read %s: %w", DocPath, err)
+	}
+	for _, id := range dupes {
+		return out, fmt.Errorf("%s: the %q shape has more than one row "+
+			"(the page renders every one, so the duplicate is drift whatever the order)", DocPath, id)
 	}
 	if len(out) == 0 {
 		// An empty set would make every shape "undocumented", which is a
@@ -154,4 +171,30 @@ func entrypointCell(cells []string) ([]string, bool) {
 		eps = append(eps, strings.Trim(tok, "`"))
 	}
 	return eps, len(eps) > 0
+}
+
+// entrypointsOnDisk reports the entrypoints of THIS tree's shape that are
+// missing. Scoped to the record's shape on purpose: a `web` product has no
+// `cmd/desktop` and never will, so checking the union of every shape would
+// report three defects on a correctly trimmed tree — the exact failure mode this
+// whole change set exists to remove.
+func entrypointsOnDisk(root string) []string {
+	c, err := Load(root)
+	if err != nil {
+		// Load's own error is reported by Check; do not double-report it here.
+		return nil
+	}
+	seen := map[string]bool{}
+	var problems []string
+	for _, ep := range c.Entrypoints {
+		if seen[ep] {
+			continue
+		}
+		seen[ep] = true
+		if _, statErr := os.Stat(filepath.Join(root, filepath.FromSlash(ep))); statErr != nil {
+			problems = append(problems,
+				fmt.Sprintf("this tree's shape declares %q, which does not exist", ep))
+		}
+	}
+	return problems
 }
