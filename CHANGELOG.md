@@ -15,6 +15,15 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.72.3 (2026-11-22)
+
+## What's Changed
+* recipe: the invoke seam carries path, query and raw body — and headless coverage becomes a gate by @calionauta in https://github.com/calionauta/gogogo/pull/467
+* scaffold: a product ships two consumer surfaces, and they carry its name by @calionauta in https://github.com/calionauta/gogogo/pull/469
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.72.2...v0.72.3
+
 ## 0.72.2 (2026-11-21)
 
 ## What's Changed
