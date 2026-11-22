@@ -186,7 +186,7 @@
     <article class="chapter" id="layer-contact" data-layer="contact" data-name="Agent interface" data-scope="agent" data-line="The three ways an agent meets the system.">
       <div class="chapter-head"><span class="chapter-num">01</span><span class="chapter-meta">agent</span></div>
       <h2>Agent interface</h2>
-      <p class="chapter-lede">Two surfaces, two names. The <strong>evolution</strong> pair keeps the fixed name — <code>gogogo</code> (CLI) and <code>gogogo-mcp</code> (MCP), one engine, two transports — and reads and rewrites your checkout; it never ships inside a product. The <strong>consumer</strong> pair takes your product's name — <code>xpto-mcp</code> over the server's own routes — so its users and their agents drive it without installing the builder.</p>
+      <p class="chapter-lede">Two surfaces, two names. The <strong>evolution</strong> pair keeps the fixed name — <code>gogogo</code> (CLI) and <code>gogogo-mcp</code> (MCP), one engine, two transports — and reads and rewrites your checkout; it never ships inside a product. The <strong>consumer</strong> pair takes your product's name — <code>[product-name]</code> (CLI) and <code>[product-name]-mcp</code> (MCP), over the server's own routes — so its users and their agents drive it without installing the builder.</p>
 
       <div class="viz agent-desk">
         <div class="agent-bar">
@@ -198,10 +198,12 @@
           <input type="radio" name="agent-tab" id="agent-mcp" checked>
           <input type="radio" name="agent-tab" id="agent-cli">
           <input type="radio" name="agent-tab" id="agent-skills">
+          <input type="radio" name="agent-tab" id="agent-product">
           <div class="agent-labels">
             <label for="agent-mcp">MCP</label>
             <label for="agent-cli">CLI</label>
             <label for="agent-skills">Skills</label>
+            <label for="agent-product">Product</label>
           </div>
           <div class="agent-panels">
             <div class="agent-panel panel-skills">
@@ -241,13 +243,23 @@
                 <li><span><a href="./docs/mcp/">All MCP tools →</a></span></li>
               </ul>
             </div>
+            <div class="agent-panel panel-product">
+              <ul class="agent-list">
+                <li><code>[product-name]</code><span>A product's own CLI. Same engine as its server, one verb at a time — for a script, a cron job, or an agent without MCP.</span></li>
+                <li><code>[product-name]-mcp</code><span>A product's own MCP. The same verbs over stdio, for an agent that speaks it. Neither is more complete: both reach the product's routes.</span></li>
+                <li><code>describe</code><span>What this product offers, and where each param travels. Discovery first, from the receipt or the wire.</span></li>
+                <li><code>invoke &lt;unit&gt; &lt;verb&gt;</code><span>Call one declared verb, under the session and policy the UI enforces — never a bypass.</span></li>
+                <li><code>POST /api/ext/invoke</code><span>The route both surfaces call. Session + RBAC, the same wall the page hits.</span></li>
+                <li><span><a href="./docs/cli/">Which binary do I install? →</a></span></li>
+              </ul>
+            </div>
           </div>
         </div>
       </div>
 
       <div class="chapter-foot">
         <p class="foot-line"><span class="label">Inside</span> <code>skills/gogogo-coding-standards</code> <code>skills/gogogo-recipe-authoring</code> <code>cmd/gogogo</code> <code>cmd/gogogo-mcp</code></p>
-        <p class="foot-line"><span class="label">Product</span> Users and their agents call the running server (<code>POST /api/ext/invoke</code>) under session + RBAC. The installer MCP never ships there.</p>
+        <p class="foot-line"><span class="label">Product</span> A generated product ships its own consumer pair — <code>cmd/[product-name]</code> and <code>cmd/[product-name]-mcp</code> — and never the evolution pair. Users and their agents call the running server under session + RBAC.</p>
         <p class="foot-line"><span class="label">Proof</span> <code>gogogo doctor --json</code> · <code>gogogo generate --check</code></p>
         <p class="foot-line remove"><span class="label">Remove it</span> The binary keeps running; the agent loses its map.</p>
         <p class="foot-line doc"><a href="./docs/cli/">CLI reference</a> · <a href="./docs/mcp/">MCP setup</a> · <a href="./docs/mcp/#evolution-surface-vs-consumer-surface">Evolution vs consumer</a> · <a href="./docs/getting-started/">Getting started</a></p>
@@ -263,7 +275,7 @@
         <li>Your edits survive: pristine hashes + <code>git merge</code>, never overwrite.</li>
         <li>Receipt keeps it honest: <code>recipe status</code>, <code>update</code>, <code>uninstall</code>.</li>
         <li><strong>Every mutating route is callable headless</strong> — an action with typed params, or a declared omission with a reason. <code>recipe check --strict-headless</code> blocks the rest, so no capability reaches your product as UI-only.</li>
-        <li><strong>The product takes your name.</strong> <code>--name xpto</code> turns the consumer pair into <code>cmd/xpto</code> (the CLI) and <code>cmd/xpto-mcp</code> (the MCP), and removes the evolution pair from the tree — two products on one <code>PATH</code> must not both install <code>product-mcp</code>. The CLI takes the bare name because it is the one a user types; the MCP keeps the suffix so the two are distinguishable.</li>
+        <li><strong>The product takes your name.</strong> <code>--name</code> turns the consumer pair into <code>cmd/[product-name]</code> (the CLI) and <code>cmd/[product-name]-mcp</code> (the MCP), and removes the evolution pair from the tree — two products on one <code>PATH</code> must not both install the same placeholder. The CLI takes the bare name because it is the one a user types; the MCP keeps the suffix so the two are distinguishable.</li>
       </ul>
 
       <div class="viz tiles">
@@ -740,7 +752,7 @@
               <code class="shape-id">full</code>
               <span class="shape-badge">default</span>
             </header>
-            <p class="shape-keeps"><span>web</span><span>desktop</span><span>gui</span><span>mobile</span><span>product-mcp</span></p>
+            <p class="shape-keeps"><span>web</span><span>desktop</span><span>gui</span><span>mobile</span><span>product-cli</span><span>product-mcp</span></p>
             <p class="shape-drops shape-none">nothing dropped</p>
             <p class="shape-note">every target — the default</p>
           </article>
@@ -750,7 +762,7 @@
               <code class="shape-id">web</code>
               
             </header>
-            <p class="shape-keeps"><span>web</span><span>product-mcp</span></p>
+            <p class="shape-keeps"><span>web</span><span>product-cli</span><span>product-mcp</span></p>
             <p class="shape-drops"><span>desktop</span><span>gui</span><span>mobile</span></p>
             <p class="shape-note">the browser app</p>
           </article>
@@ -760,7 +772,7 @@
               <code class="shape-id">api</code>
               
             </header>
-            <p class="shape-keeps"><span>web</span><span>product-mcp</span></p>
+            <p class="shape-keeps"><span>web</span><span>product-cli</span><span>product-mcp</span></p>
             <p class="shape-drops"><span>desktop</span><span>gui</span><span>mobile</span></p>
             <p class="shape-note">API, health and assets only; pages answer 404</p>
           </article>
@@ -770,7 +782,7 @@
               <code class="shape-id">desktop</code>
               
             </header>
-            <p class="shape-keeps"><span>desktop</span><span>web</span><span>product-mcp</span></p>
+            <p class="shape-keeps"><span>desktop</span><span>web</span><span>product-cli</span><span>product-mcp</span></p>
             <p class="shape-drops"><span>gui</span><span>mobile</span></p>
             <p class="shape-note">the Wails shell and the server it embeds</p>
           </article>
@@ -780,7 +792,7 @@
               <code class="shape-id">gui</code>
               
             </header>
-            <p class="shape-keeps"><span>gui</span><span>product-mcp</span></p>
+            <p class="shape-keeps"><span>gui</span><span>product-cli</span><span>product-mcp</span></p>
             <p class="shape-drops"><span>web</span><span>desktop</span><span>mobile</span></p>
             <p class="shape-note">the gogpu/ui native shell</p>
           </article>
@@ -790,7 +802,7 @@
               <code class="shape-id">mobile</code>
               
             </header>
-            <p class="shape-keeps"><span>mobile</span><span>web</span><span>product-mcp</span></p>
+            <p class="shape-keeps"><span>mobile</span><span>web</span><span>product-cli</span><span>product-mcp</span></p>
             <p class="shape-drops"><span>desktop</span><span>gui</span></p>
             <p class="shape-note">the Wails Android shell and the server it embeds</p>
           </article>
@@ -952,7 +964,7 @@
     <p class="kicker">Start here</p>
     <h2>Run. Ship. <em>Summon.</em></h2>
     <p class="install-lede">One install puts the binary and the MCP on your PATH. Then you talk to your agent.</p>
-    <p class="install-note">This installs the <strong>evolution</strong> pair — <code>gogogo</code> and <code>gogogo-mcp</code>, which build the product. If you are <em>using</em> a product someone already built, you want the binary it ships instead: <code>go install yourproduct/cmd/product-mcp@latest</code>. Different role, different binary. <a href="./docs/mcp/#which-one-do-i-install">Which one do I install?</a></p>
+    <p class="install-note">This installs the <strong>evolution</strong> pair — <code>gogogo</code> and <code>gogogo-mcp</code>, which build the product. If you are <em>using</em> a product someone already built, you want the binary it ships instead: <code>go install yourproduct/cmd/[product-name]-mcp@latest</code>. Different role, different binary. <a href="./docs/mcp/#which-one-do-i-install">Which one do I install?</a></p>
   </div>
 
   <ol class="steps">

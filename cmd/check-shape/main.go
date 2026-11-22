@@ -28,6 +28,14 @@ func main() {
 		fmt.Fprintln(os.Stderr, "check-shape: "+err.Error())
 		os.Exit(1)
 	}
+	// The doc is the SECOND HALF of the enum, and the landing page's shape
+	// cards are generated from it: an entrypoint added to the code alone
+	// produces a page that understates what a shape ships.
+	docProblems, docErr := shape.DocProblems(*dir)
+	if docErr != nil {
+		docProblems = []string{docErr.Error()}
+	}
+	problems = append(problems, docProblems...)
 	if len(problems) > 0 {
 		for _, p := range problems {
 			fmt.Fprintln(os.Stderr, p)
