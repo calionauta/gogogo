@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/calionauta/gogogo/internal/capabilities"
 )
 
 // TestCountMatches pins what the count rule does and does not flag: plural
@@ -83,7 +85,7 @@ func TestTrimmedPaths(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte(agents), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	trimmed := trimmedPaths(root)
+	trimmed := capabilities.TrimmedPathSet(root)
 	for _, path := range []string{"features/landing", "features/landing/components", "internal/goakt"} {
 		if !trimmedPath(trimmed, path) {
 			t.Errorf("trimmedPath(%q) = false, want true", path)
@@ -103,8 +105,8 @@ func TestTrimmedPaths(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte("# app\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if len(trimmedPaths(root)) != 0 {
-		t.Error("trimmedPaths without a provenance section must be empty")
+	if len(capabilities.TrimmedPathSet(root)) != 0 {
+		t.Error("TrimmedPathSet without a provenance section must be empty")
 	}
 }
 

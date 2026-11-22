@@ -17,10 +17,12 @@ package main
 // join this binary's graph for one table.
 
 import (
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -61,8 +63,22 @@ var mcpToolsDocs = []mcpToolsDoc{
 }
 
 // mcpTools reads the catalog and returns its tools in declaration order.
+//
+// A product does not carry one: the catalog describes the EVOLUTION MCP's
+// tools (`recipe install`, `scaffold_apply`), and a generated tree has no
+// builder. Returning the empty set is the honest answer there — the caller
+// then skips the generated tables instead of reporting the product's own
+// documentation as broken.
 func mcpTools(root string) ([]mcpTool, error) {
 	path := filepath.Join(root, filepath.FromSlash(mcpToolsFile))
+	// Stat first: parser.ParseFile reports a missing file as its own error
+	// type, and errors.Is on it does not match fs.ErrNotExist.
+	if _, statErr := os.Stat(path); statErr != nil {
+		if errors.Is(statErr, fs.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("stat %s: %w", mcpToolsFile, statErr)
+	}
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, path, nil, 0)
 	if err != nil {
@@ -223,6 +239,13 @@ func checkMCPTools(root string) []string {
 	tools, err := mcpTools(root)
 	if err != nil {
 		return []string{err.Error()}
+	}
+	// No catalog means no generated table to be stale: a product ships neither
+	// the evolution MCP nor its catalog, and its docs pages are the product's
+	// own. Checking them against an empty tool list would report every product
+	// as drifted.
+	if tools == nil {
+		return nil
 	}
 	var out []string
 	for _, doc := range mcpToolsDocs {

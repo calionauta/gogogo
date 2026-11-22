@@ -38,6 +38,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/calionauta/gogogo/internal/capabilities"
 )
 
 // rootDocs are the prose entrypoints outside docs/.
@@ -210,7 +212,7 @@ func run() error {
 	problems = append(problems, checkLineCounts(root, files)...)
 	problems = append(problems, checkTierLists(root)...)
 	problems = append(problems, checkRetiredTerms(root, files)...)
-	trimmed := trimmedPaths(root)
+	trimmed := capabilities.TrimmedPathSet(root)
 	problems = append(problems, checkPaths(root, files, trimmed)...)
 	problems = append(problems, checkBarePaths(root, files, trimmed)...)
 	problems = append(problems, checkCommands(root, files, subs)...)
@@ -329,37 +331,6 @@ func trimmedPath(trimmed map[string]bool, path string) bool {
 		}
 	}
 	return false
-}
-
-// trimmedPaths reads AGENTS.md's trim provenance ("removed-paths:" inside the
-// "## Trim provenance" section). No section means the full template: strict.
-func trimmedPaths(root string) map[string]bool {
-	out := map[string]bool{}
-	raw, err := os.ReadFile(filepath.Join(root, "AGENTS.md"))
-	if err != nil {
-		return out
-	}
-	inSection := false
-	for line := range strings.SplitSeq(string(raw), "\n") {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "## ") {
-			inSection = line == "## Trim provenance"
-			continue
-		}
-		if !inSection {
-			continue
-		}
-		rest, ok := strings.CutPrefix(line, "removed-paths:")
-		if !ok {
-			continue
-		}
-		for p := range strings.SplitSeq(strings.TrimSpace(rest), ",") {
-			if p = strings.TrimSpace(p); p != "" && p != "none" {
-				out[filepath.ToSlash(p)] = true
-			}
-		}
-	}
-	return out
 }
 
 // checkCommands rejects `gogogo <word>` invocations naming a subcommand the

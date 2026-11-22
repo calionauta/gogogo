@@ -79,7 +79,7 @@ type mountEntry struct {
 func mountEntries(t *testing.T, root string) []mountEntry {
 	t.Helper()
 	module := testModulePath(t, root)
-	trimmed := trimmedPaths(root)
+	trimmed := ReadTrimProvenance(root)
 	var entries []mountEntry
 	for _, c := range All {
 		// A trimmed slice's package is gone: generating an import for it would
@@ -172,7 +172,7 @@ func TestSelfMountingUnitsExportRegister(t *testing.T) {
 	// A scaffolded tree drops demo slices; their registry rows stay (the
 	// registry is the template's data, not the tree's), so the removed-paths:
 	// provenance is what tells this test a missing package is deliberate.
-	trimmed := trimmedPaths(root)
+	trimmed := ReadTrimProvenance(root)
 	checked := 0
 	for _, c := range All {
 		if c.Register == "" || skippedByTrim(trimmed, c) {
@@ -192,26 +192,17 @@ func TestSelfMountingUnitsExportRegister(t *testing.T) {
 
 // skippedByTrim reports whether the tree deliberately removed the unit's code:
 // any of its Dirs or its Register package is listed under removed-paths:.
-func skippedByTrim(trimmed map[string]bool, c Capability) bool {
-	if len(trimmed) == 0 {
+// skippedByTrim answers one question: did THIS tree deliberately drop the unit?
+// Covers already handles a directory covering what is beneath it, which is the
+// "a removed feature directory takes its Register with it" case.
+func skippedByTrim(trimmed TrimProvenance, c Capability) bool {
+	if !trimmed.Recorded {
 		return false
 	}
-	for _, dir := range c.Dirs {
-		if trimmed[filepath.FromSlash(dir)] {
-			return true
-		}
-	}
-	if c.Register != "" && trimmed[filepath.FromSlash(c.Register)] {
+	if trimmed.CoversAll(c.Dirs) {
 		return true
 	}
-	// A slice removed by its feature directory takes its Register with it.
-	for path := range trimmed {
-		if strings.HasPrefix(filepath.ToSlash(path), "features/") &&
-			strings.HasPrefix(c.Register, filepath.ToSlash(path)+"/") {
-			return true
-		}
-	}
-	return false
+	return c.Register != "" && trimmed.Covers(c.Register)
 }
 
 // packageDeclaresRegister parses the unit's package and looks for the exported

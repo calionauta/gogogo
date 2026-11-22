@@ -55,7 +55,7 @@ func TestWriteAgentsPointsUpstream(t *testing.T) {
 	dir := t.TempDir()
 	// Sorted, as removedIDs produces it in the real apply path.
 	drop := []builtinUnit{findUnit(t, "sounds"), findUnit(t, "whiteboard")}
-	if err := writeAgents(context.Background(), dir, "my-app", drop); err != nil {
+	if err := writeAgents(context.Background(), dir, drop); err != nil {
 		t.Fatal(err)
 	}
 	raw, _ := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
@@ -77,7 +77,7 @@ func TestWriteAgentsPointsUpstream(t *testing.T) {
 // provenance" and silently drops the tree back to strict checking.
 func TestWriteAgentsRecordsEmptyTrim(t *testing.T) {
 	dir := t.TempDir()
-	if err := writeAgents(context.Background(), dir, "my-app", nil); err != nil {
+	if err := writeAgents(context.Background(), dir, nil); err != nil {
 		t.Fatal(err)
 	}
 	raw, _ := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
@@ -99,7 +99,7 @@ func TestWriteAgentsRecordsEmptyTrim(t *testing.T) {
 func TestWriteAgentsRecordsTemplateBase(t *testing.T) {
 	requireTemplateIdentity(t)
 	dir := t.TempDir()
-	if err := writeAgents(context.Background(), dir, "my-app", nil); err != nil {
+	if err := writeAgents(context.Background(), dir, nil); err != nil {
 		t.Fatal(err)
 	}
 	raw, _ := os.ReadFile(filepath.Join(dir, "AGENTS.md"))

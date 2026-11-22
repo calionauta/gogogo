@@ -164,3 +164,15 @@ site/sitemap.xml
 # Built binaries at the repo root (make build writes APP_NAME here).
 /product-cli
 /check-product-boundary
+
+# Built by `make check-*` / `make prompt-eval` at the repo root (go build -o).
+# Committing them puts a 4-7 MB stale copy of the gate in every clone.
+/check-classes
+/check-typed-states
+/prompt-eval
+/check-domains
+/check-prompts
+/check-docs
+/check-shape
+/check-mcp
+/site-check

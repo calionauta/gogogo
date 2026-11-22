@@ -66,17 +66,46 @@ func applyAndProve(ctx context.Context, opt options, plan scaffoldPlan, stdout i
 // then act on — `--check` reports the (deliberate) absences as drift, and the
 // registry conformance test looks for directories nobody meant to keep.
 func writeAgentsForPlan(ctx context.Context, dir, projectName string, plan scaffoldPlan) error {
+	// The plan's drops are RECIPE ids, not builtin-unit ids, so they go through
+	// the explicit path list. Everything a builtin unit owns comes from
+	// builtinUnitPaths, never from a `features/<id>` convention.
 	ids := append([]string(nil), plan.DropRecipes...)
 	paths := make([]string, 0, len(ids)*2)
 	for _, id := range ids {
-		paths = append(paths, "features/"+id)
+		dirs, files, ok := builtinUnitPaths(id)
+		if !ok {
+			paths = append(paths, "features/"+id)
+			continue
+		}
+		paths = append(paths, dirs...)
+		paths = append(paths, files...)
 	}
 	// The shape's dropped entrypoints are removals too, and the same
 	// conformance/`--check` rules read them.
 	paths = append(paths, plan.ShapeRemove...)
+	// A product never ships the builder either, whatever the plan says, and the
+	// builder's files are named by docs the product keeps: `docs/mcp.md` points
+	// at `cmd/<product>-mcp/catalog.go` and `llms.txt` at `cmd/<product>/README.md`
+	// AFTER the rename has rewritten them. Without these, `check-docs` reported
+	// the product's own docs as dead paths. `Covers` matches by prefix, so the
+	// directories cover every file inside.
+	paths = append(paths, evolutionEntrypointsAfterRename(projectName)...)
 	sort.Strings(ids)
 	sort.Strings(paths)
 	return writeAgentsWith(ctx, dir, projectName, ids, paths)
+}
+
+// builtinUnitPaths is the directories and files a unit owns, from the
+// registry-backed metadata. `ok` is false when the id names no builtin unit.
+func builtinUnitPaths(id string) (dirs, files []string, ok bool) {
+	for _, u := range builtinUnits {
+		if u.id != id {
+			continue
+		}
+		m := u.meta()
+		return m.dirs, m.files, true
+	}
+	return nil, nil, false
 }
 
 // writeLocalesRecord records the operator's language answer in the new tree. An
@@ -106,7 +135,10 @@ func applyAndProveJSON(ctx context.Context, opt options, stdout io.Writer, plan 
 	if err := renameTree(opt.dir, opt.name, opt.owner); err != nil {
 		return err
 	}
-	if err := writeAgents(ctx, opt.dir, opt.name, nil); err != nil {
+	// Same record as the non-JSON path: a nil drop would write an EMPTY
+	// removed-paths: line, and every doc naming a deleted unit would then be
+	// reported as a dead path.
+	if err := writeAgentsForPlan(ctx, opt.dir, opt.name, plan); err != nil {
 		return err
 	}
 	if err := pruneReferenceRecipes(opt, plan.DropRecipes, io.Discard); err != nil {

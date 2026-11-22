@@ -273,7 +273,9 @@ func TestProvenanceRecordsWhatTheScaffoldActuallyDropped(t *testing.T) {
 	agents := readOrEmpty(t, dir, "AGENTS.md")
 	for _, want := range []string{
 		"removed: chat, kiosk",
-		"removed-paths: cmd/gui, features/chat, features/kiosk",
+		// The builder's two surfaces lead the list: they are removed from every
+		// product, and the docs that name files inside them stay behind.
+		"removed-paths: cmd/gui, cmd/my-app, cmd/my-app-mcp, features/chat, features/kiosk",
 	} {
 		if !strings.Contains(agents, want) {
 			t.Errorf("AGENTS.md is missing %q:\n%s", want, agents)
@@ -293,8 +295,13 @@ func TestProvenanceSaysNoneWhenNothingWasDropped(t *testing.T) {
 		t.Fatalf("writeAgentsForPlan: %v", err)
 	}
 	agents := readOrEmpty(t, dir, "AGENTS.md")
-	if !strings.Contains(agents, "removed: none") || !strings.Contains(agents, "removed-paths: none") {
-		t.Errorf("an untouched tree lost its markers:\n%s", agents)
+	// No RECIPE was dropped, so `removed:` says none. `removed-paths:` still
+	// names the builder: a product never ships it, and the docs it leaves behind
+	// would otherwise look dead.
+	for _, want := range []string{"removed: none", "removed-paths: cmd/my-app, cmd/my-app-mcp"} {
+		if !strings.Contains(agents, want) {
+			t.Errorf("an untouched tree is missing %q:\n%s", want, agents)
+		}
 	}
 }
 
