@@ -26,10 +26,19 @@ func applyAndProve(ctx context.Context, opt options, plan scaffoldPlan, stdout i
 	if err := writeLocalesRecord(opt); err != nil {
 		return err
 	}
-	// Prune BEFORE the rename. The evolution pair still carries the template's
-	// name at this point (`cmd/gogogo`, `cmd/gogogo-mcp`); renaming first makes
-	// them `cmd/<product>` and `cmd/<product>-mcp`, and the latter collides
-	// with the consumer MCP's own rename to `cmd/<product>-mcp`.
+	// Prune and record BEFORE the rename, while every path still has the name
+	// this binary was compiled against.
+	//
+	// The builder goes first: after the rename `cmd/gogogo-mcp` becomes
+	// `cmd/<product>-mcp`, which is the consumer MCP's own new name, so the two
+	// become indistinguishable. The shape record goes last of the three
+	// because it is written to `.gogogo/shape.yml`, and the rename then moves
+	// the directory to `.<product>/` and rewrites the entrypoint paths inside
+	// it in step with the directory move. Recording after the rename recreates
+	// `.gogogo/` and leaves the real tree without a record.
+	if err := removeEvolutionPair(opt.dir); err != nil {
+		return err
+	}
 	if err := applyShapeIfNeeded(opt, stdout); err != nil {
 		return err
 	}
@@ -87,9 +96,10 @@ func applyAndProveJSON(ctx context.Context, opt options, stdout io.Writer, plan 
 	if err := pruneReferenceRecipes(opt, plan.DropRecipes, io.Discard); err != nil {
 		return err
 	}
-	// Prune before the rename: see applyAndProve. The evolution pair must be
-	// gone while it still has the template's name, or the rename makes it
-	// collide with the consumer MCP.
+	// Same order as applyAndProve: builder, shape record, then the rename.
+	if err := removeEvolutionPair(opt.dir); err != nil {
+		return err
+	}
 	if err := applyShapeIfNeeded(opt, io.Discard); err != nil {
 		return err
 	}
