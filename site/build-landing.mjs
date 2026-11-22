@@ -506,6 +506,30 @@ if (check) {
     for (const d of dead) console.error(`  ${d}`);
     process.exit(1);
   }
+  // A tab group's prose states its own size ("The three ways...") and a reader
+  // disproves it by counting. Adding the Product tab left the copy claiming
+  // three, and no gate compared the two: the generated blocks were correct and
+  // the hand-written sentence was wrong. Compare them, but only where the claim
+  // is mechanical — "two surfaces" in a lede is prose, and prose is the author's.
+  const WORDS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6 };
+  const claimMismatch = [];
+  const agentTabs = [
+    ...page.matchAll(/<input type="radio" name="agent-tab" id="agent-[a-z]+"/g),
+  ].length;
+  for (const m of page.matchAll(/data-line="The (\w+) ways an agent meets the system\."/g)) {
+    const claim = WORDS[m[1].toLowerCase()];
+    if (claim === undefined) continue;
+    if (claim !== agentTabs) {
+      claimMismatch.push(
+        `data-line says "${m[1]}" but the agent tab group has ${agentTabs} tabs`,
+      );
+    }
+  }
+  if (claimMismatch.length) {
+    console.error("site/index.html states a count the page contradicts:");
+    for (const d of claimMismatch) console.error(`  ${d}`);
+    process.exit(1);
+  }
   console.log("landing ok: generated blocks match the unit contracts and .lefthook.yml");
 } else {
   writeFileSync(pageURL, out);
