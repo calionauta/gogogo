@@ -172,7 +172,7 @@ a password:
 {
   "mcpServers": {
     "yourproduct": {
-      "command": "xpto-mcp",
+      "command": "[product-name]-mcp",
       "env": {
         "GOGOGO_SERVER": "http://127.0.0.1:8080",
         "GOGOGO_SESSION": "<the session cookie value the product issued>"
@@ -183,7 +183,7 @@ a password:
 ```
 
 `GOGOGO_SESSION` is the session cookie value the product issued to a real user
-you signed in as — the same credential a browser holds. `xpto-mcp` refuses to
+you signed in as — the same credential a browser holds. `[product-name]-mcp` refuses to
 start without it, and refuses a non-loopback `GOGOGO_SERVER` in v1: reach a
 remote product through SSH or Tailscale, never by publishing it.
 

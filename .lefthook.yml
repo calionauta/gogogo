@@ -98,7 +98,7 @@ pre-commit:
       run: |
         go run ./cmd/check-shape -dir . -quiet
         go run ./cmd/check-domains -dir . -quiet
-      glob: "{.gogogo/**,docs/domain/**,internal/capabilities/**,features/**,cmd/**}"
+      glob: "{.gogogo/**,docs/domain/**,docs/shape.md,internal/capabilities/**,internal/shape/**,features/**,cmd/**}"
 
     # Every Test must pin behavior, not just plumbing: vacuous tests (no
     # failure call at all — fail only on panic) block the commit; err-only

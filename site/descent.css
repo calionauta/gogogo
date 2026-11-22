@@ -1924,14 +1924,16 @@ html:not(.js) .try-remove { display: none; }
 
 #agent-skills:checked ~ .agent-labels label[for="agent-skills"],
 #agent-cli:checked ~ .agent-labels label[for="agent-cli"],
-#agent-mcp:checked ~ .agent-labels label[for="agent-mcp"] {
+#agent-mcp:checked ~ .agent-labels label[for="agent-mcp"],
+#agent-product:checked ~ .agent-labels label[for="agent-product"] {
   color: var(--warm);
   border-bottom-color: var(--warm);
 }
 
 #agent-skills:focus-visible ~ .agent-labels label[for="agent-skills"],
 #agent-cli:focus-visible ~ .agent-labels label[for="agent-cli"],
-#agent-mcp:focus-visible ~ .agent-labels label[for="agent-mcp"] {
+#agent-mcp:focus-visible ~ .agent-labels label[for="agent-mcp"],
+#agent-product:focus-visible ~ .agent-labels label[for="agent-product"] {
   outline: 2px solid var(--warm);
   outline-offset: 2px;
   border-radius: 3px;
@@ -1941,7 +1943,8 @@ html:not(.js) .try-remove { display: none; }
 
 #agent-skills:checked ~ .agent-panels .panel-skills,
 #agent-cli:checked ~ .agent-panels .panel-cli,
-#agent-mcp:checked ~ .agent-panels .panel-mcp { display: block; }
+#agent-mcp:checked ~ .agent-panels .panel-mcp,
+#agent-product:checked ~ .agent-panels .panel-product { display: block; }
 
 .agent-list {
   list-style: none;
