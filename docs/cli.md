@@ -8,11 +8,26 @@ CLI, `gogogo-mcp` is the same engine over MCP. Use whichever your caller speaks;
 neither is more complete than the other.
 
 It scaffolds, copies, updates and proves a checkout, so it belongs to the
-developer's machine. A product's own users and agents do not run it; they call
-the running server's routes (including `POST /api/ext/invoke`) under the
-product's session and policy, or the `cmd/product-mcp` the product itself ships.
-`recipe invoke` is a *client* of that server, not a product surface — and it is
-not a consumer CLI either: a product ships no CLI, only its server and its MCP.
+developer's machine. A product's own users and agents do not run it.
+
+A product ships its own pair instead, both over `internal/productapi` and both
+under the product's session and policy:
+
+| Surface | Binary | For |
+|---|---|---|
+| Consumer CLI | `cmd/<product>` | a shell script, a cron job, an agent without MCP |
+| Consumer MCP | `cmd/<product>-mcp` | an agent that speaks MCP |
+
+The names are not cosmetic. `cmd/<product>` is the bare name a user types, and
+it is the slot the removed builder leaves free; `cmd/<product>-mcp` keeps the
+suffix so the two are distinguishable in a `cmd/` listing and on a `PATH`. Both
+are placeholders in the template (`cmd/product-cli`, `cmd/product-mcp`) and are
+renamed with the product. Neither is more complete than the other: both reach
+the product's own routes, including `POST /api/ext/invoke`.
+
+`recipe invoke` is a *client* of that server, not a product surface: it reads
+the receipt from a checkout, so it belongs to the evolution half and validates
+against the receipt instead of the wire.
 See [MCP: evolution vs consumer](mcp.md#evolution-surface-vs-consumer-surface).
 
 Install once (binaries + Go toolchain when missing, curl + git only):

@@ -1,17 +1,24 @@
-// A scaffold of a scaffold: the second hop a fork actually makes.
+// A product does not scaffold another product, and that is the whole point.
 //
-// Every other installer test starts from the template, so the tree it produces
-// is never asked to be a template itself. That is the hop that broke twice:
-// the rename trusted constants compiled into the binary (so a fork renamed
-// nothing and cloned the template's org), and AGENTS.md rendered its command
-// examples from the embedded prompt, so a fork's product advertised the fork's
-// binary name instead of its own.
+// This test used to be called "a scaffold of a scaffold": it drove
+// `go run ./cmd/hopb` in a generated product and asserted the second hop kept
+// the product's identity. That was correct while `cmd/<product>` WAS the
+// evolution CLI. It is not any more: the product ships the CONSUMER pair
+// (`cmd/<product>` + `cmd/<product>-mcp`), neither of which can scaffold —
+// building a product is the builder's job, and the builder is removed from
+// every product.
 //
-// The test drives the real binaries — `go run ./cmd/<name>` in each tree — with
-// the target directory pre-created, the way an operator scaffolding a checkout
-// they already have. It is slow (two build proofs) and gated on
-// RUN_SCAFFOLD_CHAIN=1; `make test-scaffold-chain` runs it, and `make ci-local`
-// calls that.
+// So the assertion inverted, and it is the more valuable one: the hop that used
+// to be exercised is now a hop that must FAIL, loudly, instead of half-working
+// because a consumer binary happened to accept `--name`.
+//
+// What the first hop leaves behind still matters, and it is checked here: the
+// product carries its own identity and its own commands, with no name from the
+// template in sight.
+//
+// The test drives the real binaries (`go run ./cmd/<name>`) and is slow (a
+// build proof); it is gated on RUN_SCAFFOLD_CHAIN=1, `make test-scaffold-chain`
+// runs it, and `make ci-local` calls that.
 package installer
 
 import (
@@ -29,9 +36,9 @@ var chainSkipDirs = map[string]bool{
 	".commandcode": true, "coverage.out": true,
 }
 
-func TestScaffoldChainSecondHopKeepsTheProductIdentity(t *testing.T) {
+func TestProductCannotScaffoldAndKeepsItsIdentity(t *testing.T) {
 	if os.Getenv("RUN_SCAFFOLD_CHAIN") != "1" {
-		t.Skip("slow (two scaffold build proofs): set RUN_SCAFFOLD_CHAIN=1, or run `make test-scaffold-chain`")
+		t.Skip("slow (a scaffold build proof): set RUN_SCAFFOLD_CHAIN=1, or run `make test-scaffold-chain`")
 	}
 	repo, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {
@@ -47,14 +54,24 @@ func TestScaffoldChainSecondHopKeepsTheProductIdentity(t *testing.T) {
 	}
 	scaffoldIn(t, repo, "./cmd/gogogo", first, "hopb", "e2e")
 
-	// Hop 2: the PRODUCT scaffolds the next product. Its own binary, its own
-	// module, no constant from the template in sight.
+	// The product's identity is its own, and the builder is gone.
+	assertIdentity(t, first)
+
+	// Hop 2 must not exist: a product cannot scaffold. The consumer CLI is
+	// `cmd/hopb`, and it takes no `--name` — it drives the running server.
 	if err := copyTree(first, second); err != nil {
 		t.Fatalf("copy the first product: %v", err)
 	}
-	scaffoldIn(t, first, "./cmd/hopb", second, "hopc", "acme")
-
-	assertIdentity(t, second)
+	out, hopErr := runIn(t.Context(), first, "go", "run", "./cmd/hopb",
+		"--name", "hopc", "--owner", "acme",
+		"--no-tui", "--yes", "--shape", "api", "--recipes", "none",
+		"--dir", second)
+	if hopErr == nil {
+		t.Fatalf("a product scaffolded another product; the builder must not ship:\n%s", out)
+	}
+	if !strings.Contains(string(out), "unknown") && !strings.Contains(string(out), "usage") {
+		t.Errorf("the refusal must name the problem, got:\n%s", out)
+	}
 }
 
 // scaffoldIn runs one scaffold in place: the target exists, so no clone.
@@ -76,29 +93,37 @@ func scaffoldIn(t *testing.T, cwd, bin, dir, name, owner string) {
 func assertIdentity(t *testing.T, root string) {
 	t.Helper()
 	gomod := readChainFile(t, root, "go.mod")
-	if !strings.HasPrefix(gomod, "module github.com/acme/hopc\n") {
-		t.Fatalf("go.mod = %q, want module github.com/acme/hopc", gomod)
+	if !strings.HasPrefix(gomod, "module github.com/e2e/hopb\n") {
+		t.Fatalf("go.mod = %q, want module github.com/e2e/hopb", gomod)
 	}
 	run := readChainFile(t, root, filepath.Join("internal", "installer", "run.go"))
-	for _, want := range []string{`templateOwner = "acme"`, `templateRepo  = "hopc"`} {
+	for _, want := range []string{`templateOwner = "e2e"`, `templateRepo  = "hopb"`} {
 		if !strings.Contains(run, want) {
 			t.Errorf("the tool's own identity is stale: %q missing", want)
 		}
 	}
 	agents := readChainFile(t, root, "AGENTS.md")
-	if !strings.Contains(agents, "hopc recipe list") {
-		t.Error("AGENTS.md advertises the previous binary: the command examples must name THIS tree's tool")
+	// The evolution verbs belong to `gogogo`, not to the product's binary: a
+	// product ships the consumer pair, which has no `recipe` and no `--check`.
+	// Naming `hopb` here sent an agent to run a verb the product does not have.
+	if !strings.Contains(agents, "gogogo recipe list") {
+		t.Error("AGENTS.md must name the evolution CLI for the recipe verbs")
 	}
-	if strings.Contains(agents, "hopb recipe list") {
-		t.Error("AGENTS.md still tells an agent to run the previous product's binary")
+	if strings.Contains(agents, "hopb recipe list") || strings.Contains(agents, "hopb migrate") {
+		t.Error("AGENTS.md advertises evolution verbs on the product's own binary")
 	}
-	if !strings.Contains(agents, "e2e/hopb") {
-		t.Error("AGENTS.md lost its base marker: the provenance line must name the tree it came from")
+	// The base marker names the TEMPLATE the product came from, never the
+	// product itself: that is what makes `--check-update` able to say whether
+	// this tree is behind upstream.
+	if !strings.Contains(agents, "scaffolded-from: calionauta/gogogo@") {
+		t.Error("AGENTS.md lost its base marker: the provenance line must name the template it came from")
 	}
 
-	// The product must build with the binary a user would run.
-	if out, err := runIn(t.Context(), root, "go", "build", "-o", os.DevNull, "./cmd/web"); err != nil {
-		t.Fatalf("the second product does not build: %v\n%s", err, out)
+	// The product must build with the binaries a user would run: the server and
+	// both halves of the consumer pair.
+	if out, err := runIn(t.Context(), root, "go", "build", "-o", os.DevNull,
+		"./cmd/web", "./cmd/hopb", "./cmd/hopb-mcp"); err != nil {
+		t.Fatalf("the product does not build: %v\n%s", err, out)
 	}
 }
 

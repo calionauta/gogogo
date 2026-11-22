@@ -24,7 +24,8 @@ import (
 // deployed product would need the builder installed. The pair is never in a
 // shape's keep list, so every shape prunes it.
 var shapeEntrypoints = []string{
-	"cmd/web", "cmd/desktop", "cmd/gui", "cmd/mobile", shapekit.CmdProductMCP,
+	"cmd/web", "cmd/desktop", "cmd/gui", "cmd/mobile",
+	shapekit.CmdProductMCP, shapekit.CmdProductCLI,
 }
 
 // evolutionEntrypoints are the builder's two surfaces, by the names they carry
@@ -103,8 +104,14 @@ func pruneShapeEntrypoints(root, raw string) (shapekit.Config, error) {
 	keep := map[string]bool{}
 	for _, ep := range cfg.Entrypoints {
 		keep[ep] = true
+		// Both consumer surfaces are placeholders in the template and carry the
+		// product's name in a generated tree. Compare by ROLE, not by string,
+		// or the prune drops whichever spelling it did not expect.
 		if sameEntrypointRole(ep, shapekit.CmdProductMCP) {
 			keep[shapekit.CmdProductMCP] = true
+		}
+		if ep == shapekit.CmdProductCLI {
+			keep[shapekit.CmdProductCLI] = true
 		}
 	}
 	// The builder is never part of a product, whatever the shape.

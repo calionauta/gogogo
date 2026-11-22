@@ -132,23 +132,28 @@ func check(root string) ([]string, error) {
 // run the EVOLUTION binary to call its own routes.
 func consumerSurfaceProblems(root string) ([]string, error) {
 	var problems []string
-	// cmd/product-mcp is the half a generated product ships. It must exist and
-	// must be free of the evolution packages.
-	imports, err := importsUnder(root, "cmd/product-mcp")
-	if err != nil {
-		return nil, err
-	}
-	if len(imports) == 0 {
-		problems = append(problems, "cmd/product-mcp is missing: a product must ship a "+
-			"consumer MCP surface, or an agent driving it needs the evolution toolchain")
-		return problems, nil
-	}
-	for pkg, files := range imports {
-		for _, prefix := range evolutionPrefixes {
-			if pkg == prefix || strings.HasPrefix(pkg, prefix+"/") {
-				problems = append(problems, fmt.Sprintf(
-					"cmd/product-mcp imports %s (%s): the consumer surface must not link the evolution tool",
-					pkg, files[0]))
+	// The consumer PAIR is what a generated product ships: the MCP for an agent
+	// that speaks JSON-RPC, the CLI for a shell script or an agent that does
+	// not. Both must exist and both must be free of the evolution packages —
+	// checked by ROLE (`cmd/*-mcp` and `cmd/product-cli`, which the rename turns
+	// into the product's own names), not by the template's spelling.
+	for _, surface := range []string{"cmd/product-mcp", "cmd/product-cli"} {
+		imports, err := importsUnder(root, surface)
+		if err != nil {
+			return nil, err
+		}
+		if len(imports) == 0 {
+			problems = append(problems, surface+" is missing: a product must ship "+
+				"both consumer surfaces (CLI and MCP), or a caller needs the evolution toolchain")
+			continue
+		}
+		for pkg, files := range imports {
+			for _, prefix := range evolutionPrefixes {
+				if pkg == prefix || strings.HasPrefix(pkg, prefix+"/") {
+					problems = append(problems, fmt.Sprintf(
+						"%s imports %s (%s): a consumer surface must not link the evolution tool",
+						surface, pkg, files[0]))
+				}
 			}
 		}
 	}

@@ -166,6 +166,14 @@ func renamePathMoves(root, oldName, newName string) ([][2]string, error) {
 			// the exception: its directory is a PLACEHOLDER (`product-mcp`), and
 			// it must become the product's own name — two products on one PATH
 			// cannot both install `product-mcp`.
+			// The consumer CLI takes the bare name, the MCP keeps the suffix.
+			// `product-cli` is checked before the MCP placeholder because the
+			// two share the `product` prefix and a later pass would see
+			// `product-cli` as a name-bearing path once it had been rewritten.
+			if part == shapekit.CmdProductCLIBase {
+				prefixes[strings.Join(parts[:i+1], "/")] = struct{}{}
+				break
+			}
 			if part == shapekit.CmdProductMCPBase {
 				prefixes[strings.Join(parts[:i+1], "/")] = struct{}{}
 				break
@@ -210,6 +218,14 @@ func renameTargetPath(old, oldName, newName string) string {
 	if strings.HasSuffix(old, "/"+shapekit.CmdProductMCPBase) ||
 		old == shapekit.CmdProductMCPBase {
 		return strings.TrimSuffix(old, shapekit.CmdProductMCPBase) + newName + "-mcp"
+	}
+	// The consumer CLI takes the BARE name: `cmd/product-cli` -> `cmd/<product>`.
+	// That is the slot the removed builder leaves, so this move fails loudly if
+	// removeEvolutionPair did not run first — which is the correct order
+	// dependency, not a coincidence.
+	if strings.HasSuffix(old, "/"+shapekit.CmdProductCLIBase) ||
+		old == shapekit.CmdProductCLIBase {
+		return strings.TrimSuffix(old, shapekit.CmdProductCLIBase) + newName
 	}
 	return strings.ReplaceAll(old, oldName, newName)
 }
@@ -380,10 +396,20 @@ func rewriteRenameFile(
 	// product's own gates look for `cmd/product-mcp`, which no longer exists,
 	// and `make check-shape` fails inside the product.
 	text = strings.ReplaceAll(text, shapekit.CmdProductMCPBase, newName+"-mcp")
+	// The consumer CLI takes the product's BARE name — the slot the removed
+	// builder (`cmd/gogogo` -> `cmd/<product>`) frees, which is why
+	// removeEvolutionPair must run first.
+	text = strings.ReplaceAll(text, shapekit.CmdProductCLIBase, newName)
 	text = strings.ReplaceAll(text, oldName, newName)
-	// The identity the server reports to an MCP client is the bare product
-	// name, not the `-mcp` suffix the pass above produced.
-	text = strings.ReplaceAll(text, `Name:    "`+newName+`-mcp"`, `Name:    "`+newName+`"`)
+	// TOOL names carry the same placeholder: `product_describe` and
+	// `product_invoke` are what an MCP client sees in its tool list. Left
+	// alone, two products an agent connects to would advertise identically
+	// named tools and the client could not route a call to the right one.
+	text = strings.ReplaceAll(text, `"product_`, `"`+newName+`_`)
+	// The identity the server reports to an MCP client is the BARE product
+	// name — no `-mcp` suffix — so it is rewritten from the placeholder and
+	// not from whatever the CmdProductMCP pass produced above.
+	text = strings.ReplaceAll(text, `Name:    "product"`, `Name:    "`+newName+`"`)
 	for token, repo := range placeholders {
 		text = strings.ReplaceAll(text, token, repo)
 	}

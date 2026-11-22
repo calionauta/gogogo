@@ -64,12 +64,12 @@ const (
 // legalEntrypoints is the closed set a shape may declare. A shape never
 // invents a boot path: `api` is `cmd/web`, not `cmd/api`.
 var legalEntrypoints = map[Shape][]string{
-	Full:    {cmdDesktop, cmdGUI, cmdMobile, cmdWeb, cmdProductMCP},
-	Web:     {cmdWeb, cmdProductMCP},
-	API:     {cmdWeb, cmdProductMCP},
-	Desktop: {cmdDesktop, cmdWeb, cmdProductMCP},
-	GUI:     {cmdGUI, cmdProductMCP},
-	Mobile:  {cmdMobile, cmdWeb, cmdProductMCP},
+	Full:    {cmdDesktop, cmdGUI, cmdMobile, cmdWeb, cmdProductMCP, cmdProductCLI},
+	Web:     {cmdWeb, cmdProductMCP, cmdProductCLI},
+	API:     {cmdWeb, cmdProductMCP, cmdProductCLI},
+	Desktop: {cmdDesktop, cmdWeb, cmdProductMCP, cmdProductCLI},
+	GUI:     {cmdGUI, cmdProductMCP, cmdProductCLI},
+	Mobile:  {cmdMobile, cmdWeb, cmdProductMCP, cmdProductCLI},
 }
 
 // The entrypoint paths, spelled once: the enum's table, the primary map and the
@@ -90,7 +90,16 @@ const (
 	// template's own tree keeps the generic name because the template is not a
 	// product.
 	CmdProductMCP = "cmd/product-mcp"
-	cmdProductMCP = CmdProductMCP
+	// CmdProductCLI is the consumer CLI — the scriptable twin of CmdProductMCP,
+	// over the same engine. It carries the product's BARE name (`cmd/<product>`),
+	// which is the one a user types; the MCP keeps the `-mcp` suffix so the two
+	// are distinguishable in a `cmd/` listing and on a PATH.
+	CmdProductCLI = "cmd/product-cli"
+	// CmdProductCLIBase is the placeholder segment, renamed to the product's
+	// bare name — the slot the removed builder leaves free.
+	CmdProductCLIBase = "product-cli"
+	cmdProductCLI     = CmdProductCLI
+	cmdProductMCP     = CmdProductMCP
 	// CmdProductMCPBase is the placeholder directory segment a scaffold must
 	// replace with the product name.
 	CmdProductMCPBase = "product-mcp"

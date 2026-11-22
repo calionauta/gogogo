@@ -7,17 +7,22 @@ import (
 	"testing"
 )
 
-// productMCP is the consumer surface every fixture tree needs, or check()
-// reports its absence instead of the thing the test is about.
-const productMCP = "cmd/product-mcp/main.go"
+// The consumer surfaces every fixture tree needs, or check() reports their
+// absence instead of the thing the test is about.
+const (
+	productMCP = "cmd/product-mcp/main.go"
+	productCLI = "cmd/product-cli/main.go"
+)
 
 // writeTree lays down a minimal checkout: four Go files whose imports the gate
 // reads. Only the import lines matter — the gate parses, it does not build.
 func writeTree(t *testing.T, root string, files map[string]string) {
 	t.Helper()
-	if _, ok := files[productMCP]; !ok {
-		files[productMCP] = "package main\n\nimport _ \"github.com/calionauta/gogogo/" +
-			"internal/productapi\"\n\nfunc main() {}\n"
+	for _, surface := range []string{productMCP, productCLI} {
+		if _, ok := files[surface]; !ok {
+			files[surface] = "package main\n\nimport _ \"github.com/calionauta/gogogo/" +
+				"internal/productapi\"\n\nfunc main() {}\n"
+		}
 	}
 	for rel, body := range files {
 		path := filepath.Join(root, filepath.FromSlash(rel))
@@ -177,7 +182,30 @@ func TestProductMustShipAConsumerSurface(t *testing.T) {
 		"internal/server/server.go":       "package server\n",
 		"internal/installer/installer.go": "package installer\n",
 	})
-	// writeTree seeds the surface; remove it to model the regression.
+	// writeTree seeds both surfaces; remove one and the gate must name THAT
+	// one, not just "something is missing".
+	if err := os.Remove(filepath.Join(root, productCLI)); err != nil {
+		t.Fatal(err)
+	}
+
+	problems, err := check(root)
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	if len(problems) != 1 || !strings.Contains(problems[0], "cmd/product-cli is missing") {
+		t.Fatalf("problems = %v, want the missing consumer CLI", problems)
+	}
+}
+
+// The MCP half is checked the same way: a product with only a CLI still leaves
+// an MCP-speaking agent unable to reach it.
+func TestProductMustShipTheMCPHalf(t *testing.T) {
+	root := t.TempDir()
+	writeTree(t, root, map[string]string{
+		"cmd/web/main.go":                 "package main\n\nfunc main() {}\n",
+		"internal/server/server.go":       "package server\n",
+		"internal/installer/installer.go": "package installer\n",
+	})
 	if err := os.Remove(filepath.Join(root, productMCP)); err != nil {
 		t.Fatal(err)
 	}
@@ -187,7 +215,7 @@ func TestProductMustShipAConsumerSurface(t *testing.T) {
 		t.Fatalf("check: %v", err)
 	}
 	if len(problems) != 1 || !strings.Contains(problems[0], "cmd/product-mcp is missing") {
-		t.Fatalf("problems = %v, want the missing consumer surface", problems)
+		t.Fatalf("problems = %v, want the missing consumer MCP", problems)
 	}
 }
 
