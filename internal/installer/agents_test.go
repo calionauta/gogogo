@@ -22,7 +22,7 @@ func TestGeneratedAgentsKeepsTheToolchainPin(t *testing.T) {
 		[]byte("module example.com/app\n\ngo "+version+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := writeAgents(context.Background(), dir, "my-app", nil); err != nil {
+	if err := writeAgents(context.Background(), dir, nil); err != nil {
 		t.Fatal(err)
 	}
 	raw, err := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
@@ -45,7 +45,7 @@ func TestGeneratedAgentsKeepsTheToolchainPin(t *testing.T) {
 // line it cannot know.
 func TestGeneratedAgentsWithoutGoMod(t *testing.T) {
 	dir := t.TempDir()
-	if err := writeAgents(context.Background(), dir, "my-app", nil); err != nil {
+	if err := writeAgents(context.Background(), dir, nil); err != nil {
 		t.Fatalf("a tree without go.mod must still get AGENTS.md: %v", err)
 	}
 }

@@ -23,38 +23,6 @@ func repoRoot(t *testing.T) string {
 	return filepath.Join(filepath.Dir(file), "..", "..")
 }
 
-// trimmedPaths reads the scaffold's trim provenance (AGENTS.md,
-// removed-paths:) without importing the installer (which would cycle:
-// installer imports this package). Paths listed there were deliberately
-// deleted at scaffold time, so the registry conformance tests skip them
-// instead of reporting a trimmed tree's own removals as missing.
-//
-// No provenance section (the full template, or a hand-made tree) yields an
-// empty set: strict, exactly as before. A "none" value also yields empty.
-func trimmedPaths(root string) map[string]bool {
-	out := map[string]bool{}
-	raw, err := os.ReadFile(filepath.Join(root, "AGENTS.md"))
-	if err != nil {
-		return out
-	}
-	text := string(raw)
-	if !strings.Contains(text, "## Trim provenance") {
-		return out
-	}
-	for line := range strings.SplitSeq(text, "\n") {
-		rest, ok := strings.CutPrefix(strings.TrimSpace(line), "removed-paths:")
-		if !ok {
-			continue
-		}
-		for p := range strings.SplitSeq(strings.TrimSpace(rest), ",") {
-			if p = strings.TrimSpace(p); p != "" && p != "none" {
-				out[filepath.FromSlash(p)] = true
-			}
-		}
-	}
-	return out
-}
-
 func TestRegistryIDsUniqueAndWellFormed(t *testing.T) {
 	seen := map[string]bool{}
 	for _, c := range All {
@@ -97,35 +65,16 @@ func TestRegistryCoversPackages(t *testing.T) {
 	checkRegistryCoversPackages(t, root)
 }
 
-// trimmedCovers reports whether a path was removed — exactly, or because a
-// REMOVED DIRECTORY contains it. `removed-paths:` lists what the scaffold
-// deleted, and deleting `features/todo` deletes every file under it; comparing
-// only exact strings made a slice's files look missing while its directory was
-// correctly absent.
-func trimmedCovers(trimmed map[string]bool, path string) bool {
-	if len(trimmed) == 0 {
-		return false
-	}
-	path = filepath.ToSlash(filepath.FromSlash(path))
-	for removed := range trimmed {
-		removed = filepath.ToSlash(removed)
-		if path == removed || strings.HasPrefix(path, removed+"/") {
-			return true
-		}
-	}
-	return false
-}
-
 func checkRegistryCoversPackages(t *testing.T, root string) {
 	t.Helper()
-	trimmed := trimmedPaths(root)
+	trimmed := ReadTrimProvenance(root)
 	owned := map[string]bool{}
 	for _, c := range All {
 		for _, d := range c.Dirs {
 			owned[d] = true
 			full := filepath.Join(root, filepath.FromSlash(d))
 			if st, err := os.Stat(full); err != nil || !st.IsDir() {
-				if trimmedCovers(trimmed, d) {
+				if trimmed.Covers(d) {
 					continue
 				}
 				t.Errorf("capability %q owns missing dir %q", c.ID, d)
@@ -158,12 +107,12 @@ func TestRegistryFilesExist(t *testing.T) {
 
 func checkRegistryFilesExist(t *testing.T, root string) {
 	t.Helper()
-	trimmed := trimmedPaths(root)
+	trimmed := ReadTrimProvenance(root)
 	for _, c := range All {
 		for _, f := range c.Files {
 			full := filepath.Join(root, filepath.FromSlash(f))
 			if _, err := os.Stat(full); err != nil {
-				if trimmedCovers(trimmed, f) {
+				if trimmed.Covers(f) {
 					continue
 				}
 				t.Errorf("capability %q owns missing file %q", c.ID, f)
@@ -178,7 +127,7 @@ func checkRegistryFilesExist(t *testing.T, root string) {
 // here — a fake tree cannot host the full registry without reimplementing it.
 func TestRegistrySkipsTrimmedPaths(t *testing.T) {
 	dir := t.TempDir()
-	if got := trimmedPaths(dir); len(got) != 0 {
+	if got := ReadTrimProvenance(dir); got.Recorded {
 		t.Errorf("missing AGENTS.md, want empty skip set, got %v", got)
 	}
 	// An AGENTS.md without a provenance section is not provenance
@@ -187,7 +136,7 @@ func TestRegistrySkipsTrimmedPaths(t *testing.T) {
 		[]byte("# AGENTS\n\nNo provenance here.\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if got := trimmedPaths(dir); len(got) != 0 {
+	if got := ReadTrimProvenance(dir); got.Recorded {
 		t.Errorf("no provenance section, want empty skip set, got %v", got)
 	}
 	agents := "# AGENTS\n\n## Trim provenance\n\nremoved: genui\n" +
@@ -195,25 +144,24 @@ func TestRegistrySkipsTrimmedPaths(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "AGENTS.md"), []byte(agents), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	got := trimmedPaths(dir)
-	for _, want := range []string{
-		filepath.FromSlash("features/chat"),
-		filepath.FromSlash("internal/server/genui_stubs_test.go"),
-	} {
-		if !got[want] {
-			t.Errorf("skip set missing %q, got %v", want, got)
+	got := ReadTrimProvenance(dir)
+	for _, want := range []string{"features/chat", "internal/server/genui_stubs_test.go"} {
+		if !got.Covers(want) {
+			t.Errorf("skip set missing %q, got %v", want, got.Paths)
 		}
 	}
-	if got["features/todo"] {
-		t.Errorf("unlisted path must stay strict, got %v", got)
+	if got.Covers("features/todo") {
+		t.Errorf("unlisted path must stay strict, got %v", got.Paths)
 	}
 	// A "none" trim skips nothing (strict, like the full template).
 	agentsNone := "# AGENTS\n\n## Trim provenance\n\nremoved: none\nremoved-paths: none\n"
 	if err := os.WriteFile(filepath.Join(dir, "AGENTS.md"), []byte(agentsNone), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if got := trimmedPaths(dir); len(got) != 0 {
-		t.Errorf("removed-paths: none, want empty skip set, got %v", got)
+	// `none` is a RECORDED empty set: the section exists and says nothing was
+	// dropped, which is different from no section at all. Both skip nothing.
+	if got := ReadTrimProvenance(dir); len(got.Paths) != 0 || len(got.Removed) != 0 {
+		t.Errorf("removed-paths: none, want an empty skip set, got %v", got)
 	}
 }
 
@@ -223,7 +171,7 @@ func TestCapabilityUISignalsWired(t *testing.T) {
 	// signals.<Field>. Otherwise trimming (or env-off) leaves buttons
 	// pointing at gone routes.
 	root := repoRoot(t)
-	if trimmedCovers(trimmedPaths(root), "features/todo") {
+	if ReadTrimProvenance(root).Covers("features/todo") {
 		// The signal model lives in the slice this tree dropped: there is no
 		// UI to check against it, which is the honest answer, not a failure.
 		t.Skip("features/todo is not installed in this tree")

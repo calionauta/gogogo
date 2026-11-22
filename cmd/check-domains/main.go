@@ -56,8 +56,17 @@ func main() {
 func Check(root string) ([]string, int) {
 	var problems []string
 	features := map[string]bool{}
+	// A trimmed tree keeps the registry entry of a unit it dropped, because the
+	// slice's code may still be imported by what survived. When the scaffold's
+	// OWN record says it deleted the unit's directories, "no card" is no longer
+	// a problem — the boundary went with the slice. Without this the gate
+	// reported a product's deliberate `--recipes none` as seven missing cards.
+	trim := capabilities.ReadTrimProvenance(root)
 	for _, c := range capabilities.All {
 		if c.Kind != capabilities.KindFeature {
+			continue
+		}
+		if trim.CoversAll(c.Dirs) {
 			continue
 		}
 		features[c.ID] = true
@@ -81,7 +90,7 @@ func Check(root string) ([]string, int) {
 			continue
 		}
 		id := strings.TrimSuffix(e.Name(), ".md")
-		if !features[id] {
+		if !features[id] && !trim.Removed[id] {
 			problems = append(problems, fmt.Sprintf("%s/%s: no feature unit named %q "+
 				"(a card with no slice is the boundary nobody enforces)", dir, e.Name(), id))
 		}

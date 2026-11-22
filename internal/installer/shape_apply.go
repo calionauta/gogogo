@@ -191,3 +191,14 @@ func removeAllPresent(root string, paths []string) error {
 func removeEvolutionPair(root string) error {
 	return removeAllPresent(root, evolutionEntrypoints)
 }
+
+// evolutionEntrypointsAfterRename is evolutionEntrypoints as the RENAME left
+// them: the record is written after the rename, so the docs it protects already
+// say `cmd/<product>` and `cmd/<product>-mcp`.
+func evolutionEntrypointsAfterRename(product string) []string {
+	out := make([]string, len(evolutionEntrypoints))
+	for i, ep := range evolutionEntrypoints {
+		out[i] = strings.ReplaceAll(ep, "gogogo", product)
+	}
+	return out
+}

@@ -11,19 +11,27 @@ import (
 	"github.com/calionauta/gogogo/internal/prompts"
 )
 
-// writeAgents writes the generated AGENTS.md, including the machine-read
-// provenance lines --check, --check-update and migrate all parse.
+// writeAgents writes the generated AGENTS.md for a drop list of builtin units,
+// deriving each unit's paths from the registry instead of a `features/<id>`
+// convention: a unit can own directories outside its feature folder
+// (`whiteboard` also owns `internal/collab`), and a convention-derived list
+// recorded only the feature directory — which made every doc mentioning the
+// other one look like a dead path in a tree that had deliberately deleted it.
 //
 // ctx reaches the one subprocess this needs: reading the tree's HEAD commit.
-// That commits the base marker to a real revision instead of a guess, and it
-// costs one git call at scaffold time (skipped silently outside a git tree).
-func writeAgents(ctx context.Context, dir, projectName string, drop []builtinUnit) error {
-	return writeAgentsWith(ctx, dir, projectName, removedIDs(drop), droppedPaths(drop))
+func writeAgents(ctx context.Context, dir string, drop []builtinUnit) error {
+	paths := droppedPaths(drop)
+	if paths == nil {
+		paths = []string{}
+	}
+	return writeAgentsWith(ctx, dir, "my-app", removedIDs(drop), paths)
 }
 
-// writeAgentsWith is writeAgents for a removal set that is not a list of
-// builtinUnits: the scaffold's demo slices (`--recipes`) are receipts dropped by
-// id, and they have no builtinUnit to read paths from. Writing `removed: none`
+// writeAgentsWith writes the generated AGENTS.md for an explicit removal set.
+//
+// It takes the ids AND paths directly rather than a []builtinUnit because the
+// scaffold's demo slices (`--recipes`) are receipts dropped by id and have no
+// builtinUnit to read paths from. Writing `removed: none`
 // for them — which is what the first implementation did — makes the tree claim
 // it is whole, so `--check` reports the dropped slices as manifest drift and the
 // registry conformance test looks for directories the operator deliberately

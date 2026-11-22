@@ -76,10 +76,19 @@ func weightRows(root string) ([]weightRow, error) {
 	if err != nil {
 		return nil, err
 	}
+	// A row whose assets are GONE is a row for a slice this tree dropped.
+	// `docs/features.md` documents the whole template, so a product that ran
+	// `--recipes none` keeps the page while the feature's JS is gone; grading
+	// that row reported the product's own docs as broken. The test is the
+	// assets, not the label: a label is prose ("Shared notes") and guessing
+	// which slice it names would be a second, drifting mapping.
 	var rows []weightRow
 	for i, line := range lines {
 		m := clientWeightRowRE.FindStringSubmatch(line)
 		if m == nil {
+			continue
+		}
+		if !rowAssetsExist(root, m[2]) {
 			continue
 		}
 		raw, gz, names, measureErr := measureRow(root, m[2])
@@ -323,4 +332,20 @@ func mustAtoi(digits string) int {
 		return 0
 	}
 	return n
+}
+
+// rowAssetsExist reports whether every asset token in a row's file cell still
+// resolves. A cell naming no asset is vacuously true: those rows state 0 KB and
+// the check below reads them.
+func rowAssetsExist(root, cell string) bool {
+	for _, span := range tickRE.FindAllStringSubmatch(cell, -1) {
+		token := strings.TrimSpace(span[1])
+		if !assetTokenRE.MatchString(token) {
+			continue
+		}
+		if _, err := assetFiles(root, token); err != nil {
+			return false
+		}
+	}
+	return true
 }
