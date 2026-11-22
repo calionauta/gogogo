@@ -15,15 +15,26 @@ import (
 
 // shapeEntrypoints are the dirs a shape may keep. They are the only targets the
 // clone carries, so "remove what the shape does not ship" is a closed walk.
-var shapeEntrypoints = []string{"cmd/web", "cmd/desktop", "cmd/gui", "cmd/mobile", "cmd/product-mcp"}
+//
+// The evolution pair is in this list so a PRODUCT never ships it. `cmd/gogogo`
+// and `cmd/gogogo-mcp` rewrite a source tree — `scaffold_apply`, `recipe_install`
+// — and a generated product's users have no checkout to rewrite. Shipping them
+// is the inversion the consumer surface exists to fix: an agent driving a
+// deployed product would need the builder installed. The pair is never in a
+// shape's keep list, so every shape prunes it.
+var shapeEntrypoints = []string{
+	"cmd/web", "cmd/desktop", "cmd/gui", "cmd/mobile", shapekit.CmdProductMCP,
+	"cmd/gogogo", "cmd/gogogo-mcp",
+}
 
 // applyShapeIfNeeded prunes entrypoints the chosen shape does not ship and
-// records it. `full` (the default) is a no-op: a template clone already ships
-// every target, and writing a record that only restates the default would make
-// every tree look like a decision was taken.
+// records it. This runs on the SCAFFOLD path only, so `full` is not a no-op:
+// a generated product named `full` still must not carry the evolution pair
+// (`cmd/gogogo`, `cmd/gogogo-mcp`), which rewrites source trees its users do not
+// have. The template's own tree never passes through here.
 func applyShapeIfNeeded(opt options, stdout io.Writer) error {
-	if opt.shape == "" || shapekit.Shape(opt.shape) == shapekit.Full {
-		return nil
+	if opt.shape == "" {
+		opt.shape = string(shapekit.Full)
 	}
 	cfg, err := applyShape(opt.dir, opt.shape)
 	if err != nil {

@@ -78,7 +78,7 @@ carries which half:
 | Evolution CLI | `cmd/gogogo` (`gogogo recipe install`, `gogogo doctor`) | the developer | yes — the checkout |
 | Evolution MCP | `cmd/gogogo-mcp` (stdio) | the developer's agent | yes — the checkout, via `scaffold_apply`, `new_feature`, `recipe_install`, `recipe_update`, `recipe_uninstall` |
 | Product HTTP API | `cmd/web` routes + `POST /api/ext/invoke` + `GET /api/ext/descriptors` | the product's users and their agents | yes — the product's own data, under its session/RBAC |
-| **Consumer MCP** | **`cmd/product-mcp` (stdio), shipped with the product** | **the product's users and their agents** | no local tree writes; it calls the running server |
+| **Consumer MCP** | **`cmd/<product>-mcp` (stdio), shipped with the product** | **the product's users and their agents** | no local tree writes; it calls the running server |
 
 The evolution CLI and the evolution MCP are one engine (`internal/installer`) with
 two transports — not a pair of features. `gogogo recipe invoke` is a *developer
@@ -87,21 +87,31 @@ because it validates against a checkout's receipt, and it is not a product
 surface.
 
 **There is no consumer CLI, and that is deliberate.** A product ships `cmd/web`
-(the server, with `health` as its only subcommand) and `cmd/product-mcp` (the
+(the server, with `health` as its only subcommand) and `cmd/<product>-mcp` (the
 agent surface). An HTTP API plus an MCP covers the two callers a product
-actually has — an agent and a browser. Shipping a third surface would mean a
-third contract to keep in sync with the routes for no caller that needs it; add
-one only when a concrete user is blocked without it.
+actually has — an agent and a browser.
+
+`cmd/product-mcp` in THIS template is a placeholder: the template is not a
+product, so it has no name to carry. `--name <product>` makes it `cmd/<product>-mcp` —
+directory, module path and the identity the server reports to an MCP client.
+Two generated products on one `PATH` must not both install `product-mcp`.
+
+A third surface would mean a third contract to keep in sync with the routes
+for no caller that needs it; add one only when a concrete user is blocked
+without it.
 
 Rules that follow:
 
 - **Never ship the evolution MCP to end users.** It reads and rewrites a
-  checkout; it is not a product feature. The product ships `cmd/product-mcp`,
-  which links `internal/productapi` and nothing else.
+  checkout; it is not a product feature. The product ships its own
+  `<product>-mcp`, which links `internal/productapi` and nothing else. The
+  scaffold also REMOVES `cmd/gogogo` and `cmd/gogogo-mcp` from the generated
+  tree: a product's users have no checkout to rewrite.
+
 - **The consumer half exists, and it is what a product ships.** The gap this
   closed was real: `recipe invoke` lived in `internal/installer` and read the
   checkout to validate a verb, so an agent driving a product had to install the
-  **evolution** toolchain to call the product's own routes. `cmd/product-mcp`
+  **evolution** toolchain to call the product's own routes. `<product>-mcp`
   asks the server instead — `GET /api/ext/descriptors` — which is what any
   third-party agent would do. `cmd/check-product-boundary` now fails if
   `cmd/product-mcp` is missing, or if either half imports the other's packages.
@@ -137,7 +147,7 @@ on which is newer.
 the binary the product ships; it knows nothing about a checkout:
 
 ```sh
-go install example.com/yourproduct/cmd/product-mcp@latest
+go install example.com/<product>/cmd/<product>-mcp@latest
 ```
 
 Then point your client at it. Two env vars carry the connection, and neither is
@@ -147,7 +157,7 @@ a password:
 {
   "mcpServers": {
     "yourproduct": {
-      "command": "product-mcp",
+      "command": "xpto-mcp",
       "env": {
         "GOGOGO_SERVER": "http://127.0.0.1:8080",
         "GOGOGO_SESSION": "<the session cookie value the product issued>"
@@ -158,7 +168,7 @@ a password:
 ```
 
 `GOGOGO_SESSION` is the session cookie value the product issued to a real user
-you signed in as — the same credential a browser holds. `product-mcp` refuses to
+you signed in as — the same credential a browser holds. `xpto-mcp` refuses to
 start without it, and refuses a non-loopback `GOGOGO_SERVER` in v1: reach a
 remote product through SSH or Tailscale, never by publishing it.
 
