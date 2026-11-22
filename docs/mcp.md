@@ -75,11 +75,23 @@ carries which half:
 
 | Surface | Binary / route | Who runs it | May mutate |
 |---|---|---|---|
-| Evolution CLI | `cmd/gogogo` | the developer | yes — the checkout |
+| Evolution CLI | `cmd/gogogo` (`gogogo recipe install`, `gogogo doctor`) | the developer | yes — the checkout |
 | Evolution MCP | `cmd/gogogo-mcp` (stdio) | the developer's agent | yes — the checkout, via `scaffold_apply`, `new_feature`, `recipe_install`, `recipe_update`, `recipe_uninstall` |
 | Product HTTP API | `cmd/web` routes + `POST /api/ext/invoke` + `GET /api/ext/descriptors` | the product's users and their agents | yes — the product's own data, under its session/RBAC |
-| Product CLI transport | `gogogo recipe invoke` | the developer, from a checkout | no local tree writes; it calls the running server |
 | **Consumer MCP** | **`cmd/product-mcp` (stdio), shipped with the product** | **the product's users and their agents** | no local tree writes; it calls the running server |
+
+The evolution CLI and the evolution MCP are one engine (`internal/installer`) with
+two transports — not a pair of features. `gogogo recipe invoke` is a *developer
+client* of a running server's `/api/ext/invoke`: it lives on the evolution side
+because it validates against a checkout's receipt, and it is not a product
+surface.
+
+**There is no consumer CLI, and that is deliberate.** A product ships `cmd/web`
+(the server, with `health` as its only subcommand) and `cmd/product-mcp` (the
+agent surface). An HTTP API plus an MCP covers the two callers a product
+actually has — an agent and a browser. Shipping a third surface would mean a
+third contract to keep in sync with the routes for no caller that needs it; add
+one only when a concrete user is blocked without it.
 
 Rules that follow:
 
@@ -151,7 +163,8 @@ start without it, and refuses a non-loopback `GOGOGO_SERVER` in v1: reach a
 remote product through SSH or Tailscale, never by publishing it.
 
 **Evolving a checkout** — you are building the product, adding or editing a
-recipe, or scaffolding a new one. Install the evolution pair:
+recipe, or scaffolding a new one. Install the evolution pair — the CLI and the
+MCP, which share one engine (`internal/installer`) and differ only in transport:
 
 ```sh
 curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh | sh -s -- --run

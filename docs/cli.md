@@ -3,12 +3,17 @@
 The installer as scriptable commands. Same engine the MCP server calls
 (`internal/installer`) — opinions first, preview second, mutation last.
 
-This is the **evolution surface**: it scaffolds, copies, updates and proves a
-checkout, so it belongs to the developer's machine. A product's own users and
-agents do not run it; they call the running server's routes (including
-`POST /api/ext/invoke`) under the product's session and policy. `recipe
-invoke` is a *client* of that server, not a second product surface. See
-[MCP: installer vs product](mcp.md#evolution-surface-vs-consumer-surface).
+This is the **evolution surface**, and it is one half of a pair: `gogogo` is the
+CLI, `gogogo-mcp` is the same engine over MCP. Use whichever your caller speaks;
+neither is more complete than the other.
+
+It scaffolds, copies, updates and proves a checkout, so it belongs to the
+developer's machine. A product's own users and agents do not run it; they call
+the running server's routes (including `POST /api/ext/invoke`) under the
+product's session and policy, or the `cmd/product-mcp` the product itself ships.
+`recipe invoke` is a *client* of that server, not a product surface — and it is
+not a consumer CLI either: a product ships no CLI, only its server and its MCP.
+See [MCP: evolution vs consumer](mcp.md#evolution-surface-vs-consumer-surface).
 
 Install once (binaries + Go toolchain when missing, curl + git only):
 
