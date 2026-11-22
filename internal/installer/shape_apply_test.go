@@ -3,7 +3,6 @@ package installer
 import (
 	"os"
 	"path/filepath"
-	"slices"
 	"testing"
 
 	shapekit "github.com/calionauta/gogogo/internal/shape"
@@ -76,18 +75,38 @@ func TestApplyShapeFullKeepsEveryProductTarget(t *testing.T) {
 		t.Fatalf("applyShape: %v", err)
 	}
 
-	wantRemoved := []string{"cmd/gogogo", "cmd/gogogo-mcp"}
-	if !slices.Equal(cfg.Removed, wantRemoved) {
-		t.Fatalf("full removed %v, want %v", cfg.Removed, wantRemoved)
+	// The shape keeps every PRODUCT target; the builder is removed separately
+	// (`removeEvolutionPair`), so it must not appear in the shape's own record.
+	if len(cfg.Removed) != 0 {
+		t.Fatalf("full recorded removals %v, want none — the builder is not a shape decision", cfg.Removed)
 	}
 	for _, ep := range []string{"cmd/web", "cmd/desktop", "cmd/gui", "cmd/mobile", "cmd/product-mcp"} {
 		if _, statErr := os.Stat(filepath.Join(root, filepath.FromSlash(ep))); statErr != nil {
 			t.Errorf("%s missing after full: %v", ep, statErr)
 		}
 	}
-	for _, ep := range wantRemoved {
-		if _, statErr := os.Stat(filepath.Join(root, filepath.FromSlash(ep))); statErr == nil {
-			t.Errorf("%s survived full — a product must not ship the evolution pair", ep)
+}
+
+// TestRemoveEvolutionPairDropsTheBuilder pins the separate rule: a product never
+// ships the builder, whatever its shape.
+func TestRemoveEvolutionPairDropsTheBuilder(t *testing.T) {
+	root := t.TempDir()
+	for _, ep := range []string{"cmd/gogogo", "cmd/gogogo-mcp", "cmd/web", "cmd/product-mcp"} {
+		if err := os.MkdirAll(filepath.Join(root, filepath.FromSlash(ep)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := removeEvolutionPair(root); err != nil {
+		t.Fatal(err)
+	}
+	for _, gone := range []string{"cmd/gogogo", "cmd/gogogo-mcp"} {
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(gone))); !os.IsNotExist(err) {
+			t.Errorf("%s survived — a product must not ship the builder", gone)
+		}
+	}
+	for _, kept := range []string{"cmd/web", "cmd/product-mcp"} {
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(kept))); err != nil {
+			t.Errorf("%s was removed; only the builder goes: %v", kept, err)
 		}
 	}
 }

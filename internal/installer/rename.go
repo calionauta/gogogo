@@ -372,12 +372,18 @@ func rewriteRenameFile(
 		// instead of its own. The repo half follows the bare-name pass.
 		text = ownerConstantRE(oldOwner).ReplaceAllString(text, "${1}"+newOwner+"${2}")
 	}
+	// The consumer MCP's name is a PLACEHOLDER (`product-mcp`), not a project
+	// name, so the bare-name pass above does not touch it — and it must not:
+	// substituting `oldName` would miss it entirely. Rewriting the placeholder
+	// keeps every REFERENCE consistent with the directory the move step renames
+	// (the shape enum, the boundary check, the docs). Without this, a generated
+	// product's own gates look for `cmd/product-mcp`, which no longer exists,
+	// and `make check-shape` fails inside the product.
+	text = strings.ReplaceAll(text, shapekit.CmdProductMCPBase, newName+"-mcp")
 	text = strings.ReplaceAll(text, oldName, newName)
-	// The consumer MCP reports its own name to an MCP client, and it is a
-	// PLACEHOLDER in this template (`Name: "product"`). Left alone, every
-	// generated product would announce itself as "product" and an agent
-	// connecting to two of them could not tell which is which.
-	text = strings.ReplaceAll(text, `Name:    "product"`, `Name:    "`+newName+`"`)
+	// The identity the server reports to an MCP client is the bare product
+	// name, not the `-mcp` suffix the pass above produced.
+	text = strings.ReplaceAll(text, `Name:    "`+newName+`-mcp"`, `Name:    "`+newName+`"`)
 	for token, repo := range placeholders {
 		text = strings.ReplaceAll(text, token, repo)
 	}
