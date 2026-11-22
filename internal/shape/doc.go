@@ -51,6 +51,14 @@ func DocProblems(root string) ([]string, error) {
 		// what each one is. Order carries no meaning in either, so demanding it
 		// match would fail on a cosmetic edit and train people to ignore the gate.
 		if !sameEntrypoints(row, code) {
+			// Name a repeat explicitly: a set comparison catches it as a length
+			// mismatch, but "lists [...]" leaves the reader to spot the
+			// duplicate by eye in a list of six.
+			if dup, ok := repeatedToken(row); ok {
+				problems = append(problems,
+					fmt.Sprintf("%s: the %q row lists %q twice", DocPath, s, dup))
+				continue
+			}
 			problems = append(problems,
 				fmt.Sprintf("%s: the %q row lists [%s], the enum ships [%s]",
 					DocPath, s, strings.Join(sortedCopy(row), ", "), strings.Join(sortedCopy(code), ", ")))
@@ -63,6 +71,18 @@ func DocProblems(root string) ([]string, error) {
 		}
 	}
 	return problems, nil
+}
+
+// repeatedToken is the first entrypoint a row names more than once.
+func repeatedToken(row []string) (string, bool) {
+	seen := make(map[string]bool, len(row))
+	for _, ep := range row {
+		if seen[ep] {
+			return ep, true
+		}
+		seen[ep] = true
+	}
+	return "", false
 }
 
 // sameEntrypoints compares two entrypoint sets ignoring order.
@@ -132,8 +152,13 @@ func docEntrypoints(root string) (map[string][]string, error) {
 	}
 	if len(out) == 0 {
 		// An empty set would make every shape "undocumented", which is a
-		// misleading verdict when the real fault is that the table moved.
-		return nil, fmt.Errorf("%s: no shape table found (expected a | Shape | Entrypoints | row)", DocPath)
+		// misleading verdict when the real fault is that the table moved. Name
+		// both plausible causes: a table that is gone looks exactly like a
+		// table whose entrypoint column shifted, and the reader needs to know
+		// which one to look for.
+		return nil, fmt.Errorf("%s: no shape table row parsed — the table is either "+
+			"gone or its entrypoint cell is no longer the SECOND column "+
+			"(expected a row like | Shape | `cmd/web`, ... | ... )", DocPath)
 	}
 	return out, nil
 }

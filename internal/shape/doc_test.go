@@ -282,3 +282,50 @@ func TestDocProblemsCatchesAMissingDirectory(t *testing.T) {
 		t.Errorf("cmd/product-cli reported %d times, want once", n)
 	}
 }
+
+// TestDocProblemsNamesTheLikelyCauseWhenNoRowParses: a table whose entrypoint
+// column shifted and a table that is gone look identical to the parser. The
+// message must name both, or the reader hunts for a missing table that is right
+// there.
+func TestDocProblemsNamesTheLikelyCauseWhenNoRowParses(t *testing.T) {
+	root := t.TempDir()
+	// Every row gains a Note column BEFORE the entrypoints.
+	var b strings.Builder
+	for line := range strings.SplitSeq(docRows(), "\n") {
+		cells := tableCells(line)
+		if len(cells) < 3 {
+			b.WriteString(line + "\n")
+			continue
+		}
+		b.WriteString("| " + cells[0] + " | note | " + cells[1] + " | " + cells[2] + " |\n")
+	}
+	writeShapeDoc(t, root, b.String())
+
+	_, err := DocProblems(root)
+	if err == nil {
+		t.Fatal("a table with a shifted entrypoint column was accepted")
+	}
+	if !strings.Contains(err.Error(), "SECOND column") {
+		t.Errorf("error blames the table's absence, not the shifted column: %v", err)
+	}
+}
+
+// TestDocProblemsCatchesARepeatedToken covers the same-shape duplicate the SET
+// comparison already rejects (a length mismatch), but whose message said only
+// "lists [...]" — leaving the reader to spot the repeat by eye in a list of six.
+func TestDocProblemsCatchesARepeatedToken(t *testing.T) {
+	root := t.TempDir()
+	writeShapeDoc(t, root, setRow(docRows(), Web,
+		"`cmd/web`, `cmd/web`, `cmd/product-mcp`, `cmd/product-cli`"))
+
+	problems, err := DocProblems(root)
+	if err != nil {
+		t.Fatalf("DocProblems: %v", err)
+	}
+	if len(problems) != 1 {
+		t.Fatalf("problems = %v, want the web row", problems)
+	}
+	if !strings.Contains(problems[0], "twice") {
+		t.Errorf("message does not name the repeated token: %q", problems[0])
+	}
+}
