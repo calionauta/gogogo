@@ -15,6 +15,14 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.72.4 (2026-11-22)
+
+## What's Changed
+* docs: the enum's second half, and the consumer pair on the page by @calionauta in https://github.com/calionauta/gogogo/pull/470
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.72.3...v0.72.4
+
 ## 0.72.3 (2026-11-22)
 
 ## What's Changed
