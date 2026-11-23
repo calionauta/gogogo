@@ -20,9 +20,12 @@
 
 An **agent-native product foundation in Go** — backend, frontend, database,
 auth, jobs, realtime, durable workflows and offline writes — that compiles to
-**one binary**. Every slice is code you own and can delete; every heavy
-dependency has an off switch. A CLI and an MCP server let an agent change the
+**one binary**, with every heavy layer behind an env-var switch. Every slice is
+code you own and can delete. A CLI and an MCP server let an agent change the
 tree and prove the build instead of guessing at it.
+
+It fits what runs behind a session: accounts, state, policy. A public page in
+front of it fits too — that page is yours to write.
 
 **Not a framework.** Nothing is versioned out from under you: the scaffold
 copies the tree, and `git` is the update path.
@@ -55,11 +58,6 @@ Just want to see it run: `curl … | sh -s -- --run`, or scaffold by hand with
 `gh repo create my-app --template calionauta/gogogo --clone`, then
 `make rename NAME=my-app` and `make dev`.
 
-**Not for a landing page.** `GET /` is a redirect — a guest goes to `/login`
-and no marketing page ships. A static or conversion page is another tool's job;
-a product with accounts and state behind a session is this one. A public page
-**plus** an app behind login does fit.
-
 ## Try it live
 
 | | |
@@ -91,6 +89,9 @@ it and the binary still builds.
 
 Details per row, with the removal class of each unit and its exact removal
 path: [docs/features](docs/features.md).
+
+No marketing page ships: `GET /` redirects a guest to `/login`, then sends a
+signed-in user to the home its shape actually mounts.
 
 ## Stack
 
