@@ -17,7 +17,6 @@ import (
 	"net"
 	"os"
 	"strconv"
-	"time"
 
 	natsio "github.com/nats-io/nats.go"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -219,11 +218,9 @@ func startTransport(cfg *config.Config) (*nats.Handle, nats.JetStreamLike) {
 	return h, h.JS
 }
 
-// publishDemoCollab exercises the edge-sync publish paths end to end: a Loro
-// update on app.sync.<docID> (a Leaf Node replicates it to the central server,
-// whose SyncWorker persists the snapshot to Turso) and a ticking demo cursor on
-// app.presence.<docID>. With a standalone NATS both fan out to local
-// subscribers. Returns the cancel for the ticker.
+// publishDemoCollab exercises the edge-sync publish path end to end: a Loro
+// update on app.sync.<docID>, which a Leaf Node replicates to the central
+// server whose SyncWorker persists the snapshot to Turso.
 func publishDemoCollab(nat *nats.Handle, js nats.JetStreamLike) context.CancelFunc {
 	noop := func() {}
 	if js == nil || nat == nil || nat.Conn == nil {
@@ -237,29 +234,11 @@ func publishDemoCollab(nat *nats.Handle, js nats.JetStreamLike) context.CancelFu
 		slog.Info("desktop: published collab update", "doc", demoDoc.ID())
 	}
 
-	// Ephemeral presence: a real whiteboard would call PublishCursor on
-	// pointer move; the demo ticks a cursor so the path runs end to end.
-	pres := collab.NewPresence(nat.Conn, "desktop-demo", "desktop", 0, 0)
-	presCtx, presCancel := context.WithCancel(context.Background())
-	go func() {
-		_ = pres.Subscribe(presCtx)
-	}()
-	go func() {
-		t := time.NewTicker(2 * time.Second)
-		defer t.Stop()
-		var x float64
-		for {
-			select {
-			case <-presCtx.Done():
-				return
-			case <-t.C:
-				x += 0.1
-				if x > 1 {
-					x = 0
-				}
-				_ = pres.PublishCursor(x, 0.5) //nolint:mnd // 0.5 is center-Y for demo cursor
-			}
-		}
-	}()
-	return presCancel
+	// Presence is not this process's job here: the desktop boots the SAME chi
+	// stack as the web app (server.StartChi above), so it serves the real
+	// volatile presence relay at POST /api/whiteboard/{docID}/presence, the one
+	// the whiteboard UI actually posts to. A second NATS cursor loop here would
+	// be a parallel path nothing renders — which is exactly what it was before
+	// this was removed.
+	return noop
 }
