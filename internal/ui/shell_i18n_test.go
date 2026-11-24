@@ -17,9 +17,13 @@ func TestShellRendersRequestLocaleTag(t *testing.T) {
 	}
 }
 
-func TestShellDefaultsToEnglishTag(t *testing.T) {
+// TestShellDefaultsToTheDefaultLocale: with no request locale, the document
+// language is the catalog's default (the first tag of the product's record),
+// not a literal the template happens to carry.
+func TestShellDefaultsToTheDefaultLocale(t *testing.T) {
 	html := renderShell(context.Background(), t)
-	if !strings.Contains(html, `lang="en"`) {
-		t.Fatal("shell must default to English")
+	want := i18n.Locale(context.Background())
+	if !strings.Contains(html, `lang="`+want+`"`) {
+		t.Fatalf("shell must default to %q, got no matching lang attribute", want)
 	}
 }

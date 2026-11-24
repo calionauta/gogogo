@@ -42,7 +42,7 @@ type LocaleOption struct {
 // the classic failure ("Portuguese" is not how a pt-BR reader looks for it);
 // these are what a speaker searches for, and they stay untranslated on purpose.
 var localeLabels = map[string]string{
-	"en":    "English",
+	"en-US": "English",
 	"pt-BR": "Português (Brasil)",
 }
 

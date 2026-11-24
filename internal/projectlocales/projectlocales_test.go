@@ -34,8 +34,8 @@ func TestWriteForcesEnglishFirst(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Write: %v", err)
 	}
-	if rec.Locales[0] != "en" {
-		t.Fatalf("first locale is %q, want en", rec.Locales[0])
+	if rec.Locales[0] != "en-US" {
+		t.Fatalf("first locale is %q, want en-US", rec.Locales[0])
 	}
 }
 
@@ -50,12 +50,18 @@ func TestWriteRefusesAnEmptySet(t *testing.T) {
 func TestResolvePrecedence(t *testing.T) {
 	root := t.TempDir()
 	// English is added when absent: every product ships it, so the env cannot
-	// silently drop the fallback language.
+	// silently drop the fallback language. An English tag in any form counts —
+	// "en" is already English, and rewriting it to en-US would overrule the
+	// operator's own record.
 	if tags, source := Resolve(root, "de,fr"); source != "SUPPORTED_LOCALES" ||
-		len(tags) != 3 || tags[0] != "en" || tags[1] != "de" {
+		len(tags) != 3 || tags[0] != "en-US" || tags[1] != "de" {
 		t.Fatalf("env fallback = %v from %s", tags, source)
 	}
-	if tags, source := Resolve(root, ""); source != "default" || tags[0] != "en" {
+	if tags, source := Resolve(root, "en,de"); source != "SUPPORTED_LOCALES" ||
+		len(tags) != 2 || tags[0] != "en" || tags[1] != "de" {
+		t.Fatalf("an English tag must not be rewritten: %v from %s", tags, source)
+	}
+	if tags, source := Resolve(root, ""); source != "default" || tags[0] != "en-US" {
 		t.Fatalf("default = %v from %s", tags, source)
 	}
 	if _, err := Write(root, []string{"en", "pt-BR", "es"}); err != nil {

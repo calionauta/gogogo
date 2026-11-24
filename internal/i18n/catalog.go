@@ -108,7 +108,7 @@ func MustLoadFS(fsys fs.FS, supported []string, fallback string) *Catalog {
 // fall back to it through CatalogFromContext when no
 // request catalog was injected.
 
-//go:embed locale/en.json locale/pt-BR.json
+//go:embed locale/en-US.json locale/pt-BR.json
 var bundledFS embed.FS
 
 // LoadBundled loads the shipped catalogs for the supported
@@ -125,5 +125,9 @@ func Default() *Catalog {
 }
 
 var defaultOnce = sync.OnceValue(func() *Catalog {
-	return MustLoadFS(bundledFS, []string{"en", "pt-BR"}, "en")
+	// en-US is first, so it is the language a page renders in when the request
+	// names none. pt-BR ships beside it: it is what proves the mechanism
+	// end-to-end (a second catalog, a real picker, a merge under the recipe
+	// prefix) and what a tree keeps when it wants two languages.
+	return MustLoadFS(bundledFS, []string{"en-US", "pt-BR"}, "en-US")
 })

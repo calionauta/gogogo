@@ -292,6 +292,19 @@ Full rules: `references/datastar.md`.
   plural and number/date formatting — see
   [`docs/research/i18n-2026-11.md`](../../docs/research/i18n-2026-11.md) and
   the `I18N_*` rows in [`docs/configuration.md`](../../docs/configuration.md).
+  i18n is ON: the default language is the FIRST tag of `locales.yml`
+  (`en-US`), a catalog file is named after its tag, and
+  `config.I18NConfig.Default` follows the record instead of carrying a
+  literal of its own. Adding a language is a tag plus a catalog, not a switch.
+- **An exported name is a promise, so `check-surface` judges it.** A name
+  nobody outside its package names (`make check-surface`; baseline in
+  `.surface-allow`) is a door left open, and a new one blocks the commit —
+  unexport it, or add it to the baseline as a deliberate "not yet". The gate
+  only fails on exports with NO consumer at all; `-include-internal` lists the
+  review-only tail (own-package-only, test-only) and is not a gate because 435
+  + 55 findings on this tree is a number nobody acts on. `package main`,
+  methods and fields are out of scope: a `main` cannot be imported, and a
+  method's consumer is an interface.
 
 ## Two failure shapes
 

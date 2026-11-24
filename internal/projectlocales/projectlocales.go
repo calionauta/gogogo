@@ -27,9 +27,12 @@ const File = "locales.yml"
 // recordMode is a tracked configuration file: readable, not executable.
 const recordMode = 0o644
 
-// Default is the set every tree starts with: the template's own example. A
-// product that wants English only says so and the record shrinks.
-var Default = []string{"en", "pt-BR"}
+// Default is the set every tree starts with: the template's own example, with
+// en-US as the default language (the first entry) and pt-BR beside it as the
+// worked second catalog. A product that wants English only says so in its
+// record and the set shrinks — Default is what answers a tree that has no
+// record at all, and it has to keep the mechanism visible.
+var Default = []string{"en-US", "pt-BR"}
 
 // Record is the on-disk shape. One field, because a second list would be a
 // second answer to the same question.
@@ -102,8 +105,11 @@ func Normalize(tags []string) ([]string, error) {
 	if len(out) == 0 {
 		return nil, errors.New("no locales: a product ships at least English")
 	}
-	if !containsFold(out, "en") {
-		out = append([]string{"en"}, out...)
+	// English is the floor. Any English tag satisfies it: a tree that says "en"
+	// has English, and rewriting it to en-US would be this function overruling
+	// the operator's own record.
+	if !hasEnglish(out) {
+		out = append([]string{"en-US"}, out...)
 	}
 	return out, nil
 }
@@ -128,9 +134,11 @@ func splitCSV(raw string) []string {
 	return out
 }
 
-func containsFold(list []string, want string) bool {
-	for _, v := range list {
-		if strings.EqualFold(v, want) {
+// hasEnglish reports an English tag in any form ("en", "en-GB", "en-US").
+func hasEnglish(tags []string) bool {
+	for _, t := range tags {
+		base, _, _ := strings.Cut(strings.ToLower(t), "-")
+		if base == "en" {
 			return true
 		}
 	}

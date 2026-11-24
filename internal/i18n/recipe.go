@@ -152,8 +152,8 @@ func CheckRecipeCoverage(supported []string, recipes []RecipeCatalog) []string {
 			}
 			if m == nil {
 				out = append(out, fmt.Sprintf(
-					"recipe %q has no %s.json (it falls back to %s for those strings)",
-					rc.ID, tag, "en"))
+					"recipe %q has no %s.json (the page falls back to the default language's words)",
+					rc.ID, tag))
 			}
 		}
 	}

@@ -201,7 +201,7 @@ changing either.
 A recipe's UI text lives in the recipe, under `locale/<tag>.json` — the same
 flat map the core catalog uses, read through the optional `Translations() fs.FS`
 seam (beside `Migrations()`). Keys are **unprefixed**: a key `title` in
-`features/kiosk/locale/en.json` is looked up as `kiosk.title`, because the engine
+`features/kiosk/locale/en-US.json` is looked up as `kiosk.title`, because the engine
 prefixes every recipe key with its id. That is what lets two recipes both say
 `title` and lets deleting the recipe delete its strings with no core edit.
 

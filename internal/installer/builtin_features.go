@@ -110,13 +110,13 @@ var featureBuiltinUnits = []builtinUnit{
 				endMarker:   "defer publishDemoCollab(nat, js)()",
 			},
 			{
-				startMarker:       "// publishDemoCollab exercises the edge-sync publish paths end to end",
+				startMarker:       "// publishDemoCollab exercises the edge-sync publish path end to end",
 				endIsClosingBrace: true,
 				endBrace:          "}",
 				addBefore:         "// desktopConfig loads config and applies the shell's overrides. Split out of",
 			},
 		},
-		desktopDropLines: []string{collabImportSuffix, `"time"`},
+		desktopDropLines: []string{collabImportSuffix},
 		// Tests that build the collab bundle travel with it: they import the
 		// package by name, so `go mod tidy` parses them and reports "finding
 		// module for .../internal/collab" for a tree that builds fine without

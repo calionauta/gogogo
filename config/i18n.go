@@ -18,6 +18,10 @@ import (
 	"github.com/calionauta/gogogo/internal/projectlocales"
 )
 
+// defaultLocale is the floor when neither the record nor the env names a
+// language. It is a full tag because catalog files are named after it.
+const defaultLocale = "en-US"
+
 // I18NConfig selects the localization plugin surface.
 type I18NConfig struct {
 	// Enabled is I18N_ENABLED (default true). True resolves the request locale
@@ -26,11 +30,11 @@ type I18NConfig struct {
 	// opt-out for a tree that deleted the servant.
 	Enabled bool
 	// Supported is SUPPORTED_LOCALES (default: the tracked locales.yml record,
-	// then "en,pt-BR"):
+	// then the template's own set):
 	// the tags the catalog loader must find. Invalid entries
 	// warn and are skipped.
 	Supported []string
-	// Default is DEFAULT_LOCALE (default "en"), the fallback
+	// Default is DEFAULT_LOCALE (default "en-US"), the fallback
 	// when no preference matches. Must be in Supported.
 	Default string
 	// RequireRecipeCoverage is I18N_REQUIRE_RECIPE_COVERAGE (default false).
@@ -72,16 +76,22 @@ func (c *Config) loadI18NEnv() {
 	if strings.TrimSpace(getEnv("SUPPORTED_LOCALES", "")) == "" {
 		supported = c.localesFromRecord()
 	}
-	def := strings.TrimSpace(getEnv("DEFAULT_LOCALE", "en"))
+	// The record's FIRST tag is the product's default language: a second
+	// hardcoded literal here would be a second answer to the same question, and
+	// it drifted the moment the record said en-US and this said en.
+	def := strings.TrimSpace(getEnv("DEFAULT_LOCALE", ""))
+	if def == "" && len(supported) > 0 {
+		def = supported[0]
+	}
 	if def == "" {
-		def = "en"
+		def = defaultLocale
 	}
 	if !contains(supported, def) {
-		slog.Warn("config: DEFAULT_LOCALE must be in SUPPORTED_LOCALES, using en",
+		slog.Warn("config: DEFAULT_LOCALE must be in SUPPORTED_LOCALES, using "+defaultLocale,
 			"default", def, "supported", strings.Join(supported, ","))
-		def = "en"
+		def = defaultLocale
 		if !contains(supported, def) {
-			supported = []string{"en"}
+			supported = []string{defaultLocale}
 		}
 	}
 	c.I18n.Enabled = enabled
@@ -97,7 +107,7 @@ func (c *Config) loadI18NEnv() {
 func parseI18NSupported(raw string) []string {
 	out := splitCSV(raw)
 	if len(out) == 0 {
-		return []string{"en"}
+		return []string{defaultLocale}
 	}
 	return out
 }
