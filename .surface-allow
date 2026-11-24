@@ -22,6 +22,8 @@ internal/llm.ConsumeStream
 internal/llm.StreamToSSE
 internal/nats.ClientURL
 internal/nats.EnsureKeyValue
+internal/nats.PublishEvent
+internal/nats.SubscribeRoom
 internal/recipe.HashFile
 internal/recipe.RoleAuthServer
 internal/recipe.ShapeWide
