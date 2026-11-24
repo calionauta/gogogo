@@ -43,6 +43,12 @@ type finding struct {
 	extUses  int
 	inUses   int
 	testUses int
+	// cmdUses counts the extUses that come from a `main` package under cmd/.
+	// Those still count as a consumer (a demo shell really does call the code),
+	// but they are the weakest kind: a command-line harness is the one caller
+	// that can keep an entire file alive while no product path renders it. The
+	// distinction is reported, never gated — see cmdOnly().
+	cmdUses int
 }
 
 // scan loads the module once and classifies every exported top-level name,
@@ -260,8 +266,32 @@ func creditTypedUses(pkgs []*packages.Package, decls map[string]*finding) {
 				continue
 			}
 			f.extUses++
+			if isCmdMain(p) {
+				f.cmdUses++
+			}
 		}
 	}
+}
+
+// mainPackage is the package clause of a command, which no gate may judge an
+// export from (it declares none worth judging) and which `-methods` skips.
+const mainPackage = "main"
+
+// isCmdMain reports whether p is a `main` package living under cmd/. The gate
+// treats those as consumers (they are), separately from product consumers.
+func isCmdMain(p *packages.Package) bool {
+	if p.Name != mainPackage || len(p.PkgPath) == 0 {
+		return false
+	}
+	return strings.Contains(p.PkgPath, "/cmd/")
+}
+
+// cmdOnly reports whether every outside consumer of f is a cmd/ main package.
+// Such an export is alive, not dead — deadcode is right to keep it — but its
+// only witness is a harness. presence.go lived exactly this way: reachable
+// solely from cmd/desktop's demo, rendered by nothing.
+func (f *finding) cmdOnly() bool {
+	return f.cmdUses > 0 && f.cmdUses == f.extUses
 }
 
 // judge keeps the findings a report is about: everything except a name another
@@ -286,6 +316,11 @@ type surfaceRow struct {
 	// distrusted: inUses only from its own package, testUses only from a test,
 	// dead from nobody.
 	own, test, dead int
+	// harness counts names whose ONLY outside consumer is a cmd/ main package.
+	// They are counted in used (a harness is a real caller) and listed apart,
+	// because "alive only because a demo calls it" is the shape that let a whole
+	// dead presence implementation survive three gates.
+	harness int
 }
 
 // surfaceRows aggregates the measurement per package, worst ratio first.
@@ -303,6 +338,9 @@ func surfaceRows(findings []finding, minExport int) []surfaceRow {
 		switch f.class {
 		case classConsumed:
 			r.used++
+			if f.cmdOnly() {
+				r.harness++
+			}
 		case classTestOnly:
 			r.test++
 		case classInternal:

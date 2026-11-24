@@ -48,7 +48,7 @@ type methodCandidate struct {
 func collectMethodCandidates(pkgs []*packages.Package) []methodCandidate {
 	var out []methodCandidate
 	for _, p := range pkgs {
-		if p.TypesInfo == nil || p.Name == "main" || strings.HasSuffix(p.PkgPath, ".test") {
+		if p.TypesInfo == nil || p.Name == mainPackage || strings.HasSuffix(p.PkgPath, ".test") {
 			continue
 		}
 		for ident, obj := range p.TypesInfo.Defs {
@@ -188,29 +188,7 @@ func addInterfacesOf(tp *types.Package, add func(types.Type)) {
 
 func moduleInterfaces(pkgs []*packages.Package) []*types.Interface {
 	var out []*types.Interface
-	seen := map[string]bool{}
-	add := func(t types.Type) {
-		if named, ok := t.(*types.Named); ok {
-			t = named.Underlying()
-		}
-		iface, ok := t.(*types.Interface)
-		if !ok {
-			return
-		}
-		// An EMPTY interface (`any`, `interface{}`) is satisfied by every type,
-		// so crediting it would mark the whole module reachable and the report
-		// would always be empty. It is a constraint with no methods, which is
-		// not what keeps a method alive.
-		if iface.NumMethods() == 0 {
-			return
-		}
-		key := iface.String()
-		if seen[key] {
-			return
-		}
-		seen[key] = true
-		out = append(out, iface)
-	}
+	add := interfaceSink(&out, map[string]bool{})
 	for _, p := range pkgs {
 		if p.TypesInfo == nil {
 			continue
@@ -230,6 +208,39 @@ func moduleInterfaces(pkgs []*packages.Package) []*types.Interface {
 		}
 	}
 	return out
+}
+
+// interfaceSink returns the collector that decides which interface types may
+// keep a method alive, appending to out.
+//
+// It is a named function rather than a closure because every rule in it exists
+// because ignoring that rule produced a wrong answer, and a rule buried in a
+// closure can only be tested through a whole module fixture. The empty-interface
+// guard below is unreachable that way (nothing declares `any` as a TypeName), so
+// without this seam it would be untested code that reads as protection.
+func interfaceSink(out *[]*types.Interface, seen map[string]bool) func(types.Type) {
+	return func(t types.Type) {
+		if named, ok := t.(*types.Named); ok {
+			t = named.Underlying()
+		}
+		iface, ok := t.(*types.Interface)
+		if !ok {
+			return
+		}
+		// An EMPTY interface (`any`, `interface{}`) is satisfied by every type,
+		// so crediting it would mark the whole module reachable and the report
+		// would always be empty. It is a constraint with no methods, which is
+		// not what keeps a method alive.
+		if iface.NumMethods() == 0 {
+			return
+		}
+		key := iface.String()
+		if seen[key] {
+			return
+		}
+		seen[key] = true
+		*out = append(*out, iface)
+	}
 }
 
 // methodGaps is the report: candidates that are neither selected nor required

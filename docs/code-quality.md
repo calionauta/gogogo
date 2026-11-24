@@ -396,6 +396,15 @@ plus 259 `test-only`):
 | internal | Exported, but only its own package names it. | only with `-include-internal` |
 | test-only | Only another package's `_test.go` names it. | only with `-include-internal` |
 
+`-depth` also names the **harness-only** exports: names whose only outside
+consumer is a `cmd/` main package. They count as used — a command-line shell
+really does call them, and `deadcode` is right to keep them reachable — but a
+harness is the one caller that can keep an entire file alive while no product
+path renders it. That is how a whole deprecated presence implementation
+survived three gates: reachable from `cmd/desktop`'s demo, rendered by nothing.
+Reported, never gated: a shell calling a package is legitimate; a file nobody
+renders is the part a reviewer wants to see.
+
 `test-only` is a stronger signal than its "review" tier suggests. A whole
 deprecated presence implementation (~180 lines, superseded by the
 `PresenceSeam` interface) was deleted on the first run of `-methods`, and every

@@ -76,12 +76,23 @@ func main() {
 	// non-zero, so it cannot become a gate by being wired into one.
 	if *depth {
 		rows := surfaceRows(findings, *minExport)
+		harness := 0
 		for _, r := range rows {
-			fmt.Printf("%3d%%  %3d/%3d  %s\n",
-				100*r.used/max(r.export, 1), r.used, r.export, display(r.pkg))
+			note := ""
+			if r.harness > 0 {
+				note = fmt.Sprintf("  [%d harness-only]", r.harness)
+				harness += r.harness
+			}
+			fmt.Printf("%3d%%  %3d/%3d  %s%s\n",
+				100*r.used/max(r.export, 1), r.used, r.export, display(r.pkg), note)
 		}
 		fmt.Printf("check-surface: %d package(s) with >= %d exports, worst ratio first "+
 			"(a low ratio is a wide surface few callers walk through)\n", len(rows), *minExport)
+		if harness > 0 {
+			fmt.Printf("check-surface: %d name(s) whose ONLY outside consumer is a cmd/ main "+
+				"package — alive because a harness calls them, which is how a whole dead "+
+				"file stayed reachable\n", harness)
+		}
 		return
 	}
 

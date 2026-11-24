@@ -283,6 +283,13 @@ func TestStaleEntryIsReported(t *testing.T) {
 // .surface-allow must match the tree exactly. A failure here means someone
 // added an export with no consumer (add it deliberately, or unexport it), or
 // removed one (re-run -update-allow) — both are diffs a reviewer wants to see.
+//
+// It reads the WORKING tree, which is right for `go test ./...` (the developer
+// asks about the tree in front of them) and wrong for the commit hook, which
+// asks about the index — a different question with a different answer whenever
+// two changes share a checkout. The hook therefore does not call this test: it
+// runs scripts/check-surface-indexed.sh against the staged tree. When this test
+// fails, trust it about the working tree only.
 func TestThisTreeIsClean(t *testing.T) {
 	root, err := filepath.Abs("../..")
 	if err != nil {
