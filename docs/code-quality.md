@@ -47,7 +47,7 @@ approach had a deeper issue.**
 | `make daisyui-lint` | DaisyUI class vocabulary in `.templ`/HTML: a typo'd or retired class renders with no styles and no error anywhere else. Runs the pinned `go tool daisyui-lint --strict` (version in `go.mod`) over `features/` + `internal/` and reads `chrome.css`/`app.css`, so classes this repo defines are not reported as foreign |
 | `make check-classes` | The integrity half of the same vocabulary: a `ui-*`/`app-*`/`is-*` class used in a `.templ` but absent from `chrome.css`, a kit-table class in `docs/ui-shell.md` that no longer exists, a dead selector with no consumer, or a DaisyUI part (`join-item`, `dropdown-content`, `toggle`) on the wrong host element |
 | `make fmt` | `gofumpt` + `goimports` formatting only |
-| `make ci-local` | Full local gate, identical to CI: check-host-capacity → reap-stale → check-browser-cleanup → check-generated → check-shape → check-recipes → check-sizes → datastar-lint → css-check → check-no-jsx → check-ci-scripts → check-classes → daisyui-lint → check-flatdeps → check-product-boundary → check-typed-states → check-domains → check-secrets-env → check-dagnats-pin → check-skill-frontmatter → install-sh-guard → check-prompts → golangci-lint → race tests → build → binary boot smoke → Playwright smoke |
+| `make ci-local` | Full local gate, identical to CI: check-host-capacity → reap-stale → check-browser-cleanup → check-generated → check-shape → check-recipes → check-sizes → datastar-lint → css-check → check-no-jsx → check-ci-scripts → check-classes → daisyui-lint → check-flatdeps → check-product-boundary → check-typed-states → check-surface → check-surface-methods → check-domains → check-secrets-env → check-dagnats-pin → check-skill-frontmatter → install-sh-guard → check-prompts → golangci-lint → race tests → build → binary boot smoke → Playwright smoke |
 | `make check-stelow-drift` | Verifies the vendored `stelow-workflow-coding-standards` copy still matches its pinned upstream commit AND that upstream `main` has not moved. Advisory in pre-commit (never blocks on a network call); `--strict` here and in the weekly `stelow-drift` workflow. Update with `scripts/refresh-stelow.sh` — never by hand. |
 
 We deliberately keep `gofumpt` and `goimports` as **formatters** (not linters)
@@ -376,6 +376,124 @@ relative `--dir` (the installer's default is `./<name>`) makes every path the
 caller builds CWD-relative, and `filepath.Rel` refuses to mix those with the
 root's absolute path: each confined operation then fails with
 `can't make X relative to Y` while the swallowed-error sites do nothing.
+
+## Export surface
+
+A package exports a name so another package can call it. When nothing outside
+ever does, the export is a promise nobody redeemed — the surface reads wide and
+the package is shallow behind it. `golangci-lint` cannot see this: `unused`
+skips exported names on purpose, because for a library it cannot prove an
+importer is absent. `make check-surface` loads the whole module at once and
+proves it.
+
+It is deliberately narrower than it could be, because the wider version reports
+hundreds of findings nobody would act on (measured on this tree: 233 `internal`
+plus 259 `test-only`):
+
+| Class | Meaning | Gates? |
+|---|---|---|
+| dead | No package — this one, a sibling, or a test — names it. | ✓ |
+| internal | Exported, but only its own package names it. | only with `-include-internal` |
+| test-only | Only another package's `_test.go` names it. | only with `-include-internal` |
+
+`test-only` is a stronger signal than its "review" tier suggests. A whole
+deprecated presence implementation (~180 lines, superseded by the
+`PresenceSeam` interface) was deleted on the first run of `-methods`, and every
+one of its exports had already been sitting in this class — the gate had been
+saying "only tests name this" about code nothing else used. A `test-only` export
+with no production consumer is usually either a seam that should be unexported
+or a file nobody removed; `-methods` is what made someone read it.
+
+### Methods are the sibling gap: `-methods`
+
+The original version of this page said methods were out of scope because "a
+method's consumer is an interface, and that is `iface`'s question". Measured, it
+is not: `iface` reads *interface* method sets. An exported method on a concrete
+type that nothing selects and no interface requires is invisible to all three
+falgships at once:
+
+| Tool | Why it misses |
+|---|---|
+| `golangci-lint` `unused` | skips exported names (it cannot prove no importer exists) |
+| `iface` | reads interface method sets, never concrete ones |
+| `deadcode` | answers for functions reachable from a main, not methods |
+
+`make check-surface-methods` runs it and closes the gap. Its first run found two
+real orphans — a `DemoHref` whose behaviour had been replaced by an
+inline `fetch()` in the template, and a `HandleIncoming` superseded by
+`presenceReader` — both with a comment claiming a caller that no longer existed.
+
+Crediting is real satisfaction (`types.Implements` over the receiver), never a
+name match: a name match credits every `Close` in the module the moment one
+interface declares one. The one unavoidable approximation is test usage — the
+loader runs without `Tests`, so a method named only by its own package's
+`_test.go` is credited by name plus receiver, the fail-open direction. Two
+shapes are deliberately spared for the same reason: an empty interface
+(`any` satisfies everything, so crediting it would make the report always
+empty) and generated files.
+
+**Why it is a separate target, and why it is not in the fast gate.** Proving an
+exported method unreachable needs the interface types from the *dependencies*,
+and type-checking those costs 2.5 s of the 4 s it takes (measured on this tree:
+1.03 s for a plain load, 3.55 s with `NeedDeps`). A node-enriched cache would
+buy that back at the price of serialising `types.Type` across runs, which is a
+worse trade than the seconds. So the export gate stays at 1.6 s in
+`ci-local-fast`, and `check-surface-methods` runs in `ci-local` and CI — the
+full gate is where a 4 s question belongs.
+
+`package main` (it cannot be imported, so its exports are linker handles like
+`-ldflags -X main.BuildTime`) and generated files remain out of scope for the
+export question, the latter detected with `ast.IsGenerated` rather than a
+`_templ.go`/`.pb.go` suffix list so the next generator someone adopts needs no
+gate change.
+
+**The baseline is `.surface-allow`**, one module-relative entry per line. Keeping
+it in text is the point: accepting an export is a diff a reviewer reads.
+`-update-allow` rewrites it. An entry that no longer matches is an error — a
+baseline that tolerates ghosts would let a removed export return unnoticed.
+
+**`-depth` is the same measurement read the other way round**, and it is a
+report, never a gate (`-depth` exits 0 always, so wiring it into CI cannot turn
+it into a verdict). It answers the question the shallow-module rule actually
+asks — how much surface does this package offer, and how much of it does anyone
+walk through:
+
+```bash
+go run ./cmd/check-surface -depth -min-export 15 | head -8
+  4%    1/ 23  features/review/handlers
+ 29%    7/ 24  internal/queue
+ 33%   11/ 33  config
+```
+
+Read it as a question, not a score: a handlers package scores low because its
+surface is routes the framework calls, and that is what it is for. `internal/`
+scoring low is worth a look — that is a wide interface with a thin module behind
+it, which is the one thing this whole page is about. The columns after the ratio
+say WHY the rest is unused (own-package only, test only, nobody), so a low number
+can be read instead of distrusted.
+
+`go test ./cmd/check-surface/` carries the rule in fixtures whose answer is
+known by construction, so the gate is not "green because this tree happens to
+be".
+
+Two implementation notes that are load-bearing, both learned by watching the
+gate lie:
+
+- **The loader runs with `Tests: false`.** With `Tests: true` it type-checks the
+  plain and the in-package-test variant of a package on concurrent goroutines
+  that share `*types.Named`, which trips the race detector inside `go/types`
+  itself (intermittently — the worst kind). Test files are read from the AST
+  instead, in the same pass that reads build-tag-excluded files.
+- **That AST pass reads two use shapes**, because a test uses an export both
+  ways: qualified (`nats.StartEmbedded`, another package's test) and
+  unqualified (`LoadUnpublished()`, the owner package's own test). Reading only
+  selectors reported every tested-but-uncalled export as dead.
+
+The fallback is deliberately one-directional: an AST use can only SUPPRESS a
+finding, never create one, so an approximation is safe where an exact answer is
+not available. Paths are made absolute and the module prefix carries no trailing
+slash — a relative `--dir` once produced `module//catalog`, matched nothing, and
+reported a perfectly clean tree.
 
 ## File size limits
 

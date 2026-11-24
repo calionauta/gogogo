@@ -17,7 +17,7 @@ SMOKE_BIN ?= $(OS_TMPDIR)/gogogo-ci-local-web
 # build does not use the wails3 CLI at all — it is a plain `go build` — so no
 # copy of the version belongs here to drift from the module graph.
 
-.PHONY: check-typed-states check-product-boundary check-operator-look operator-look-pass operator-look-fail all build desktop desktop-smoke desktop-sync-smoke mobile run-desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean templ fmt css css-install datastar-lint test test-recipe test-scaffold-chain verify-local verify-local-share lint check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui gui-build gui-test run-gui lint-gui mygo mygo-build mygo-test run-mygo mygo-smoke check-generated install-sh-guard release-build-guard check-classes check-ci-scripts daisyui-lint vocabulary check-docs docs-index check-mcp site site-check check-shape check-domains check-prompts
+.PHONY: check-typed-states check-surface check-surface-methods check-product-boundary check-operator-look operator-look-pass operator-look-fail all build desktop desktop-smoke desktop-sync-smoke mobile run-desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean templ fmt css css-install datastar-lint test test-recipe test-scaffold-chain verify-local verify-local-share lint check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui gui-build gui-test run-gui lint-gui mygo mygo-build mygo-test run-mygo mygo-smoke check-generated install-sh-guard release-build-guard check-classes check-ci-scripts daisyui-lint vocabulary check-docs docs-index check-mcp site site-check check-shape check-domains check-prompts
 
 all: build
 
@@ -441,6 +441,35 @@ check-typed-states:
 	@go run ./cmd/check-typed-states -dir .
 	@echo "✅ no state is compared against a string literal"
 
+# check-surface is the other half of "narrow interface": a name is exported so
+# another package can call it, and nothing outside ever does. `unused` skips
+# exported names on purpose, and `deadcode` answers a different question (is it
+# reachable from a main?) about functions only — measured on this tree it
+# reports no type, const or var at all. The baseline in .surface-allow is the
+# accept list; an entry that stops matching is an error, so it cannot rot.
+# -include-internal adds the exports only their own package calls, for review —
+# deliberately not a gate.
+#
+# -methods closes the sibling gap on METHODS: an exported method nothing selects
+# and no interface requires is invisible to all three other owners — `unused`
+# skips exported names, `deadcode` only answers for functions, and `iface` reads
+# interface method sets, not concrete ones. Measured on this tree it found two
+# orphaned refactor leftovers on the first run.
+check-surface:
+	@echo "→ check-surface (no export promises a caller that never comes)..."
+	@go run ./cmd/check-surface -dir .
+	@echo "✅ every export has a consumer outside its package"
+
+# check-surface-methods is the method half, kept SEPARATE because it is 3.5x
+# the cost: proving an exported method is unreachable needs the interfaces from
+# the dependencies, and type-checking those is 2.5s of the 4s (measured: 1.03s
+# plain vs 3.55s with NeedDeps). The fast gate must not pay that, so this runs
+# in ci-local and CI, never in the pre-commit path.
+check-surface-methods:
+	@echo "→ check-surface-methods (no exported method without a caller or an interface)..."
+	@go run ./cmd/check-surface -dir . -methods
+	@echo "✅ every exported method is selected or satisfies an interface"
+
 # check-secrets-env proves secret env plumbing stays on the rails without
 # booting anything: os.Getenv/LookupEnv/Setenv with secret-shaped names
 # (*_KEY, *_TOKEN, *_SECRET, *_PASSWORD, …) may only run in owner files
@@ -624,7 +653,7 @@ check-recipes:
 	@go run ./cmd/gogogo recipe check --dir . --strict-headless >/dev/null
 	@echo "  ✓ recipes pass gogogo recipe check"
 
-ci-local: check-host-capacity reap-stale check-browser-cleanup check-generated check-shape check-recipes check-sizes datastar-lint css-check check-no-jsx check-ci-scripts check-classes daisyui-lint check-flatdeps check-product-boundary check-typed-states check-domains check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard release-build-guard check-prompts
+ci-local: check-host-capacity reap-stale check-browser-cleanup check-generated check-shape check-recipes check-sizes datastar-lint css-check check-no-jsx check-ci-scripts check-classes daisyui-lint check-flatdeps check-product-boundary check-typed-states check-surface check-surface-methods check-domains check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard release-build-guard check-prompts
 	@echo "→ lint (golangci-lint, same as CI)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/web-packages.sh); golangci-lint run $$PKGS; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 	@echo "→ build (single build, reused by the smoke tests)"
@@ -670,7 +699,7 @@ check-no-jsx:
 # so a CSS or installer tweak would otherwise pay for the whole suite. This
 # narrows on the changed packages, falling back to all packages when a shared
 # file (go.mod, config/, db/) changed.
-ci-local-fast: check-fast-capacity reap-stale check-generated check-shape check-recipes check-locales check-sizes datastar-lint css-check check-no-jsx check-ci-scripts check-classes daisyui-lint check-flatdeps check-product-boundary check-typed-states check-domains check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard release-build-guard check-prompts site-check
+ci-local-fast: check-fast-capacity reap-stale check-generated check-shape check-recipes check-locales check-sizes datastar-lint css-check check-no-jsx check-ci-scripts check-classes daisyui-lint check-flatdeps check-product-boundary check-typed-states check-surface check-surface-methods check-domains check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard release-build-guard check-prompts site-check
 # Pre-flight: check-fast-capacity refuses a wedged box (use CI instead).
 # Budget: more than $FAST_MAX_PARALLEL_PKGS (default 8) changed packages
 # runs serially (-p 1) to bound shared-host load.

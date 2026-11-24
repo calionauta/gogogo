@@ -713,6 +713,8 @@ by hand, so when a step is added to one, add it to the other:
 | Flat-stack deps (no banned framework, no cross-feature imports, owned sql.Open) | ✓ `check-flatdeps` | ✓ |
 | Product ⟂ evolution tools (`cmd/web` must build after the tool is deleted) | ✓ `check-product-boundary` | ✓ |
 | One spelling per state (no named string type compared with a literal) | ✓ `check-typed-states` | ✓ |
+| Export surface (no exported name whose only consumers are absent, or inside its own package) | ✓ `check-surface` | ✓ |
+| Export surface, methods (no exported method without a caller or an interface) | ✓ `check-surface-methods` | ✓ |
 | Prose claims (no hand-written counts or sizes, live paths, real subcommands, every CLI verb documented, the generated MCP tool tables match the catalog, every `docs/` page published or declared repo-facing) | ✓ `check-docs` | ✓ |
 | DagNats doc pin vs go.mod | ✓ `check-dagnats-pin` | ✓ |
 | SKILL.md frontmatter | ✓ | ✓ |
