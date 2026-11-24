@@ -68,9 +68,10 @@ func TestLocaleHandlerRefusesAnUnsupportedTag(t *testing.T) {
 // TestLocaleHandlerFallsBackToReferer is the normal navigation: the link carries
 // no ?next=, so the browser's Referer is where the user returns.
 func TestLocaleHandlerFallsBackToReferer(t *testing.T) {
-	h := localeHandler(i18n.Default())
+	cat := i18n.Default()
+	h := localeHandler(cat)
 	w := httptest.NewRecorder()
-	h(w, newLocaleRequest("lang=en", "https://example.test/dashboard?x=1"))
+	h(w, newLocaleRequest("lang="+cat.Fallback(), "https://example.test/dashboard?x=1"))
 	if got := w.Header().Get("Location"); got != "/dashboard" {
 		t.Errorf("Location = %q, want the referer path /dashboard", got)
 	}
@@ -81,7 +82,7 @@ func TestLocaleHandlerRefusesOpenRedirects(t *testing.T) {
 	h := localeHandler(i18n.Default())
 	for _, next := range []string{"//evil.test/x", "https://evil.test/x", "evil.test"} {
 		w := httptest.NewRecorder()
-		h(w, newLocaleRequest("lang=en&next="+next, ""))
+		h(w, newLocaleRequest("lang="+i18n.Default().Fallback()+"&next="+next, ""))
 		if got := w.Header().Get("Location"); got != "/" {
 			t.Errorf("next=%q redirected to %q, want /", next, got)
 		}
@@ -93,7 +94,7 @@ func TestLocaleHandlerRefusesOpenRedirects(t *testing.T) {
 func TestLocaleHandlerClearsTheDefaultCookie(t *testing.T) {
 	h := localeHandler(i18n.Default())
 	w := httptest.NewRecorder()
-	h(w, newLocaleRequest("lang=en&next=/", ""))
+	h(w, newLocaleRequest("lang="+i18n.Default().Fallback()+"&next=/", ""))
 	var found *http.Cookie
 	for _, c := range w.Result().Cookies() {
 		if c.Name == i18n.CookieName {

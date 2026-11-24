@@ -14,7 +14,7 @@ Datastar + Templ + Turso (sqlc) + owned auth + goqite + DagNats + NATS JetStream
 
 ## Stack
 
-Go 1.27 | Templ v0.3.1020 | Datastar v1.0.4 + datastar-go v1.2.2 | Turso (tursogo v0.8.3) | Tailwind v4.3.3 + DaisyUI v5.7.42 | goqite v0.4.0 | DagNats v0.0.30 | GoAkt v4.6.3 | NATS JetStream | age v1.3.2 | i18n seam (`internal/i18n`, default off).
+Go 1.27 | Templ v0.3.1020 | Datastar v1.0.4 + datastar-go v1.2.2 | Turso (tursogo v0.8.3) | Tailwind v4.3.3 + DaisyUI v5.7.42 | goqite v0.4.0 | DagNats v0.0.30 | GoAkt v4.6.3 | NATS JetStream | age v1.3.2 | i18n (`internal/i18n`, ON, default language `en-US`).
 
 ## Skills
 
@@ -58,7 +58,7 @@ Read the SKILL.md by name before the first matching edit (symlinks in `.agents/s
 - NO HTMX/Alpine, NO `fmt.Sprintf` HTML, NO `log` (`slog`).
 - NO prompt text in Go. A model-facing instruction is a file in `internal/prompts/files/<domain>/<name>.prompt` (Dotprompt: YAML frontmatter + `{{variable}}`), loaded via `internal/prompts`; `make check-prompts` fails on a prompt-shaped literal. See `docs/prompts.md`.
 - NO hand-rolled IDs (`dbschema.NewID()`), NO ad-hoc `role == "admin"` (Casbin + `canDelete*` only), NO `PatchElements` without `id` + `WithSelector` (use `internal/datastar.RenderAndPatch`).
-- NO second i18n library: strings via `internal/i18n.T(ctx, "dominio.chave", nil)`. NO hardcoded copy in new markup.
+- NO second i18n library: strings via `internal/i18n.T(ctx, "dominio.chave", nil)`. NO hardcoded copy in new markup. i18n is ON and the default language is the FIRST tag of `locales.yml` (`en-US`), never a literal in Go: `config.I18NConfig.Default` falls back to that record, and catalog files are named after the tag.
 - NO real LLM in tests (stub only), NO secrets in git/chat/fixtures (`~/.secrets/` 600 or age `.env.age`; never print values).
 - NO agent self-certification: RED/GREEN/PROVE — hand-mutate, watch fail, revert; never commit the mutation.
 - NO new dep without `docs/dependency-principles.md` + pinned version + PR trade-off line; native-floor changes are human gates.

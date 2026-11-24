@@ -198,10 +198,17 @@ replayed to the hub automatically. Without a leaf URL the desktop runs a
 standalone embedded NATS for local realtime.
 
 On top of that transport, **Loro CRDT** collaboration (`internal/collab`)
-publishes whiteboard updates on `app.sync.<docID>` and ephemeral multi-user
-**cursors** on `app.presence.<docID>`. The central server persists resolved
-Loro snapshots to the shared store and streams presence to browser clients
-via SSE (`GET /api/collab/presence/{docID}`).
+publishes whiteboard updates on `app.sync.<docID>`. The central server persists
+resolved Loro snapshots to the shared store, so an edge that reconnects
+rehydrates from the snapshot rather than replaying every update.
+
+Presence does **not** travel this way. Cursors, typing and drafts are relayed
+over the volatile HTTP path (`POST /api/whiteboard/{docID}/presence`, and the
+same relay for notes), fanned out through the SSE hub; the roster itself is the
+`collab.PresenceSeam` (in-process `PeerSet`, actor-backed when GoAkt runs,
+`FederatedPresence` when several instances must agree on a count). Because
+`cmd/desktop` boots the same `internal/server.StartChi`, it serves that relay
+itself — which is why the desktop needs no presence code of its own.
 
 ## Which backend `cmd/desktop` boots
 

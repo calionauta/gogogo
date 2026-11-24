@@ -1,0 +1,28 @@
+# check-surface allowlist — exported names with no consumer outside
+# their own package, accepted as debt. One module-relative entry per line.
+#
+# Accepting a dead export is a decision a reviewer should see, which is why this
+# is text and not a hash. An entry that stops matching is an ERROR, not
+# tolerance: otherwise a removed export could return unnoticed.
+#
+# Regenerate with: go run ./cmd/check-surface -update-allow
+catalog.MustReferenceIDs
+features/genui/components.ModeConversation
+features/genui/components.ModeOneShot
+features/kiosk/components.CentsLabel
+internal/auth.OAuthGitHub
+internal/auth.OAuthGoogle
+internal/collab.NewSyncWorkerForSubject
+internal/hostgate.SkipIfConstrained
+internal/i18n.Middleware
+internal/i18n.StyleShort
+internal/i18n.Translator
+internal/license.ErrNoLicense
+internal/llm.ConsumeStream
+internal/llm.StreamToSSE
+internal/nats.ClientURL
+internal/nats.EnsureKeyValue
+internal/recipe.HashFile
+internal/recipe.RoleAuthServer
+internal/recipe.ShapeWide
+internal/search.ModeValid

@@ -505,6 +505,15 @@ jobs:
         # neither an action nor a declared omission. Running only in pre-commit
         # meant a PR could merge with it red.
         run: make check-recipes
+      - name: Check-surface (an export no other package names)
+        # Same gate as `make check-surface` and the pre-commit surface job. An
+        # exported name nobody outside its package names is a door left open:
+        # the next caller treats it as API and the package can no longer change
+        # its mind. The baseline in .surface-allow is the accepted debt, so a
+        # PR that adds a dead export fails even though the baseline still
+        # matches — only -update-allow moves it.
+        run: go run ./cmd/check-surface -dir .
+
       - name: Check-typed-states (one spelling per state)
         # A named string type compared with a literal compiles and silently
         # falls through to the default. Type-aware, so it sees what the

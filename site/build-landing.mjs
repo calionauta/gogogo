@@ -371,6 +371,7 @@ const gateNotes = {
   "class-integrity": "a DaisyUI class not in the registry",
   "daisyui-lint": "a retired or typo'd DaisyUI class",
   "flatdeps-lint": "a dependency that breaks the flat stack",
+  surface: "an export no other package names",
   "test-value": "a test that cannot fail",
   "docs-claims": "a hand-written count or a dead path",
   "secrets-env": "a secret read outside the loader",

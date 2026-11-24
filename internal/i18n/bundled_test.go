@@ -8,7 +8,7 @@ func TestBundledCatalogCoversTodoSlice(t *testing.T) {
 	if !ok || pt != "Tarefas" {
 		t.Fatalf("bundled pt-BR todo.tasks = %q, %v", pt, ok)
 	}
-	en, ok := c.Lookup("en", "todo.tasks")
+	en, ok := c.Lookup("en-US", "todo.tasks")
 	if !ok || en != "Tasks" {
 		t.Fatalf("bundled en todo.tasks = %q, %v", en, ok)
 	}
@@ -19,7 +19,7 @@ func TestBundledCatalogCoversTodoSlice(t *testing.T) {
 		if _, ok := c.Lookup("pt-BR", key); !ok {
 			t.Fatalf("bundled pt-BR missing %q", key)
 		}
-		if _, ok := c.Lookup("en", key); !ok {
+		if _, ok := c.Lookup("en-US", key); !ok {
 			t.Fatalf("bundled en missing %q", key)
 		}
 	}

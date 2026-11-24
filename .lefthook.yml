@@ -90,6 +90,20 @@ pre-commit:
       run: go run ./cmd/check-typed-states -dir .
       glob: "**/*.go"
 
+    # An exported name nobody outside its package names is not a promise, it is
+    # a door left open: the next caller treats it as API and the package can no
+    # longer change its mind. The baseline in .surface-allow is the accepted
+    # debt; a NEW one blocks. `-include-internal` lists the review-only tail.
+    #
+    # The indexed wrapper measures the STAGED tree, not the working directory:
+    # run against the working tree, this gate reports findings that belong to
+    # files the commit does not contain (an unrelated branch being edited in the
+    # same checkout), so a green run proves nothing and a red one names the wrong
+    # change. See the script's header.
+    - name: surface
+      run: bash scripts/check-surface-indexed.sh
+      glob: "**/*.go"
+
     # The app-shape record and the slice cards are the two written contracts a
     # change silently outgrows: a route added to a feature, a unit dropped by a
     # shape. Milliseconds, and they fire only when the record, a card or a Go

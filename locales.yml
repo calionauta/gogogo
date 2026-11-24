@@ -1,5 +1,15 @@
 # The languages this product ships — read by the boot, the CLI and
-# `make check-locales`. The first entry is the fallback.
+# `make check-locales`.
+#
+# The FIRST entry is the product's default language: en-US. The full tag is
+# deliberate — a bare "en" and a browser's "en-US" are the same language, but
+# only a tag the catalog is actually named after resolves without ambiguity.
+#
+# Shipping a second language is a real cost, not a switch: every new key has to
+# exist in every catalog (internal/i18n/catalog_keys_test.go fails otherwise).
+# pt-BR ships beside en-US as the worked example — a second catalog, a real
+# picker, a recipe whose strings merge under its own prefix. A product that
+# wants one language deletes the tag here and the catalog beside it.
 locales:
-    - en
+    - en-US
     - pt-BR

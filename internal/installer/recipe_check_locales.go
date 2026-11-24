@@ -61,11 +61,12 @@ func checkRecipeLocales(root string, r recipe.Receipt, required []string) recipe
 		}
 		slices.Sort(out.Declared)
 		for _, tag := range required {
-			// The declared label IS the English spelling, so `en` needs no
-			// entry: requiring one would make every author restate it. Every
-			// other shipped language must be spelled out, or the grid mixes
-			// languages.
-			if strings.EqualFold(tag, "en") {
+			// The declared label IS the English spelling, so an English tag
+			// needs no entry: requiring one would make every author restate
+			// it, and "en" vs "en-US" is the same language written twice.
+			// Every other shipped language must be spelled out, or the grid
+			// mixes languages.
+			if isEnglishTag(tag) {
 				continue
 			}
 			if !slices.ContainsFunc(out.Declared, func(v string) bool { return strings.EqualFold(v, tag) }) {
@@ -122,4 +123,10 @@ func shippedLocales(root string, r recipe.Receipt) []string {
 		out = append(out, tag)
 	}
 	return out
+}
+
+// isEnglishTag reports an English tag in any form ("en", "en-US", "en-GB").
+func isEnglishTag(tag string) bool {
+	base, _, _ := strings.Cut(strings.ToLower(tag), "-")
+	return base == "en"
 }

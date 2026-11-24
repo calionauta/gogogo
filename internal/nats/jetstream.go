@@ -105,22 +105,3 @@ func EnsureKeyValue(bucket string, history uint8, ttl time.Duration, maxValueSiz
 	}
 	return kv, nil
 }
-
-// PublishEvent publishes an event to a room stream on the CURRENT handle.
-func PublishEvent(roomID, eventType string, data []byte) error {
-	js := JetStream()
-	if js == nil {
-		return errors.New("nats: no JetStream — StartEmbedded/ConnectExisting was not called")
-	}
-	_, err := js.Publish("room."+roomID+"."+eventType, data)
-	return err
-}
-
-// SubscribeRoom subscribes to all events for a room on the CURRENT handle.
-func SubscribeRoom(roomID string, handler func(msg *nats.Msg)) (*nats.Subscription, error) {
-	js := JetStream()
-	if js == nil {
-		return nil, errors.New("nats: no JetStream — StartEmbedded/ConnectExisting was not called")
-	}
-	return js.Subscribe("room."+roomID+".>", handler)
-}

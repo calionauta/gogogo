@@ -34,7 +34,7 @@ files:
     features/kiosk/draft.go: 70f0bd2177da4b9b15cc66106e6ef76e17ec2f7c285d4bfd1f9e71648676c3c3
     features/kiosk/handlers/engine.go: dd445465e5acccba1a8902cd82f21fe5e7e0b9e80f3aa32e1de0640590d86252
     features/kiosk/handlers/preview_test.go: e4299e3a9abd3405c348f7c8dc62bb6b2c59db461374f808ad1a0e65f02c09a2
-    features/kiosk/locale/en.json: 519d266a16a2c0d20df4be259a8fbce1c50cd164d70bed6d8c0a2f257403e7cb
+    features/kiosk/locale/en-US.json: 519d266a16a2c0d20df4be259a8fbce1c50cd164d70bed6d8c0a2f257403e7cb
     features/kiosk/locale/pt-BR.json: 2c7743c18746dddf6fb5b67c314d63aa96965e9f63665e46d4605328f2733208
 declaration:
     tables:

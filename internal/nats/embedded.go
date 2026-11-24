@@ -307,17 +307,6 @@ func ConnectExisting(url string) (*Handle, error) {
 	return h, nil
 }
 
-// Stop shuts down the current handle's server (if it started one) and closes
-// its connection. It is the compatible shim for callers that used the old
-// package-level Stop; new code should hold its Handle and call Close.
-func Stop() {
-	currentMu.Lock()
-	h := current
-	current = nil
-	currentMu.Unlock()
-	h.Close()
-}
-
 // JetStream returns the current handle's JetStream context, or nil when
 // nothing has been started.
 func JetStream() natsio.JetStreamContext {

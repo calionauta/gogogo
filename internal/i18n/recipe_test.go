@@ -23,7 +23,7 @@ func TestRecipeStringsAreMergedUnderTheirPrefix(t *testing.T) {
 	merged, err := core.WithRecipes([]RecipeCatalog{{
 		ID: "kiosk",
 		FS: recipeFS(map[string]string{
-			"locale/en.json":    `{"title":"Kiosk","confirm":"Confirm"}`,
+			"locale/en-US.json": `{"title":"Kiosk","confirm":"Confirm"}`,
 			"locale/pt-BR.json": `{"title":"Quiosque","confirm":"Confirmar"}`,
 		}),
 	}})
@@ -31,7 +31,7 @@ func TestRecipeStringsAreMergedUnderTheirPrefix(t *testing.T) {
 		t.Fatalf("WithRecipes: %v", err)
 	}
 	for _, tc := range []struct{ tag, key, want string }{
-		{"en", "kiosk.title", "Kiosk"},
+		{"en-US", "kiosk.title", "Kiosk"},
 		{"pt-BR", "kiosk.title", "Quiosque"},
 		{"pt-BR", "kiosk.confirm", "Confirmar"},
 		// Core strings are untouched by the merge.
@@ -44,7 +44,7 @@ func TestRecipeStringsAreMergedUnderTheirPrefix(t *testing.T) {
 	}
 	// The receiver is immutable: the boot catalog must not have gained the
 	// recipe's keys.
-	if _, ok := core.Lookup("en", "kiosk.title"); ok {
+	if _, ok := core.Lookup("en-US", "kiosk.title"); ok {
 		t.Error("the merge mutated the boot catalog")
 	}
 }
@@ -52,7 +52,7 @@ func TestRecipeStringsAreMergedUnderTheirPrefix(t *testing.T) {
 // TestTwoRecipesCannotCollide pins the prefix's purpose: two recipes with the
 // same local key coexist, and a duplicate id is refused.
 func TestTwoRecipesCannotCollide(t *testing.T) {
-	files := map[string]string{"locale/en.json": `{"title":"X"}`}
+	files := map[string]string{"locale/en-US.json": `{"title":"X"}`}
 	merged, err := Default().WithRecipes([]RecipeCatalog{
 		{ID: "a", FS: recipeFS(files)},
 		{ID: "b", FS: recipeFS(files)},
@@ -61,7 +61,7 @@ func TestTwoRecipesCannotCollide(t *testing.T) {
 		t.Fatalf("two recipes with the same local key must coexist: %v", err)
 	}
 	for _, id := range []string{"a", "b"} {
-		if _, ok := merged.Lookup("en", id+".title"); !ok {
+		if _, ok := merged.Lookup("en-US", id+".title"); !ok {
 			t.Errorf("%s.title missing", id)
 		}
 	}
@@ -90,7 +90,7 @@ func TestRecipeWithNoCatalogIsAnError(t *testing.T) {
 // answers pt-BR, through the core fallback.
 func TestPartialRecipeCatalogFallsBack(t *testing.T) {
 	merged, err := Default().WithRecipes([]RecipeCatalog{{
-		ID: "half", FS: recipeFS(map[string]string{"locale/en.json": `{"title":"Half"}`}),
+		ID: "half", FS: recipeFS(map[string]string{"locale/en-US.json": `{"title":"Half"}`}),
 	}})
 	if err != nil {
 		t.Fatalf("WithRecipes: %v", err)
@@ -103,15 +103,15 @@ func TestPartialRecipeCatalogFallsBack(t *testing.T) {
 // TestCoverageReportsTheGap is the advisory half: the merge works, and the
 // missing locale is still reported so it can be fixed.
 func TestCoverageReportsTheGap(t *testing.T) {
-	gaps := CheckRecipeCoverage([]string{"en", "pt-BR"}, []RecipeCatalog{{
-		ID: "half", FS: recipeFS(map[string]string{"locale/en.json": `{"title":"Half"}`}),
+	gaps := CheckRecipeCoverage([]string{"en-US", "pt-BR"}, []RecipeCatalog{{
+		ID: "half", FS: recipeFS(map[string]string{"locale/en-US.json": `{"title":"Half"}`}),
 	}})
 	if len(gaps) != 1 || !strings.Contains(gaps[0], "pt-BR") {
 		t.Fatalf("expected one pt-BR gap, got %v", gaps)
 	}
-	if gaps := CheckRecipeCoverage([]string{"en", "pt-BR"}, []RecipeCatalog{{
+	if gaps := CheckRecipeCoverage([]string{"en-US", "pt-BR"}, []RecipeCatalog{{
 		ID: "full", FS: recipeFS(map[string]string{
-			"locale/en.json": `{"t":"a"}`, "locale/pt-BR.json": `{"t":"b"}`,
+			"locale/en-US.json": `{"t":"a"}`, "locale/pt-BR.json": `{"t":"b"}`,
 		}),
 	}}); len(gaps) != 0 {
 		t.Fatalf("a complete recipe must report nothing, got %v", gaps)

@@ -5,12 +5,12 @@ import (
 	"testing"
 )
 
-//go:embed locale/en.json locale/pt-BR.json
+//go:embed locale/en-US.json locale/pt-BR.json
 var testFS embed.FS
 
 func loadTestCatalog(t *testing.T) *Catalog {
 	t.Helper()
-	c, err := LoadFS(testFS, []string{"en", "pt-BR"}, "en")
+	c, err := LoadFS(testFS, []string{"en-US", "pt-BR"}, "en-US")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -18,7 +18,7 @@ func loadTestCatalog(t *testing.T) *Catalog {
 }
 
 func TestLoadFSRejectsEmptySupported(t *testing.T) {
-	if _, err := LoadFS(testFS, nil, "en"); err == nil {
+	if _, err := LoadFS(testFS, nil, "en-US"); err == nil {
 		t.Fatal("empty supported must fail")
 	}
 }
@@ -33,7 +33,7 @@ func TestLookupFallsBackToDefault(t *testing.T) {
 	if !ok || got != "Modules" {
 		t.Fatalf("unknown locale must fall back, got %q, %v", got, ok)
 	}
-	if _, ok := c.Lookup("en", "no.such.key"); ok {
+	if _, ok := c.Lookup("en-US", "no.such.key"); ok {
 		t.Fatal("unknown key must miss in both")
 	}
 }
@@ -42,7 +42,7 @@ func TestSupportedReturnsCopy(t *testing.T) {
 	c := loadTestCatalog(t)
 	sup := c.Supported()
 	sup[0] = "mutated"
-	if c.Supported()[0] != "en" {
+	if c.Supported()[0] != "en-US" {
 		t.Fatal("Supported must return a copy")
 	}
 }

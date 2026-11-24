@@ -161,7 +161,13 @@ go run ./cmd/gogogo locales --set en,pt-BR
 against it, and `make check-locales` fails a branch where a recipe translates
 one shipped language but not another. A metric label is translated in the
 declaration's own `translations:` block (it is data, so it cannot live in the
-app catalog), and `en` is the fallback spelling — never a required entry.
+app catalog).
+
+The default language is the FIRST tag of `locales.yml` (`en-US`) — the boot
+follows the record instead of carrying a literal of its own, so there is one
+place that decides. pt-BR ships beside it as the worked second catalog (a real
+picker, a recipe's strings merging under its own prefix); drop the tag and the
+catalog to go single-language.
 
 Contract: [skills/gogogo-recipe-authoring](skills/gogogo-recipe-authoring/SKILL.md) ·
 Taxonomy: [docs/scope-taxonomy](docs/scope-taxonomy.md).

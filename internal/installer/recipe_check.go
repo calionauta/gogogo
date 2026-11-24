@@ -79,7 +79,7 @@ func runRecipeCheck(args []string, stdout io.Writer) error {
 
 // defaultRecipeLocales is the fallback for tests and callers that do not pass
 // the instance's configured set. The CLI reads SUPPORTED_LOCALES instead.
-var defaultRecipeLocales = []string{"en", "pt-BR"}
+var defaultRecipeLocales = []string{"en-US"}
 
 // checkOneRecipe is the pure evaluator. Split from runRecipeCheck so
 // tests can pin the scoring rules without the CLI.

@@ -132,7 +132,7 @@ type ctxKey struct{}
 type catalogKey struct{}
 
 // DefaultLocale is used when a context carries no locale.
-const DefaultLocale = "en"
+const DefaultLocale = "en-US"
 
 // WithCatalog stores catalog in ctx. Templates call T and
 // TCount with the request ctx; they never hold a catalog,
