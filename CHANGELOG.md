@@ -15,6 +15,19 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.73.0 (2026-11-24)
+
+## What's Changed
+* deps: pin the gorilla/websocket PRNG fix, and unblock every push by @calionauta in https://github.com/calionauta/gogogo/pull/473
+* readme: the landing-page caveat leaves the quick start by @calionauta in https://github.com/calionauta/gogogo/pull/474
+* feat(gate): check-surface judges exports AND methods by @calionauta in https://github.com/calionauta/gogogo/pull/476
+* chore(ci): bump actions/checkout from 4 to 7 in the actions group by @dependabot[bot] in https://github.com/calionauta/gogogo/pull/477
+* chore(site): bump docsite to 57beedfc1919672321f9cda9a33f7442de5f0fc4 by @github-actions[bot] in https://github.com/calionauta/gogogo/pull/472
+* chore(skills): bump vendored stelow coding standards to a1b0f0978ef0 by @github-actions[bot] in https://github.com/calionauta/gogogo/pull/478
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.72.4...v0.73.0
+
 ## 0.72.4 (2026-11-22)
 
 ## What's Changed
