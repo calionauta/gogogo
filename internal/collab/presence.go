@@ -13,6 +13,16 @@ import (
 	natsio "github.com/nats-io/nats.go"
 )
 
+// The presence message types both implementations publish. They live here, with
+// the implementation that outlived the deprecated WebPresence copy, rather than
+// in each file: two declarations of "cursor" that must stay equal is a
+// divergence waiting to happen.
+const (
+	presenceJoin   = "join"
+	presenceLeave  = "leave"
+	presenceCursor = "cursor"
+)
+
 // presenceSubject returns the pub/sub subject for a doc's presence.
 // Exported so the central SSE bridge (features/whiteboard/chi) can
 // subscribe the same subject the edges publish to.

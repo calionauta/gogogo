@@ -130,49 +130,6 @@ func (w *WebSyncWorker) doc(docID string) *Doc {
 // natsSubject returns the NATS subject for a doc's sync updates.
 func natsSyncSubject(docID string) string { return "app.sync." + docID }
 
-// ApplyUpdate merges an incoming Loro update for docID, persists the
-// resolved snapshot, and broadcasts the update to every other connected
-// client on the doc's stream (SSE hub) and to NATS (cross-instance).
-// fromClientID is the originator (excluded from the broadcast).
-func (w *WebSyncWorker) ApplyUpdate(docID, fromClientID string, update []byte) (int, error) {
-	d := w.doc(docID)
-	if err := d.ApplyUpdate(update); err != nil {
-		return 0, err
-	}
-	snapshot := d.EncodeSnapshot()
-	if w.persister != nil {
-		if err := w.persister.SaveSnapshot(docID, snapshot); err != nil {
-			slog.Warn("collab: persist snapshot failed", "doc", docID, "error", err)
-		}
-	}
-	// SSE Hub broadcast (in-process, to every browser watching THIS doc).
-	// Doc-scoped: a global broadcast let any doc's update land on every
-	// other doc's stream.
-	payload, err := json.Marshal(WebUpdateEvent{
-		Type: "update",
-		Doc:  docID,
-		From: fromClientID,
-		Data: update,
-	})
-	if err != nil {
-		slog.Warn("collab: marshal update", "doc", docID, "error", err)
-		return len(snapshot), err
-	}
-	w.hub.BroadcastExceptToDoc(payload, docID, fromClientID)
-
-	// NATS broadcast (cross-instance): publish the raw Loro update so the
-	// SyncWorker on other instances (subscribed to app.sync.>) also
-	// converges this doc. Published regardless of fromClientID because
-	// other instances did NOT originate this op.
-	if w.nc != nil {
-		if nErr := w.nc.Publish(natsSyncSubject(docID), update); nErr != nil {
-			slog.Warn("collab: nats publish update", "doc", docID, "error", nErr)
-		}
-	}
-
-	return len(snapshot), nil
-}
-
 // ApplyOp applies a shape op (add / clear) to the doc's LoroMap, persists
 // the snapshot, and broadcasts to the SSE hub AND NATS.
 func (w *WebSyncWorker) ApplyOp(docID, fromClientID string, op ShapeOp) ([]Shape, error) {
@@ -219,9 +176,9 @@ func (w *WebSyncWorker) Shapes(docID string) []Shape {
 	return w.doc(docID).Shapes()
 }
 
-// WebUpdateEvent is the wire envelope for a web transport update, sent
-// (if a snapshot exists). Called when a client opens the doc so it starts
-// from the latest saved state before receiving live updates.
+// LoadSnapshot returns the persisted snapshot for docID, rehydrating the cached
+// doc from it (if a snapshot exists). Called when a client opens the doc so it
+// starts from the latest saved state before receiving live updates.
 func (w *WebSyncWorker) LoadSnapshot(docID string) ([]byte, bool) {
 	if w.persister == nil {
 		return nil, false
@@ -246,13 +203,4 @@ func (w *WebSyncWorker) LoadSnapshot(docID string) ([]byte, bool) {
 // survivor).
 func (w *WebSyncWorker) Forget(docID string) error {
 	return w.docs.Forget(docID)
-}
-
-// WebUpdateEvent is the wire envelope for a web transport update, sent
-// over the SSE hub to peers. Data is the raw Loro update bytes.
-type WebUpdateEvent struct {
-	Type string `json:"type"` // "update"
-	Doc  string `json:"doc"`
-	From string `json:"from"` // originator client id (for diagnostics)
-	Data []byte `json:"data"` // Loro update bytes
 }

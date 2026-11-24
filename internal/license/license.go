@@ -178,13 +178,6 @@ func (s *Store) Claims() *Claims {
 	return s.claims
 }
 
-// Token returns the stored wire token (empty when unactivated).
-func (s *Store) Token() string {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.raw
-}
-
 // Activate verifies and persists a token, then makes it live. The file is
 // 0600: the token is a bearer credential for the entitlement and, in account
 // mode, carries the user id.
