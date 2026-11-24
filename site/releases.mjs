@@ -38,10 +38,11 @@ export function splitSections(md) {
 //     no longer written — the file is release-please-owned)
 //   0.43.2 (2026-10-11)                (release-please with
 //     "changelog-type": "github" — bare semver, no brackets; the matching
-//     "## What's Changed" subsection is folded back into the version body
-//     by loadReleases below, never rendered as its own page. The config is
-//     "github" today (the type must not change — see CHANGELOG.md), so this
-//     is the live shape, not a historical one.)
+//     "## What's Changed" and "## New Contributors" subsections are folded
+//     back into the version body by loadReleases below, never rendered as
+//     their own pages. The config is "github" today (the type must not
+//     change — see CHANGELOG.md), so this is the live shape, not a
+//     historical one.)
 // NOTE: this diverges from the canonical skill copy (see header) which
 // predates the github changelog-type; re-apply on refresh.
 export function parseRelease(header) {
@@ -85,10 +86,12 @@ export function loadReleases(ROOT, SOURCES) {
       process.exit(1);
     }
     for (const { header, body } of splitSections(readFileSync(abs, "utf8"))) {
-      // "## What's Changed" is a release-please (changelog-type: github)
-      // subsection, not a version: fold it into the version entry above
-      // instead of rendering a page for it.
-      if (/^what's changed$/i.test(header.trim())) {
+      // "## What's Changed" and "## New Contributors" are release-please
+      // (changelog-type: github) subsections, not versions: fold them into
+      // the version entry above instead of rendering a page for each. (New
+      // Contributors appears on a contributor's first PR — the first
+      // occurrence broke the build because only What's Changed was folded.)
+      if (/^what's changed$/i.test(header.trim()) || /^new contributors$/i.test(header.trim())) {
         if (entries.length) entries[entries.length - 1].body += `\n\n${body}`;
         continue;
       }
