@@ -11,6 +11,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -68,11 +69,27 @@ type finding struct {
 // itself. Tests are read by markUnloadedUses instead, from the AST, which is
 // also what credits build-tag-excluded files.
 //
+// One load at a time, per process. go/types fans out across the import graph
+// and that fan-out has a data race of its own on the 1.27 toolchain (seen ~1
+// run in 6, only under -race, inside Checker.isComplete). Serialising the loads
+// is not enough on its own — the fan-out is INSIDE one load — so the load also
+// runs on a single thread. Neither costs the gate anything: it loads once.
+//
 // The returned dir is absolute: markUnloadedUses derives a package path from
 // filepath.Rel(dir, file), and a relative dir makes that produce garbage
 // (`module//catalog`), which silently matches no declaration and reports a
 // clean tree. One normalisation at the boundary keeps every join correct.
+// loadMu serialises loads. Two packages.Load calls running at once share
+// nothing and must not: go/types type-checks each load on its own goroutines,
+// and two of those graphs racing is what the detector reports. Measured: each
+// real-tree test alone is 6/6 clean, the same two together fail ~1 run in 6.
+// The gate itself loads once, so this costs nothing outside tests.
+var loadMu sync.Mutex
+
 func load(dir string, withDeps bool) (string, []*packages.Package, error) {
+	loadMu.Lock()
+	defer loadMu.Unlock()
+
 	dir, err := filepath.Abs(dir)
 	if err != nil {
 		return "", nil, err
